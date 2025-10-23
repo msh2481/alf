@@ -12,15 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cv2
+import base64
 import http.server
 import json
-import numpy as np
 import pprint
 import socketserver
-from typing import Callable
 import urllib.parse
-import base64
+from typing import Callable
+
+import cv2
+import numpy as np
 
 ROUTES = {}  # Dictionary to store endpoint-to-handler mapping
 HELP_TEXT = {}  # Dictionary to store help text for each endpoint

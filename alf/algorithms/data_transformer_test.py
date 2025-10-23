@@ -12,19 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
-import torch
 import numpy as np
+import torch
+from absl.testing import parameterized
 
 import alf
-from alf.data_structures import Experience, namedtuple, StepType
-from alf.experience_replayers.replay_buffer import ReplayBuffer, BatchInfo
-from alf.experience_replayers.replay_buffer_test import get_exp_batch, ReplayBufferTest
 from alf.algorithms.data_transformer import (
     FrameStacker,
-    ImageScaleTransformer,
     HindsightExperienceTransformer,
+    ImageScaleTransformer,
 )
+from alf.data_structures import Experience, StepType, namedtuple
+from alf.experience_replayers.replay_buffer import BatchInfo, ReplayBuffer
+from alf.experience_replayers.replay_buffer_test import ReplayBufferTest, get_exp_batch
 from alf.utils import common
 
 TimestepItem = namedtuple(

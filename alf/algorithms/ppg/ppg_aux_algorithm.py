@@ -12,24 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
 import copy
+from typing import Optional
+
 import torch
 
-from alf.algorithms.data_transformer import IdentityDataTransformer
-from alf.data_structures import namedtuple
 from alf.algorithms.config import TrainerConfig
+from alf.algorithms.data_transformer import IdentityDataTransformer
+from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
 from alf.algorithms.ppg import (
+    PPGAuxPhaseLoss,
     PPGRolloutInfo,
     PPGTrainInfo,
-    PPGAuxPhaseLoss,
     ppg_network_forward,
 )
-from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
-from alf.data_structures import TimeStep, AlgStep, LossInfo
+from alf.data_structures import AlgStep, LossInfo, TimeStep, namedtuple
 from alf.experience_replayers.replay_buffer import ReplayBuffer
-from alf.utils import dist_utils
 from alf.tensor_specs import TensorSpec
+from alf.utils import dist_utils
 
 # Data structure to store the options for PPG's auxiliary phase
 # training iterations.

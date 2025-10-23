@@ -17,9 +17,9 @@ import numpy as np
 import torch
 
 import alf
-from alf.environments.random_alf_environment import RandomAlfEnvironment
 import alf.nest as nest
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.environments.random_alf_environment import RandomAlfEnvironment
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 
 
 class AlfEnvironmentTest(alf.test.TestCase):

@@ -15,17 +15,17 @@
 This file defines some basic experiment protocol (e.g., parallel envs, hidden
 layers, learning rate, etc) to be shared by different algorithms to be evaluated.
 """
-import torch
-
 from functools import partial
 
+import torch
+
 import alf
+from alf.algorithms.data_transformer import ObservationNormalizer, RewardNormalizer
 from alf.environments import suite_dmc
 from alf.environments.gym_wrappers import FrameSkip
-from alf.utils.math_ops import clipped_exp
-from alf.algorithms.data_transformer import RewardNormalizer, ObservationNormalizer
 from alf.networks import BetaProjectionNetwork
 from alf.optimizers import Adam
+from alf.utils.math_ops import clipped_exp
 
 use_beta_proj = False
 

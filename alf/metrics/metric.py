@@ -16,12 +16,13 @@
 Code adapted from https://github.com/tensorflow/agents/blob/master/tf_agents/metrics/tf_metric.py
 """
 
-import alf
 import os
 from typing import Dict
 
 import torch
 from torch import nn
+
+import alf
 
 
 class StepMetric(nn.Module):

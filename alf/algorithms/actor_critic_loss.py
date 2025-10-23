@@ -14,14 +14,15 @@
 
 from collections import namedtuple
 
-import torch
 import numpy as np
+import torch
 
 import alf
 from alf.data_structures import LossInfo
+from alf.utils import dist_utils, tensor_utils, value_ops
 from alf.utils.losses import element_wise_squared_loss
 from alf.utils.summary_utils import safe_mean_hist_summary
-from alf.utils import tensor_utils, dist_utils, value_ops
+
 from .algorithm import Loss
 
 ActorCriticLossInfo = namedtuple(

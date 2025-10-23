@@ -12,21 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Data transformers for transforming data from environment or replay buffer."""
-from absl import logging
 import copy
 from functools import partial
-import numpy as np
-import torch
-from torch import nn
 from typing import Iterable, Optional
 
+import numpy as np
+import torch
+from absl import logging
+from torch import nn
+
 import alf
-from alf.data_structures import AlgStep, Experience, namedtuple, StepType, TimeStep
-from alf.experience_replayers.replay_buffer import ReplayBuffer, BatchInfo
+from alf.data_structures import AlgStep, Experience, StepType, TimeStep, namedtuple
+from alf.experience_replayers.replay_buffer import BatchInfo, ReplayBuffer
 from alf.nest.utils import convert_device
-from alf.utils.normalizers import WindowNormalizer, EMNormalizer, AdaptiveNormalizer
 from alf.utils import common
-from alf.utils.normalizers import ScalarAdaptiveNormalizer
+from alf.utils.normalizers import (
+    AdaptiveNormalizer,
+    EMNormalizer,
+    ScalarAdaptiveNormalizer,
+    WindowNormalizer,
+)
 
 FrameStackState = namedtuple("FrameStackState", ["steps", "prev_frames"])
 

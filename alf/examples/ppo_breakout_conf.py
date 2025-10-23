@@ -15,9 +15,8 @@ import functools
 
 import alf
 from alf.algorithms.agent import Agent
-from alf.networks import ActorDistributionNetwork, ValueNetwork
-
 from alf.examples import atari_conf, ppo_conf
+from alf.networks import ActorDistributionNetwork, ValueNetwork
 
 discount = 0.988
 num_envs = 64

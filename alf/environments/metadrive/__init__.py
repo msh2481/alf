@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .environments import BirdEyeTopDownEnv, VectorizedTopDownEnv
 from .geometry import FieldOfView
 from .sensors import VectorizedObservation
-from .environments import VectorizedTopDownEnv, BirdEyeTopDownEnv

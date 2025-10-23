@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from functools import partial
+
 import torch
 
 import alf
@@ -20,7 +21,7 @@ from alf.algorithms.agent import Agent
 from alf.algorithms.encoding_algorithm import EncodingAlgorithm
 from alf.algorithms.ppo_algorithm import PPOAlgorithm, PPOLoss
 from alf.algorithms.trac_algorithm import TracAlgorithm
-from alf.environments import suite_babyai, alf_wrappers
+from alf.environments import alf_wrappers, suite_babyai
 
 alf.config(
     "TrainerConfig",

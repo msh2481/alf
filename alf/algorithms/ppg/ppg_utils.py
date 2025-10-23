@@ -14,9 +14,10 @@
 
 # Import annotations to enable type hints of PPGTrainInfo inside PPGTrainInfo
 from __future__ import annotations
+
 from typing import Optional
 
-from alf.data_structures import namedtuple, TimeStep, AlgStep
+from alf.data_structures import AlgStep, TimeStep, namedtuple
 from alf.utils import common, dist_utils
 
 from .disjoint_policy_value_network import DisjointPolicyValueNetwork

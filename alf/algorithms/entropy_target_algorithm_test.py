@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
 import torch
 import torch.nn as nn
+from absl.testing import parameterized
 
 import alf
 from alf.algorithms.entropy_target_algorithm import (
     EntropyTargetAlgorithm,
     EntropyTargetInfo,
+    NestedEntropyTargetAlgorithm,
 )
-from alf.algorithms.entropy_target_algorithm import NestedEntropyTargetAlgorithm
-from alf.data_structures import TimeStep, StepType
+from alf.data_structures import StepType, TimeStep
 from alf.networks import NormalProjectionNetwork, StableNormalProjectionNetwork
 from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 

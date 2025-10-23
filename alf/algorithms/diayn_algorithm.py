@@ -16,12 +16,12 @@ import torch
 
 import alf
 from alf.algorithms.algorithm import Algorithm
-from alf.data_structures import AlgStep, LossInfo, namedtuple, TimeStep, StepType
+from alf.data_structures import AlgStep, LossInfo, StepType, TimeStep, namedtuple
 from alf.networks import EncodingNetwork
 from alf.tensor_specs import BoundedTensorSpec, TensorSpec
-from alf.utils.tensor_utils import to_tensor
 from alf.utils import math_ops
 from alf.utils.normalizers import AdaptiveNormalizer, ScalarAdaptiveNormalizer
+from alf.utils.tensor_utils import to_tensor
 
 DIAYNInfo = namedtuple("DIAYNInfo", ["loss"])
 

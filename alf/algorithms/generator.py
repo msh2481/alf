@@ -14,16 +14,17 @@
 """A generic generator."""
 
 import functools
+
 import numpy as np
 import torch
 from torch.autograd.functional import jacobian
 
 import alf
+import alf.nest as nest
 from alf.algorithms.algorithm import Algorithm
 from alf.algorithms.mi_estimator import MIEstimator
 from alf.data_structures import AlgStep, LossInfo, namedtuple
-import alf.nest as nest
-from alf.networks import Network, EncodingNetwork, ReluMLP
+from alf.networks import EncodingNetwork, Network, ReluMLP
 from alf.tensor_specs import TensorSpec
 from alf.utils import common, math_ops
 from alf.utils.averager import AdaptiveAverager

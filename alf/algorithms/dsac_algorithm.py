@@ -13,21 +13,27 @@
 # limitations under the License.
 """Distributional Soft Actor-Critic algorithm."""
 
+from typing import Callable, Optional, Union
+
 import torch
-from typing import Union, Callable, Optional
 
 import alf
-from alf.algorithms.config import TrainerConfig
-from alf.algorithms.sac_algorithm import SacAlgorithm, SacInfo, ActionType
-from alf.algorithms.sac_algorithm import SacCriticState
-from alf.algorithms.sac_algorithm import SacCriticInfo, SacState, SacActorInfo
-from alf.data_structures import TimeStep, AlgStep, namedtuple, LossInfo, StepType
-from alf.nest import nest
 import alf.nest.utils as nest_utils
-from alf.networks import ActorDistributionNetwork
-from alf.networks import CriticQuantileNetwork
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
-from alf.utils import losses, common, dist_utils, math_ops
+from alf.algorithms.config import TrainerConfig
+from alf.algorithms.sac_algorithm import (
+    ActionType,
+    SacActorInfo,
+    SacAlgorithm,
+    SacCriticInfo,
+    SacCriticState,
+    SacInfo,
+    SacState,
+)
+from alf.data_structures import AlgStep, LossInfo, StepType, TimeStep, namedtuple
+from alf.nest import nest
+from alf.networks import ActorDistributionNetwork, CriticQuantileNetwork
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
+from alf.utils import common, dist_utils, losses, math_ops
 
 DSacInfo = namedtuple(
     "DSacInfo",

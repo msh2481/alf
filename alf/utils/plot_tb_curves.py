@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
-import numpy as np
-import os
 import glob
-from scipy.interpolate import interp1d
-from scipy.signal import savgol_filter
+import os
 
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy.interpolate import interp1d
+from scipy.signal import savgol_filter
+from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 
 # Style gallery: https://tonysyu.github.io/raw_content/matplotlib-style-gallery/gallery.html
 plt.style.use("seaborn-dark")

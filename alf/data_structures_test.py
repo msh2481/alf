@@ -14,13 +14,14 @@
 """Test cases adapted from tf_agents policy_step_test.py and time_step_test.py."""
 
 import unittest
+
 import numpy as np
 import torch
 
 import alf
-from alf.nest import flatten, map_structure
-from alf.data_structures import AlgStep, StepType, TimeStep, Experience
+from alf.data_structures import AlgStep, Experience, StepType, TimeStep
 from alf.experience_replayers.replay_buffer_test import get_exp_batch
+from alf.nest import flatten, map_structure
 
 
 class AlgStepTest(unittest.TestCase):

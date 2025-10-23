@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from setuptools import setup, find_packages
 from pybind11.setup_helpers import Pybind11Extension, build_ext
+from setuptools import find_packages, setup
 
 setup(
     name="alf",
@@ -52,7 +52,8 @@ setup(
         "torchtext==0.18.0",
         "torchvision==0.21.0",
         "wheel",
-        "yapf==0.43.0",
+        "black>=24.8.0",
+        "isort>=5.13.0",
     ],  # And any other dependencies alf needs
     cmdclass={"build_ext": build_ext},
     extras_require={

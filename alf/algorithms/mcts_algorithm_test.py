@@ -12,21 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
-from absl.testing import parameterized
 import time
+
 import torch
 import torch.distributions as td
+from absl import logging
+from absl.testing import parameterized
 
 import alf
 from alf.algorithms.mcts_algorithm import (
+    MCTSAlgorithm,
     MCTSModel,
     MCTSState,
     ModelOutput,
-    MCTSAlgorithm,
     VisitSoftmaxTemperatureByMoves,
+    calculate_exploration_policy,
 )
-from alf.algorithms.mcts_algorithm import calculate_exploration_policy
 from alf.data_structures import StepType, TimeStep
 
 

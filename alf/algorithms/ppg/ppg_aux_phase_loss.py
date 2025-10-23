@@ -12,15 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union, List, Callable
+from typing import Callable, List, Union
+
 import torch.distributions as td
 
 import alf
-from alf.data_structures import namedtuple, LossInfo
 from alf.algorithms.algorithm import Loss
-from alf.utils.losses import element_wise_squared_loss
-from .ppg_utils import PPGTrainInfo
+from alf.data_structures import LossInfo, namedtuple
 from alf.utils import tensor_utils, value_ops
+from alf.utils.losses import element_wise_squared_loss
+
+from .ppg_utils import PPGTrainInfo
 
 # The auxiliary phase updates the network parameters based a loss that
 # has 3 parts. See PPGAuxPhaseLoss below for details.

@@ -14,16 +14,16 @@
 
 from typing import NamedTuple, Tuple
 
-import torch
-import numpy as np
 import gym
+import numpy as np
+import torch
 
 try:
-    import pygame
     import metadrive
+    import pygame
+    from metadrive.component.vehicle.base_vehicle import BaseVehicle
     from metadrive.obs.observation_base import ObservationBase
     from metadrive.obs.top_down_obs_multi_channel import TopDownMultiChannel
-    from metadrive.component.vehicle.base_vehicle import BaseVehicle
 except ImportError:
     from unittest.mock import Mock
 
@@ -32,10 +32,11 @@ except ImportError:
     pygame = Mock()
 
 import alf
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
+
+from .agent_perception import AgentPerception
 from .geometry import FieldOfView, Polyline
 from .map_perception import MapPolylinePerception
-from .agent_perception import AgentPerception
 
 
 @alf.configurable

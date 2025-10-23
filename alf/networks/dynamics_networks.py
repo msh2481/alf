@@ -21,13 +21,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import alf
-import alf.utils.math_ops as math_ops
 import alf.nest as nest
+import alf.utils.math_ops as math_ops
 from alf.initializers import variance_scaling_init
 from alf.tensor_specs import TensorSpec
 
-from .network import Network
 from .encoding_networks import EncodingNetwork
+from .network import Network
 from .projection_networks import NormalProjectionNetwork
 
 

@@ -13,11 +13,11 @@
 # limitations under the License.
 """Action Quantizer."""
 
-from absl import logging
-import numpy as np
 import functools
 
+import numpy as np
 import torch
+from absl import logging
 
 import alf
 

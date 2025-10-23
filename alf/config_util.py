@@ -13,15 +13,16 @@
 # limitations under the License.
 """Alf configuration utilities."""
 
-from absl import logging
 import functools
-import gin
 import inspect
-from inspect import Parameter
 import os
 import pprint
 import runpy
 import shutil
+from inspect import Parameter
+
+import gin
+from absl import logging
 
 __all__ = [
     "config",

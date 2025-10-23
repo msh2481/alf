@@ -17,12 +17,12 @@ import numpy as np
 import torch
 
 import alf
-from alf.algorithms.algorithm import Algorithm
-from alf.algorithms.mi_estimator import MIEstimator
-from alf.algorithms.generator import CriticAlgorithm
-from alf.data_structures import AlgStep, LossInfo, namedtuple
 import alf.nest as nest
-from alf.networks import Network, EncodingNetwork
+from alf.algorithms.algorithm import Algorithm
+from alf.algorithms.generator import CriticAlgorithm
+from alf.algorithms.mi_estimator import MIEstimator
+from alf.data_structures import AlgStep, LossInfo, namedtuple
+from alf.networks import EncodingNetwork, Network
 from alf.tensor_specs import TensorSpec
 from alf.utils import common, math_ops
 from alf.utils.averager import AdaptiveAverager

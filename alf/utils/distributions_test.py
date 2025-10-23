@@ -14,8 +14,9 @@
 
 import numpy as np
 import torch
-import alf.utils.distributions as ad
+
 import alf
+import alf.utils.distributions as ad
 
 
 class DistributionTest(alf.test.TestCase):

@@ -21,7 +21,7 @@ import alf
 from alf.nest.utils import get_outer_rank
 from alf.tensor_specs import TensorSpec
 from alf.utils import common, math_ops
-from alf.utils.averager import WindowAverager, EMAverager, AdaptiveAverager
+from alf.utils.averager import AdaptiveAverager, EMAverager, WindowAverager
 
 
 @alf.configurable(whitelist=["max_dims_to_summarize"])

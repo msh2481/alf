@@ -12,21 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
-from absl.testing import parameterized
-from collections import namedtuple
 import math
-import torch
-import torch.distributions as td
+from collections import namedtuple
 from functools import partial
 
+import torch
+import torch.distributions as td
+from absl import logging
+from absl.testing import parameterized
 from torch.distributions.mixture_same_family import MixtureSameFamily
 
 import alf
-from alf.utils import math_ops
 import alf.utils.dist_utils as dist_utils
-from alf.networks.normalizing_flow_networks import _RealNVPTransform
 from alf.networks import NetworkWrapper
+from alf.networks.normalizing_flow_networks import _RealNVPTransform
+from alf.utils import math_ops
 
 ActionDistribution = namedtuple("ActionDistribution", ["a", "b"])
 

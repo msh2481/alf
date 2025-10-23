@@ -21,6 +21,7 @@ based TrainerConfig in this module.
 
 import math
 import random
+
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.data_transformer import create_data_transformer
 from alf.config_util import (

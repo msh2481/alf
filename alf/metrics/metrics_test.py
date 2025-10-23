@@ -12,24 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import unittest
+
 import torch
+from absl.testing import parameterized
 
 import alf
+from alf.data_structures import StepType, TimeStep
 from alf.metrics import (
-    EnvironmentSteps,
-    NumberOfEpisodes,
-    AverageReturnMetric,
     AverageDiscountedReturnMetric,
-    AverageEpisodeLengthMetric,
     AverageEnvInfoMetric,
+    AverageEpisodeLengthMetric,
     AverageEpisodicAggregationMetric,
+    AverageReturnMetric,
+    EnvironmentSteps,
     EpisodicStartAverageDiscountedReturnMetric,
+    NumberOfEpisodes,
 )
 from alf.utils.tensor_utils import to_tensor
-from alf.data_structures import TimeStep, StepType
-
-import unittest
-from absl.testing import parameterized
 
 
 def _create_timestep(reward, env_id, step_type, env_info):

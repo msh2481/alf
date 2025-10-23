@@ -16,15 +16,20 @@ import torch
 
 import alf
 from alf.algorithms.algorithm import Algorithm
-from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
-from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.data_transformer import RewardNormalizer
-from alf.data_structures import TimeStep, Experience, namedtuple, AlgStep
-from alf.data_structures import make_experience
+from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
+from alf.algorithms.sac_algorithm import SacAlgorithm
+from alf.data_structures import (
+    AlgStep,
+    Experience,
+    TimeStep,
+    make_experience,
+    namedtuple,
+)
 from alf.tensor_specs import BoundedTensorSpec, TensorSpec
-from alf.utils.conditional_ops import conditional_update
 from alf.utils import common, summary_utils
+from alf.utils.conditional_ops import conditional_update
 
 ActionRepeatState = namedtuple(
     "ActionRepeatState",

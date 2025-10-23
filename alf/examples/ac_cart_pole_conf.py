@@ -14,8 +14,8 @@
 
 import alf
 from alf.algorithms.actor_critic_algorithm import ActorCriticAlgorithm
-from alf.algorithms.trac_algorithm import TracAlgorithm
 from alf.algorithms.data_transformer import RewardScaling
+from alf.algorithms.trac_algorithm import TracAlgorithm
 
 # environment config
 alf.config("create_environment", env_name="CartPole-v0", num_parallel_environments=8)

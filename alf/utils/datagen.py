@@ -13,12 +13,12 @@
 # limitations under the License.
 """Utilities for supervised learning algorithms"""
 from collections import Counter
-import numpy as np
 
+import numpy as np
 import torch
 import torchvision
-from torchvision import datasets, transforms
 from torch.utils.data import Subset
+from torchvision import datasets, transforms
 
 import alf
 

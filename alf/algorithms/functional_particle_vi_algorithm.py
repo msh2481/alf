@@ -13,26 +13,31 @@
 # limitations under the License.
 """ParticleVI algorithm on parameterized functions."""
 
-from absl import logging
 import functools
 import math
+from typing import Callable
+
 import numpy as np
 import torch
 import torch.nn.functional as F
-from typing import Callable
+from absl import logging
 
 import alf
 from alf.algorithms.algorithm import Algorithm
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.particle_vi_algorithm import ParVIAlgorithm
 from alf.data_structures import AlgStep, LossInfo, namedtuple
+from alf.nest.utils import get_outer_rank
 from alf.networks import EncodingNetwork, ParamNetwork
 from alf.tensor_specs import TensorSpec
-from alf.nest.utils import get_outer_rank
 from alf.utils import common, math_ops, summary_utils
+from alf.utils.sl_utils import (
+    auc_score,
+    classification_loss,
+    predict_dataset,
+    regression_loss,
+)
 from alf.utils.summary_utils import record_time
-from alf.utils.sl_utils import classification_loss, regression_loss, auc_score
-from alf.utils.sl_utils import predict_dataset
 
 
 def _expand_to_replica(inputs, replicas, spec):

@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import time
 from functools import partial
+
+import torch
 from absl import logging
 from absl.testing import parameterized
-import torch
-import time
 
 import alf
 from alf.utils import losses

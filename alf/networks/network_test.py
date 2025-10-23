@@ -13,29 +13,28 @@
 # limitations under the License.
 """Tests for alf.networks.network."""
 
-from absl.testing import parameterized
 from functools import partial
 
 import torch
 import torch.nn as nn
+from absl.testing import parameterized
 
 import alf
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
-from alf.initializers import _numerical_calculate_gain
-from alf.initializers import _calculate_gain
+from alf.initializers import _calculate_gain, _numerical_calculate_gain
 from alf.networks import (
     ActorNetwork,
     ActorRNNNetwork,
+    BetaProjectionNetwork,
     EncodingNetwork,
     LSTMEncodingNetwork,
     PreprocessorNetwork,
     TransformerNetwork,
     ValueNetwork,
     ValueRNNNetwork,
-    BetaProjectionNetwork,
 )
-from alf.networks.preprocessors import EmbeddingPreprocessor
 from alf.networks.network import NaiveParallelNetwork
+from alf.networks.preprocessors import EmbeddingPreprocessor
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 
 
 def test_net_copy(net):

@@ -15,11 +15,13 @@
 from functools import partial
 
 import alf
-from alf.nest.utils import NestConcat
 from alf.examples import sac_conf
-from alf.networks import UnitNormalActorDistributionNetwork
-from alf.networks import LatentActorDistributionNetwork
-from alf.networks import RealNVPNetwork
+from alf.nest.utils import NestConcat
+from alf.networks import (
+    LatentActorDistributionNetwork,
+    RealNVPNetwork,
+    UnitNormalActorDistributionNetwork,
+)
 
 alf.config("create_environment", env_name="Pendulum-v0", num_parallel_environments=1)
 

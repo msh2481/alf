@@ -13,21 +13,22 @@
 # limitations under the License.
 """Replay buffer."""
 
-from absl import logging
 import math
+
 import numpy as np
 import torch
 import torch.nn as nn
+from absl import logging
 
 import alf
 from alf import data_structures as ds
 from alf.data_structures import namedtuple
 from alf.nest.utils import convert_device
-from alf.utils.common import warning_once
-from alf.utils.data_buffer import atomic, RingBuffer
 from alf.utils import checkpoint_utils
+from alf.utils.common import warning_once
+from alf.utils.data_buffer import RingBuffer, atomic
 
-from .segment_tree import SumSegmentTree, MaxSegmentTree
+from .segment_tree import MaxSegmentTree, SumSegmentTree
 
 BatchInfo = namedtuple(
     "BatchInfo",

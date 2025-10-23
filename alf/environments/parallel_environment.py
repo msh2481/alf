@@ -17,14 +17,14 @@ Adapted from TF-Agents Environment API as seen in:
     https://github.com/tensorflow/agents/blob/master/tf_agents/environments/parallel_py_environment.py
 """
 
-from absl import logging
 import numpy
 import torch
+from absl import logging
 
 import alf
+import alf.nest as nest
 from alf.environments import alf_environment
 from alf.environments.process_environment import ProcessEnvironment
-import alf.nest as nest
 
 
 @alf.configurable

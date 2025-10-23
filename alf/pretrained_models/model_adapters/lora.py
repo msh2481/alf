@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import types
 import copy
+import types
 from functools import partial
 from typing import Callable, Tuple
 

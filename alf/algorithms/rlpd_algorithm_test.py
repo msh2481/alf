@@ -12,32 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
-from absl.testing import parameterized
+import unittest
 from functools import partial
+
 import torch
 import torch.distributions as td
-import unittest
+from absl import logging
+from absl.testing import parameterized
 
 import alf
 from alf.algorithms.config import TrainerConfig
+from alf.algorithms.ppo_algorithm_test import unroll
 from alf.algorithms.rl_algorithm import RLAlgorithm
+from alf.algorithms.rl_algorithm_test import MyEnv
 from alf.algorithms.rlpd_algorithm import RlpdAlgorithm
 from alf.algorithms.sac_algorithm import ActionType as SacActionType
-from alf.algorithms.rl_algorithm_test import MyEnv
 from alf.data_structures import StepType, TimeStep
 from alf.environments.suite_unittest import (
-    PolicyUnittestEnv,
     ActionType,
     MixedPolicyUnittestEnv,
+    PolicyUnittestEnv,
 )
+from alf.nest.utils import NestConcat
 from alf.networks import ActorDistributionNetwork, CriticNetwork, QNetwork
 from alf.networks.preprocessors import EmbeddingPreprocessor
-from alf.nest.utils import NestConcat
-from alf.algorithms.ppo_algorithm_test import unroll
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 from alf.utils import common, dist_utils, tensor_utils
 from alf.utils.math_ops import clipped_exp
-from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 
 
 class RlpdAlgorithmTestInit(alf.test.TestCase):

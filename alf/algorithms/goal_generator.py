@@ -12,23 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
 import functools
 
+import numpy as np
 import torch
 
 import alf
+import alf.utils.common as common
 from alf.algorithms.rl_algorithm import RLAlgorithm
 from alf.data_structures import (
-    TimeStep,
+    AlgStep,
     Experience,
     LossInfo,
-    namedtuple,
-    AlgStep,
     StepType,
+    TimeStep,
+    namedtuple,
 )
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
-import alf.utils.common as common
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 
 GoalState = namedtuple("GoalState", ["goal"], default_value=())
 GoalInfo = namedtuple("GoalInfo", ["goal", "loss"], default_value=())

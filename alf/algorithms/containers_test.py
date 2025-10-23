@@ -13,12 +13,12 @@
 # limitations under the License.
 
 import torch
-import alf
 
+import alf
+from alf.algorithms.actor_critic_algorithm import ActorCriticInfo, ActorCriticLoss
 from alf.algorithms.algorithm import Algorithm
-from alf.algorithms.actor_critic_algorithm import ActorCriticLoss, ActorCriticInfo
 from alf.algorithms.config import TrainerConfig
-from alf.algorithms.containers import SequentialAlg, RLAlgWrapper, EchoAlg
+from alf.algorithms.containers import EchoAlg, RLAlgWrapper, SequentialAlg
 from alf.algorithms.rl_algorithm_test import MyEnv
 from alf.data_structures import AlgStep, Experience
 from alf.networks import ActorDistributionNetwork, ValueNetwork

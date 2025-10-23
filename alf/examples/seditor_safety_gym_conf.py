@@ -14,7 +14,6 @@
 
 import alf
 from alf.algorithms.seditor_algorithm import SEditorAlgorithm
-
 from alf.examples import sac_safety_gym_conf
 
 """Follow instructions in ``sac_safety_gym_conf.py`` and ``suite_safety_gym.py``

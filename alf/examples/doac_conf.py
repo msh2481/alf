@@ -12,21 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import math
 from functools import partial
 
-import math
 import alf
 from alf.algorithms.doac_algorithm import DOacAlgorithm
 from alf.algorithms.one_step_loss import OneStepTDQRLoss
 from alf.environments import suite_dmc
 from alf.environments.gym_wrappers import FrameSkip
-from alf.networks import ActorDistributionNetwork
-from alf.networks import CriticQuantileNetwork, CriticNetwork
+from alf.examples import sac_conf
+from alf.networks import ActorDistributionNetwork, CriticNetwork, CriticQuantileNetwork
 from alf.optimizers import AdamTF
 from alf.tensor_specs import TensorSpec
 from alf.utils.math_ops import clipped_exp
-
-from alf.examples import sac_conf
 
 
 @alf.configurable

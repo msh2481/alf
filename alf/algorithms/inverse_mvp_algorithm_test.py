@@ -12,22 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
+import functools
+
 import torch
 import torch.nn as nn
+from absl.testing import parameterized
+
 import alf
-from alf.data_structures import AlgStep, LossInfo
 from alf.algorithms.algorithm import Algorithm
 from alf.algorithms.generator import InverseMVPAlgorithm
+from alf.data_structures import AlgStep, LossInfo
+from alf.initializers import variance_scaling_init
+from alf.networks.encoding_networks import EncodingNetwork
 from alf.networks.network import Network
 from alf.networks.relu_mlp import ReluMLP
 from alf.networks.relu_mlp_test import jacobian
 from alf.tensor_specs import TensorSpec
 from alf.utils.math_ops import identity
-
-import functools
-from alf.networks.encoding_networks import EncodingNetwork
-from alf.initializers import variance_scaling_init
 
 
 class InverseMVPTest(parameterized.TestCase, alf.test.TestCase):

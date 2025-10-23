@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
-from alf.utils.common import lazy_load_extension
-import pathlib
 import os
+import pathlib
+
+import torch
+
+from alf.utils.common import lazy_load_extension
 
 DIR = pathlib.Path(__file__).parent.absolute()
 _ext = lazy_load_extension(

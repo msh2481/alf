@@ -16,13 +16,12 @@ import functools
 import alf
 from alf.algorithms.actor_critic_algorithm import ActorCriticAlgorithm
 from alf.algorithms.agent import Agent
+from alf.examples import atari_conf
 from alf.networks import (
     ActorDistributionNetwork,
     CategoricalProjectionNetwork,
     ValueNetwork,
 )
-
-from alf.examples import atari_conf
 
 # From OpenAI gym wiki:
 # "v0 vs v4: v0 has repeat_action_probability of 0.25

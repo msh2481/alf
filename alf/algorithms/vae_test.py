@@ -12,21 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
-from absl.testing import parameterized
 import os
-import numpy as np
 import tempfile
 from functools import partial
 
+import numpy as np
 import torch
+from absl import logging
+from absl.testing import parameterized
 
 import alf
 import alf.algorithms.vae as vae
 from alf.layers import FC
 from alf.nest.utils import NestConcat
 from alf.networks import EncodingNetwork
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 from alf.utils import math_ops
 
 

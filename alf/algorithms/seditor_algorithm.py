@@ -12,25 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from enum import Enum
 import functools
-from typing import Callable, List, Union, Tuple
+from enum import Enum
+from typing import Callable, List, Tuple, Union
 
 import torch
 import torch.nn as nn
 
 import alf
-from alf.algorithms.config import TrainerConfig
-from alf.data_structures import LossInfo, namedtuple, TimeStep, AlgStep
-from alf.algorithms.sac_algorithm import _set_target_entropy
-from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
-from alf.algorithms.td_loss import TDLoss
 import alf.nest as nest
 import alf.nest.utils as nest_utils
+import alf.summary.render as render
+from alf.algorithms.config import TrainerConfig
+from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
+from alf.algorithms.sac_algorithm import _set_target_entropy
+from alf.algorithms.td_loss import TDLoss
+from alf.data_structures import AlgStep, LossInfo, TimeStep, namedtuple
 from alf.networks import ActorDistributionNetwork, CriticNetwork, ValueNetwork
 from alf.networks.preprocessors import EmbeddingPreprocessor
-import alf.summary.render as render
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 from alf.utils import common, dist_utils, losses, math_ops, spec_utils
 
 SEditorInfo = namedtuple(

@@ -13,19 +13,12 @@
 # limitations under the License.
 """Various functions used by different alf modules."""
 
-from absl import flags
-from absl import logging
 import contextlib
 import copy
 import ctypes
 import ctypes.util
-from fasteners.process_lock import InterProcessLock
-from filelock import FileLock
-from functools import wraps
-import gin
 import glob
 import math
-import numpy as np
 import os
 import pathlib
 import pprint
@@ -35,22 +28,30 @@ import socket
 import subprocess
 import sys
 import time
+import traceback
+import types
+from contextlib import contextmanager
+from functools import wraps
+from typing import Callable, Dict, List, Optional, Union
+
+import gin
+import numpy as np
 import torch
 import torch.distributions as td
 import torch.nn as nn
 import torch.utils.cpp_extension
-import traceback
-import types
-from typing import Callable, List, Dict, Optional, Union
-from contextlib import contextmanager
+from absl import flags, logging
+from fasteners.process_lock import InterProcessLock
+from filelock import FileLock
 
 import alf
+import alf.nest as nest
 from alf import module as alf_module
 from alf.algorithms.config import TrainerConfig
-import alf.nest as nest
+from alf.utils.per_process_context import PerProcessContext
 from alf.utils.schedulers import Scheduler, as_scheduler
 from alf.utils.spec_utils import zeros_from_spec as zero_tensor_from_nested_spec
-from alf.utils.per_process_context import PerProcessContext
+
 from . import dist_utils, gin_utils
 
 
@@ -58,7 +59,7 @@ from . import dist_utils, gin_utils
 # code. This context manager allows us to restore the original gfile module temporarily.
 @contextmanager
 def orig_tf_gfile_context():
-    from alf.summary.summary_ops import TF_IO_GFILE, TB_IO_GFILE
+    from alf.summary.summary_ops import TB_IO_GFILE, TF_IO_GFILE
 
     assert (
         TF_IO_GFILE is not None

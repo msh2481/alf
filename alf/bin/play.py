@@ -24,22 +24,21 @@ You can visualize playing of the trained model by running:
 
 """
 
-from absl import app
-from absl import flags
-from absl import logging
 import copy
 import inspect
 import os
 import subprocess
 import sys
-import torch
 
+import torch
+from absl import app, flags, logging
+
+import alf.summary.render as render
+import alf.utils.external_configurables
 from alf.algorithms.data_transformer import create_data_transformer
 from alf.environments.utils import create_environment
 from alf.trainers import policy_trainer
 from alf.utils import common
-import alf.summary.render as render
-import alf.utils.external_configurables
 
 
 def _define_flags():

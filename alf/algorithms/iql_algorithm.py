@@ -13,20 +13,19 @@
 # limitations under the License.
 """Implicit Q-Learning Algorithm."""
 
-import numpy as np
 import functools
+
+import numpy as np
 import torch
 
 import alf
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
 from alf.algorithms.one_step_loss import OneStepTDLoss
-from alf.data_structures import TimeStep, LossInfo, namedtuple
-from alf.data_structures import AlgStep, StepType
+from alf.data_structures import AlgStep, LossInfo, StepType, TimeStep, namedtuple
 from alf.nest import nest
-from alf.networks import ActorDistributionNetwork, CriticNetwork
-from alf.networks import ValueNetwork
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.networks import ActorDistributionNetwork, CriticNetwork, ValueNetwork
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 from alf.utils import common, dist_utils, math_ops
 
 IqlActionState = namedtuple(

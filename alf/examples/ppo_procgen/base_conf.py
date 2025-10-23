@@ -27,8 +27,7 @@ https://github.com/openai/phasic-policy-gradient
 """
 
 import alf
-from alf.examples import ppo_conf
-from alf.examples import procgen_conf
+from alf.examples import ppo_conf, procgen_conf
 from alf.examples.networks import impala_cnn_encoder
 
 # Environment Configuration

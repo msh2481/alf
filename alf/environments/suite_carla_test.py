@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import flags
-from absl import logging
 import pprint
 import sys
+
 import torch
+from absl import flags, logging
 
 import alf
 from alf.environments import suite_carla

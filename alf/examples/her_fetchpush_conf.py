@@ -19,9 +19,8 @@ from alf.algorithms.data_transformer import (
 )
 from alf.algorithms.ddpg_algorithm import DdpgAlgorithm
 from alf.environments import suite_robotics
-from alf.nest.utils import NestConcat
-
 from alf.examples import ddpg_fetchpush_conf
+from alf.nest.utils import NestConcat
 
 alf.config("suite_robotics.load", concat_desired_goal=False)
 alf.config("ActorNetwork", preprocessing_combiner=NestConcat())

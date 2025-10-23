@@ -14,50 +14,48 @@
 """Trainer for training an Algorithm on given environments."""
 
 import abc
-from absl import logging
-from absl import flags
-from functools import partial
-from typing import Dict
 import math
 import os
-from pathlib import Path
 import re
 import signal
-import threading
 import sys
-from typing import Callable
+import threading
 import time
+from functools import partial
+from pathlib import Path
+from typing import Callable, Dict
+
+import numpy as np
 import torch
 import torch.nn as nn
+from absl import flags, logging
 from PIL import Image
-import numpy as np
 
 import alf
+import alf.utils.datagen as datagen
 from alf.algorithms.algorithm import Algorithm, Loss
-from alf.networks import Network
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.data_transformer import (
-    create_data_transformer,
     IdentityDataTransformer,
+    create_data_transformer,
 )
 from alf.data_structures import StepType, make_experience
 from alf.environments.utils import create_environment
 from alf.nest import map_structure
+from alf.networks import Network
 from alf.tensor_specs import TensorSpec
 from alf.trainers.http_server import (
-    start_server,
-    register_endpoint,
     CustomRequestHandler,
+    register_endpoint,
+    start_server,
 )
-from alf.utils import common
-from alf.utils import git_utils
-from alf.utils import math_ops
-from alf.utils.pretty_print import pformat_pycolor
+from alf.utils import common, git_utils, math_ops
 from alf.utils.checkpoint_utils import Checkpointer
-from alf.utils.schedulers import update_progress
-import alf.utils.datagen as datagen
 from alf.utils.per_process_context import PerProcessContext
+from alf.utils.pretty_print import pformat_pycolor
+from alf.utils.schedulers import update_progress
 from alf.utils.summary_utils import record_time
+
 from .evaluator import Evaluator
 
 
@@ -368,7 +366,9 @@ class Trainer(object):
         checkpoint_saved = False
         try:
             if self._config.profiling:
-                import cProfile, pstats, io
+                import cProfile
+                import io
+                import pstats
 
                 pr = cProfile.Profile()
                 pr.enable()

@@ -14,12 +14,14 @@
 
 import functools
 import io
-import numpy as np
+
 import matplotlib
+import numpy as np
 
 matplotlib.use("Agg")  # 'Agg' no need for xserver!
-import matplotlib.pyplot as plt
 from typing import Optional
+
+import matplotlib.pyplot as plt
 from absl import logging
 
 # Style gallery: https://tonysyu.github.io/raw_content/matplotlib-style-gallery/gallery.html
@@ -37,7 +39,6 @@ except ImportError:
     rpack = None
 
 import cv2
-
 import torch
 import torch.distributions as td
 

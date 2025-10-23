@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import alf
-
 from alf.algorithms.sac_algorithm import SacAlgorithm
 
 alf.import_config("sac_cart_pole_conf.py")

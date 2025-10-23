@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
 import unittest
+
+import numpy as np
 import torch
+from absl.testing import parameterized
+
 import alf
 from alf.trainers.policy_trainer import Trainer
 from alf.utils.schedulers import CyclicalScheduler
-import numpy as np
 
 
 class CyclicalSchedulerTest(parameterized.TestCase, unittest.TestCase):

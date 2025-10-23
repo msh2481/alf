@@ -13,12 +13,13 @@
 # limitations under the License.
 
 import math
+
 import torch
 
 import alf
 from alf.algorithms.prior_actor import SameActionPriorActor, UniformPriorActor
+from alf.data_structures import StepType, TimeStep
 from alf.tensor_specs import BoundedTensorSpec
-from alf.data_structures import TimeStep, StepType
 
 
 class PriorActorTest(alf.test.TestCase):

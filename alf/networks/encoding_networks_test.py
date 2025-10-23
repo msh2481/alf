@@ -13,25 +13,28 @@
 # limitations under the License.
 """Tests for alf.encoding_networks."""
 
-from absl.testing import parameterized
-from absl import logging
-import numpy as np
 import functools
 import time
+
+import numpy as np
 import torch
+from absl import logging
+from absl.testing import parameterized
 
 import alf
-from alf.networks.encoding_networks import AutoShapeImageDeconvNetwork
-from alf.networks.encoding_networks import EncodingNetwork
-from alf.networks.encoding_networks import ImageEncodingNetwork
-from alf.networks.encoding_networks import ImageDecodingNetwork
-from alf.networks.encoding_networks import ImageDecodingNetworkV2
-from alf.networks.encoding_networks import LSTMEncodingNetwork
+from alf.nest.utils import NestConcat, NestSum
+from alf.networks.encoding_networks import (
+    AutoShapeImageDeconvNetwork,
+    EncodingNetwork,
+    ImageDecodingNetwork,
+    ImageDecodingNetworkV2,
+    ImageEncodingNetwork,
+    LSTMEncodingNetwork,
+)
 from alf.networks.network_test import test_net_copy
 from alf.networks.preprocessors import EmbeddingPreprocessor
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 from alf.utils import common, math_ops
-from alf.nest.utils import NestSum, NestConcat
 
 
 class EncodingNetworkTest(parameterized.TestCase, alf.test.TestCase):

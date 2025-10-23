@@ -12,14 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
 import functools
+
 import torch
+from absl.testing import parameterized
 
 import alf
-from alf.environments import suite_highway, alf_environment
-from alf.environments import thread_environment, parallel_environment
 import alf.nest as nest
+from alf.environments import (
+    alf_environment,
+    parallel_environment,
+    suite_highway,
+    thread_environment,
+)
 from alf.tensor_specs import BoundedTensorSpec
 
 

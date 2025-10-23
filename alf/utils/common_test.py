@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
+import multiprocessing as mp
 from contextlib import redirect_stderr
 from io import StringIO
-import multiprocessing as mp
+
 import numpy as np
 import torch
 import torch.nn as nn
+from absl import logging
 
 import alf
 import alf.utils.common as common

@@ -14,17 +14,17 @@
 """Functional particle VI algorithm test."""
 
 import absl
-from absl.testing import parameterized
 import numpy as np
 import torch
 import torch.nn.functional as F
+from absl.testing import parameterized
+from torch.utils.data import DataLoader, TensorDataset
 
 import alf
 from alf.algorithms.functional_particle_vi_algorithm import FuncParVIAlgorithm
 from alf.tensor_specs import TensorSpec
 from alf.utils import math_ops
 from alf.utils.datagen import TestDataSet
-from torch.utils.data import TensorDataset, DataLoader
 
 
 class FuncParVIAlgorithmTest(parameterized.TestCase, alf.test.TestCase):

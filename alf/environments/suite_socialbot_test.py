@@ -14,11 +14,16 @@
 """Test for alf.environments.suite_socialbot."""
 
 import functools
+
 import torch
 
 import alf
-from alf.environments import suite_socialbot, alf_environment
-from alf.environments import thread_environment, parallel_environment
+from alf.environments import (
+    alf_environment,
+    parallel_environment,
+    suite_socialbot,
+    thread_environment,
+)
 
 
 class SuiteSocialbotTest(alf.test.TestCase):

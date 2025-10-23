@@ -12,19 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .config_util import *
-from .tensor_specs import *
+import alf.utils.external_configurables
 
-from . import metrics
-from . import module
+from . import metrics, module, nest
 from . import networks
 from . import networks as nn
-from . import nest
-from . import optimizers
-from . import summary
-from . import test
-from .utils import math_ops as math
-
-from .device_ctx import *
-import alf.utils.external_configurables
+from . import optimizers, summary, test
 from .config_helpers import *
+from .config_util import *
+from .device_ctx import *
+from .tensor_specs import *
+from .utils import math_ops as math

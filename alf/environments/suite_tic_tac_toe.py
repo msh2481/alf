@@ -15,7 +15,7 @@
 import torch
 
 import alf
-from alf.data_structures import TimeStep, StepType
+from alf.data_structures import StepType, TimeStep
 
 from .alf_environment import AlfEnvironment
 

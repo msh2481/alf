@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Tuple, List
-import numpy as np
+from typing import Callable, List, Tuple
 
+import numpy as np
 import torch
 import torch.distributions as td
 
 import alf
 from alf.algorithms.algorithm import Algorithm
 from alf.algorithms.vae import VAEOutput
-from alf.data_structures import namedtuple, AlgStep, LossInfo
+from alf.data_structures import AlgStep, LossInfo, namedtuple
 from alf.utils import tensor_utils
 
 

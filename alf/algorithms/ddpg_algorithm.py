@@ -14,25 +14,31 @@
 """Deep Deterministic Policy Gradient (DDPG)."""
 
 import functools
-import numpy as np
-
-import torch
-import torch.nn as nn
-import torch.distributions as td
 from typing import Callable
 
+import numpy as np
+import torch
+import torch.distributions as td
+import torch.nn as nn
+
 import alf
+import alf.nest.utils as nest_utils
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
 from alf.algorithms.one_step_loss import OneStepTDLoss
 from alf.algorithms.rl_algorithm import RLAlgorithm
-from alf.data_structures import TimeStep, Experience, LossInfo, namedtuple
-from alf.data_structures import AlgStep, StepType
+from alf.data_structures import (
+    AlgStep,
+    Experience,
+    LossInfo,
+    StepType,
+    TimeStep,
+    namedtuple,
+)
 from alf.nest import nest
-import alf.nest.utils as nest_utils
 from alf.networks import ActorNetwork, CriticNetwork
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
-from alf.utils import losses, common, dist_utils, math_ops, spec_utils
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
+from alf.utils import common, dist_utils, losses, math_ops, spec_utils
 
 DdpgCriticState = namedtuple(
     "DdpgCriticState", ["critics", "target_actor", "target_critics"], default_value=()

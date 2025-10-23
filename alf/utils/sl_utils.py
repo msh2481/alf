@@ -13,11 +13,12 @@
 # limitations under the License.
 """Supervised learning utilities."""
 
-import alf
 import absl
-import torch
 import numpy as np
+import torch
 import torch.nn.functional as F
+
+import alf
 from alf.data_structures import LossInfo
 
 try:

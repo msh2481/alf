@@ -16,14 +16,14 @@
 Adapted from TF-Agents Environment API as seen in:
     https://github.com/tensorflow/agents/blob/master/tf_agents/environments/random_py_environment.py
 """
-from absl import logging
 import numpy as np
 import torch
+from absl import logging
 
 import alf.data_structures as ds
+import alf.tensor_specs as ts
 from alf.environments import alf_environment
 from alf.nest import nest
-import alf.tensor_specs as ts
 
 
 class RandomAlfEnvironment(alf_environment.AlfEnvironment):

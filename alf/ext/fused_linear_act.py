@@ -12,12 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
-from typing import Any, Literal, Optional
-from alf.utils.common import lazy_load_extension
-import torch.nn.functional as F
-import pathlib
 import os
+import pathlib
+from typing import Any, Literal, Optional
+
+import torch
+import torch.nn.functional as F
+
+from alf.utils.common import lazy_load_extension
+
 from .act_backward import act_backward
 
 DIR = pathlib.Path(__file__).parent.absolute()

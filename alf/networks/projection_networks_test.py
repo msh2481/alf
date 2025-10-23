@@ -14,22 +14,24 @@
 """Tests for alf.networks.projection_networks."""
 
 from functools import partial
-from absl.testing import parameterized
 
 import torch
+from absl.testing import parameterized
 
 import alf
-from alf.networks import BetaProjectionNetwork
-from alf.networks import CategoricalProjectionNetwork
-from alf.networks import NormalProjectionNetwork
-from alf.networks import OnehotCategoricalProjectionNetwork
-from alf.networks import StableNormalProjectionNetwork
-from alf.networks import TruncatedProjectionNetwork
+import alf.utils.math_ops as math_ops
+from alf.networks import (
+    BetaProjectionNetwork,
+    CategoricalProjectionNetwork,
+    NormalProjectionNetwork,
+    OnehotCategoricalProjectionNetwork,
+    StableNormalProjectionNetwork,
+    TruncatedProjectionNetwork,
+)
 from alf.networks.projection_networks import MixtureProjectionNetwork
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 from alf.utils import dist_utils
 from alf.utils.dist_utils import DistributionSpec
-import alf.utils.math_ops as math_ops
 
 
 class TestCategoricalProjectionNetwork(parameterized.TestCase, alf.test.TestCase):

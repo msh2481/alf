@@ -16,10 +16,9 @@ from functools import partial
 
 import alf
 from alf.algorithms.taac_algorithm import TaacAlgorithm
-from alf.utils import dist_utils
-
 from alf.examples import sac_conf
 from alf.examples.benchmarks.fetch import fetch_conf
+from alf.utils import dist_utils
 
 alf.config(
     "TaacAlgorithmBase",

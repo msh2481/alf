@@ -21,12 +21,12 @@ import torch.nn.functional as F
 import alf
 from alf.algorithms.algorithm import Algorithm, AlgStep, LossInfo
 from alf.layers import BatchSquash
-from alf.networks import EncodingNetwork
 from alf.nest import get_nest_batch_size
-from alf.nest.utils import get_outer_rank, NestConcat
+from alf.nest.utils import NestConcat, get_outer_rank
+from alf.networks import EncodingNetwork
+from alf.utils import common, math_ops
 from alf.utils.averager import EMAverager, ScalarAdaptiveAverager
 from alf.utils.data_buffer import DataBuffer
-from alf.utils import common, math_ops
 from alf.utils.dist_utils import DiagMultivariateNormal
 
 

@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
+from typing import Callable, Optional, Tuple, Union
 
+import numpy as np
 import torch
-from typing import Optional, Tuple, Callable, Union
 
 import alf
+from alf.algorithms.algorithm import Algorithm
 from alf.data_structures import AlgStep, namedtuple
 from alf.networks.encoding_networks import EncodingNetwork
-from alf.algorithms.algorithm import Algorithm
-from alf.utils.dist_utils import Beta
 from alf.utils import losses
+from alf.utils.dist_utils import Beta
 
 FlowMatchingInfo = namedtuple(
     "FlowMatchingInfo", ["loss", "denoise_vec", "pred_denoise_vec"], default_value=()

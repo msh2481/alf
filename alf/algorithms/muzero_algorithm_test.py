@@ -12,31 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
 from functools import partial
-import torch
-from torch import nn
+from typing import Optional
+
 import numpy as np
+import torch
+from absl.testing import parameterized
+from torch import nn
 
 import alf
+import alf.data_structures as ds
 from alf.algorithms.data_transformer import FrameStacker
+from alf.algorithms.mcts_algorithm import MCTSInfo, MCTSState
+from alf.algorithms.mcts_models import (
+    MCTSModel,
+    ModelOutput,
+    ModelTarget,
+    get_unique_num_actions,
+)
 from alf.algorithms.muzero_algorithm import (
     MuzeroAlgorithm,
     MuzeroInfo,
     OffPolicyAlgorithm,
 )
 from alf.algorithms.muzero_representation_learner import MuzeroRepresentationImpl
-from alf.algorithms.mcts_algorithm import MCTSInfo, MCTSState
-from alf.algorithms.mcts_models import (
-    get_unique_num_actions,
-    MCTSModel,
-    ModelOutput,
-    ModelTarget,
-)
-import alf.data_structures as ds
-from alf.experience_replayers.replay_buffer import ReplayBuffer, BatchInfo
+from alf.experience_replayers.replay_buffer import BatchInfo, ReplayBuffer
 from alf.utils import common, dist_utils
-from absl.testing import parameterized
 
 
 class MockMCTSModel(nn.Module):

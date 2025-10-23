@@ -13,22 +13,27 @@
 # limitations under the License.
 """Quantile Regression Soft Actor Critic Algorithm."""
 
+from typing import Callable, Optional, Union
+
 import torch
 import torch.distributions as td
-from typing import Union, Callable, Optional
 
 import alf
-from alf.algorithms.config import TrainerConfig
-from alf.algorithms.sac_algorithm import SacAlgorithm, SacInfo, ActionType
-from alf.algorithms.sac_algorithm import SacActionState, SacCriticState
-from alf.algorithms.sac_algorithm import SacCriticInfo, SacState
-from alf.data_structures import TimeStep
-from alf.data_structures import AlgStep
-from alf.nest import nest
 import alf.nest.utils as nest_utils
-from alf.networks import ActorDistributionNetwork, CriticNetwork
-from alf.networks import QNetwork
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.algorithms.config import TrainerConfig
+from alf.algorithms.sac_algorithm import (
+    ActionType,
+    SacActionState,
+    SacAlgorithm,
+    SacCriticInfo,
+    SacCriticState,
+    SacInfo,
+    SacState,
+)
+from alf.data_structures import AlgStep, TimeStep
+from alf.nest import nest
+from alf.networks import ActorDistributionNetwork, CriticNetwork, QNetwork
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 from alf.utils import dist_utils
 
 

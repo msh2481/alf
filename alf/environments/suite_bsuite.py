@@ -12,17 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import alf
-from alf.environments import gym_wrappers, alf_wrappers, alf_gym_wrapper
-from alf.environments.suite_gym import wrap_env
+from typing import Any, Dict, Tuple
 
 import bsuite
+import numpy as np
 from bsuite import sweep
 from bsuite.utils import gym_wrapper
-from gym import spaces
 from dm_env import specs
-import numpy as np
-from typing import Any, Dict, Tuple
+from gym import spaces
+
+import alf
+from alf.environments import alf_gym_wrapper, alf_wrappers, gym_wrappers
+from alf.environments.suite_gym import wrap_env
 
 
 def is_available():

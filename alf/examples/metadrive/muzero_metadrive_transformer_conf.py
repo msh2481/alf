@@ -12,32 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from alf.optimizers import AdamTF
-from alf.algorithms.muzero_representation_learner import (
-    LinearTdStepFunc,
-    MuzeroRepresentationImpl,
-)
-from alf.algorithms.mcts_models import SimpleMCTSModel
-from alf.algorithms.mcts_algorithm import (
-    MCTSAlgorithm,
-    VisitSoftmaxTemperatureByProgress,
-)
-from alf.utils.schedulers import StepScheduler
-from alf.networks.projection_networks import (
-    StableNormalProjectionNetwork,
-    BetaProjectionNetwork,
-)
 from functools import partial
-from alf.utils.summary_utils import summarize_tensor_gradients
 from typing import NamedTuple, Tuple
 
 import torch
 
 import alf
 from alf import layers
-from alf.utils import losses
-from alf.examples.metadrive import base_conf
+from alf.algorithms.mcts_algorithm import (
+    MCTSAlgorithm,
+    VisitSoftmaxTemperatureByProgress,
+)
+from alf.algorithms.mcts_models import SimpleMCTSModel
+from alf.algorithms.muzero_representation_learner import (
+    LinearTdStepFunc,
+    MuzeroRepresentationImpl,
+)
 from alf.examples import muzero_conf
+from alf.examples.metadrive import base_conf
+from alf.networks.projection_networks import (
+    BetaProjectionNetwork,
+    StableNormalProjectionNetwork,
+)
+from alf.optimizers import AdamTF
+from alf.utils import losses
+from alf.utils.schedulers import StepScheduler
+from alf.utils.summary_utils import summarize_tensor_gradients
 
 
 def define_config(name, default_value):

@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
 import contextlib
 import functools
-import torch
-import torch.nn as nn
 import types
 from typing import Callable
+
+import torch
+import torch.nn as nn
+from absl import logging
 
 import alf
 from alf.nest import flatten, pack_sequence_as

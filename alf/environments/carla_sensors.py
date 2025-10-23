@@ -13,13 +13,14 @@
 # limitations under the License.
 
 import abc
-from absl import logging
-from collections import deque
-import cv2
-from enum import IntEnum, auto, Enum
 import math
-import numpy as np
+from collections import deque
+from enum import Enum, IntEnum, auto
+
+import cv2
 import matplotlib
+import numpy as np
+from absl import logging
 
 matplotlib.use("Agg")  # 'Agg' no need for xserver!
 import matplotlib.pyplot as plt
@@ -27,15 +28,16 @@ import matplotlib.pyplot as plt
 # Style gallery: https://tonysyu.github.io/raw_content/matplotlib-style-gallery/gallery.html
 plt.style.use("classic")
 
-import weakref
 import threading
+import weakref
 from unittest.mock import Mock
-from alf.utils.common import warning_once
+
 from alf.environments.carla_env.carla_utils import (
-    TrafficLightHandler,
     MapHandler,
+    TrafficLightHandler,
     _calculate_relative_position,
 )
+from alf.utils.common import warning_once
 
 try:
     import carla

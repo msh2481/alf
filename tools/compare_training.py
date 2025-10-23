@@ -29,15 +29,15 @@ python tools/compare_training.py --conf alf/examples/sac_cart_pole_conf.py --rev
 
 """
 
-from absl import app
-from absl import logging
-from absl import flags
-from pathlib import Path
 import subprocess
 import tempfile
-from alf.utils.common import alf_root
-from alf.utils.git_utils import get_revision, get_diff, _exec
+from pathlib import Path
+
+from absl import app, flags, logging
+
 from alf.bin.train_play_test import run_cmd
+from alf.utils.common import alf_root
+from alf.utils.git_utils import _exec, get_diff, get_revision
 
 flags.DEFINE_string("conf", None, help="The config file for training", required=True)
 flags.DEFINE_string("rev1", None, help="The first revision.", required=True)

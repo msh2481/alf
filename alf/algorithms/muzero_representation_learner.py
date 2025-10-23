@@ -13,32 +13,32 @@
 # limitations under the License.
 """MuZero algorithm."""
 
-from functools import partial
-from typing import Callable, Optional, Union, NamedTuple
 import copy
 import inspect
+from functools import partial
+from typing import Callable, NamedTuple, Optional, Union
 
 import torch
 
 import alf
+from alf.algorithms.config import TrainerConfig
 from alf.algorithms.data_transformer import (
-    create_data_transformer,
     IdentityDataTransformer,
     RewardTransformer,
     SequentialDataTransformer,
+    create_data_transformer,
 )
-from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
-from alf.algorithms.config import TrainerConfig
-from alf.data_structures import AlgStep, LossInfo, namedtuple, TimeStep, make_experience
-from alf.experience_replayers.replay_buffer import BatchInfo, ReplayBuffer
 from alf.algorithms.mcts_algorithm import MCTSInfo
 from alf.algorithms.mcts_models import ModelTarget
+from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
+from alf.data_structures import AlgStep, LossInfo, TimeStep, make_experience, namedtuple
+from alf.experience_replayers.replay_buffer import BatchInfo, ReplayBuffer
 from alf.nest.utils import convert_device
-from alf.utils import common, dist_utils
-from alf.utils.tensor_utils import scale_gradient
-from alf.utils.schedulers import as_scheduler
 from alf.tensor_specs import TensorSpec
 from alf.trainers.policy_trainer import Trainer
+from alf.utils import common, dist_utils
+from alf.utils.schedulers import as_scheduler
+from alf.utils.tensor_utils import scale_gradient
 
 MuzeroInfo = namedtuple(
     "MuzeroInfo",

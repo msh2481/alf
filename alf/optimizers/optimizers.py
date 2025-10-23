@@ -13,14 +13,15 @@
 # limitations under the License.
 
 import copy
-import numpy as np
-import torch
 from typing import Callable, Dict, List, Union
 
+import numpy as np
+import torch
+
 import alf
-from alf.utils import common
-from alf.utils import tensor_utils
-from alf.utils.schedulers import as_scheduler, ConstantScheduler, Scheduler
+from alf.utils import common, tensor_utils
+from alf.utils.schedulers import ConstantScheduler, Scheduler, as_scheduler
+
 from . import adam_tf, adamw, nero_plus
 from .utils import get_opt_arg
 

@@ -13,14 +13,15 @@
 # limitations under the License.
 """Coordinate asynchronous training process termination on request."""
 
-from absl import logging
 import contextlib
 import ctypes
 import multiprocessing as mp
-from multiprocessing import Event, Lock, Value
-import six
 import sys
 import time
+from multiprocessing import Event, Lock, Value
+
+import six
+from absl import logging
 
 # Adapted from tensorflow/python/training/coordinator.py
 # to use python multiprocessing.

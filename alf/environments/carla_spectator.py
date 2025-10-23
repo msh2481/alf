@@ -29,14 +29,13 @@ After carla_spectator starts, you can use TAB key to switch to different vehicle
 and ESC key to quit the program.
 """
 
-from absl import app
-from absl import logging
-from absl import flags
-import carla
 import functools
 import math
-import numpy as np
 import os
+
+import carla
+import numpy as np
+from absl import app, flags, logging
 
 from alf.environments.suite_carla import CameraSensor
 

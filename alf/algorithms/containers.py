@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch.nn as nn
 from typing import Callable
+
+import torch.nn as nn
 
 import alf
 from alf.data_structures import AlgStep, LossInfo, TimeStep

@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import alf
 import functools
-from alf.environments import suite_simple
+
+import alf
 from alf.algorithms.actor_critic_algorithm import ActorCriticAlgorithm
 from alf.algorithms.agent import Agent
+from alf.environments import suite_simple
 from alf.networks import (
     ActorDistributionNetwork,
     CategoricalProjectionNetwork,

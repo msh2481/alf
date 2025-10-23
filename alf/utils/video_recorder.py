@@ -13,9 +13,8 @@
 # limitations under the License.
 
 import numpy as np
-
-from gym.wrappers.monitoring.video_recorder import VideoRecorder as GymVideoRecorder
 from gym import error, logger
+from gym.wrappers.monitoring.video_recorder import VideoRecorder as GymVideoRecorder
 
 import alf
 

@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
 import torch
+from absl import logging
 
 import alf
 from alf.algorithms.merlin_algorithm import ResnetEncodingNetwork

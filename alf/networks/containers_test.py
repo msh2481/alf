@@ -13,10 +13,10 @@
 # limitations under the License.
 
 import torch
-import alf
 
-from alf.utils.spec_utils import is_same_spec
+import alf
 from alf.networks.network_test import test_net_copy
+from alf.utils.spec_utils import is_same_spec
 
 
 def _randn_from_spec(specs, batch_size):

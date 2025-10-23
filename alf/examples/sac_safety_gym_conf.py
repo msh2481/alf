@@ -12,32 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from functools import partial
 import math
+from functools import partial
 
 import torch
 
 import alf
 from alf.algorithms.data_transformer import (
-    RewardNormalizer,
     FrameStacker,
+    RewardNormalizer,
     UntransformedTimeStep,
 )
-
-# Needs to install safety gym first:
-# https://github.com/hnyu/safety-gym
-from alf.environments import suite_safety_gym
 from alf.algorithms.lagrangian_reward_weight_algorithm import (
     LagrangianRewardWeightAlgorithm,
 )
 from alf.algorithms.sac_algorithm import SacAlgorithm
-from alf.networks import BetaProjectionNetwork
-from alf.networks import ActorDistributionNetwork, CriticNetwork
-from alf.utils import math_ops
-from alf.nest.utils import NestSum, NestConcat
 from alf.algorithms.td_loss import TDLoss
 
+# Needs to install safety gym first:
+# https://github.com/hnyu/safety-gym
+from alf.environments import suite_safety_gym
 from alf.examples import sac_conf
+from alf.nest.utils import NestConcat, NestSum
+from alf.networks import ActorDistributionNetwork, BetaProjectionNetwork, CriticNetwork
+from alf.utils import math_ops
 
 env_name = "Safexp-PointGoal2-v0"  # natural lidar
 

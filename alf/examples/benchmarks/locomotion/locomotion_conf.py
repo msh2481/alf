@@ -19,8 +19,8 @@ learning rate, etc) to be shared by different algorithms to be evaluated.
 from functools import partial
 
 import alf
-from alf.utils.math_ops import clipped_exp
 from alf.optimizers import AdamTF
+from alf.utils.math_ops import clipped_exp
 
 alf.config("create_environment", num_parallel_environments=1, env_name="Ant-v3")
 

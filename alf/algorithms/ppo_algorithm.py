@@ -14,15 +14,16 @@
 """PPO algorithm."""
 
 import functools
+
 import torch
 
 import alf
 from alf.algorithms.actor_critic_algorithm import ActorCriticAlgorithm
-from alf.algorithms.ppo_loss import PPOLoss
 from alf.algorithms.actor_critic_loss import normalize
-from alf.data_structures import namedtuple, TimeStep
-from alf.utils import value_ops, tensor_utils
+from alf.algorithms.ppo_loss import PPOLoss
+from alf.data_structures import TimeStep, namedtuple
 from alf.nest.utils import convert_device
+from alf.utils import tensor_utils, value_ops
 
 PPOInfo = namedtuple(
     "PPOInfo",

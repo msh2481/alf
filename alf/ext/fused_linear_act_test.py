@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
 import unittest
+from time import perf_counter
+
 import numpy as np
 import torch
 import torch.nn.functional as F
+from absl.testing import parameterized
+
 import alf
-from time import perf_counter
 from alf.ext import fused_linear_act, relu_backward
 from alf.tensor_specs import torch_dtype_to_str
 

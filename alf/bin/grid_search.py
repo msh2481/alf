@@ -29,29 +29,28 @@ For using ALF conf, replace "--gin_file" with "--conf" and "--gin_param" with
 "--conf_param".
 """
 
-from absl import app
-from absl import flags
-from absl import logging
 import copy
-import gin
 import itertools
 import json
-from multiprocessing import Queue, Manager
 import os
-
-# `pathos.multiprocessing` provides a consistent interface with std lib `multiprocessing`
-# and it's more flexible
-from pathos import multiprocessing
 import pathlib
 import random
 import re
 import subprocess
 import sys
 import time
-import torch
 import traceback
-from typing import Iterable
 import unicodedata
+from multiprocessing import Manager, Queue
+from typing import Iterable
+
+import gin
+import torch
+from absl import app, flags, logging
+
+# `pathos.multiprocessing` provides a consistent interface with std lib `multiprocessing`
+# and it's more flexible
+from pathos import multiprocessing
 
 import alf
 from alf.bin.train import _define_flags as _train_define_flags

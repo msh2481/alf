@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from functools import partial
+
 import alf
 from alf.algorithms.actor_critic_algorithm import ActorCriticAlgorithm
 

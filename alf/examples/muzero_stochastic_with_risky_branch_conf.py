@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import functools
+
 import alf
 from alf.algorithms.agent import Agent
 from alf.algorithms.encoding_algorithm import EncodingAlgorithm
@@ -20,10 +21,9 @@ from alf.algorithms.mcts_algorithm import MCTSAlgorithm, VisitSoftmaxTemperature
 from alf.algorithms.mcts_models import SimpleMCTSModel
 from alf.algorithms.muzero_algorithm import MuzeroAlgorithm
 from alf.environments import suite_simple
+from alf.examples import muzero_conf
 from alf.networks import EncodingNetwork
 from alf.optimizers import Adam
-
-from alf.examples import muzero_conf
 
 alf.config(
     "create_environment",

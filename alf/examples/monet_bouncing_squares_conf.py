@@ -17,13 +17,13 @@ from functools import partial
 import torch
 
 import alf
-from alf.environments import suite_simple
-from alf.algorithms.algorithm import Algorithm
-from alf.algorithms.rl_algorithm import RLAlgorithm
-from alf.algorithms.monet_algorithm import MoNetAlgorithm, MoNetInfo, MoNetUNet
-from alf.algorithms.data_transformer import ImageScaleTransformer
-from alf.data_structures import LossInfo, AlgStep
 import alf.summary.render as render
+from alf.algorithms.algorithm import Algorithm
+from alf.algorithms.data_transformer import ImageScaleTransformer
+from alf.algorithms.monet_algorithm import MoNetAlgorithm, MoNetInfo, MoNetUNet
+from alf.algorithms.rl_algorithm import RLAlgorithm
+from alf.data_structures import AlgStep, LossInfo
+from alf.environments import suite_simple
 
 
 class MoNetVisualizer(Algorithm):

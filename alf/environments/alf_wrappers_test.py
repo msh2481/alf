@@ -14,21 +14,22 @@
 """Test cases adapted from tf_agents' wrappers_test.py."""
 # TODO: just test TimeLimit wrapper for now, add other tests later.
 
+import math
+from collections import OrderedDict
+from functools import partial
+
+import gym
+import numpy as np
+import torch
 from absl.testing import parameterized
 from absl.testing.absltest import mock
-from collections import OrderedDict
-import gym
-import math
-import torch
-import numpy as np
-from functools import partial
 
 import alf
 import alf.data_structures as ds
+import alf.tensor_specs as ts
 from alf.environments import alf_environment, alf_gym_wrapper, alf_wrappers, suite_gym
 from alf.environments.random_alf_environment import RandomAlfEnvironment
 from alf.environments.utils import create_environment
-import alf.tensor_specs as ts
 
 
 class AlfEnvironmentBaseWrapperTest(parameterized.TestCase):

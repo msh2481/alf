@@ -57,10 +57,11 @@ except ImportError:
     mujoco_py = None
     safety_gym = None
 
-import numpy as np
 import copy
-import gym
 from typing import Callable, List
+
+import gym
+import numpy as np
 
 import alf
 from alf.environments import suite_gym

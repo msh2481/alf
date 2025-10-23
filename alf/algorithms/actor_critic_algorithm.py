@@ -16,12 +16,13 @@
 import torch
 
 import alf
-from alf.algorithms.on_policy_algorithm import OnPolicyAlgorithm
-from alf.networks import ActorDistributionNetwork, ValueNetwork
 from alf.algorithms.actor_critic_loss import ActorCriticLoss
-from alf.data_structures import TimeStep, AlgStep, namedtuple
-from alf.utils import common, dist_utils, tensor_utils
+from alf.algorithms.on_policy_algorithm import OnPolicyAlgorithm
+from alf.data_structures import AlgStep, TimeStep, namedtuple
+from alf.networks import ActorDistributionNetwork, ValueNetwork
 from alf.tensor_specs import TensorSpec
+from alf.utils import common, dist_utils, tensor_utils
+
 from .config import TrainerConfig
 
 ActorCriticState = namedtuple("ActorCriticState", ["actor", "value"], default_value=())

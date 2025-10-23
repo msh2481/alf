@@ -13,10 +13,11 @@
 # limitations under the License.
 """Tests for sarsa_algorithm.py."""
 
+import functools
+
+import torch
 from absl import logging
 from absl.testing import parameterized
-import functools
-import torch
 
 import alf
 from alf.algorithms.actor_critic_algorithm import ActorCriticAlgorithm
@@ -29,9 +30,9 @@ from alf.networks import (
     ActorDistributionRNNNetwork,
     ActorNetwork,
     ActorRNNNetwork,
-    StableNormalProjectionNetwork,
     CriticNetwork,
     CriticRNNNetwork,
+    StableNormalProjectionNetwork,
 )
 from alf.utils import common
 from alf.utils.math_ops import clipped_exp

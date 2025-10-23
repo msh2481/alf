@@ -13,10 +13,11 @@
 # limitations under the License.
 
 from functools import partial
+
 import torch
 import torch.nn.functional as F
-import alf
 
+import alf
 from alf.initializers import _is_elementwise_op
 
 

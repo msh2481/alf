@@ -12,18 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import partial
+
+import torch
 from absl import logging
 from absl.testing import parameterized
-from functools import partial
-import torch
 
 import alf
 from alf.algorithms.actor_critic_algorithm import ActorCriticAlgorithm
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.ppo_algorithm import PPOAlgorithm
 from alf.algorithms.ppo_loss import PPOLoss
-from alf.environments.suite_unittest import PolicyUnittestEnv
-from alf.environments.suite_unittest import ActionType
+from alf.environments.suite_unittest import ActionType, PolicyUnittestEnv
 from alf.networks import (
     ActorDistributionNetwork,
     ActorDistributionRNNNetwork,

@@ -16,12 +16,11 @@ import torch
 
 import alf
 from alf.algorithms.algorithm import Algorithm
-from alf.data_structures import TimeStep, AlgStep, LossInfo
+from alf.data_structures import AlgStep, LossInfo, TimeStep
 from alf.networks import EncodingNetwork
 from alf.tensor_specs import TensorSpec
 from alf.utils import math_ops
-from alf.utils.normalizers import ScalarAdaptiveNormalizer
-from alf.utils.normalizers import AdaptiveNormalizer
+from alf.utils.normalizers import AdaptiveNormalizer, ScalarAdaptiveNormalizer
 
 
 @alf.configurable

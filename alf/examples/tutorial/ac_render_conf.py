@@ -17,10 +17,9 @@ from functools import partial
 import torch
 
 import alf
+import alf.summary.render as render
 from alf.algorithms.actor_critic_algorithm import ActorCriticAlgorithm
 from alf.examples import ac_cart_pole_conf
-
-import alf.summary.render as render
 
 
 class ACRenderAlgorithm(ActorCriticAlgorithm):

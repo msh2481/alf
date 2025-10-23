@@ -15,12 +15,10 @@
 import alf
 from alf.algorithms.agent import Agent
 from alf.algorithms.sac_algorithm import SacAlgorithm
+from alf.examples import ac_stochastic_with_risky_branch_conf, sac_conf
 from alf.networks import QNetwork
 from alf.optimizers import AdamTF
 from alf.utils.dist_utils import calc_default_target_entropy
-
-from alf.examples import ac_stochastic_with_risky_branch_conf
-from alf.examples import sac_conf
 
 CONV_LAYER_PARAMS = None
 alf.config("QNetwork", conv_layer_params=CONV_LAYER_PARAMS, fc_layer_params=(10,))

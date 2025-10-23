@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
 import numpy as np
 import torch
+from absl.testing import parameterized
 
 import alf
 from alf.networks.relu_mlp import ReluMLP

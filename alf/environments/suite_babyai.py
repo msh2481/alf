@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
+
 import gym
 import numpy as np
-import re
 
 import alf
 import alf.environments.gym_wrappers
 from alf.environments import alf_wrappers
+
 from .suite_gym import wrap_env
 
 try:

@@ -16,17 +16,17 @@ Adapted and simplified from https://github.com/denisyarats/dmc2gym
 """
 
 from functools import partial
+from typing import Any, Dict, Optional
 
 import gym
+import numpy as np
 from gym import spaces
 from gym.envs.registration import register
-import numpy as np
-from typing import Dict, Optional, Any
 
 try:
     import dm_control
-    from dm_control import suite
     import dm_env
+    from dm_control import suite
 except ImportError:
     dm_control = None
 

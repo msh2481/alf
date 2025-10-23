@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Callable
+from typing import Callable, Optional
+
 import torch
+
 import alf
 from alf.utils.schedulers import as_scheduler
 

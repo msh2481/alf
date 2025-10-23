@@ -14,19 +14,20 @@
 
 import abc
 from functools import partial
+from typing import Callable, Optional
+
 import numpy as np
 import torch
-from torch import nn
-import torch.nn.functional as F
 import torch.distributions as td
-from typing import Callable, Optional
+import torch.nn.functional as F
+from torch import nn
 
 import alf
 from alf.data_structures import LossInfo, namedtuple
 from alf.networks import (
+    CategoricalProjectionNetwork,
     EncodingNetwork,
     StableNormalProjectionNetwork,
-    CategoricalProjectionNetwork,
 )
 from alf.tensor_specs import TensorSpec
 from alf.utils import common, dist_utils, losses, summary_utils, tensor_utils

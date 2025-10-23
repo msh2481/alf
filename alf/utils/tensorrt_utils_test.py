@@ -12,18 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
-from functools import partial
-import time
+import os
 import tempfile
+import time
+import unittest
+from functools import partial
+
 import torch
 import torchvision.models as models
-import unittest
-import os
+from absl.testing import parameterized
 
 import alf
-from alf.data_structures import restart
 from alf.algorithms.sac_algorithm import SacAlgorithm
+from alf.data_structures import restart
 from alf.utils.tensorrt_utils import (
     OnnxRuntimeEngine,
     compile_method,

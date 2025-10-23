@@ -13,8 +13,8 @@
 # limitations under the License.
 
 import gym
-from gym import spaces
 import numpy as np
+from gym import spaces
 
 S0 = 0
 S1 = 1

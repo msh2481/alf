@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
-from functools import partial
 import os
 import pprint
 import tempfile
+from functools import partial
+
+from absl import logging
+
 import alf
 from alf.test_configs.source_code import *
 

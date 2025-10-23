@@ -19,10 +19,10 @@ import torch.distributions as td
 import alf
 from alf.algorithms.actor_critic_algorithm import ActorCriticAlgorithm
 from alf.algorithms.rl_algorithm import RLAlgorithm
-from alf.data_structures import Experience, namedtuple, StepType, TimeStep
+from alf.data_structures import Experience, StepType, TimeStep, namedtuple
 from alf.optimizers.trusted_updater import TrustedUpdater
-from alf.utils import common, dist_utils, math_ops
 from alf.tensor_specs import TensorSpec
+from alf.utils import common, dist_utils, math_ops
 
 nest_map = alf.nest.map_structure
 

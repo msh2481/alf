@@ -50,21 +50,20 @@ replace the "--gin_file" option with "--conf", and "--gin_param" with "--conf_pa
 
 """
 
-from absl import app
-from absl import flags
-from absl import logging
 import datetime
 import multiprocessing
 import os
 import sys
+
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
+from absl import app, flags, logging
 
-from alf.utils import common
-from alf.utils.per_process_context import PerProcessContext
 import alf.utils.external_configurables
 from alf.trainers import policy_trainer
+from alf.utils import common
+from alf.utils.per_process_context import PerProcessContext
 
 
 def _define_flags():

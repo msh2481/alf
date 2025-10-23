@@ -20,12 +20,16 @@ import torch
 import torch.nn as nn
 
 import alf
-import alf.nest as nest
 import alf.layers as layers
-from alf.networks import EncodingNetwork, LSTMEncodingNetwork, ParallelEncodingNetwork
-from alf.networks import Network
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+import alf.nest as nest
 import alf.utils.math_ops as math_ops
+from alf.networks import (
+    EncodingNetwork,
+    LSTMEncodingNetwork,
+    Network,
+    ParallelEncodingNetwork,
+)
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 
 
 @alf.configurable

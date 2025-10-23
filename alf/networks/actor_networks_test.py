@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
 import functools
 
 import torch
+from absl.testing import parameterized
 
 import alf
 import alf.networks.actor_networks as actor_network
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 
 
 class ActorNetworkTest(alf.test.TestCase, parameterized.TestCase):

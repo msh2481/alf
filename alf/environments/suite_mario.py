@@ -13,14 +13,15 @@
 # limitations under the License.
 
 import functools
+
 import gym
 
 import alf
-from alf.environments import suite_gym, alf_wrappers, process_environment
+from alf.environments import alf_wrappers, process_environment, suite_gym
 from alf.environments.gym_wrappers import FrameSkip
 from alf.environments.mario_wrappers import (
-    MarioXReward,
     LimitedDiscreteActions,
+    MarioXReward,
     ProcessFrame84,
 )
 from alf.environments.utils import UnwrappedEnvChecker

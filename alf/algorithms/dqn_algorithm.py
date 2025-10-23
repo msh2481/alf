@@ -13,30 +13,29 @@
 # limitations under the License.
 """DQN Algorithm."""
 
+from typing import Callable, Optional, Union
+
 import torch
 import torch.distributions as td
-from typing import Callable, Optional, Union
 
 import alf
 from alf.algorithms.config import TrainerConfig
-from alf.algorithms.sac_algorithm import (
-    SacAlgorithm,
-    ActionType,
-    SacState as DqnState,
-    SacCriticState as DqnCriticState,
-    SacActionState as DqnActionState,
-    SacInfo as DqnInfo,
-    SacCriticInfo as DqnCriticInfo,
-    SacLossInfo as DqnLossInfo,
-)
+from alf.algorithms.sac_algorithm import ActionType
+from alf.algorithms.sac_algorithm import SacActionState as DqnActionState
+from alf.algorithms.sac_algorithm import SacAlgorithm
+from alf.algorithms.sac_algorithm import SacCriticInfo as DqnCriticInfo
+from alf.algorithms.sac_algorithm import SacCriticState as DqnCriticState
+from alf.algorithms.sac_algorithm import SacInfo as DqnInfo
+from alf.algorithms.sac_algorithm import SacLossInfo as DqnLossInfo
+from alf.algorithms.sac_algorithm import SacState as DqnState
 from alf.algorithms.td_loss import TDLoss
 from alf.data_structures import AlgStep, LossInfo, TimeStep
 from alf.environments.alf_environment import AlfEnvironment
 from alf.networks import QNetwork
 from alf.optimizers import AdamTF
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 from alf.utils import common, dist_utils
-from alf.utils.schedulers import as_scheduler, Scheduler
+from alf.utils.schedulers import Scheduler, as_scheduler
 
 
 @alf.configurable

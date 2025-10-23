@@ -22,16 +22,17 @@ You can use the following command to run it:
 Note: You need to first install torchtext using ``pip install torchtext``
 
 """
-from functools import partial
 import math
+from functools import partial
+from typing import Callable
+
 import torch
 import torch.nn as nn
-from typing import Callable
 
 import alf
 from alf import layers, networks
-from alf.algorithms.config import TrainerConfig
 from alf.algorithms.algorithm import Algorithm, LossInfo
+from alf.algorithms.config import TrainerConfig
 from alf.utils import common
 
 

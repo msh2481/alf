@@ -12,18 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
+
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 import alf
+import alf.layers as layers
+from alf.initializers import variance_scaling_init
+from alf.nest.utils import NestConcat
 from alf.networks import PreprocessorNetwork
 from alf.networks.memory import FIFOMemory
-from alf.nest.utils import NestConcat
-
-import functools
-import torch.nn.functional as F
-from alf.initializers import variance_scaling_init
-import alf.layers as layers
 
 
 @alf.configurable

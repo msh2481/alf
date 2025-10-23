@@ -15,10 +15,10 @@
 
 import math
 
-from absl import logging
-from absl.testing import parameterized
 import torch
 import torch.nn as nn
+from absl import logging
+from absl.testing import parameterized
 
 import alf
 from alf.algorithms.particle_vi_algorithm import ParVIAlgorithm

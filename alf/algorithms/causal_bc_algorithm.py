@@ -14,13 +14,13 @@
 """Causal Behavior Cloning Algorithm."""
 
 import torch
+
 import alf
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
-from alf.data_structures import TimeStep, LossInfo, namedtuple
-from alf.data_structures import AlgStep
+from alf.data_structures import AlgStep, LossInfo, TimeStep, namedtuple
 from alf.networks import ActorNetwork, EncodingNetwork
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 from alf.utils import dist_utils, tensor_utils
 
 BcState = namedtuple("BcState", ["actor"], default_value=())

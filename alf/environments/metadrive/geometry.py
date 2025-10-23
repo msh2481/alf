@@ -13,14 +13,15 @@
 # limitations under the License.
 
 from __future__ import annotations
+
 from typing import NamedTuple, Optional
 
 import numpy as np
 
 try:
     import metadrive
-    from metadrive.constants import LineType
     from metadrive.component.lane.metadrive_lane import MetaDriveLane
+    from metadrive.constants import LineType
 except ImportError:
     from unittest.mock import Mock
 

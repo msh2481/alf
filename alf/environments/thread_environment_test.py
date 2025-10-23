@@ -15,15 +15,16 @@
 
 import collections
 import functools
-import numpy as np
 import time
+
+import numpy as np
 import torch
 
 import alf
 import alf.data_structures as ds
+import alf.tensor_specs as ts
 from alf.environments.random_alf_environment import RandomAlfEnvironment
 from alf.environments.thread_environment import ThreadEnvironment
-import alf.tensor_specs as ts
 
 
 class SlowStartingEnvironment(RandomAlfEnvironment):

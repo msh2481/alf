@@ -12,15 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import flags
 import os
 import tempfile
 import time
 
+from absl import flags
+
 import alf
-from alf.utils import common
-from alf.trainers.policy_trainer import TrainerConfig
 from alf.algorithms.data_transformer import create_data_transformer
+from alf.trainers.policy_trainer import TrainerConfig
+from alf.utils import common
 
 
 class AsyncUnrollerTest(alf.test.TestCase):

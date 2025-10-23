@@ -14,26 +14,25 @@
 """Model-based RL Algorithm."""
 
 from functools import partial
+from typing import Any, Callable, Optional
 
 import torch
-from typing import Any, Callable, Optional
 
 import alf
 from alf.algorithms.config import TrainerConfig
+from alf.algorithms.dynamics_learning_algorithm import DynamicsLearningAlgorithm
 from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
 from alf.algorithms.one_step_loss import OneStepTDLoss
-from alf.data_structures import AlgStep, Experience, LossInfo, namedtuple, TimeStep
-from alf.nest import nest
-from alf.networks import ActorDistributionNetwork, CriticNetwork
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
-from alf.utils.math_ops import add_ignore_empty
-
-from alf.algorithms.dynamics_learning_algorithm import DynamicsLearningAlgorithm
-from alf.algorithms.reward_learning_algorithm import RewardEstimationAlgorithm
 from alf.algorithms.planning_algorithm import PlanAlgorithm
 from alf.algorithms.predictive_representation_learner import (
     PredictiveRepresentationLearner,
 )
+from alf.algorithms.reward_learning_algorithm import RewardEstimationAlgorithm
+from alf.data_structures import AlgStep, Experience, LossInfo, TimeStep, namedtuple
+from alf.nest import nest
+from alf.networks import ActorDistributionNetwork, CriticNetwork
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
+from alf.utils.math_ops import add_ignore_empty
 
 MbrlState = namedtuple("MbrlState", ["dynamics", "reward", "planner"])
 MbrlInfo = namedtuple("MbrlInfo", ["dynamics", "reward", "planner"], default_value=())

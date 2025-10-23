@@ -12,18 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
-from functools import partial
 import pprint
+from functools import partial
+
 import torch
+from absl.testing import parameterized
 
 import alf
 import alf.data_structures as ds
 from alf.algorithms.lagrangian_reward_weight_algorithm import (
     LagrangianRewardWeightAlgorithm,
 )
-from alf.utils import common, dist_utils
 from alf.optimizers import Adam
+from alf.utils import common, dist_utils
 
 
 class LagrangianRewardWeightAlgorithmTest(parameterized.TestCase, alf.test.TestCase):

@@ -17,12 +17,12 @@ import functools
 import alf
 from alf.algorithms.ddpg_algorithm import DdpgAlgorithm
 from alf.algorithms.one_step_loss import OneStepTDLoss
-from alf.networks import ActorNetwork, CriticNetwork
-from alf.optimizers import Adam
-from alf.utils.losses import element_wise_huber_loss
 
 # include default ddpg config
 from alf.examples import ddpg_conf
+from alf.networks import ActorNetwork, CriticNetwork
+from alf.optimizers import Adam
+from alf.utils.losses import element_wise_huber_loss
 
 # environment config
 alf.config("create_environment", env_name="Pendulum-v0", num_parallel_environments=1)

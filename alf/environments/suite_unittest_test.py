@@ -12,17 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
-from absl.testing import parameterized
 import numpy as np
 import torch
+from absl import logging
+from absl.testing import parameterized
 
 import alf
-from alf.data_structures import TimeStep, StepType
-from alf.environments.suite_unittest import ActionType
-from alf.environments.suite_unittest import ValueUnittestEnv
-from alf.environments.suite_unittest import PolicyUnittestEnv
-from alf.environments.suite_unittest import RNNPolicyUnittestEnv
+from alf.data_structures import StepType, TimeStep
+from alf.environments.suite_unittest import (
+    ActionType,
+    PolicyUnittestEnv,
+    RNNPolicyUnittestEnv,
+    ValueUnittestEnv,
+)
 
 
 class SuiteUnittestEnvTest(parameterized.TestCase, alf.test.TestCase):

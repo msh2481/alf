@@ -14,12 +14,13 @@
 """Networks with input parameters."""
 
 import functools
+
 import torch
 import torch.nn as nn
 
 import alf
 from alf.initializers import variance_scaling_init
-from alf.layers import ParamFC, ParamConv2D
+from alf.layers import ParamConv2D, ParamFC
 from alf.networks.network import Network
 from alf.tensor_specs import TensorSpec
 from alf.utils import common

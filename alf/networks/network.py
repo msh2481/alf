@@ -19,22 +19,23 @@ import abc
 import copy
 import functools
 import inspect
+import typing
+
 import six
 import torch
 import torch.nn as nn
-import typing
 
 import alf
-from alf.tensor_specs import TensorSpec
+import alf.utils.math_ops as math_ops
 from alf.nest.utils import get_outer_rank
+from alf.tensor_specs import TensorSpec
+from alf.utils import common
 from alf.utils.dist_utils import (
     DistributionSpec,
-    extract_spec,
     distributions_to_params,
+    extract_spec,
     params_to_distributions,
 )
-import alf.utils.math_ops as math_ops
-from alf.utils import common
 
 
 class _NetworkMeta(abc.ABCMeta):

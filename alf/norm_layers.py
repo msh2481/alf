@@ -13,11 +13,12 @@
 # limitations under the License.
 
 import math
+import types
+from typing import List, Union
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Union
-import types
 
 import alf
 from alf.utils.common import warning_once

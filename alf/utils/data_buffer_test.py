@@ -12,19 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import multiprocessing as mp
-from collections import namedtuple
 import os
 import tempfile
+from collections import namedtuple
 from time import sleep
 
 import torch
-
 from absl.testing import parameterized
 
 import alf
 from alf.tensor_specs import TensorSpec
-from alf.utils.data_buffer import RingBuffer, DataBuffer
 from alf.utils.checkpoint_utils import Checkpointer
+from alf.utils.data_buffer import DataBuffer, RingBuffer
 
 DataItem = alf.data_structures.namedtuple(
     "DataItem",

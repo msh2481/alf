@@ -29,9 +29,9 @@
 """Tests for Process Coordinator."""
 
 import ctypes
-from multiprocessing import current_process, Event, Process, Value
 import sys
 import time
+from multiprocessing import Event, Process, Value, current_process
 
 import torch
 

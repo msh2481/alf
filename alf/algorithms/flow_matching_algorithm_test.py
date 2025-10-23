@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import torch
+from torchvision.transforms import Resize, ToPILImage
+
 import alf
-from alf.utils.datagen import load_cifar10, load_mnist
 from alf.algorithms.flow_matching_algorithm import FlowMatchingAlgorithm
 from alf.algorithms.monet_algorithm import MoNetUNet
-
-import torch
-from torchvision.transforms import ToPILImage
-from torchvision.transforms import Resize
+from alf.utils.datagen import load_cifar10, load_mnist
 
 
 class _VectorFieldNetwork(alf.networks.Network):

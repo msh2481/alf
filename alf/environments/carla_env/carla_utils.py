@@ -14,14 +14,15 @@
 """Utility functions for Carla.
 """
 
-import cv2
-from enum import IntEnum
 import math
-import numpy as np
+from enum import IntEnum
 from pathlib import Path
-import torch
 from typing import NamedTuple
 from unittest.mock import Mock
+
+import cv2
+import numpy as np
+import torch
 
 import alf
 from alf.environments.alf_wrappers import AlfEnvironmentBaseWrapper

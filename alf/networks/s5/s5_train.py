@@ -12,23 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import app
-from absl import flags
-from absl import logging
-from functools import partial
 import math
-import numpy as np
+from functools import partial
 from pathlib import Path
-import torch
-import torch.nn.functional as F
-from tqdm import tqdm
 from typing import Tuple
 
+import numpy as np
+import torch
+import torch.nn.functional as F
+from absl import app, flags, logging
+from tqdm import tqdm
+
 import alf
-from alf.utils import common
 from alf.networks import s5
 from alf.networks.s5.s5_test_data import create_mnist_classification_dataset
-from alf.utils.schedulers import Scheduler, LinearScheduler, update_progress
+from alf.utils import common
+from alf.utils.schedulers import LinearScheduler, Scheduler, update_progress
 
 
 def prep_batch(

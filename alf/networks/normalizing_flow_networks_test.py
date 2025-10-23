@@ -12,16 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
-from absl import logging
-
 import numpy as np
-
 import torch
+from absl import logging
+from absl.testing import parameterized
 
 import alf
+from alf.networks import NetworkWrapper, RealNVPNetwork
 from alf.networks.normalizing_flow_networks import _RealNVPTransform
-from alf.networks import RealNVPNetwork, NetworkWrapper
 from alf.tensor_specs import TensorSpec
 
 

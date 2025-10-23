@@ -13,20 +13,21 @@
 # limitations under the License.
 """SARSA Algorithm."""
 
-from absl import logging
 import copy
+
 import numpy as np
 import torch
 import torch.nn as nn
+from absl import logging
 
 import alf
-from alf.algorithms.sac_algorithm import _set_target_entropy
+import alf.nest.utils as nest_utils
 from alf.algorithms.one_step_loss import OneStepTDLoss
 from alf.algorithms.rl_algorithm import RLAlgorithm
-from alf.data_structures import AlgStep, LossInfo, namedtuple, StepType, TimeStep
-from alf.utils import common, dist_utils, losses, math_ops, tensor_utils
-import alf.nest.utils as nest_utils
+from alf.algorithms.sac_algorithm import _set_target_entropy
+from alf.data_structures import AlgStep, LossInfo, StepType, TimeStep, namedtuple
 from alf.tensor_specs import TensorSpec
+from alf.utils import common, dist_utils, losses, math_ops, tensor_utils
 
 SarsaState = namedtuple(
     "SarsaState",

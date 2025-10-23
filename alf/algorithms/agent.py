@@ -30,8 +30,7 @@ from alf.algorithms.predictive_representation_learner import (
     PredictiveRepresentationLearner,
 )
 from alf.algorithms.rl_algorithm import RLAlgorithm
-from alf.data_structures import AlgStep, Experience
-from alf.data_structures import TimeStep, namedtuple
+from alf.data_structures import AlgStep, Experience, TimeStep, namedtuple
 from alf.tensor_specs import TensorSpec
 
 AgentState = namedtuple(

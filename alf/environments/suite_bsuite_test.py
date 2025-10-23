@@ -13,13 +13,18 @@
 # limitations under the License.
 
 import functools
+
 import torch
 from bsuite import sweep
 
 import alf
-from alf.environments import suite_bsuite, alf_environment
-from alf.environments import thread_environment, parallel_environment
 import alf.nest as nest
+from alf.environments import (
+    alf_environment,
+    parallel_environment,
+    suite_bsuite,
+    thread_environment,
+)
 
 
 class SuiteBSuiteTest(alf.test.TestCase):

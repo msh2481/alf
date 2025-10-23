@@ -12,15 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Functions for handling nest."""
-from typing import Union, List, Tuple, Dict
-
-from absl import logging
+from typing import Any, Dict, List, Tuple, Union
 
 import cnest
-
 import torch
-
-from typing import Any
+from absl import logging
 
 # For easier type annotation with nests
 Nest = Any

@@ -12,19 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
 import copy
 import json
 import os
 import pprint
 import tempfile
+
 import torch
 import torch.nn as nn
+from absl import logging
 
 import alf
-from alf.data_structures import LossInfo
-from alf.algorithms.algorithm import Algorithm, _get_optimizer_params
 import alf.utils.checkpoint_utils as ckpt_utils
+from alf.algorithms.algorithm import Algorithm, _get_optimizer_params
+from alf.data_structures import LossInfo
 
 
 class MyAlg(Algorithm):

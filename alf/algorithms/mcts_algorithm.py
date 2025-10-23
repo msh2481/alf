@@ -12,22 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Monte-Carlo Tree Search."""
-from absl import logging
+from typing import Callable, Optional
 
 import numpy as np
 import torch
 import torch.distributions as td
 import torch.nn.functional as F
-from typing import Callable, Optional
+from absl import logging
 
 import alf
-from alf import TensorSpec
-from alf.data_structures import AlgStep, LossInfo, namedtuple, TimeStep
+from alf import TensorSpec, nest
 from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
-from alf.utils import dist_utils, summary_utils
-from alf import nest
+from alf.data_structures import AlgStep, LossInfo, TimeStep, namedtuple
 from alf.trainers.policy_trainer import Trainer
-from alf.utils import common, tensor_utils, action_samplers
+from alf.utils import action_samplers, common, dist_utils, summary_utils, tensor_utils
+
 from .mcts_models import MCTSModel, ModelOutput
 
 MAXIMUM_FLOAT_VALUE = float("inf")

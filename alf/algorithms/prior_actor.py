@@ -20,8 +20,8 @@ from torch.distributions import Categorical, Independent, Uniform
 
 import alf
 from alf.algorithms.algorithm import Algorithm
-from alf.data_structures import AlgStep, TimeStep, StepType
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.data_structures import AlgStep, StepType, TimeStep
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 
 
 def normcdf(a, b):

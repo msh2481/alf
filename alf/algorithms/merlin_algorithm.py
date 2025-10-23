@@ -13,29 +13,34 @@
 # limitations under the License.
 """Implementation of MERLIN algorithm. See class MerlinAlgorithm for detail."""
 
-from collections import namedtuple
 import copy
 import functools
+from collections import namedtuple
+
 import numpy as np
 import torch
 import torch.nn as nn
 
 import alf
-from alf.algorithms.actor_critic_loss import ActorCriticLoss
 from alf.algorithms.actor_critic_algorithm import ActorCriticInfo
+from alf.algorithms.actor_critic_loss import ActorCriticLoss
 from alf.algorithms.algorithm import Algorithm
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.decoding_algorithm import DecodingAlgorithm
 from alf.algorithms.on_policy_algorithm import OnPolicyAlgorithm
 from alf.algorithms.vae import VariationalAutoEncoder
-from alf.data_structures import TimeStep, AlgStep, LossInfo
-from alf.networks import EncodingNetwork, LSTMEncodingNetwork
-from alf.networks import ActorDistributionNetwork, ValueNetwork
+from alf.data_structures import AlgStep, LossInfo, TimeStep
+from alf.nest import flatten, map_structure
+from alf.networks import (
+    ActorDistributionNetwork,
+    EncodingNetwork,
+    LSTMEncodingNetwork,
+    ValueNetwork,
+)
 from alf.networks.action_encoder import SimpleActionEncoder
 from alf.networks.memory import MemoryWithUsage
-from alf.nest import flatten, map_structure
-from alf.utils import common, dist_utils, math_ops
 from alf.tensor_specs import TensorSpec
+from alf.utils import common, dist_utils, math_ops
 
 MBPState = namedtuple(
     "MBPState",

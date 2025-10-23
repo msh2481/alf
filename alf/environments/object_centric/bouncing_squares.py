@@ -12,12 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gym
-from gym import spaces
-
-import numpy as np
-
 import cv2
+import gym
+import numpy as np
+from gym import spaces
 
 
 class BouncingSquares(gym.Env):

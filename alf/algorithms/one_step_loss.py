@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable, List, Union
+
 import torch
-from typing import Union, List, Callable
 
 import alf
 from alf.algorithms.td_loss import TDLoss, TDQRLoss

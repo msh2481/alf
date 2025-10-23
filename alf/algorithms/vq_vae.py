@@ -13,10 +13,11 @@
 # limitations under the License.
 """Vector Quantized Variational AutoEncoder Algorithm."""
 
+from typing import Callable
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Callable
 
 import alf
 from alf.algorithms.algorithm import Algorithm

@@ -13,8 +13,8 @@
 # limitations under the License.
 
 import alf
-from alf.examples import ppo_conf
 from alf.algorithms.data_transformer import RewardScaling
+from alf.examples import ppo_conf
 from alf.networks import ActorDistributionNetwork, ValueNetwork
 from alf.utils.losses import element_wise_huber_loss
 

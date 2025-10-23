@@ -13,20 +13,20 @@
 # limitations under the License.
 """Distributional Optimistic Actor-Critic algorithm."""
 
+from typing import Callable, Optional, Union
+
 import torch
 import torch.distributions as td
-from typing import Union, Callable, Optional
 
 import alf
+import alf.nest.utils as nest_utils
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.dsac_algorithm import DSacAlgorithm
+from alf.algorithms.oac_algorithm import dist_transform_action, prepare_critic_action
 from alf.algorithms.sac_algorithm import ActionType, SacActionState
-from alf.algorithms.oac_algorithm import prepare_critic_action, dist_transform_action
 from alf.nest import nest
-import alf.nest.utils as nest_utils
-from alf.networks import ActorDistributionNetwork
-from alf.networks import CriticQuantileNetwork
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.networks import ActorDistributionNetwork, CriticQuantileNetwork
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 from alf.utils import dist_utils
 
 
