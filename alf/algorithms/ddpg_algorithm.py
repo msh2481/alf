@@ -41,7 +41,9 @@ from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 from alf.utils import common, dist_utils, losses, math_ops, spec_utils
 
 DdpgCriticState = namedtuple(
-    "DdpgCriticState", ["critics", "target_actor", "target_critics"], default_value=()
+    "DdpgCriticState",
+    ["critics", "target_actor", "target_critics"],
+    default_value=(),
 )
 DdpgCriticInfo = namedtuple(
     "DdpgCriticInfo", ["q_values", "target_q_values"], default_value=()
@@ -188,7 +190,8 @@ class DdpgAlgorithm(OffPolicyAlgorithm):
         predict_state_spec = DdpgState(
             noise=noise_state,
             actor=DdpgActorState(
-                actor=actor_network.state_spec, critics=critic_networks.state_spec
+                actor=actor_network.state_spec,
+                critics=critic_networks.state_spec,
             ),
             critics=DdpgCriticState(),
         )
@@ -196,7 +199,8 @@ class DdpgAlgorithm(OffPolicyAlgorithm):
         train_state_spec = DdpgState(
             noise=noise_state,
             actor=DdpgActorState(
-                actor=actor_network.state_spec, critics=critic_networks.state_spec
+                actor=actor_network.state_spec,
+                critics=critic_networks.state_spec,
             ),
             critics=DdpgCriticState(
                 critics=critic_networks.state_spec,
@@ -247,7 +251,10 @@ class DdpgAlgorithm(OffPolicyAlgorithm):
 
         self._update_target = common.TargetUpdater(
             models=[self._actor_network, self._critic_networks],
-            target_models=[self._target_actor_network, self._target_critic_networks],
+            target_models=[
+                self._target_actor_network,
+                self._target_critic_networks,
+            ],
             tau=target_update_tau,
             period=target_update_period,
         )
@@ -279,7 +286,8 @@ class DdpgAlgorithm(OffPolicyAlgorithm):
             spec_utils.clip_to_spec, noisy_action, self._action_spec
         )
         state = empty_state._replace(
-            noise=noise_state, actor=DdpgActorState(actor=actor_state, critics=())
+            noise=noise_state,
+            actor=DdpgActorState(actor=actor_state, critics=()),
         )
 
         return AlgStep(

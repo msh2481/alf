@@ -274,3 +274,10 @@ If you use ALF for research and find it useful, please consider citing:
 ## Contribute to ALF
 
 You are welcome to contribute to ALF. Please follow the guideline [here](https://alf.readthedocs.io/en/latest/contributing.html).
+
+
+## TODO
+```
+rm -rf /tmp/sac_lunar_lander && python -m alf.bin.train --conf=alf/examples/sac_lunar_lander_conf.py --root_dir=/tmp/sac_lunar_lander
+rm -rf /tmp/simple_concurrent_sac && python -m alf.bin.train --conf=alf/examples/simple_concurrent_sac_conf.py --root_dir=/tmp/simple_concurrent_sac   
+```

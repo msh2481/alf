@@ -113,6 +113,11 @@ def allow_child_to_ptrace(child_pid: int) -> None:
 
         cat /proc/sys/kernel/yama/ptrace_scope
     """
+    import platform
+
+    # prctl is Linux-specific, skip on other platforms
+    if platform.system() != "Linux":
+        return
 
     libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
 
