@@ -97,21 +97,15 @@ class ICMAlgorithm(Algorithm):
         )
 
         flat_action_spec = alf.nest.flatten(action_spec)
-        assert (
-            len(flat_action_spec) == 1
-        ), "ICM doesn't support nested action_spec"
+        assert len(flat_action_spec) == 1, "ICM doesn't support nested action_spec"
 
         flat_feature_spec = alf.nest.flatten(feature_spec)
-        assert (
-            len(flat_feature_spec) == 1
-        ), "ICM doesn't support nested feature_spec"
+        assert len(flat_feature_spec) == 1, "ICM doesn't support nested feature_spec"
 
         action_spec = flat_action_spec[0]
 
         if action_spec.is_discrete:
-            self._num_actions = int(
-                action_spec.maximum - action_spec.minimum + 1
-            )
+            self._num_actions = int(action_spec.maximum - action_spec.minimum + 1)
         else:
             self._num_actions = action_spec.shape[-1]
 
@@ -130,9 +124,7 @@ class ICMAlgorithm(Algorithm):
             hidden_size = (hidden_size,)
 
         if forward_net is None:
-            encoded_action_spec = TensorSpec(
-                (self._num_actions,), dtype=torch.float32
-            )
+            encoded_action_spec = TensorSpec((self._num_actions,), dtype=torch.float32)
             forward_net = EncodingNetwork(
                 name="forward_net",
                 input_tensor_spec=[feature_spec, encoded_action_spec],
@@ -159,9 +151,7 @@ class ICMAlgorithm(Algorithm):
 
         self._inverse_net = inverse_net
 
-        self._reward_normalizer = ScalarAdaptiveNormalizer(
-            speed=reward_adapt_speed
-        )
+        self._reward_normalizer = ScalarAdaptiveNormalizer(speed=reward_adapt_speed)
 
     def _encode_action(self, action):
         if self._action_spec.is_discrete:
@@ -219,9 +209,7 @@ class ICMAlgorithm(Algorithm):
         intrinsic_reward = ()
         if calc_rewards:
             intrinsic_reward = forward_loss.detach()
-            intrinsic_reward = self._reward_normalizer.normalize(
-                intrinsic_reward
-            )
+            intrinsic_reward = self._reward_normalizer.normalize(intrinsic_reward)
 
         return AlgStep(
             output=intrinsic_reward,

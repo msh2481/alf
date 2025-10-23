@@ -139,9 +139,7 @@ class QrsacAlgorithm(SacAlgorithm):
         quantile_mean: bool = True,
     ):
         critic_inputs = (observation, action)
-        critic_quantiles, critics_state = critic_net(
-            critic_inputs, state=critics_state
-        )
+        critic_quantiles, critics_state = critic_net(critic_inputs, state=critics_state)
 
         # For multi-dim reward, do:
         #   [B, replicas * reward_dim, n_quantiles] -> [B, replicas, reward_dim, n_quantiles]
@@ -168,9 +166,7 @@ class QrsacAlgorithm(SacAlgorithm):
                     ]
                 else:
                     # [B, n_quantiles]
-                    critic_quantiles = critic_quantiles[
-                        torch.arange(len(idx)), idx
-                    ]
+                    critic_quantiles = critic_quantiles[torch.arange(len(idx)), idx]
             # Compute the min quantile distribution by taking a minimum value
             # across all critic replicas for each quantile value
             else:

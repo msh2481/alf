@@ -194,9 +194,7 @@ class Image(object):
         sizes = [(i.shape[1], i.shape[0]) for i in imgs]
         # call rpack for an approximate solution: [(x,y),...] positions
         try:
-            positions = rpack.pack(
-                sizes, max_width=max_width, max_height=max_height
-            )
+            positions = rpack.pack(sizes, max_width=max_width, max_height=max_height)
         except rpack.PackingImpossibleError:
             # If a solution cannot be found with the given constraints, rerun with constraints dropped.
             positions = rpack.pack(sizes)
@@ -240,9 +238,7 @@ class Image(object):
             stacked_img = np.full((H, W, 3), 255, dtype=np.uint8)
             offset_w = 0
             for i in imgs:
-                stacked_img[
-                    : i.shape[0], offset_w : offset_w + i.shape[1], :
-                ] = i.data
+                stacked_img[: i.shape[0], offset_w : offset_w + i.shape[1], :] = i.data
                 offset_w += i.shape[1]
         else:
             H = sum([i.shape[0] for i in imgs])
@@ -250,9 +246,7 @@ class Image(object):
             stacked_img = np.full((H, W, 3), 255, dtype=np.uint8)
             offset_h = 0
             for i in imgs:
-                stacked_img[
-                    offset_h : offset_h + i.shape[0], : i.shape[1], :
-                ] = i.data
+                stacked_img[offset_h : offset_h + i.shape[0], : i.shape[1], :] = i.data
                 offset_h += i.shape[0]
 
         return cls(stacked_img)
@@ -387,9 +381,7 @@ def _heatmap(
     ax.tick_params(top=True, bottom=False, labeltop=True, labelbottom=False)
 
     # Rotate the tick labels and set their alignment.
-    plt.setp(
-        ax.get_xticklabels(), rotation=-30, ha="right", rotation_mode="anchor"
-    )
+    plt.setp(ax.get_xticklabels(), rotation=-30, ha="right", rotation_mode="anchor")
 
     # Turn spines off and create white grid.
     ax.spines[:].set_visible(False)
@@ -704,9 +696,7 @@ def render_3d_curve(
     """
 
     assert len(data.shape) == 2, "must be rank-2"
-    assert (
-        data.shape[1] == 3
-    ), "expecting 3 rows in data for x, y, z respectively"
+    assert data.shape[1] == 3, "expecting 3 rows in data for x, y, z respectively"
     x_data = data[..., 0]
     y_data = data[..., 1]
     z_data = data[..., 2]
@@ -946,9 +936,7 @@ def render_action_distribution(
             np.array: a 2D matrix where each row is a prob hist for a dim
         """
         mode = dist_utils.get_mode(dist)
-        assert (
-            len(mode.shape) == 2
-        ), "Currently only support rank-2 distributions!"
+        assert len(mode.shape) == 2, "Currently only support rank-2 distributions!"
         dim = mode.shape[-1]
         points = dist.sample(sample_shape=(n_samples,)).cpu().numpy()
         points = np.reshape(points, (-1, dim))
@@ -975,9 +963,7 @@ def render_action_distribution(
             name=name_, data=probs, legends=legends, x_range=x_range, **kwargs
         )
 
-    return nest.py_map_structure_with_path(
-        _render_act_dist, act_dist, action_spec
-    )
+    return nest.py_map_structure_with_path(_render_act_dist, act_dist, action_spec)
 
 
 def render_heatmap_fast(imgs, min_value, max_value, pixel_size=10, bar_size=20):

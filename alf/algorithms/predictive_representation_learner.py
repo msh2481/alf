@@ -98,12 +98,8 @@ class SimpleDecoder(Algorithm):
         super().__init__(
             optimizer=optimizer, debug_summaries=debug_summaries, name=name
         )
-        self._decoder_net = decoder_net_ctor(
-            input_tensor_spec=input_tensor_spec
-        )
-        assert (
-            self._decoder_net.state_spec == ()
-        ), "RNN decoder is not supported"
+        self._decoder_net = decoder_net_ctor(input_tensor_spec=input_tensor_spec)
+        assert self._decoder_net.state_spec == (), "RNN decoder is not supported"
         self._summarize_each_dimension = summarize_each_dimension
         self._target_field = target_field
         self._loss = loss_ctor()
@@ -122,15 +118,11 @@ class SimpleDecoder(Algorithm):
 
     def train_step(self, repr, state=()):
         predicted_target = self._decoder_net(repr)[0]
-        return AlgStep(
-            output=predicted_target, state=state, info=predicted_target
-        )
+        return AlgStep(output=predicted_target, state=state, info=predicted_target)
 
     def predict_step(self, repr, state=()):
         predicted_target = self._decoder_net(repr)[0]
-        return AlgStep(
-            output=predicted_target, state=state, info=predicted_target
-        )
+        return AlgStep(output=predicted_target, state=state, info=predicted_target)
 
     def calc_loss(self, target, predicted, mask=None):
         """Calculate the loss between ``target`` and ``predicted``.
@@ -170,9 +162,7 @@ class SimpleDecoder(Algorithm):
                     safe_mean_summary("loss" + suffix, loss, mask)
 
                 def _summarize(pred, tgt, loss, mask, suffix):
-                    _summarize1(
-                        pred[0], tgt[0], loss[0], mask[0], suffix + "/current"
-                    )
+                    _summarize1(pred[0], tgt[0], loss[0], mask[0], suffix + "/current")
                     if pred.shape[0] > 1:
                         _summarize1(
                             pred[1:],
@@ -333,9 +323,7 @@ class PredictiveRepresentationLearner(Algorithm):
                 lambda spec: spec.numel,
                 alf.nest.flatten(self._dynamics_net.state_spec),
             )
-            assert (
-                sum(self._dynamics_state_dims) > 0
-            ), "dynamics_net should be RNN"
+            assert sum(self._dynamics_state_dims) > 0, "dynamics_net should be RNN"
             compatible_state = True
 
             try:
@@ -371,9 +359,7 @@ class PredictiveRepresentationLearner(Algorithm):
             self._postprocessor = alf.math.identity
         if postprocessor_optimizer is not None:
             self.add_optimizer(postprocessor_optimizer, [postprocessor])
-        self._output_spec = wrap_as_network(
-            self._postprocessor, repr_spec
-        ).output_spec
+        self._output_spec = wrap_as_network(self._postprocessor, repr_spec).output_spec
 
     @property
     def output_spec(self):
@@ -389,9 +375,7 @@ class PredictiveRepresentationLearner(Algorithm):
         latent = self._postprocessor(latent)
         return AlgStep(output=latent, state=state)
 
-    def predict_multi_step(
-        self, init_latent, actions, target_field=None, state=None
-    ):
+    def predict_multi_step(self, init_latent, actions, target_field=None, state=None):
         """Perform multi-step predictions based on the initial latent
             representation and actions sequences.
         Args:
@@ -440,9 +424,7 @@ class PredictiveRepresentationLearner(Algorithm):
         decoder_ind = common.as_list(self._target_fields).index(target_field)
         return self._decoders[decoder_ind]
 
-    def _multi_step_latent_rollout(
-        self, init_latent, num_unroll_steps, actions, state
-    ):
+    def _multi_step_latent_rollout(self, init_latent, num_unroll_steps, actions, state):
         """Perform multi-step latent rollout based on the initial latent
             representation and action sequences.
         Args:
@@ -502,16 +484,10 @@ class PredictiveRepresentationLearner(Algorithm):
                 train_info,
             )
             # [num_unroll_steps + 1, B, ...]
-            train_info = dist_utils.params_to_distributions(
-                train_info, train_info_spec
-            )
-            target = alf.nest.map_structure(
-                lambda x: x.transpose(0, 1), targets[i]
-            )
+            train_info = dist_utils.params_to_distributions(train_info, train_info_spec)
+            target = alf.nest.map_structure(lambda x: x.transpose(0, 1), targets[i])
             loss_info = decoder.calc_loss(target, train_info, info.mask.t())
-            loss_info = alf.nest.map_structure(
-                lambda x: x.mean(dim=0), loss_info
-            )
+            loss_info = alf.nest.map_structure(lambda x: x.mean(dim=0), loss_info)
             loss += loss_info.loss
             extra[decoder.name] = loss_info.extra
 
@@ -521,9 +497,7 @@ class PredictiveRepresentationLearner(Algorithm):
         return AlgStep(output=latent, state=state, info=loss_info)
 
     @torch.no_grad()
-    def preprocess_experience(
-        self, root_inputs, rollout_info, batch_info: BatchInfo
-    ):
+    def preprocess_experience(self, root_inputs, rollout_info, batch_info: BatchInfo):
         """Fill experience.rollout_info with PredictiveRepresentationLearnerInfo
 
         Note that the shape of experience is [B, T, ...].
@@ -570,9 +544,7 @@ class PredictiveRepresentationLearner(Algorithm):
             positions = torch.min(positions, episode_end_positions)
 
             # [B, T, unroll_steps+1, ...]
-            target = replay_buffer.get_field(
-                self._target_fields, env_ids, positions
-            )
+            target = replay_buffer.get_field(self._target_fields, env_ids, positions)
 
             # [B, T, unroll_steps]
             action = replay_buffer.get_field(

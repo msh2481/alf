@@ -165,9 +165,7 @@ class TimeLimit(AlfEnvironmentBaseWrapper):
                 time_step = time_step._replace(step_type=StepType.LAST)
             else:
                 time_step = time_step._replace(
-                    step_type=torch.full_like(
-                        time_step.step_type, StepType.LAST
-                    )
+                    step_type=torch.full_like(time_step.step_type, StepType.LAST)
                 )
 
         if time_step.is_last():
@@ -403,10 +401,7 @@ class RandomFirstEpisodeLength(AlfEnvironmentBaseWrapper):
         time_step = self._env.step(action)
 
         self._num_steps += 1
-        if (
-            self._episode < self._num_episodes
-            and self._num_steps >= self._max_length
-        ):
+        if self._episode < self._num_episodes and self._num_steps >= self._max_length:
             time_step = time_step._replace(step_type=StepType.LAST)
             self._max_length = random.randint(1, self._random_length_range)
             self._episode += 1
@@ -492,9 +487,7 @@ class ScalarRewardWrapper(AlfEnvironmentBaseWrapper):
 
     def _average_rewards(self, time_step):
         if _is_numpy_array(time_step.reward):
-            reward = np.tensordot(
-                time_step.reward, self._np_reward_weights, axes=1
-            )
+            reward = np.tensordot(time_step.reward, self._np_reward_weights, axes=1)
         else:
             reward = torch.tensordot(
                 time_step.reward, self._tensor_reward_weights, dims=1
@@ -546,9 +539,7 @@ class MultitaskWrapper(AlfEnvironment):
         assert len(envs) > 0, "`envs should not be empty"
         assert len(set(task_names)) == len(
             task_names
-        ), "task_names should " "not contain duplicated names: %s" % str(
-            task_names
-        )
+        ), "task_names should " "not contain duplicated names: %s" % str(task_names)
         self._envs = envs
         self._observation_spec = envs[0].observation_spec()
         self._action_spec = envs[0].action_spec()
@@ -561,36 +552,39 @@ class MultitaskWrapper(AlfEnvironment):
 
         def _nested_eq(a, b):
             return all(
-                alf.nest.flatten(
-                    alf.nest.map_structure(lambda x, y: x == y, a, b)
-                )
+                alf.nest.flatten(alf.nest.map_structure(lambda x, y: x == y, a, b))
             )
 
         for env in envs:
-            assert _nested_eq(env.observation_spec(), self._observation_spec), (
-                "All environment should have same observation spec. "
-                "Got %s vs %s"
-                % (self._observation_spec, env.observation_spec())
+            assert _nested_eq(
+                env.observation_spec(), self._observation_spec
+            ), "All environment should have same observation spec. " "Got %s vs %s" % (
+                self._observation_spec,
+                env.observation_spec(),
             )
-            assert _nested_eq(env.action_spec(), self._action_spec), (
-                "All environment should have same action spec. "
-                "Got %s vs %s" % (self._action_spec, env.action_spec())
+            assert _nested_eq(
+                env.action_spec(), self._action_spec
+            ), "All environment should have same action spec. " "Got %s vs %s" % (
+                self._action_spec,
+                env.action_spec(),
             )
-            assert _nested_eq(env.reward_spec(), self._reward_spec), (
-                "All environment should have same reward spec. "
-                "Got %s vs %s" % (self._reward_spec, env.reward_spec())
+            assert _nested_eq(
+                env.reward_spec(), self._reward_spec
+            ), "All environment should have same reward spec. " "Got %s vs %s" % (
+                self._reward_spec,
+                env.reward_spec(),
             )
-            assert _nested_eq(env.env_info_spec(), self._env_info_spec), (
-                "All environment should have same env_info spec. "
-                "Got %s vs %s" % (self._env_info_spec, env.env_info_spec())
+            assert _nested_eq(
+                env.env_info_spec(), self._env_info_spec
+            ), "All environment should have same env_info spec. " "Got %s vs %s" % (
+                self._env_info_spec,
+                env.env_info_spec(),
             )
             env.reset()
 
         self._current_env_id = np.int64(0)
         self._action_spec = OrderedDict(
-            task_id=alf.BoundedTensorSpec(
-                (), maximum=len(envs) - 1, dtype="int64"
-            ),
+            task_id=alf.BoundedTensorSpec((), maximum=len(envs) - 1, dtype="int64"),
             action=self._action_spec,
         )
 
@@ -778,22 +772,16 @@ class CurriculumWrapper(AlfEnvironmentBaseWrapper):
 
         # obtain the unbiased estimate of current scores and past scores
         current_scores = self._current_scores / (
-            1
-            - (1 - self._current_score_update_rate) ** self._task_counts
-            + 1e-30
+            1 - (1 - self._current_score_update_rate) ** self._task_counts + 1e-30
         )
         past_scores = self._past_scores / (
             1 - (1 - self._past_score_update_rate) ** self._task_counts + 1e-30
         )
         current_episode_lengths = self._current_episode_lengths / (
-            1
-            - (1 - self._current_score_update_rate) ** self._task_counts
-            + 1e-30
+            1 - (1 - self._current_score_update_rate) ** self._task_counts + 1e-30
         )
         current_episode_lengths += 1e-30
-        progresses = (
-            current_scores - past_scores
-        ).relu() / current_episode_lengths
+        progresses = (current_scores - past_scores).relu() / current_episode_lengths
         max_progress = progresses.max()
         progresses = progresses / (max_progress + 1e-30)
         # Gradually increase scale from 0 to self._scale so that we tend to do
@@ -826,9 +814,7 @@ class CurriculumWrapper(AlfEnvironmentBaseWrapper):
         is_first_step = time_step_cpu.is_first()
         self._episode_rewards[is_first_step] = 0
         self._episode_lengths[is_first_step] = 0
-        self._episode_rewards += alf.math.sum_to_leftmost(
-            time_step_cpu.reward, 1
-        )
+        self._episode_rewards += alf.math.sum_to_leftmost(time_step_cpu.reward, 1)
         self._episode_lengths += 1
         is_last_step = time_step.cpu().is_last()
         last_env_ids = is_last_step.nonzero(as_tuple=True)[0]
@@ -845,9 +831,7 @@ class CurriculumWrapper(AlfEnvironmentBaseWrapper):
             # Tensors in time_step need to have a batch dimension
             # [num_tasks, num_envs]
             task_counts = self._task_counts.unsqueeze(1).expand(-1, num_envs)
-            current_scores = self._current_scores.unsqueeze(1).expand(
-                -1, num_envs
-            )
+            current_scores = self._current_scores.unsqueeze(1).expand(-1, num_envs)
             task_probs = self._task_probs.unsqueeze(1).expand(-1, num_envs)
             # [1, num_envs]
             not_last = (~is_last_step).unsqueeze(0)
@@ -915,9 +899,7 @@ class BatchedTensorWrapper(AlfEnvironmentBaseWrapper):
         numpy_action = nest.map_structure(
             lambda x: x.squeeze(dim=0).cpu().numpy(), action
         )
-        return BatchedTensorWrapper._to_batched_tensor(
-            super()._step(numpy_action)
-        )
+        return BatchedTensorWrapper._to_batched_tensor(super()._step(numpy_action))
 
     def _reset(self):
         return BatchedTensorWrapper._to_batched_tensor(super()._reset())
@@ -977,12 +959,9 @@ class DiscreteActionWrapper(AlfEnvironmentBaseWrapper):
             action_spec
         ), "This wrapper doesn't support nested action spec!"
         assert (
-            isinstance(action_spec, ts.BoundedTensorSpec)
-            and action_spec.is_continuous
+            isinstance(action_spec, ts.BoundedTensorSpec) and action_spec.is_continuous
         ), "This wrapper only supports bounded continuous action spec!"
-        assert (
-            action_spec.ndim == 1
-        ), "This wrapper only supports rank-1 action!"
+        assert action_spec.ndim == 1, "This wrapper only supports rank-1 action!"
         assert actions_num > 1, "Should define at least 2 discrete actions!"
         self._actions_num = actions_num
         self._action_delta = (action_spec.maximum - action_spec.minimum) / (
@@ -1010,9 +989,7 @@ class DiscreteActionWrapper(AlfEnvironmentBaseWrapper):
         if _is_numpy_array(time_step.prev_action):
             prev_action = np.zeros_like(time_step.step_type, dtype=np.int64)
         else:
-            prev_action = torch.zeros_like(
-                time_step.step_type, dtype=torch.int64
-            )
+            prev_action = torch.zeros_like(time_step.step_type, dtype=torch.int64)
         return time_step._replace(prev_action=prev_action)
 
     def _step(self, action):
@@ -1027,15 +1004,13 @@ class DiscreteActionWrapper(AlfEnvironmentBaseWrapper):
             action = action % base
             base //= self._actions_num
         if _is_numpy_array(action):
-            idx = np.stack(idx, axis=-1).astype(
-                ts.torch_dtype_to_str(self._dtype)
-            )
+            idx = np.stack(idx, axis=-1).astype(ts.torch_dtype_to_str(self._dtype))
             action = idx * self._action_delta + self._minimum
         else:
             idx = torch.stack(idx, dim=-1).to(self._dtype)
-            action = idx * torch.as_tensor(
-                self._action_delta
-            ) + torch.as_tensor(self._minimum)
+            action = idx * torch.as_tensor(self._action_delta) + torch.as_tensor(
+                self._minimum
+            )
         # action: [B, action_dim] or [action_dim]
         time_step = self._env.step(action)
         return time_step._replace(prev_action=prev_action)
@@ -1143,10 +1118,7 @@ class NormalizedActionWrapper(AlfEnvironmentBaseWrapper):
         super().__init__(env)
         action_spec = env.action_spec()
         assert all(
-            [
-                isinstance(s, alf.BoundedTensorSpec)
-                for s in nest.flatten(action_spec)
-            ]
+            [isinstance(s, alf.BoundedTensorSpec) for s in nest.flatten(action_spec)]
         ), ("All action specs must be bounded! Got %s" % action_spec)
 
         def _action_affine_paras(spec):
@@ -1157,9 +1129,7 @@ class NormalizedActionWrapper(AlfEnvironmentBaseWrapper):
             c = b0 + b
             return b, c
 
-        self._affine_paras = nest.map_structure(
-            _action_affine_paras, action_spec
-        )
+        self._affine_paras = nest.map_structure(_action_affine_paras, action_spec)
         # overwrite all action bounds to [-1,1]
         self._action_spec = nest.map_structure(
             lambda spec: alf.BoundedTensorSpec(
@@ -1214,18 +1184,10 @@ class BatchEnvironmentWrapper(AlfEnvironment):
             raise ValueError("All environments must be array-based.")
         if any(env.action_spec() != self._action_spec for env in self._envs):
             raise ValueError("All environments must have the same action spec.")
-        if any(
-            env.time_step_spec() != self._time_step_spec for env in self._envs
-        ):
-            raise ValueError(
-                "All environments must have the same time_step_spec."
-            )
-        if any(
-            env.env_info_spec() != self._env_info_spec for env in self._envs
-        ):
-            raise ValueError(
-                "All environments must have the same env_info_spec."
-            )
+        if any(env.time_step_spec() != self._time_step_spec for env in self._envs):
+            raise ValueError("All environments must have the same time_step_spec.")
+        if any(env.env_info_spec() != self._env_info_spec for env in self._envs):
+            raise ValueError("All environments must have the same env_info_spec.")
         if any(env.batched for env in self._envs):
             raise ValueError("All environments must be non-batched.")
 

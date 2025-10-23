@@ -166,9 +166,7 @@ class DeepmindLabEnv(gym.Env):
         self._action_list = action_list
 
         obs = self._lab.observations()[observation]
-        self.observation_space = gym.spaces.Box(
-            0, 255, obs.shape, dtype=np.uint8
-        )
+        self.observation_space = gym.spaces.Box(0, 255, obs.shape, dtype=np.uint8)
         self._last_obs = obs
 
     def step(self, action):

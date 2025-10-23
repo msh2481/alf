@@ -107,15 +107,11 @@ def _set_target_entropy(name, target_entropy, flat_action_spec):
             target_entropy = dist_utils.calc_default_target_entropy
         target_entropy = np.sum(list(map(target_entropy, flat_action_spec)))
         logging.info(
-            "Target entropy is calculated for {}: {}.".format(
-                name, target_entropy
-            )
+            "Target entropy is calculated for {}: {}.".format(name, target_entropy)
         )
     else:
         logging.info(
-            "User-supplied target entropy for {}: {}".format(
-                name, target_entropy
-            )
+            "User-supplied target entropy for {}: {}".format(name, target_entropy)
         )
     return target_entropy
 
@@ -341,9 +337,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
                 debug_summaries=debug_summaries,
                 config=config,
             )
-            assert hasattr(
-                repr_alg, "output_spec"
-            ), "repr_alg must have output_spec"
+            assert hasattr(repr_alg, "output_spec"), "repr_alg must have output_spec"
             observation_spec = repr_alg.output_spec
         else:
             repr_alg = None
@@ -371,9 +365,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
 
         if self._act_type == ActionType.Mixed:
             # separate alphas for discrete and continuous actions
-            log_alpha = type(action_spec)(
-                (_init_log_alpha(), _init_log_alpha())
-            )
+            log_alpha = type(action_spec)((_init_log_alpha(), _init_log_alpha()))
         else:
             log_alpha = _init_log_alpha()
 
@@ -385,8 +377,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
             ),
             critic=(
                 ()
-                if self._act_type == ActionType.Continuous
-                or critic_network_cls is None
+                if self._act_type == ActionType.Continuous or critic_network_cls is None
                 else critic_networks.state_spec
             ),
         )
@@ -394,22 +385,17 @@ class SacAlgorithm(OffPolicyAlgorithm):
             action=action_state_spec,
             actor=(
                 ()
-                if self._act_type != ActionType.Continuous
-                or critic_network_cls is None
+                if self._act_type != ActionType.Continuous or critic_network_cls is None
                 else critic_networks.state_spec
             ),
             critic=SacCriticState(
-                critics=(
-                    critic_networks.state_spec if critic_network_cls else ()
-                ),
+                critics=(critic_networks.state_spec if critic_network_cls else ()),
                 target_critics=(
                     critic_networks.state_spec if critic_network_cls else ()
                 ),
             ),
             repr=repr_alg.train_state_spec if repr_alg else (),
-            target_repr=(
-                target_repr_alg.predict_state_spec if target_repr_alg else ()
-            ),
+            target_repr=(target_repr_alg.predict_state_spec if target_repr_alg else ()),
         )
 
         super().__init__(
@@ -469,9 +455,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
         # Have different names to separate their summary curves
         self._critic_losses = []
         for i in range(num_critic_replicas):
-            self._critic_losses.append(
-                critic_loss_ctor(name="critic_loss%d" % (i + 1))
-            )
+            self._critic_losses.append(critic_loss_ctor(name="critic_loss%d" % (i + 1)))
 
         self._prior_actor = None
         if prior_actor_ctor is not None:
@@ -527,9 +511,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
         def _create_target_updater():
             self._update_target = common.TargetUpdater(
                 models=_filter([self._critic_networks, repr_alg]),
-                target_models=_filter(
-                    [self._target_critic_networks, target_repr_alg]
-                ),
+                target_models=_filter([self._target_critic_networks, target_repr_alg]),
                 tau=target_update_tau,
                 period=target_update_period,
             )
@@ -589,9 +571,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
     ):
 
         def _make_parallel(net):
-            return net.make_parallel(
-                self._num_critic_replicas * reward_spec.numel
-            )
+            return net.make_parallel(self._num_critic_replicas * reward_spec.numel)
 
         def _check_spec_equal(spec1, spec2):
             assert nest.flatten(spec1) == nest.flatten(
@@ -608,9 +588,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
         if discrete_action_spec and continuous_action_spec:
             # When there are both continuous and discrete actions, we require
             # that acition_spec is a tuple/list ``(discrete, continuous)``.
-            assert (
-                isinstance(action_spec, (tuple, list)) and len(action_spec) == 2
-            ), (
+            assert isinstance(action_spec, (tuple, list)) and len(action_spec) == 2, (
                 "In the mixed case, the action spec must be a tuple/list"
                 " (discrete_action_spec, continuous_action_spec)!"
             )
@@ -652,8 +630,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
                 "Discrete action spec: {}".format(discrete_action_spec)
             )
             assert q_network_cls is not None, (
-                "If there exists a discrete action, then QNetwork must "
-                "be provided!"
+                "If there exists a discrete action, then QNetwork must " "be provided!"
             )
             if continuous_action_spec:
                 act_type = ActionType.Mixed
@@ -741,9 +718,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
             action_dist = type(self._action_spec)(
                 (discrete_action_dist, continuous_action_dist)
             )
-            action = type(self._action_spec)(
-                (discrete_action, continuous_action)
-            )
+            action = type(self._action_spec)((discrete_action, continuous_action))
         elif self._act_type == ActionType.Discrete:
             action_dist = discrete_action_dist
             action = discrete_action
@@ -751,16 +726,10 @@ class SacAlgorithm(OffPolicyAlgorithm):
             action_dist = continuous_action_dist
             action = continuous_action
 
-        if (
-            self._reproduce_locomotion
-            and rollout
-            and not self._training_started
-        ):
+        if self._reproduce_locomotion and rollout and not self._training_started:
             # get batch size with ``get_outer_rank`` and ``get_nest_shape``
             # since the observation can be a nest in the general case
-            outer_rank = nest_utils.get_outer_rank(
-                observation, self._observation_spec
-            )
+            outer_rank = nest_utils.get_outer_rank(observation, self._observation_spec)
             outer_dims = alf.nest.get_nest_shape(observation)[:outer_rank]
             # This uniform sampling seems important because for a squashed Gaussian,
             # even with a large scale, a random policy is not nearly uniform.
@@ -904,9 +873,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
             if self._act_type == ActionType.Discrete:
                 # permute: [B, replicas, reward_dim, num_actions]
                 #       -> [B, replicas, num_actions, reward_dim]
-                order = [0, 1, -1] + list(
-                    range(2, 2 + len(self._reward_spec.shape))
-                )
+                order = [0, 1, -1] + list(range(2, 2 + len(self._reward_spec.shape)))
                 critics = critics.permute(*order)
 
         if replica_min:
@@ -960,9 +927,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
 
         def actor_loss_fn(dqda, action):
             if self._dqda_clipping:
-                dqda = torch.clamp(
-                    dqda, -self._dqda_clipping, self._dqda_clipping
-                )
+                dqda = torch.clamp(dqda, -self._dqda_clipping, self._dqda_clipping)
             loss = 0.5 * losses.element_wise_squared_loss(
                 (dqda + action).detach(), action
             )
@@ -1026,17 +991,13 @@ class SacAlgorithm(OffPolicyAlgorithm):
         if self._act_type == ActionType.Discrete:
             critics = self._select_q_value(rollout_info.action, critics)
             # [B, num_actions] -> [B, num_actions, reward_dim]
-            probs = common.expand_dims_as(
-                action_distribution.probs, target_critics
-            )
+            probs = common.expand_dims_as(action_distribution.probs, target_critics)
             # [B, reward_dim]
             target_critics = torch.sum(probs * target_critics, dim=1)
         elif self._act_type == ActionType.Mixed:
             critics = self._select_q_value(rollout_info.action[0], critics)
             discrete_act_dist = action_distribution[0]
-            target_critics = torch.sum(
-                discrete_act_dist.probs * target_critics, dim=-1
-            )
+            target_critics = torch.sum(discrete_act_dist.probs * target_critics, dim=-1)
 
         target_critic = target_critics.reshape(
             target_critics.shape[0], *self._reward_spec.shape
@@ -1062,9 +1023,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
         )
         return sum(nest.flatten(alpha_loss))
 
-    def train_step(
-        self, inputs: TimeStep, state: SacState, rollout_info: SacInfo
-    ):
+    def train_step(self, inputs: TimeStep, state: SacState, rollout_info: SacInfo):
         assert not self._is_eval
         self._training_started = True
         if self._target_repr_alg is not None:
@@ -1084,8 +1043,8 @@ class SacAlgorithm(OffPolicyAlgorithm):
         )
         new_state = new_state._replace(target_repr=target_repr_state)
 
-        (action_distribution, action, critics, action_state) = (
-            self._predict_action(observation, state=state.action)
+        (action_distribution, action, critics, action_state) = self._predict_action(
+            observation, state=state.action
         )
 
         log_pi = nest.map_structure(
@@ -1102,9 +1061,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
 
         if self._prior_actor is not None:
             prior_step = self._prior_actor.train_step(inputs, ())
-            log_prior = dist_utils.compute_log_probability(
-                prior_step.output, action
-            )
+            log_prior = dist_utils.compute_log_probability(prior_step.output, action)
             log_pi = log_pi - log_prior
 
         actor_state, actor_loss = self._actor_train_step(
@@ -1164,12 +1121,8 @@ class SacAlgorithm(OffPolicyAlgorithm):
         if self._debug_summaries and alf.summary.should_record_summaries():
             with alf.summary.scope(self._name):
                 if self._act_type == ActionType.Mixed:
-                    alf.summary.scalar(
-                        "alpha/discrete", self._log_alpha[0].exp()
-                    )
-                    alf.summary.scalar(
-                        "alpha/continuous", self._log_alpha[1].exp()
-                    )
+                    alf.summary.scalar("alpha/discrete", self._log_alpha[0].exp())
+                    alf.summary.scalar("alpha/continuous", self._log_alpha[1].exp())
                 else:
                     alf.summary.scalar("alpha", self._log_alpha.exp())
 
@@ -1235,9 +1188,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
                 info = info._replace(
                     reward=(
                         info.reward
-                        + common.expand_dims_as(
-                            entropy_reward * discount, info.reward
-                        )
+                        + common.expand_dims_as(entropy_reward * discount, info.reward)
                     )
                 )
 

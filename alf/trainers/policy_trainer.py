@@ -130,9 +130,7 @@ def _visualize_alf_tree(module: Algorithm):
     try:
         import graphviz
     except ImportError:
-        logging.warn(
-            'Need "graphviz" installed if you want to visualize modules'
-        )
+        logging.warn('Need "graphviz" installed if you want to visualize modules')
         return None
 
     def _is_layer(node):
@@ -233,9 +231,7 @@ def _visualize_alf_tree(module: Algorithm):
             edge = (f"{node_index}:{field}", f"{child_idx}:caption")
             edges.append(edge)
 
-        dot.node(
-            str(node_index), label="|".join(node_records), **_visual_style(node)
-        )
+        dot.node(str(node_index), label="|".join(node_records), **_visual_style(node))
 
         if isinstance(node, Algorithm):
             # NOTE: the subgraph name needs to begin with 'cluster' (all lowercase)
@@ -316,9 +312,7 @@ class Trainer(object):
             self._server_thread = threading.Thread(
                 target=partial(start_server, port=flags.FLAGS.port), daemon=True
             )
-            logging.info(
-                f"Server port for request handling : {flags.FLAGS.port}."
-            )
+            logging.info(f"Server port for request handling : {flags.FLAGS.port}.")
             self._server_thread.start()
             register_endpoint(
                 "/checkpoint",
@@ -365,9 +359,7 @@ class Trainer(object):
                     % (int(signal.SIGRTMIN), self._pid)
                 )
             else:
-                logging.info(
-                    "Video clip requests not available on this platform"
-                )
+                logging.info("Video clip requests not available on this platform")
 
         if (
             threading.current_thread() == threading.main_thread()
@@ -471,9 +463,7 @@ class Trainer(object):
         with alf.summary.record_if(lambda: True):
 
             def _markdownify(paragraph):
-                return "    ".join(
-                    (os.linesep + paragraph).splitlines(keepends=True)
-                )
+                return "    ".join((os.linesep + paragraph).splitlines(keepends=True))
 
             common.summarize_config()
             alf.summary.text("commandline", " ".join(sys.argv))
@@ -537,9 +527,7 @@ class Trainer(object):
                     with open(path, "r") as fin:
                         code = fin.read()
                         # adding "<pre>" will make TB show raw text instead of MD
-                        alf.summary.text(
-                            "code/%s" % f, "<pre>" + code + "</pre>"
-                        )
+                        alf.summary.text("code/%s" % f, "<pre>" + code + "</pre>")
 
     def _request_checkpoint(self, signum, frame):
         self._checkpoint_requested = True
@@ -579,9 +567,7 @@ class Trainer(object):
                 # save video
                 logging.info("Saving video clip...")
                 global_step = alf.summary.get_global_counter()
-                output_file = os.path.join(
-                    video_dir, f"{name}_{global_step}.mp4"
-                )
+                output_file = os.path.join(video_dir, f"{name}_{global_step}.mp4")
 
                 common.save_video(frames=frames, output_file=output_file)
                 self._video_clip_requested = False
@@ -670,9 +656,7 @@ class RLTrainer(Trainer):
         alf.summary.should_summarize_output(config.summarize_output)
 
         env = alf.get_env()
-        logging.info(
-            "observation_spec=\n%s" % pformat_pycolor(env.observation_spec())
-        ),
+        logging.info("observation_spec=\n%s" % pformat_pycolor(env.observation_spec())),
         logging.info("action_spec=\n%s" % pformat_pycolor(env.action_spec()))
 
         # for offline buffer construction
@@ -689,14 +673,11 @@ class RLTrainer(Trainer):
         observation_spec = data_transformer.transformed_observation_spec
         common.set_transformed_observation_spec(observation_spec)
         logging.info(
-            "transformed_observation_spec=%s"
-            % pformat_pycolor(observation_spec)
+            "transformed_observation_spec=%s" % pformat_pycolor(observation_spec)
         )
 
         if algorithm_wrapper_ctor is not None:
-            self._algorithm_ctor = partial(
-                algorithm_wrapper_ctor, self._algorithm_ctor
-            )
+            self._algorithm_ctor = partial(algorithm_wrapper_ctor, self._algorithm_ctor)
 
         self._algorithm = self._algorithm_ctor(
             observation_spec=observation_spec,
@@ -716,8 +697,7 @@ class RLTrainer(Trainer):
             % pformat_pycolor(self._algorithm.rollout_state_spec)
         )
         logging.info(
-            "train_state_spec=\n%s"
-            % pformat_pycolor(self._algorithm.train_state_spec)
+            "train_state_spec=\n%s" % pformat_pycolor(self._algorithm.train_state_spec)
         )
 
         # recover offline buffer
@@ -742,9 +722,7 @@ class RLTrainer(Trainer):
         self._thread_env = None
 
         def _env_in_subprocess(e):
-            if isinstance(
-                e, alf.environments.alf_wrappers.AlfEnvironmentBaseWrapper
-            ):
+            if isinstance(e, alf.environments.alf_wrappers.AlfEnvironmentBaseWrapper):
                 return _env_in_subprocess(e.wrapped_env())
             # TODO: One special case is alf_wrappers.MultitaskWrapper which is
             #       an alf wrapper but not a subclass of AlfEnvironmentBaseWrapper.
@@ -784,18 +762,13 @@ class RLTrainer(Trainer):
         training_setting_summarized = False
 
         checkpoint_interval = math.ceil(
-            (self._num_iterations or self._num_env_steps)
-            / self._num_checkpoints
+            (self._num_iterations or self._num_env_steps) / self._num_checkpoints
         )
 
         if self._num_iterations:
-            time_to_checkpoint = (
-                self._trainer_progress._iter_num + checkpoint_interval
-            )
+            time_to_checkpoint = self._trainer_progress._iter_num + checkpoint_interval
         else:
-            time_to_checkpoint = (
-                self._trainer_progress._env_steps + checkpoint_interval
-            )
+            time_to_checkpoint = self._trainer_progress._env_steps + checkpoint_interval
 
         if self._evaluate and iter_num == 0:
             self._eval()
@@ -846,9 +819,7 @@ class RLTrainer(Trainer):
             if self.progress() >= 1:
                 break
 
-            self._check_dpp_paras_consistency(
-                iter_num, training_setting_summarized
-            )
+            self._check_dpp_paras_consistency(iter_num, training_setting_summarized)
 
             if (self._num_iterations and iter_num >= time_to_checkpoint) or (
                 not self._num_iterations
@@ -886,14 +857,9 @@ class RLTrainer(Trainer):
             return True
         elif self._config.num_evals is None:
             return iter_num % self._eval_interval == 0
-        return (
-            self.progress() * self._config.num_evals
-            > self._num_evals_performed + 1
-        )
+        return self.progress() * self._config.num_evals > self._num_evals_performed + 1
 
-    def _check_dpp_paras_consistency(
-        self, iter_num: int, training_started: bool
-    ):
+    def _check_dpp_paras_consistency(self, iter_num: int, training_started: bool):
         """Periodically check the consistency of model parameters of different
         DDP processes.
 
@@ -1006,9 +972,7 @@ class SLTrainer(Trainer):
         """
         super().__init__(config)
 
-        assert (
-            config.num_iterations > 0
-        ), "Must provide num_iterations for training!"
+        assert config.num_iterations > 0, "Must provide num_iterations for training!"
 
         self._num_epochs = config.num_iterations
         self._trainer_progress.set_termination_criterion(self._num_epochs)
@@ -1019,9 +983,7 @@ class SLTrainer(Trainer):
         begin_epoch_num = int(self._trainer_progress._iter_num)
         epoch_num = begin_epoch_num
 
-        checkpoint_interval = math.ceil(
-            self._num_epochs / self._num_checkpoints
-        )
+        checkpoint_interval = math.ceil(self._num_epochs / self._num_checkpoints)
         time_to_checkpoint = begin_epoch_num + checkpoint_interval
 
         logging.info("==> Begin Training")
@@ -1329,9 +1291,7 @@ def play(
     if selective_mode:
         # Below is an example selective criteria based on return.
         # This should be adjusted according to the particular task.
-        selective_criteria_func = (
-            lambda return_value, env_info: return_value < 500
-        )
+        selective_criteria_func = lambda return_value, env_info: return_value < 500
     else:
         selective_criteria_func = None
 

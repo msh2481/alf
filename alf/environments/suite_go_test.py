@@ -277,14 +277,10 @@ class BoardTest(alf.test.TestCase):
         for seq in sequences:
             for step in seq:
                 board = list(step["board"])
-                board = [
-                    0 if c == " " else (-1 if c == "x" else 1) for c in board
-                ]
+                board = [0 if c == " " else (-1 if c == "x" else 1) for c in board]
                 step["y"] = torch.tensor(step["y"], dtype=torch.int64)
                 step["x"] = torch.tensor(step["x"], dtype=torch.int64)
-                step["board"] = torch.tensor(board, dtype=torch.int8).reshape(
-                    4, 4
-                )
+                step["board"] = torch.tensor(board, dtype=torch.int8).reshape(4, 4)
                 if "suicidal" in step:
                     suicidal = torch.tensor(step["suicidal"], dtype=torch.bool)
                 else:
@@ -358,9 +354,7 @@ class BoardTest(alf.test.TestCase):
         self.assertEqual(
             time_step.observation["board"], torch.zeros(batch_size, 1, 4, 4)
         )
-        self.assertEqual(
-            time_step.observation["to_play"], torch.zeros(batch_size)
-        )
+        self.assertEqual(time_step.observation["to_play"], torch.zeros(batch_size))
         self.assertEqual(
             time_step.step_type, torch.tensor([StepType.FIRST] * batch_size)
         )
@@ -397,9 +391,7 @@ class BoardTest(alf.test.TestCase):
             time_step.observation["to_play"],
             torch.tensor([0, 0, 0], dtype=torch.int8),
         )
-        self.assertEqual(
-            time_step.observation["board"][0:2], torch.zeros(2, 1, 4, 4)
-        )
+        self.assertEqual(time_step.observation["board"][0:2], torch.zeros(2, 1, 4, 4))
         # board[2] does not change after pass
         self.assertEqual(
             time_step.observation["board"][2][0], sequences[2][-1]["board"]
@@ -436,17 +428,13 @@ class BoardTest(alf.test.TestCase):
                 action = i // 2
             else:
                 action = pass_action
-            time_step = env.step(
-                action=torch.tensor([action], dtype=torch.int64)
-            )
+            time_step = env.step(action=torch.tensor([action], dtype=torch.int64))
             self.assertEqual(time_step.reward[0], 0.0)
             self.assertEqual(time_step.step_type[0], StepType.MID)
         time_step = env.step(
             action=torch.tensor([height * width - 1], dtype=torch.int64)
         )
-        time_step = env.step(
-            action=torch.tensor([pass_action], dtype=torch.int64)
-        )
+        time_step = env.step(action=torch.tensor([pass_action], dtype=torch.int64))
         time_step = env.step(
             action=torch.tensor([height * width - 2], dtype=torch.int64)
         )
@@ -460,14 +448,10 @@ class BoardTest(alf.test.TestCase):
         time_step = env.step(action=torch.tensor([0], dtype=torch.int64))
         self.assertEqual(time_step.step_type[0], StepType.MID)
         self.assertEqual(time_step.reward[0], 0.0)
-        time_step = env.step(
-            action=torch.tensor([pass_action], dtype=torch.int64)
-        )
+        time_step = env.step(action=torch.tensor([pass_action], dtype=torch.int64))
         self.assertEqual(time_step.step_type[0], StepType.MID)
         self.assertEqual(time_step.reward[0], 0.0)
-        time_step = env.step(
-            action=torch.tensor([pass_action], dtype=torch.int64)
-        )
+        time_step = env.step(action=torch.tensor([pass_action], dtype=torch.int64))
         self.assertEqual(time_step.step_type[0], StepType.LAST)
         self.assertEqual(time_step.reward[0], 1.0)
 
@@ -477,14 +461,10 @@ class BoardTest(alf.test.TestCase):
         time_step = env.step(action=torch.tensor([0], dtype=torch.int64))
         self.assertEqual(time_step.step_type[0], StepType.MID)
         self.assertEqual(time_step.reward[0], 0.0)
-        time_step = env.step(
-            action=torch.tensor([pass_action], dtype=torch.int64)
-        )
+        time_step = env.step(action=torch.tensor([pass_action], dtype=torch.int64))
         self.assertEqual(time_step.step_type[0], StepType.MID)
         self.assertEqual(time_step.reward[0], 0.0)
-        time_step = env.step(
-            action=torch.tensor([pass_action], dtype=torch.int64)
-        )
+        time_step = env.step(action=torch.tensor([pass_action], dtype=torch.int64))
         self.assertEqual(time_step.step_type[0], StepType.LAST)
         self.assertEqual(time_step.reward[0], 1.0)
 

@@ -168,9 +168,7 @@ class HyperNetworkTest(parameterized.TestCase, alf.test.TestCase):
             if sampled_predictive:
                 params = algorithm.sample_parameters(num_particles=200)
                 pred_step = algorithm.predict_step(inputs, params=params)
-                sampled_preds = (
-                    pred_step.output.squeeze()
-                )  # [batch, n_particles]
+                sampled_preds = pred_step.output.squeeze()  # [batch, n_particles]
                 spred_err = torch.norm((sampled_preds - targets).mean(1))
                 print("train_iter {}: sampled pred err {}".format(i, spred_err))
 
@@ -338,9 +336,7 @@ class HyperNetworkTest(parameterized.TestCase, alf.test.TestCase):
             if sampled_predictive:
                 params = algorithm.sample_parameters(num_particles=200)
                 pred_step = algorithm.predict_step(inputs, params=params)
-                sampled_preds = (
-                    pred_step.output.squeeze()
-                )  # [batch, n_particles]
+                sampled_preds = pred_step.output.squeeze()  # [batch, n_particles]
                 spred_err = torch.norm((sampled_preds - targets).mean(1))
                 print("train_iter {}: sampled pred err {}".format(i, spred_err))
 
@@ -408,9 +404,7 @@ class HyperNetworkTest(parameterized.TestCase, alf.test.TestCase):
         trainset = TensorDataset(
             torch.randn(100, 1, 28, 28), torch.randint(0, 9, (100,))
         )
-        testset = TensorDataset(
-            torch.randn(50, 1, 28, 28), torch.randint(0, 9, (50,))
-        )
+        testset = TensorDataset(torch.randn(50, 1, 28, 28), torch.randint(0, 9, (50,)))
         outlier_trainset = TensorDataset(
             torch.randn(100, 1, 28, 28), torch.randint(0, 9, (100,))
         )

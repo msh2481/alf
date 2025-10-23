@@ -72,9 +72,7 @@ class ActorDistributionNetworkBase(Network):
             encoder_kwargs["kernel_initializer"] = torch.nn.init.xavier_uniform_
 
         self._action_spec = action_spec
-        self._encoding_net = encoding_network_ctor(
-            input_tensor_spec, **encoder_kwargs
-        )
+        self._encoding_net = encoding_network_ctor(input_tensor_spec, **encoder_kwargs)
         self._create_projection_net(
             discrete_projection_net_ctor, continuous_projection_net_ctor
         )
@@ -127,9 +125,7 @@ class ActorDistributionNetworkBase(Network):
         """Create a ``ParallelActorDistributionNetwork`` using ``n`` replicas of ``self``.
         The initialized network parameters will be different.
         """
-        return ParallelActorDistributionNetwork(
-            self, n, "parallel_" + self._name
-        )
+        return ParallelActorDistributionNetwork(self, n, "parallel_" + self._name)
 
     @property
     def state_spec(self):
@@ -240,9 +236,7 @@ class ParallelActorDistributionNetwork(Network):
             name (str):
         """
 
-        super().__init__(
-            input_tensor_spec=actor_network.input_tensor_spec, name=name
-        )
+        super().__init__(input_tensor_spec=actor_network.input_tensor_spec, name=name)
         self._encoding_net = actor_network._encoding_net.make_parallel(n)
         self._projection_net = actor_network._projection_net.make_parallel(n)
         self._output_spec = self._projection_net.output_spec
@@ -359,15 +353,11 @@ class UnitNormalActorDistributionNetwork(Network):
         self._action_spec = action_spec
 
     def forward(self, inputs, state=()):
-        outer_rank = alf.nest.utils.get_outer_rank(
-            inputs, self._input_tensor_spec
-        )
+        outer_rank = alf.nest.utils.get_outer_rank(inputs, self._input_tensor_spec)
         outer_dims = alf.nest.get_nest_shape(inputs)[:outer_rank]
         means = self._action_spec.zeros(outer_dims)
         stds = self._action_spec.ones(outer_dims)
-        normal_dist = alf.utils.dist_utils.DiagMultivariateNormal(
-            loc=means, scale=stds
-        )
+        normal_dist = alf.utils.dist_utils.DiagMultivariateNormal(loc=means, scale=stds)
         return normal_dist, state
 
 
@@ -444,9 +434,7 @@ class LatentActorDistributionNetwork(Network):
             )
             self._squash_transforms = [
                 dist_squashing_transform,
-                alf.utils.dist_utils.AffineTransform(
-                    loc=means, scale=magnitudes
-                ),
+                alf.utils.dist_utils.AffineTransform(loc=means, scale=magnitudes),
             ]
 
     def forward(self, inputs, state=()):

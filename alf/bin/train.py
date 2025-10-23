@@ -203,15 +203,9 @@ def _train(root_dir, local_rank=-1, rank=0, world_size=1):
             interpreted as "non distributed mode".
     """
     conf_file = common.get_conf_file()
-    trainer_conf = policy_trainer.TrainerConfig(
-        root_dir=root_dir, conf_file=conf_file
-    )
+    trainer_conf = policy_trainer.TrainerConfig(root_dir=root_dir, conf_file=conf_file)
 
-    if (
-        trainer_conf.ddp_paras_check_interval > 0
-        and world_size > 1
-        and local_rank >= 0
-    ):
+    if trainer_conf.ddp_paras_check_interval > 0 and world_size > 1 and local_rank >= 0:
         # world_size > 1 means ddp mode, local_rank >= 0 means multi-node multi-gpu
         raise NotImplementedError(
             "ddp_paras_check currently not supported under multi-node multi-gpu training"
@@ -231,9 +225,7 @@ def _train(root_dir, local_rank=-1, rank=0, world_size=1):
                 alg_wrapper_ctor = DistributedUnroller
         else:
             alg_wrapper_ctor = None
-        trainer = policy_trainer.RLTrainer(
-            trainer_conf, ddp_rank, alg_wrapper_ctor
-        )
+        trainer = policy_trainer.RLTrainer(trainer_conf, ddp_rank, alg_wrapper_ctor)
     elif trainer_conf.ml_type == "sl":
         # NOTE: SLTrainer does not support distributed training yet
         if world_size > 1:
@@ -241,9 +233,7 @@ def _train(root_dir, local_rank=-1, rank=0, world_size=1):
                 "Multi-GPU DDP training does not support supervised learning"
             )
         if FLAGS.as_remote_trainer or FLAGS.as_remote_unroller:
-            raise RuntimeError(
-                "Remote training does not support supervised learning"
-            )
+            raise RuntimeError("Remote training does not support supervised learning")
         trainer = policy_trainer.SLTrainer(trainer_conf)
     else:
         raise ValueError("Unsupported ml_type: %s" % trainer_conf.ml_type)
@@ -400,9 +390,7 @@ def main(_):
 
     # FLAGS.distributed is guaranteed to be one of the possible values.
     if FLAGS.distributed == "none":
-        training_worker(
-            rank=0, world_size=1, conf_file=conf_file, root_dir=root_dir
-        )
+        training_worker(rank=0, world_size=1, conf_file=conf_file, root_dir=root_dir)
     elif FLAGS.distributed == "multi-gpu":
         CUDA_VISIBLE_DEVICES = os.environ.get("CUDA_VISIBLE_DEVICES", None)
         # If CUDA_VISIBLE_DEVICES is not set, we will set it to all available gpus
@@ -523,6 +511,8 @@ def main(_):
 
 
 if __name__ == "__main__":
-    __spec__ = None  # see https://github.com/HorizonRobotics/alf/pull/1554 for explanation
+    __spec__ = (
+        None  # see https://github.com/HorizonRobotics/alf/pull/1554 for explanation
+    )
     _define_flags()
     app.run(main)

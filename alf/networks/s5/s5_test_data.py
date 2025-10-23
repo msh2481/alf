@@ -133,9 +133,7 @@ class SequenceDataset(DefaultCollateMixin):
 
     def __init__(self, _name_, data_dir=None, **dataset_cfg):
         assert _name_ == self._name_
-        self.data_dir = (
-            Path(data_dir).absolute() if data_dir is not None else None
-        )
+        self.data_dir = Path(data_dir).absolute() if data_dir is not None else None
 
         # Add all arguments to self
         init_args = self.init_defaults.copy()
@@ -164,9 +162,7 @@ class SequenceDataset(DefaultCollateMixin):
         self.dataset_train, self.dataset_val = torch.utils.data.random_split(
             self.dataset_train,
             (train_len, len(self.dataset_train) - train_len),
-            generator=torch.Generator(
-                device=alf.get_default_device()
-            ).manual_seed(
+            generator=torch.Generator(device=alf.get_default_device()).manual_seed(
                 getattr(self, "seed", 42)
             ),  # PL is supposed to have a way to handle seeds properly, but doesn't seem to work for us
         )
@@ -223,9 +219,7 @@ class MNIST(SequenceDataset):
 
         transform_list = [
             torchvision.transforms.ToTensor(),
-            torchvision.transforms.Lambda(
-                lambda x: x.view(self.d_input, self.L).t()
-            ),
+            torchvision.transforms.Lambda(lambda x: x.view(self.d_input, self.L).t()),
         ]  # (L, d_input)
         # TODO does MNIST need normalization?
         # torchvision.transforms.Normalize((0.1307,), (0.3081,)) # normalize inputs

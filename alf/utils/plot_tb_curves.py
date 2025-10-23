@@ -110,9 +110,7 @@ class MeanCurve(
         )
 
     def final_y(self, N=1):
-        return tuple(
-            map(lambda y: np.mean(y[-N:]), (self.y, self.min_y, self.max_y))
-        )
+        return tuple(map(lambda y: np.mean(y[-N:]), (self.y, self.min_y, self.max_y)))
 
 
 class MeanCurveReader(object):
@@ -430,9 +428,7 @@ class MeanCurveGroupReader(object):
         for key, val in agg_vals.items():
             agg_vals[key] = np.mean(val, axis=0)
 
-        self._mean_curve = MeanCurve(
-            x=curves[0].x, name=curves[0].name, **agg_vals
-        )
+        self._mean_curve = MeanCurve(x=curves[0].x, name=curves[0].name, **agg_vals)
 
         self._x_label = mean_curve_readers[0].x_label
         self._name = name

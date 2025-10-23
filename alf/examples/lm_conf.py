@@ -69,9 +69,7 @@ class LMAlgorithm(Algorithm):
             data_creator (Callable): called as ``data_creator()`` to get a tuple
                 of (train_data, val_data, test_data, vocab)
         """
-        self._train_data, self._val_data, self._test_data, self._vocab = (
-            data_creator()
-        )
+        self._train_data, self._val_data, self._test_data, self._vocab = data_creator()
         ntokens = len(self._vocab.stoi)  # the size of vocabulary
         model = create_model(ntokens)
         super().__init__(

@@ -203,9 +203,7 @@ class RlpdAlgorithm(SacAlgorithm):
         if actor_utd is None and critic_utd is None:
             self._train_mode = TrainMode.standard
         else:
-            total_utd = alf.config_util.get_config_value(
-                "num_updates_per_train_iter"
-            )
+            total_utd = alf.config_util.get_config_value("num_updates_per_train_iter")
             if critic_utd is not None:
                 assert (
                     critic_utd < total_utd
@@ -388,9 +386,7 @@ class RlpdAlgorithm(SacAlgorithm):
 
         return state, info
 
-    def train_step(
-        self, inputs: TimeStep, state: SacState, rollout_info: RlpdInfo
-    ):
+    def train_step(self, inputs: TimeStep, state: SacState, rollout_info: RlpdInfo):
         # Since Algorithm extracts train_info_spec from the output info
         # of the first train_step() call, we always start with a standard
         # train_step to initialize Algorithm.train_info_spec such that both
@@ -401,9 +397,7 @@ class RlpdAlgorithm(SacAlgorithm):
         ):
             alg_step = super().train_step(inputs, state, rollout_info)
             self._critic_update_counter += 1
-            info = alg_step.info._replace(
-                bootstrap_mask=rollout_info.bootstrap_mask
-            )
+            info = alg_step.info._replace(bootstrap_mask=rollout_info.bootstrap_mask)
             return alg_step._replace(info=info)
 
         assert not self._is_eval
@@ -423,8 +417,8 @@ class RlpdAlgorithm(SacAlgorithm):
         observation, new_state, info = self._repr_step(
             "train", inputs, state, rollout_info.repr
         )
-        (action_distribution, action, critics, action_state) = (
-            self._predict_action(observation, state=state.action)
+        (action_distribution, action, critics, action_state) = self._predict_action(
+            observation, state=state.action
         )
 
         new_state = new_state._replace(
@@ -442,9 +436,7 @@ class RlpdAlgorithm(SacAlgorithm):
 
         if self._prior_actor is not None:
             prior_step = self._prior_actor.train_step(inputs, ())
-            log_prior = dist_utils.compute_log_probability(
-                prior_step.output, action
-            )
+            log_prior = dist_utils.compute_log_probability(prior_step.output, action)
             log_pi = log_pi - log_prior
 
         if self._train_mode == TrainMode.actor:
@@ -513,9 +505,7 @@ class RlpdAlgorithm(SacAlgorithm):
                 info = info._replace(
                     reward=(
                         info.reward
-                        + common.expand_dims_as(
-                            entropy_reward * discount, info.reward
-                        )
+                        + common.expand_dims_as(entropy_reward * discount, info.reward)
                     )
                 )
 

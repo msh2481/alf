@@ -91,9 +91,7 @@ def action_importance_ratio(
         )
 
     if log_prob_clipping > 0.0:
-        action_log_prob = action_log_prob.clamp(
-            -log_prob_clipping, log_prob_clipping
-        )
+        action_log_prob = action_log_prob.clamp(-log_prob_clipping, log_prob_clipping)
     if check_numerics:
         assert torch.all(torch.isfinite(action_log_prob))
 
@@ -117,24 +115,17 @@ def action_importance_ratio(
         with scope:
             if importance_ratio_clipping > 0.0:
                 clip_fraction = (
-                    (
-                        torch.abs(importance_ratio - 1.0)
-                        > importance_ratio_clipping
-                    )
+                    (torch.abs(importance_ratio - 1.0) > importance_ratio_clipping)
                     .to(torch.float32)
                     .mean()
                 )
                 alf.summary.scalar("clip_fraction", clip_fraction)
 
             alf.summary.histogram("action_log_prob", action_log_prob)
-            alf.summary.histogram(
-                "action_log_prob_sample", sample_action_log_probs
-            )
+            alf.summary.histogram("action_log_prob_sample", sample_action_log_probs)
             alf.summary.histogram("importance_ratio", importance_ratio)
             alf.summary.scalar("importance_ratio_mean", importance_ratio.mean())
-            alf.summary.histogram(
-                "importance_ratio_clipped", importance_ratio_clipped
-            )
+            alf.summary.histogram("importance_ratio_clipped", importance_ratio_clipped)
 
     return importance_ratio, importance_ratio_clipped
 
@@ -233,9 +224,9 @@ def one_step_discounted_return(rewards, values, step_types, discounts):
     rewards = common.expand_dims_as(rewards, values)
 
     discounted_values = discounts * values
-    rets = (1 - is_lasts[:-1]) * (
-        rewards[1:] + discounted_values[1:]
-    ) + is_lasts[:-1] * discounted_values[:-1]
+    rets = (1 - is_lasts[:-1]) * (rewards[1:] + discounted_values[1:]) + is_lasts[
+        :-1
+    ] * discounted_values[:-1]
     return rets.detach()
 
 

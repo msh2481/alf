@@ -57,7 +57,5 @@ class ACRenderAlgorithm(ActorCriticAlgorithm):
 # configure which RL algorithm to use
 alf.config(
     "TrainerConfig",
-    algorithm_ctor=partial(
-        ACRenderAlgorithm, optimizer=alf.optimizers.Adam(lr=1e-3)
-    ),
+    algorithm_ctor=partial(ACRenderAlgorithm, optimizer=alf.optimizers.Adam(lr=1e-3)),
 )

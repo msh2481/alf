@@ -104,9 +104,7 @@ class VaeTest(alf.test.TestCase):
         prior_input_spec = BoundedTensorSpec((), "int64")
 
         z_prior_network = EncodingNetwork(
-            TensorSpec(
-                (prior_input_spec.maximum - prior_input_spec.minimum + 1,)
-            ),
+            TensorSpec((prior_input_spec.maximum - prior_input_spec.minimum + 1,)),
             fc_layer_params=(10,) * 2,
             last_layer_size=2 * self._latent_dim,
             last_activation=math_ops.identity,
@@ -135,8 +133,8 @@ class VaeTest(alf.test.TestCase):
             lr=0.1,
         )
 
-        (x_train, y_train, pr_train, x_test, y_test, pr_test) = (
-            _make_cond_vae_dataset(10000, self._input_spec, prior_input_spec)
+        (x_train, y_train, pr_train, x_test, y_test, pr_test) = _make_cond_vae_dataset(
+            10000, self._input_spec, prior_input_spec
         )
 
         for _ in range(self._epochs):
@@ -160,12 +158,8 @@ class VaeTest(alf.test.TestCase):
                 loss.backward()
                 optimizer.step()
 
-        y_hat_test = decoding_layers(
-            encoder.train_step([pr_test, x_test]).output.z
-        )
-        reconstruction_loss = float(
-            torch.mean(self._loss_f(y_test - y_hat_test))
-        )
+        y_hat_test = decoding_layers(encoder.train_step([pr_test, x_test]).output.z)
+        reconstruction_loss = float(torch.mean(self._loss_f(y_test - y_hat_test)))
         print("reconstruction_loss:", reconstruction_loss)
         self.assertLess(reconstruction_loss, 0.05)
 
@@ -215,9 +209,7 @@ class DiscreteVAETest(parameterized.TestCase, alf.test.TestCase):
             z_network_cls=self._encoder_cls,
         )
 
-        self.assertEqual(
-            encoder.output_spec.shape, (z_spec.numel,) + (n_categories,)
-        )
+        self.assertEqual(encoder.output_spec.shape, (z_spec.numel,) + (n_categories,))
 
         decoder = self._decoder_cls(
             input_tensor_spec=TensorSpec((encoder.output_spec.numel,))
@@ -259,9 +251,7 @@ class DiscreteVAETest(parameterized.TestCase, alf.test.TestCase):
         """The input has a shift of 1. depending on the Bernoulli variable."""
         prior_input_spec = BoundedTensorSpec((), "int64")
 
-        z_spec = BoundedTensorSpec(
-            shape=(20,), minimum=0, maximum=1, dtype=torch.int64
-        )
+        z_spec = BoundedTensorSpec(shape=(20,), minimum=0, maximum=1, dtype=torch.int64)
         encoder = vae.DiscreteVAE(
             z_spec=z_spec,
             beta=0.0001,
@@ -279,8 +269,8 @@ class DiscreteVAETest(parameterized.TestCase, alf.test.TestCase):
             list(encoder.parameters()) + list(decoder.parameters()), lr=1e-3
         )
 
-        (x_train, y_train, pr_train, x_test, y_test, pr_test) = (
-            _make_cond_vae_dataset(40000, self._input_spec, prior_input_spec)
+        (x_train, y_train, pr_train, x_test, y_test, pr_test) = _make_cond_vae_dataset(
+            40000, self._input_spec, prior_input_spec
         )
 
         for _ in range(self._epochs * 2):
@@ -310,9 +300,7 @@ class DiscreteVAETest(parameterized.TestCase, alf.test.TestCase):
         z = encoder.train_step([pr_test, x_test]).output.z
         z = z.reshape(z.shape[0], -1)
         y_hat_test = decoder(z)[0]
-        reconstruction_loss = float(
-            torch.mean(self._loss_f(y_test - y_hat_test))
-        )
+        reconstruction_loss = float(torch.mean(self._loss_f(y_test - y_hat_test)))
         print("reconstruction_loss:", reconstruction_loss)
         self.assertLess(reconstruction_loss, 0.05)
 

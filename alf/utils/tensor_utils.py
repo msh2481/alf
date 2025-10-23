@@ -140,9 +140,7 @@ def explained_variance(ypred, y, valid_mask=None, dim=None):
     if dim is None:
         if valid_mask is not None:
             valid_mask = valid_mask.reshape(-1)
-        return explained_variance(
-            ypred.reshape(-1), y.reshape(-1), valid_mask, dim=0
-        )
+        return explained_variance(ypred.reshape(-1), y.reshape(-1), valid_mask, dim=0)
 
     if valid_mask is not None:
         n = torch.max(
@@ -404,9 +402,7 @@ class BatchSquash(object):
         if self._batch_dims == 1:
             return tensor
         self._original_tensor_shape = tensor.shape
-        return torch.reshape(
-            tensor, (-1,) + tuple(tensor.shape[self._batch_dims :])
-        )
+        return torch.reshape(tensor, (-1,) + tuple(tensor.shape[self._batch_dims :]))
 
     def unflatten(self, tensor):
         """Unflattens the tensor's batch_dims using the cached shape."""

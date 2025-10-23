@@ -125,9 +125,7 @@ def _discounted_return(rewards, values, is_lasts, discounts):
     with torch.no_grad():
         for t in reversed(range(rewards.shape[0] - 1)):
             rets[t] = acc_values[t + 1] * discounts[t + 1] + rewards[t + 1]
-            acc_values[t] = (
-                is_lasts[t] * values[t] + (1 - is_lasts[t]) * rets[t]
-            )
+            acc_values[t] = is_lasts[t] * values[t] + (1 - is_lasts[t]) * rets[t]
 
     rets = rets[:-1]
     return rets.detach()
@@ -243,9 +241,7 @@ class TAACTDLoss(nn.Module):
                 else:
                     for i in range(value.shape[-1]):
                         suffix = "/" + str(i)
-                        _summarize(
-                            value[..., i], returns[..., i], td[..., i], suffix
-                        )
+                        _summarize(value[..., i], returns[..., i], td[..., i], suffix)
 
         return LossInfo(loss=loss, extra=loss)
 
@@ -431,9 +427,7 @@ class TaacAlgorithmBase(OffPolicyAlgorithm):
         # Have different names to separate their summary curves
         self._critic_losses = []
         for i in range(num_critic_replicas):
-            self._critic_losses.append(
-                critic_loss_ctor(name="critic_loss%d" % (i + 1))
-            )
+            self._critic_losses.append(critic_loss_ctor(name="critic_loss%d" % (i + 1)))
         self._gamma = self._critic_losses[0]._gamma
 
         self._b_spec = BoundedTensorSpec(shape=(), dtype="int64", maximum=1)
@@ -453,9 +447,7 @@ class TaacAlgorithmBase(OffPolicyAlgorithm):
 
         # Create as a buffer so that training from a checkpoint will have
         # the correct flag.
-        self.register_buffer(
-            "_training_started", torch.zeros((), dtype=torch.bool)
-        )
+        self.register_buffer("_training_started", torch.zeros((), dtype=torch.bool))
 
         self._update_target = common.TargetUpdater(
             models=[self._critic_networks],
@@ -496,18 +488,12 @@ class TaacAlgorithmBase(OffPolicyAlgorithm):
     ):
 
         def _make_parallel(net):
-            return net.make_parallel(
-                self._num_critic_replicas * reward_spec.numel
-            )
+            return net.make_parallel(self._num_critic_replicas * reward_spec.numel)
 
-        tau_spec = nest.map_structure(
-            lambda m: action_spec if m else (), tau_mask
-        )
+        tau_spec = nest.map_structure(lambda m: action_spec if m else (), tau_mask)
         obs_dim = sum([spec.numel for spec in nest.flatten(observation_spec)])
         tau_embedding = nest.map_structure(
-            lambda _: torch.nn.Sequential(
-                alf.layers.FC(action_spec.numel, obs_dim)
-            ),
+            lambda _: torch.nn.Sequential(alf.layers.FC(action_spec.numel, obs_dim)),
             tau_spec,
         )
 
@@ -554,15 +540,11 @@ class TaacAlgorithmBase(OffPolicyAlgorithm):
         )
         return state._replace(tau=tau)
 
-    def _predict_action(
-        self, time_step, state, epsilon_greedy=None, mode=Mode.rollout
-    ):
+    def _predict_action(self, time_step, state, epsilon_greedy=None, mode=Mode.rollout):
 
         observation = time_step.observation
 
-        ap_out = self._compute_beta_and_tau(
-            observation, state, epsilon_greedy, mode
-        )
+        ap_out = self._compute_beta_and_tau(observation, state, epsilon_greedy, mode)
 
         if not common.is_eval() and not self._training_started:
             b = self._b_spec.sample(time_step.step_type.shape)
@@ -623,12 +605,10 @@ class TaacAlgorithmBase(OffPolicyAlgorithm):
 
     def _alpha_train_step(self, beta_entropy, action_entropy):
         alpha_loss = (
-            self._log_alpha[1]
-            * (action_entropy - self._target_entropy[1]).detach()
+            self._log_alpha[1] * (action_entropy - self._target_entropy[1]).detach()
         )
         alpha_loss += (
-            self._log_alpha[0]
-            * (beta_entropy - self._target_entropy[0]).detach()
+            self._log_alpha[0] * (beta_entropy - self._target_entropy[0]).detach()
         )
         return alpha_loss
 
@@ -672,9 +652,7 @@ class TaacAlgorithmBase(OffPolicyAlgorithm):
                 clip_min, clip_max = self._b1_advantage_clipping
                 # The first dim [..., 0] is always 0
                 q_values2 = q_values2 - q_values2[..., :1]
-                q_values2[..., 1] = q_values2[..., 1].clamp(
-                    min=clip_min, max=clip_max
-                )
+                q_values2[..., 1] = q_values2[..., 1].clamp(min=clip_min, max=clip_max)
                 beta_dist = _safe_categorical(q_values2, beta_alpha)
 
         return beta_dist
@@ -694,9 +672,7 @@ class TaacAlgorithmBase(OffPolicyAlgorithm):
 
         # compute Q(s, tau^-) and Q(s, \hat{tau})
         with torch.no_grad():
-            q_0 = self._compute_critics(
-                self._critic_networks, observation, b0_tau
-            )
+            q_0 = self._compute_critics(self._critic_networks, observation, b0_tau)
         q_1 = self._compute_critics(self._critic_networks, observation, b1_tau)
 
         q_values2 = torch.stack([q_0, q_1], dim=-1)
@@ -716,9 +692,7 @@ class TaacAlgorithmBase(OffPolicyAlgorithm):
             q_values2=q_values2,
         )
 
-    def _actor_train_step(
-        self, a, b1_a_entropy, beta_dist, beta_entropy, q_values2
-    ):
+    def _actor_train_step(self, a, b1_a_entropy, beta_dist, beta_entropy, q_values2):
         alpha = self._log_alpha[1].exp().detach()
         q_a = beta_dist.probs[:, 1].detach() * q_values2[:, 1]
 
@@ -767,8 +741,7 @@ class TaacAlgorithmBase(OffPolicyAlgorithm):
                 beta_probs = beta_probs.unsqueeze(1)
 
             target_critic = (
-                beta_probs[..., 0] * target_q_0
-                + beta_probs[..., 1] * target_q_1
+                beta_probs[..., 0] * target_q_0 + beta_probs[..., 1] * target_q_1
             )
 
         critics = self._compute_critics(
@@ -796,9 +769,7 @@ class TaacAlgorithmBase(OffPolicyAlgorithm):
     def rollout_step(self, inputs: TimeStep, state):
         if self._randomize_first_state_tau:
             state = self._randomize_first_tau(inputs, state)
-        ap_out, new_state = self._predict_action(
-            inputs, state, mode=Mode.rollout
-        )
+        ap_out, new_state = self._predict_action(inputs, state, mode=Mode.rollout)
         return AlgStep(
             output=new_state.tau.a,
             state=new_state,
@@ -830,13 +801,9 @@ class TaacAlgorithmBase(OffPolicyAlgorithm):
             # while the random ``tau`` was not stored in the replay buffer, the
             # first step's ``tau`` here is not accurate. So we need to use the
             # rollout ``tau``.
-            state = self._randomize_first_tau(
-                inputs, state, rollout_info.prev_tau
-            )
+            state = self._randomize_first_tau(inputs, state, rollout_info.prev_tau)
 
-        ap_out, new_state = self._predict_action(
-            inputs, state=state, mode=Mode.train
-        )
+        ap_out, new_state = self._predict_action(inputs, state=state, mode=Mode.train)
         # According to the TAAC formulation, each (s,prev_tau) is sampled from
         # the replay buffer instead of being generated by sequential training steps.
         # So we need to overwrite the generated tau with the rollout tau.
@@ -847,9 +814,7 @@ class TaacAlgorithmBase(OffPolicyAlgorithm):
         b0_tau, b1_tau = ap_out.taus
         q_values2 = ap_out.q_values2
 
-        b1_a_entropy = -dist_utils.compute_log_probability(
-            b1_a_dist, ap_out.actor_a
-        )
+        b1_a_entropy = -dist_utils.compute_log_probability(b1_a_dist, ap_out.actor_a)
         beta_entropy = beta_dist.entropy()
 
         actor_loss = self._actor_train_step(
@@ -896,9 +861,7 @@ class TaacAlgorithmBase(OffPolicyAlgorithm):
                 alf.summary.scalar(
                     "train_repeats/mean", torch.mean(repeats.to(torch.float32))
                 )
-                alf.summary.histogram(
-                    "train_repeats/value", repeats.to(torch.float32)
-                )
+                alf.summary.histogram("train_repeats/value", repeats.to(torch.float32))
 
         return LossInfo(
             loss=actor_loss.loss + alpha_loss + critic_loss.loss,
@@ -969,9 +932,7 @@ class TaacLAlgorithm(TaacAlgorithmBase):
     :math:`a_{t+1}\leftarrow \max(\min(a_t+2v_{t+1},1),-1)`.
     """
 
-    def __init__(
-        self, name="TaacLAlgorithm", inverse_mode=True, *args, **kwargs
-    ):
+    def __init__(self, name="TaacLAlgorithm", inverse_mode=True, *args, **kwargs):
         """See ``TaacAlgorithmBase`` for other argument description.
 
         Args:
@@ -1052,9 +1013,7 @@ class TaacQAlgorithm(TaacLAlgorithm):
     :math:`a_{t+1}\leftarrow \max(\min(a_t+2v_{t+1},1),-1)`.
     """
 
-    def __init__(
-        self, name="TaacQAlgorithm", inverse_mode=True, *args, **kwargs
-    ):
+    def __init__(self, name="TaacQAlgorithm", inverse_mode=True, *args, **kwargs):
         """See ``TaacAlgorithmBase`` for other argument description.
 
         Args:

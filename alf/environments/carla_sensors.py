@@ -189,9 +189,7 @@ class CollisionSensor(SensorBase):
         self._max_num_collisions = max_num_collisions
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find("sensor.other.collision")
-        self._sensor = world.spawn_actor(
-            bp, carla.Transform(), attach_to=self._parent
-        )
+        self._sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.
         weak_self = weakref.ref(self)
@@ -201,17 +199,13 @@ class CollisionSensor(SensorBase):
         self._frame = 0
         self._prev_cached_frame = -1
         self._cached_impulse = None
-        self._empty_impulse = np.zeros(
-            [max_num_collisions, 3], dtype=np.float32
-        )
+        self._empty_impulse = np.zeros([max_num_collisions, 3], dtype=np.float32)
         self._collisions = []
         self._lock = threading.Lock()
 
         self._include_collision_location = include_collision_location
         self._collision_locations = []
-        self._dummy_location = np.zeros(
-            [max_num_collisions, 3], dtype=np.float32
-        )
+        self._dummy_location = np.zeros([max_num_collisions, 3], dtype=np.float32)
 
     @staticmethod
     def _on_collision(weak_self, event):
@@ -225,9 +219,7 @@ class CollisionSensor(SensorBase):
         self._frame = event.frame
         with self._lock:
             self._collisions.append([impulse.x, impulse.y, impulse.z])
-            self._collision_locations.append(
-                [other_loc.x, other_loc.y, other_loc.z]
-            )
+            self._collision_locations.append([other_loc.x, other_loc.y, other_loc.z])
 
     def observation_spec(self):
         if self._include_collision_location:
@@ -293,9 +285,7 @@ class CollisionSensor(SensorBase):
                             self._parent.get_transform(), loc
                         )
 
-                collision_locations = np.array(
-                    collision_locations, dtype=np.float32
-                )
+                collision_locations = np.array(collision_locations, dtype=np.float32)
                 self._collision_locations = []
 
         n = impulses.shape[0]
@@ -304,9 +294,7 @@ class CollisionSensor(SensorBase):
         elif n < self._max_num_collisions:
             impulses = np.concatenate(
                 [
-                    np.zeros(
-                        [self._max_num_collisions - n, 3], dtype=np.float32
-                    ),
+                    np.zeros([self._max_num_collisions - n, 3], dtype=np.float32),
                     impulses,
                 ],
                 axis=0,
@@ -323,17 +311,13 @@ class CollisionSensor(SensorBase):
             elif n < self._max_num_collisions:
                 collision_locations = np.concatenate(
                     [
-                        np.zeros(
-                            [self._max_num_collisions - n, 3], dtype=np.float32
-                        ),
+                        np.zeros([self._max_num_collisions - n, 3], dtype=np.float32),
                         collision_locations,
                     ],
                     axis=0,
                 )
             elif n > self._max_num_collisions:
-                collision_locations = collision_locations[
-                    -self._max_num_collisions :
-                ]
+                collision_locations = collision_locations[-self._max_num_collisions :]
 
             observation = np.stack([observation, collision_locations], axis=1)
             self._cached_collision_locations = collision_locations
@@ -363,9 +347,7 @@ class LaneInvasionSensor(SensorBase):
         super().__init__(parent_actor)
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find("sensor.other.lane_invasion")
-        self._sensor = world.spawn_actor(
-            bp, carla.Transform(), attach_to=self._parent
-        )
+        self._sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.
         weak_self = weakref.ref(self)
@@ -411,9 +393,7 @@ class GnssSensor(SensorBase):
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.
         weak_self = weakref.ref(self)
-        self._sensor.listen(
-            lambda event: GnssSensor._on_gnss_event(weak_self, event)
-        )
+        self._sensor.listen(lambda event: GnssSensor._on_gnss_event(weak_self, event))
         self._gps_location = np.zeros([3], dtype=np.float32)
         self._frame = 0
 
@@ -459,9 +439,7 @@ class IMUSensor(SensorBase):
         self._compass = 0.0
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find("sensor.other.imu")
-        self._sensor = world.spawn_actor(
-            bp, carla.Transform(), attach_to=self._parent
-        )
+        self._sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.
         weak_self = weakref.ref(self)
@@ -479,9 +457,7 @@ class IMUSensor(SensorBase):
         if not math.isnan(sensor_data.compass):
             self._compass = sensor_data.compass
         else:
-            logging.warning(
-                "Got nan for compass. Use the previous compass reading."
-            )
+            logging.warning("Got nan for compass. Use the previous compass reading.")
         imu_reading = np.array(
             [
                 sensor_data.accelerometer.x,
@@ -551,9 +527,7 @@ class RadarSensor(SensorBase):
         # We need a weak reference to self to avoid circular reference.
         weak_self = weakref.ref(self)
         self._sensor.listen(
-            lambda radar_data: RadarSensor._Radar_callback(
-                weak_self, radar_data
-            )
+            lambda radar_data: RadarSensor._Radar_callback(weak_self, radar_data)
         )
 
         self._empty_points = np.zeros([max_num_detections, 4], dtype=np.float32)
@@ -578,9 +552,7 @@ class RadarSensor(SensorBase):
         if n < self._max_num_detections:
             points = np.concatenate(
                 [
-                    np.zeros(
-                        [self._max_num_detections - n, 4], dtype=np.float32
-                    ),
+                    np.zeros([self._max_num_detections - n, 4], dtype=np.float32),
                     points,
                 ],
                 axis=0,
@@ -730,9 +702,7 @@ class CameraSensor(SensorBase):
         # We need to pass the lambda a weak reference to self to avoid
         # circular reference.
         weak_self = weakref.ref(self)
-        self._sensor.listen(
-            lambda image: CameraSensor._parse_image(weak_self, image)
-        )
+        self._sensor.listen(lambda image: CameraSensor._parse_image(weak_self, image))
         self._frame = 0
         self._image = np.zeros(
             [num_channels, image_size_y, image_size_x], dtype=np.uint8
@@ -752,9 +722,7 @@ class CameraSensor(SensorBase):
             # (c, y, x) => (x, y, c)
             image = np.transpose(self._image, (2, 1, 0))
 
-            if self._sensor_type.startswith(
-                "sensor.camera.semantic_segmentation"
-            ):
+            if self._sensor_type.startswith("sensor.camera.semantic_segmentation"):
                 image = image * 10  # scale the label map for better viewing
 
             scaled_height, scaled_width = get_scaled_image_size(height, width)
@@ -798,12 +766,7 @@ class CameraSensor(SensorBase):
             xi = int(pt[0].item())
             yi = int(pt[1].item())
 
-            if (
-                xi >= 0
-                and xi < rgb_img.shape[1]
-                and yi >= 0
-                and yi < rgb_img.shape[0]
-            ):
+            if xi >= 0 and xi < rgb_img.shape[1] and yi >= 0 and yi < rgb_img.shape[0]:
 
                 xst = xi - half_size
                 yst = yi - half_size
@@ -1262,9 +1225,7 @@ class World(object):
         self._speed_limit_locations = np.stack(speed_limit_locations)
         self._speed_limit_values = np.stack(speed_limit_values)
 
-        logging.info(
-            "Found %d speed limit signs" % len(self._speed_limit_locations)
-        )
+        logging.info("Found %d speed limit signs" % len(self._speed_limit_locations))
 
     def get_active_speed_limit(self, actor, dis_threshold=1.0):
         """Get active speed limit for the actor.
@@ -1314,13 +1275,9 @@ class World(object):
                 if len(waypoints) > max_num_traffic_light_waypoints:
                     max_num_traffic_light_waypoints = len(waypoints)
 
-        logging.info(
-            "Found %d traffic lights" % len(self._traffic_light_actors)
-        )
+        logging.info("Found %d traffic lights" % len(self._traffic_light_actors))
 
-        self._traffic_light_centers = np.array(
-            traffic_light_centers, np.float32
-        )
+        self._traffic_light_centers = np.array(traffic_light_centers, np.float32)
         np_traffic_light_waypoints = []
         for waypoints in traffic_light_waypoints:
             pad = max_num_traffic_light_waypoints - len(waypoints)
@@ -1464,9 +1421,7 @@ class World(object):
 
         violated_red_light_id = None
         encountered_red_light_id = None
-        encountered_red_light_distance = (
-            self.DEFAULT_ENCOUNTERED_RED_LIGHT_DISTANCE
-        )
+        encountered_red_light_distance = self.DEFAULT_ENCOUNTERED_RED_LIGHT_DISTANCE
         for index in candidate_light_index:
             wp_dir = _get_forward_vector(waypoints.rotation[index])
             dot_ve_wp = (ve_dir * wp_dir).sum(axis=-1)
@@ -1497,9 +1452,7 @@ class World(object):
             # red-light id for red-light violation
             if np.any(
                 same_lane
-                & _is_segments_intersecting(
-                    veh_seg, (left_lane_wp, right_lane_wp)
-                )
+                & _is_segments_intersecting(veh_seg, (left_lane_wp, right_lane_wp))
             ):
                 # If veh_seg intersects with (left_lane_wp, right_lane_wp), that
                 # means the vehicle is crossing the line dividing intersection
@@ -1572,9 +1525,7 @@ class NavigationSensor(SensorBase):
 
         self._route_waypoints = [wp for wp, _ in self._route]
 
-        self._road_option = np.array(
-            [road_option for _, road_option in self._route]
-        )
+        self._road_option = np.array([road_option for _, road_option in self._route])
         self._nearest_index = 0
         waypoints_with_start_end = np.concatenate(
             (
@@ -1644,8 +1595,7 @@ class NavigationSensor(SensorBase):
             return self._route_waypoints[self._nearest_index :: 5]
         else:
             return self._route_waypoints[
-                self._nearest_index : self._nearest_index
-                + int(future_number) : 5
+                self._nearest_index : self._nearest_index + int(future_number) : 5
             ]
 
     @property
@@ -1830,9 +1780,7 @@ class BEVSensor(SensorBase):
         # register traffic lights
         TrafficLightHandler.reset(self._alf_world)
 
-        self._distance_threshold = np.ceil(
-            self._height / self._pixels_per_meter
-        )
+        self._distance_threshold = np.ceil(self._height / self._pixels_per_meter)
 
         if self._observation_mode == "rgb":
             self._observation_spec = alf.TensorSpec(
@@ -1911,9 +1859,7 @@ class BEVSensor(SensorBase):
             walker_bbox_list, is_within_distance, scale=self._walker_bbox_factor
         )
 
-        tl_green, tl_yellow, tl_red = TrafficLightHandler.get_stopline_vtx(
-            ev_loc
-        )
+        tl_green, tl_yellow, tl_red = TrafficLightHandler.get_stopline_vtx(ev_loc)
 
         # TODO: add stop sign
         stops = []
@@ -2155,23 +2101,15 @@ class BEVSensor(SensorBase):
         for idx in self._history_idx:
             idx = max(idx, -1 * qsize)
 
-            vehicles, walkers, tl_green, tl_yellow, tl_red, stops = (
-                self._history_queue[idx]
-            )
+            vehicles, walkers, tl_green, tl_yellow, tl_red, stops = self._history_queue[
+                idx
+            ]
 
-            vehicle_masks.append(
-                self._get_mask_from_actor_list(vehicles, M_warp)
-            )
+            vehicle_masks.append(self._get_mask_from_actor_list(vehicles, M_warp))
             walker_masks.append(self._get_mask_from_actor_list(walkers, M_warp))
-            tl_green_masks.append(
-                self._get_mask_from_stopline_vtx(tl_green, M_warp)
-            )
-            tl_yellow_masks.append(
-                self._get_mask_from_stopline_vtx(tl_yellow, M_warp)
-            )
-            tl_red_masks.append(
-                self._get_mask_from_stopline_vtx(tl_red, M_warp)
-            )
+            tl_green_masks.append(self._get_mask_from_stopline_vtx(tl_green, M_warp))
+            tl_yellow_masks.append(self._get_mask_from_stopline_vtx(tl_yellow, M_warp))
+            tl_red_masks.append(self._get_mask_from_stopline_vtx(tl_red, M_warp))
             stop_masks.append(self._get_mask_from_actor_list(stops, M_warp))
 
         return (
@@ -2186,9 +2124,7 @@ class BEVSensor(SensorBase):
     def _get_mask_from_stopline_vtx(self, stopline_vtx, M_warp):
         mask = np.zeros([self._width, self._width], dtype=np.uint8)
         for sp_locs in stopline_vtx:
-            stopline_in_pixel = np.array(
-                [[self._world_to_pixel(x)] for x in sp_locs]
-            )
+            stopline_in_pixel = np.array([[self._world_to_pixel(x)] for x in sp_locs])
             stopline_warped = cv2.transform(stopline_in_pixel, M_warp)
             cv2.line(
                 mask,
@@ -2218,9 +2154,7 @@ class BEVSensor(SensorBase):
             )
             corners_warped = cv2.transform(corners_in_pixel, M_warp)
 
-            cv2.fillConvexPoly(
-                mask, np.round(corners_warped).astype(np.int32), 1
-            )
+            cv2.fillConvexPoly(mask, np.round(corners_warped).astype(np.int32), 1)
         return mask.astype(bool)
 
     @staticmethod
@@ -2247,9 +2181,7 @@ class BEVSensor(SensorBase):
         yaw = np.deg2rad(ev_rot.yaw)
 
         forward_vec = np.array([np.cos(yaw), np.sin(yaw)])
-        right_vec = np.array(
-            [np.cos(yaw + 0.5 * np.pi), np.sin(yaw + 0.5 * np.pi)]
-        )
+        right_vec = np.array([np.cos(yaw + 0.5 * np.pi), np.sin(yaw + 0.5 * np.pi)])
 
         bottom_left = (
             ev_loc_in_px
@@ -2504,18 +2436,14 @@ class DynamicObjectSensor(SensorBase):
         ev_bb_ext = carla.Vector3D(ev_bbox.extent)
 
         def is_within_distance(loc):
-            distance = np.sqrt(
-                (ev_loc.x - loc.x) ** 2 + (ev_loc.y - loc.y) ** 2
-            )
+            distance = np.sqrt((ev_loc.x - loc.x) ** 2 + (ev_loc.y - loc.y) ** 2)
             within_distance = distance < self._view_radius
             c_ev = abs(ev_loc.x - loc.x) < 1.0 and abs(ev_loc.y - loc.y) < 1.0
             same_plane = (ev_loc.z - loc.z) < 1.0
 
             return within_distance and same_plane and (not c_ev), distance
 
-        vehicle_bbox_list, actor_ids = self._get_actor_bounding_box(
-            self._object_filter
-        )
+        vehicle_bbox_list, actor_ids = self._get_actor_bounding_box(self._object_filter)
 
         vehicles, distances = self._get_surrounding_actors(
             vehicle_bbox_list, actor_ids, is_within_distance
@@ -2615,9 +2543,7 @@ class DynamicObjectSensor(SensorBase):
         allow_insert = len(fea_dict.keys()) == 0
 
         for i, (a_id, actor_transform, bb_loc, bb_ext) in enumerate(actor_list):
-            actor_feature = self._transform_agent_to_ego(
-                ego_transform, actor_transform
-            )
+            actor_feature = self._transform_agent_to_ego(ego_transform, actor_transform)
 
             str_id = str(a_id)
             if str_id not in fea_dict.keys():
@@ -2679,9 +2605,7 @@ class DynamicObjectSensor(SensorBase):
             # set default presence to 0
             full_feature_mat[..., -1] = 0
             # set presence to 1
-            full_feature_mat[
-                : feature_mat.shape[-3], : feature_mat.shape[-2], -1
-            ] = 1
+            full_feature_mat[: feature_mat.shape[-3], : feature_mat.shape[-2], -1] = 1
 
             v_fea_set.append(full_feature_mat.astype(np.float32))
 
@@ -2714,9 +2638,7 @@ class DynamicObjectSensor(SensorBase):
         return self._current_obs
 
     @staticmethod
-    def _get_surrounding_actors(
-        bbox_list, actor_id_list, criterium, scale=None
-    ):
+    def _get_surrounding_actors(bbox_list, actor_id_list, criterium, scale=None):
         actors = []
         distances = []
         for (loc, bbox, transform), a_id in zip(bbox_list, actor_id_list):
@@ -2830,8 +2752,6 @@ class DynamicObjectSensor(SensorBase):
         if x_range:
             ax.set_xlim(x_range)
 
-        img = alf.summary.render._convert_to_image(
-            "", fig, dpi, img_height, img_width
-        )
+        img = alf.summary.render._convert_to_image("", fig, dpi, img_height, img_width)
 
         return img.data

@@ -57,8 +57,7 @@ def get_exp_batch(env_ids, dim, t, x):
         time_step=TimestepItem(
             env_id=torch.tensor(env_ids, dtype=torch.int64, device="cpu"),
             x=ox,
-            step_type=t
-            * torch.ones(batch_size, dtype=torch.int32, device="cpu"),
+            step_type=t * torch.ones(batch_size, dtype=torch.int32, device="cpu"),
             o=dict({"a": a, "g": g}),
             discount=torch.tensor(
                 t != alf.data_structures.StepType.LAST,
@@ -302,9 +301,7 @@ class ReplayBufferTest(parameterized.TestCase, alf.test.TestCase):
 
         self.assertTrue(torch.equal(replay_buffer._indexed_pos, pos))
         self.assertTrue(
-            torch.equal(
-                replay_buffer._headless_indexed_pos, torch.tensor([10, 9]) + 8
-            )
+            torch.equal(replay_buffer._headless_indexed_pos, torch.tensor([10, 9]) + 8)
         )
 
         # Save original exp for later testing.
@@ -334,9 +331,7 @@ class ReplayBufferTest(parameterized.TestCase, alf.test.TestCase):
         # Test relabeling doesn't change original experience
         self.assertTrue(torch.allclose(r_orig, replay_buffer._buffer.reward))
         self.assertTrue(
-            torch.allclose(
-                g_orig, replay_buffer._buffer.get_time_step_field("o.g")
-            )
+            torch.allclose(g_orig, replay_buffer._buffer.get_time_step_field("o.g"))
         )
 
         # test relabeled goals
@@ -363,9 +358,7 @@ class ReplayBufferTest(parameterized.TestCase, alf.test.TestCase):
         """
         step_types = b._buffer.step_type
         epi_ends = torch.where(step_types == ds.StepType.LAST)
-        epi_ends = alf.nest.map_structure(
-            lambda d: d.type(torch.int64), epi_ends
-        )
+        epi_ends = alf.nest.map_structure(lambda d: d.type(torch.int64), epi_ends)
         # if an env has no LAST step, populate with pos - 1
         last_step_pos = b.circular(b._current_pos - 1)
         all_envs = torch.arange(b._num_envs)
@@ -404,9 +397,7 @@ class ReplayBufferTest(parameterized.TestCase, alf.test.TestCase):
             _ends = torch.gather(padded_ends, dim=0, index=end_env_index)
             L = _pos.shape[0]
             E = _ends.shape[0]
-            dist = _ends.unsqueeze(0).expand(L, E) - _pos.unsqueeze(1).expand(
-                L, E
-            )
+            dist = _ends.unsqueeze(0).expand(L, E) - _pos.unsqueeze(1).expand(L, E)
             positive_dist = torch.where(
                 dist < 0, torch.tensor(MAX_INT, dtype=torch.int64), dist
             )
@@ -427,9 +418,9 @@ class ReplayBufferTest(parameterized.TestCase, alf.test.TestCase):
         (valid_starts,) = torch.where(
             ends + 1 != torch.arange(max_steps, num_envs * max_steps, max_steps)
         )
-        steps[(ends + 1)[valid_starts]] = torch.tensor(
-            [ds.StepType.FIRST]
-        ).expand(valid_starts.shape[0])
+        steps[(ends + 1)[valid_starts]] = torch.tensor([ds.StepType.FIRST]).expand(
+            valid_starts.shape[0]
+        )
         return steps
 
     @parameterized.parameters(
@@ -530,12 +521,8 @@ class ReplayBufferTest(parameterized.TestCase, alf.test.TestCase):
         t3 = []
         for t in range(2):
             batch_t = alf.nest.map_structure(lambda b: b[:, t], batch)
-            bat3 = alf.nest.map_structure(
-                lambda bat: bat[batch3.env_id], batch_t
-            )
-            bat2 = alf.nest.map_structure(
-                lambda bat: bat[batch2.env_id], batch_t
-            )
+            bat3 = alf.nest.map_structure(lambda bat: bat[batch3.env_id], batch_t)
+            bat2 = alf.nest.map_structure(lambda bat: bat[batch2.env_id], batch_t)
             t2.append(bat2.step_type)
             self.assertEqual(bat3.env_id, batch3.env_id)
             self.assertEqual(
@@ -590,22 +577,16 @@ class ReplayBufferTest(parameterized.TestCase, alf.test.TestCase):
             recent_data_ratio=0.5,
             recent_data_steps=4,
         )
-        replay_buffer.add_batch(
-            get_exp_batch([0, 1, 2, 3], self.dim, t=0, x=0.0)
-        )
+        replay_buffer.add_batch(get_exp_batch([0, 1, 2, 3], self.dim, t=0, x=0.0))
         batch, info = replay_buffer.get_batch(4, 1)
         self.assertEqual(info.env_ids, torch.tensor([0, 1, 2, 3]))
 
-        replay_buffer.add_batch(
-            get_exp_batch([0, 1, 2, 3], self.dim, t=1, x=1.0)
-        )
+        replay_buffer.add_batch(get_exp_batch([0, 1, 2, 3], self.dim, t=1, x=1.0))
         batch, info = replay_buffer.get_batch(8, 1)
         self.assertEqual(info.env_ids, torch.tensor([0, 1, 2, 3] * 2))
 
         for t in range(2, 32):
-            replay_buffer.add_batch(
-                get_exp_batch([0, 1, 2, 3], self.dim, t=t, x=t)
-            )
+            replay_buffer.add_batch(get_exp_batch([0, 1, 2, 3], self.dim, t=t, x=t))
         batch, info = replay_buffer.get_batch(32, 1)
         self.assertEqual(info.env_ids[16:], torch.tensor([0, 1, 2, 3] * 4))
         # The first half is from recent data
@@ -626,21 +607,15 @@ class ReplayBufferTest(parameterized.TestCase, alf.test.TestCase):
             num_earliest_frames_ignored=2,
         )
 
-        replay_buffer.add_batch(
-            get_exp_batch([0, 1, 2, 3], self.dim, t=0, x=0.0)
-        )
+        replay_buffer.add_batch(get_exp_batch([0, 1, 2, 3], self.dim, t=0, x=0.0))
         # not enough data
         self.assertRaises(AssertionError, replay_buffer.get_batch, 1, 1)
 
-        replay_buffer.add_batch(
-            get_exp_batch([0, 1, 2, 3], self.dim, t=1, x=0.0)
-        )
+        replay_buffer.add_batch(get_exp_batch([0, 1, 2, 3], self.dim, t=1, x=0.0))
         # not enough data
         self.assertRaises(AssertionError, replay_buffer.get_batch, 1, 1)
 
-        replay_buffer.add_batch(
-            get_exp_batch([0, 1, 2, 3], self.dim, t=2, x=0.0)
-        )
+        replay_buffer.add_batch(get_exp_batch([0, 1, 2, 3], self.dim, t=2, x=0.0))
         for _ in range(10):
             batch, batch_info = replay_buffer.get_batch(1, 1)
             self.assertEqual(batch.step_type, torch.tensor([[2]]))
@@ -669,9 +644,7 @@ class ReplayBufferTest(parameterized.TestCase, alf.test.TestCase):
         replay_buffer.add_batch(batch3, batch1.env_id)
         for _ in range(10):
             batch, batch_info = replay_buffer.get_batch(1, 1)
-            self.assertEqual(
-                batch_info.env_ids, torch.tensor([1], dtype=torch.int64)
-            )
+            self.assertEqual(batch_info.env_ids, torch.tensor([1], dtype=torch.int64))
             self.assertEqual(batch_info.importance_weights, 1.0)
             self.assertEqual(batch_info.importance_weights, torch.tensor([1.0]))
             self.assertEqual(batch.step_type, torch.tensor([[2]]))
@@ -689,9 +662,7 @@ class ReplayBufferTest(parameterized.TestCase, alf.test.TestCase):
         replay_buffer.add_batch(batch1, batch1.env_id)
 
         batch, batch_info = replay_buffer.get_batch(1, 1)
-        self.assertEqual(
-            batch_info.env_ids, torch.tensor([1], dtype=torch.int64)
-        )
+        self.assertEqual(batch_info.env_ids, torch.tensor([1], dtype=torch.int64))
         self.assertEqual(batch_info.importance_weights, 1.0)
         self.assertEqual(batch_info.importance_weights, torch.tensor([1.0]))
         self.assertRaises(AssertionError, replay_buffer.get_batch, 1, 2)
@@ -700,9 +671,7 @@ class ReplayBufferTest(parameterized.TestCase, alf.test.TestCase):
         replay_buffer.add_batch(batch1, batch1.env_id)
 
         batch, batch_info = replay_buffer.get_batch(4, 2)
-        self.assertEqual(
-            batch_info.env_ids, torch.tensor([1] * 4, dtype=torch.int64)
-        )
+        self.assertEqual(batch_info.env_ids, torch.tensor([1] * 4, dtype=torch.int64))
         self.assertEqual(batch_info.importance_weights, torch.tensor([1.0] * 4))
         self.assertEqual(batch_info.importance_weights, torch.tensor([1.0] * 4))
 
@@ -730,9 +699,7 @@ class ReplayBufferTest(parameterized.TestCase, alf.test.TestCase):
             flag = (batch_info.env_ids == env_id) * (
                 batch_info.positions == replay_buffer._pad(pos, env_id)
             )
-            w = batch_info.importance_weights[
-                torch.nonzero(flag, as_tuple=True)[0]
-            ]
+            w = batch_info.importance_weights[torch.nonzero(flag, as_tuple=True)[0]]
             return flag.sum(), w
 
         n0, w0 = _get(0, 0)
@@ -781,63 +748,31 @@ class ReplayBufferTest(parameterized.TestCase, alf.test.TestCase):
             keep_episodic_info=False,
         )
 
-        replay_buffer.add_batch(
-            get_exp_batch(all_env_ids, self.dim, t=1, x=0.1)
-        )
-        replay_buffer.add_batch(
-            get_exp_batch(all_env_ids, self.dim, t=2, x=0.3)
-        )
-        replay_buffer.add_batch(
-            get_exp_batch(all_env_ids, self.dim, t=3, x=0.5)
-        )
-        replay_buffer.add_batch(
-            get_exp_batch(all_env_ids, self.dim, t=4, x=0.8)
-        )
-        replay_buffer.add_batch(
-            get_exp_batch(all_env_ids, self.dim, t=5, x=1.9)
-        )
-        replay_buffer.add_batch(
-            get_exp_batch(all_env_ids, self.dim, t=6, x=2.9)
-        )
-        replay_buffer.add_batch(
-            get_exp_batch(all_env_ids, self.dim, t=7, x=3.9)
-        )
-        replay_buffer.add_batch(
-            get_exp_batch(all_env_ids, self.dim, t=8, x=4.9)
-        )
+        replay_buffer.add_batch(get_exp_batch(all_env_ids, self.dim, t=1, x=0.1))
+        replay_buffer.add_batch(get_exp_batch(all_env_ids, self.dim, t=2, x=0.3))
+        replay_buffer.add_batch(get_exp_batch(all_env_ids, self.dim, t=3, x=0.5))
+        replay_buffer.add_batch(get_exp_batch(all_env_ids, self.dim, t=4, x=0.8))
+        replay_buffer.add_batch(get_exp_batch(all_env_ids, self.dim, t=5, x=1.9))
+        replay_buffer.add_batch(get_exp_batch(all_env_ids, self.dim, t=6, x=2.9))
+        replay_buffer.add_batch(get_exp_batch(all_env_ids, self.dim, t=7, x=3.9))
+        replay_buffer.add_batch(get_exp_batch(all_env_ids, self.dim, t=8, x=4.9))
 
         # Normally gather_all will return experience for t = 1 through
         # t = 8. However, since we have ignore_earliest_frames turned
         # on, it will drop the first 2 experiences and return
         # experiences for t = 3 through t = 8.
-        experience, batch_info = replay_buffer.gather_all(
-            ignore_earliest_frames=True
-        )
+        experience, batch_info = replay_buffer.gather_all(ignore_earliest_frames=True)
 
         self.assertEqual(torch.tensor([0, 1, 2, 3]), batch_info.env_ids)
         self.assertEqual(torch.tensor([2, 2, 2, 2]), batch_info.positions)
-        self.assertEqual(
-            torch.tensor([[3, 4, 5, 6, 7, 8]] * 4), experience.step_type
-        )
+        self.assertEqual(torch.tensor([[3, 4, 5, 6, 7, 8]] * 4), experience.step_type)
 
-        replay_buffer.add_batch(
-            get_exp_batch(all_env_ids, self.dim, t=9, x=5.9)
-        )
-        replay_buffer.add_batch(
-            get_exp_batch(all_env_ids, self.dim, t=10, x=6.9)
-        )
-        replay_buffer.add_batch(
-            get_exp_batch(all_env_ids, self.dim, t=11, x=7.9)
-        )
-        replay_buffer.add_batch(
-            get_exp_batch(all_env_ids, self.dim, t=12, x=8.9)
-        )
-        replay_buffer.add_batch(
-            get_exp_batch(all_env_ids, self.dim, t=13, x=9.9)
-        )
-        replay_buffer.add_batch(
-            get_exp_batch(all_env_ids, self.dim, t=14, x=9.9)
-        )
+        replay_buffer.add_batch(get_exp_batch(all_env_ids, self.dim, t=9, x=5.9))
+        replay_buffer.add_batch(get_exp_batch(all_env_ids, self.dim, t=10, x=6.9))
+        replay_buffer.add_batch(get_exp_batch(all_env_ids, self.dim, t=11, x=7.9))
+        replay_buffer.add_batch(get_exp_batch(all_env_ids, self.dim, t=12, x=8.9))
+        replay_buffer.add_batch(get_exp_batch(all_env_ids, self.dim, t=13, x=9.9))
+        replay_buffer.add_batch(get_exp_batch(all_env_ids, self.dim, t=14, x=9.9))
 
         # After the above 6 pushes (remember replay buffer capacity is
         # 9), t = 1 through t = 5 will be overridden in the replay
@@ -846,9 +781,7 @@ class ReplayBufferTest(parameterized.TestCase, alf.test.TestCase):
 
         # Since we are ignoring the earliest 2 experiences, the result
         # of gather_all will be t = 8 through t = 14.
-        experience, batch_info = replay_buffer.gather_all(
-            ignore_earliest_frames=True
-        )
+        experience, batch_info = replay_buffer.gather_all(ignore_earliest_frames=True)
 
         self.assertEqual(torch.tensor([0, 1, 2, 3]), batch_info.env_ids)
         # Note that the position of t = 8 never change and remains as 7.

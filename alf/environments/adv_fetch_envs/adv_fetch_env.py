@@ -122,10 +122,6 @@ class AdvFetchEnv(FetchEnv):
     def _get_obs(self):
         """We should also return the gripper's orientation."""
         obs = super()._get_obs()
-        gripper_rot = rotations.mat2euler(
-            self.sim.data.get_site_xmat("robot0:grip")
-        )
-        obs["observation"] = np.concatenate(
-            [obs["observation"], gripper_rot.ravel()]
-        )
+        gripper_rot = rotations.mat2euler(self.sim.data.get_site_xmat("robot0:grip"))
+        obs["observation"] = np.concatenate([obs["observation"], gripper_rot.ravel()])
         return obs

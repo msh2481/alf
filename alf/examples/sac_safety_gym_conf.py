@@ -79,9 +79,7 @@ actor_network_ctor = partial(
     activation=activation,
     continuous_projection_net_ctor=proj_net,
 )
-actor_network_cls = partial(
-    actor_network_ctor, input_preprocessors=alf.layers.Detach()
-)
+actor_network_cls = partial(actor_network_ctor, input_preprocessors=alf.layers.Detach())
 critic_network_cls = partial(
     CriticNetwork, activation=activation, joint_fc_layer_params=hidden_layers
 )

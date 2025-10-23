@@ -217,9 +217,7 @@ class S5SSM(Network):
 
         torch.nn.init.normal_(self._D.data)
 
-        self._log_step.data.uniform_(
-            math.log(self._dt_min), math.log(self._dt_max)
-        )
+        self._log_step.data.uniform_(math.log(self._dt_min), math.log(self._dt_max))
 
     def discretize(self):
         """
@@ -228,9 +226,7 @@ class S5SSM(Network):
             B_bar (torch.Tensor): real tensor with shape [state_dim, data_dim]
         """
         step = self._step_rescale * self._log_step.exp()
-        self._Lambda.data[:, 0].clip_(
-            max=-1e-4
-        )  # clip real part to be negative
+        self._Lambda.data[:, 0].clip_(max=-1e-4)  # clip real part to be negative
         Lambda = torch.view_as_complex(self._Lambda)
         Lambda_bar = torch.exp(Lambda * step)
         B_tilde = torch.view_as_complex(self._B)

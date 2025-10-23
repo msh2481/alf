@@ -53,9 +53,7 @@ class ConfigTest(alf.test.TestCase):
         self.assertRaises(ValueError, alf.config1, "Test.func.b", 32)
         self.assertEqual(obj.func(1, 2, 3), (1, 2, 3))
         self.assertEqual(obj.func(3, 5), (3, 5, 30))
-        self.assertRaisesRegex(
-            TypeError, "missing 1 required positional", obj.func
-        )
+        self.assertRaisesRegex(TypeError, "missing 1 required positional", obj.func)
 
         # Test blacklist
         self.assertRaises(ValueError, alf.config1, "test_func.b", 30)
@@ -150,8 +148,7 @@ class ConfigTest(alf.test.TestCase):
         self.assertTrue("Test.FancyTest.arg" in dict(operative_configs))
         inoperative_configs = alf.get_inoperative_configs()
         logging.info(
-            "get_inoperative_configs(): \n%s"
-            % pprint.pformat(inoperative_configs)
+            "get_inoperative_configs(): \n%s" % pprint.pformat(inoperative_configs)
         )
         self.assertTrue("A.B.C.D.test.arg" in dict(inoperative_configs))
 
@@ -262,9 +259,7 @@ class ConfigTest(alf.test.TestCase):
         alf.override_sole_config("override_no_affect_sole_init", x=2)
         with self.assertRaises(RuntimeError) as context:
             alf.config("override_no_affect_sole_init", x=3)
-        self.assertEqual(
-            alf.get_config_value("override_no_affect_sole_init.x"), 2
-        )
+        self.assertEqual(alf.get_config_value("override_no_affect_sole_init.x"), 2)
 
     def test_repr_wrapper(self):
         a = MyClass(1, 2)
@@ -305,9 +300,7 @@ class ConfigTest(alf.test.TestCase):
             os.path.exists(os.path.join(temp_dir, "alf_config.py"))
             os.path.exists(os.path.join(temp_dir, "configs", "test_conf.py"))
             os.path.exists(os.path.join(temp_dir, "configs", "base_conf.py"))
-            os.path.exists(
-                os.path.join(temp_dir, "configs", "base", "base_conf.py")
-            )
+            os.path.exists(os.path.join(temp_dir, "configs", "base", "base_conf.py"))
 
     def test_config_only_args(self):
 

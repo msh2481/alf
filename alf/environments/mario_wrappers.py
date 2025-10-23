@@ -95,9 +95,7 @@ class LimitedDiscreteActions(gym.ActionWrapper):
         gym.ActionWrapper.__init__(self, env)
         # 'B', None, 'SELECT', 'START', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'A'
         self._num_buttons = len(all_buttons)
-        button_keys = {
-            i for i, b in enumerate(all_buttons) if b in self.BUTTONS
-        }
+        button_keys = {i for i, b in enumerate(all_buttons) if b in self.BUTTONS}
         buttons = [
             (),
             *zip(button_keys),
@@ -171,8 +169,7 @@ class FrameFormat(gym.Wrapper):
         if data_format not in {"channels_first", "channels_last"}:
             raise ValueError(
                 "The `data_format` argument must be one of "
-                '"channels_first", "channels_last". Received: '
-                + str(data_format)
+                '"channels_first", "channels_last". Received: ' + str(data_format)
             )
         self._transpose = False
         obs_shape = env.observation_space.shape

@@ -138,9 +138,7 @@ class TracAlgorithm(RLAlgorithm):
                 action_distribution=action_distribution,
                 observation=time_step.observation,
                 prev_action=time_step.prev_action,
-                state=self._ac_algorithm.convert_train_state_to_predict_state(
-                    state
-                ),
+                state=self._ac_algorithm.convert_train_state_to_predict_state(state),
                 ac=ac_info,
             )
         )
@@ -167,9 +165,7 @@ class TracAlgorithm(RLAlgorithm):
 
     def after_update(self, root_inputs, info: TracInfo):
         """Adjust actor parameter according to KL-divergence."""
-        action_param = dist_utils.distributions_to_params(
-            info.action_distribution
-        )
+        action_param = dist_utils.distributions_to_params(info.action_distribution)
         exp_array = TracExperience(
             observation=info.observation,
             step_type=root_inputs.step_type,

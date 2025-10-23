@@ -161,9 +161,7 @@ class OacAlgorithm(SacAlgorithm):
         if rollout and not self._training_started:
             # get batch size with ``get_outer_rank`` and ``get_nest_shape``
             # since the observation can be a nest in the general case
-            outer_rank = nest_utils.get_outer_rank(
-                observation, self._observation_spec
-            )
+            outer_rank = nest_utils.get_outer_rank(observation, self._observation_spec)
             outer_dims = alf.nest.get_nest_shape(observation)[:outer_rank]
             # This uniform sampling seems important because for a squashed Gaussian,
             # even with a large scale, a random policy is not nearly uniform.
@@ -180,43 +178,27 @@ class OacAlgorithm(SacAlgorithm):
                 nest.flatten(action_dist_type)
             ), "Squashed distribution is expected from actor_network."
 
-            normal_dist = nest.map_structure(
-                lambda dist: dist.base_dist, action_dist
-            )
+            normal_dist = nest.map_structure(lambda dist: dist.base_dist, action_dist)
             normal_dist_type = nest.map_structure(
-                lambda dist: isinstance(
-                    dist, dist_utils.DiagMultivariateNormal
-                ),
+                lambda dist: isinstance(dist, dist_utils.DiagMultivariateNormal),
                 normal_dist,
             )
             assert all(
                 nest.flatten(normal_dist_type)
             ), "the base distribution should be diagonal multivariate normal."
 
-            unsquashed_mean = nest.map_structure(
-                lambda dist: dist.mean, normal_dist
-            )
-            unsquashed_std = nest.map_structure(
-                lambda dist: dist.stddev, normal_dist
-            )
-            unsquashed_var = nest.map_structure(
-                lambda dist: dist.variance, normal_dist
-            )
+            unsquashed_mean = nest.map_structure(lambda dist: dist.mean, normal_dist)
+            unsquashed_std = nest.map_structure(lambda dist: dist.stddev, normal_dist)
+            unsquashed_var = nest.map_structure(lambda dist: dist.variance, normal_dist)
 
             def mean_shift_fn(mu, dqda, sigma):
                 if self._dqda_clipping:
-                    dqda = torch.clamp(
-                        dqda, -self._dqda_clipping, self._dqda_clipping
-                    )
-                norm = (
-                    torch.sqrt(torch.sum(torch.mul(dqda * dqda, sigma))) + 1e-6
-                )
+                    dqda = torch.clamp(dqda, -self._dqda_clipping, self._dqda_clipping)
+                norm = torch.sqrt(torch.sum(torch.mul(dqda * dqda, sigma))) + 1e-6
                 shift = self._explore_delta * torch.mul(sigma, dqda) / norm
                 return mu + shift
 
-            critic_action = nest.map_structure(
-                prepare_critic_action, unsquashed_mean
-            )
+            critic_action = nest.map_structure(prepare_critic_action, unsquashed_mean)
             with torch.enable_grad():
                 transformed_action = nest.map_structure(
                     dist_transform_action, critic_action, action_dist
@@ -254,9 +236,7 @@ class OacAlgorithm(SacAlgorithm):
             action = dist_utils.sample_action_distribution(action_dist)
         else:
             if eps_greedy_sampling:
-                action = dist_utils.epsilon_greedy_sample(
-                    action_dist, epsilon_greedy
-                )
+                action = dist_utils.epsilon_greedy_sample(action_dist, epsilon_greedy)
             else:
                 action = dist_utils.rsample_action_distribution(action_dist)
 

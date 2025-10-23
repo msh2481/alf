@@ -218,9 +218,7 @@ class DSacAlgorithm(SacAlgorithm):
         )
 
         act_type = ActionType.Continuous
-        assert (
-            critic_network_cls is not None
-        ), "A CriticNetwork must be provided!"
+        assert critic_network_cls is not None, "A CriticNetwork must be provided!"
         critic_input_spec = (observation_spec, action_spec)
         critic_network = critic_network_cls(
             input_tensor_spec=critic_input_spec,
@@ -238,8 +236,7 @@ class DSacAlgorithm(SacAlgorithm):
             tau_type = self._tau_type
         if tau_type == "fixed":
             delta_tau = (
-                torch.zeros(batch_size, self._num_quantiles)
-                + 1.0 / self._num_quantiles
+                torch.zeros(batch_size, self._num_quantiles) + 1.0 / self._num_quantiles
             )
         elif tau_type == "iqn":  # add 0.1 to prevent tau getting too close
             delta_tau = torch.rand(batch_size, self._num_quantiles) + 0.1
@@ -250,9 +247,7 @@ class DSacAlgorithm(SacAlgorithm):
         # (B, N), note that they are tau_1...tau_N in the paper
         tau = torch.cumsum(delta_tau, dim=1)
         with torch.no_grad():
-            tau_shift = torch.cat(
-                [torch.zeros(tau.shape[0], 1), tau[:, :-1]], dim=1
-            )
+            tau_shift = torch.cat([torch.zeros(tau.shape[0], 1), tau[:, :-1]], dim=1)
             tau_hat = (tau + tau_shift) / 2
         return tau_hat, delta_tau
 
@@ -292,9 +287,7 @@ class DSacAlgorithm(SacAlgorithm):
                     "by critic_mean."
                 )
                 # [B, replicas] or [B, replicas, reward_dim]
-                critic_mean = (critic_quantiles * delta_tau.unsqueeze(1)).sum(
-                    -1
-                )
+                critic_mean = (critic_quantiles * delta_tau.unsqueeze(1)).sum(-1)
                 idx = torch.min(critic_mean, dim=1)[1]  # [B] or [B, reward_dim]
                 critic_quantiles = critic_quantiles[torch.arange(len(idx)), idx]
             else:
@@ -306,9 +299,7 @@ class DSacAlgorithm(SacAlgorithm):
                     critic_quantiles = critic_quantiles.min(dim=1)[0]
                 else:
                     critic_mean_quantiles = critic_quantiles.mean(1)
-                    critic_quantiles = (
-                        critic_mean_quantiles - critic_std_quantiles
-                    )
+                    critic_quantiles = critic_mean_quantiles - critic_std_quantiles
 
         return critic_quantiles, critics_state, extra_info
 
@@ -372,9 +363,7 @@ class DSacAlgorithm(SacAlgorithm):
 
         return state, info
 
-    def _get_actor_q_value(
-        self, inputs: TimeStep, state, action, tau_info: TauInfo
-    ):
+    def _get_actor_q_value(self, inputs: TimeStep, state, action, tau_info: TauInfo):
         # [B, num_quantiles]
         tau_hat, delta_tau = tau_info.actor_tau_hat, tau_info.actor_delta_tau
         critics, critics_state, critics_std = self._compute_critics(
@@ -418,9 +407,7 @@ class DSacAlgorithm(SacAlgorithm):
 
         def actor_loss_fn(dqda, action):
             if self._dqda_clipping:
-                dqda = torch.clamp(
-                    dqda, -self._dqda_clipping, self._dqda_clipping
-                )
+                dqda = torch.clamp(dqda, -self._dqda_clipping, self._dqda_clipping)
             loss = 0.5 * losses.element_wise_squared_loss(
                 (dqda + action).detach(), action
             )
@@ -459,9 +446,7 @@ class DSacAlgorithm(SacAlgorithm):
         else:
             return super()._alpha_train_step(log_pi)
 
-    def train_step(
-        self, inputs: TimeStep, state: SacState, rollout_info: SacInfo
-    ):
+    def train_step(self, inputs: TimeStep, state: SacState, rollout_info: SacInfo):
         assert not self._is_eval
         self._training_started = True
 
@@ -485,9 +470,7 @@ class DSacAlgorithm(SacAlgorithm):
         )
         alpha_loss = self._alpha_train_step(log_pi)
 
-        state = SacState(
-            action=action_state, actor=actor_state, critic=critic_state
-        )
+        state = SacState(action=action_state, actor=actor_state, critic=critic_state)
         info = DSacInfo(
             reward=inputs.reward,
             step_type=inputs.step_type,
@@ -515,9 +498,7 @@ class DSacAlgorithm(SacAlgorithm):
             info = info._replace(
                 reward=(
                     info.reward
-                    + common.expand_dims_as(
-                        entropy_reward * discount, info.reward
-                    )
+                    + common.expand_dims_as(entropy_reward * discount, info.reward)
                 )
             )
             return info

@@ -73,9 +73,7 @@ class DSacAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
             whole_replay_buffer_training=False,
             clear_replay_buffer=False,
         )
-        env_class = partial(
-            PolicyUnittestEnv, nested_observation=nested_observation
-        )
+        env_class = partial(PolicyUnittestEnv, nested_observation=nested_observation)
         steps_per_episode = 13
         env = env_class(
             num_env,
@@ -101,9 +99,7 @@ class DSacAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
             alf.nn.NormalProjectionNetwork,
             state_dependent_std=True,
             scale_distribution=True,
-            std_transform=partial(
-                clipped_exp, clip_value_min=-10, clip_value_max=2
-            ),
+            std_transform=partial(clipped_exp, clip_value_min=-10, clip_value_max=2),
         )
 
         if nested_observation:
@@ -179,9 +175,7 @@ class DSacAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
                 n_seconds=1,
             )
 
-        self.assertAlmostEqual(
-            1.0, float(eval_time_step.reward.mean()), delta=0.3
-        )
+        self.assertAlmostEqual(1.0, float(eval_time_step.reward.mean()), delta=0.3)
 
 
 def unroll(env, algorithm, steps, epsilon_greedy: float = 0.1):

@@ -166,9 +166,7 @@ def data_distributed(method):
     return data_distributed_when(None)(method)
 
 
-def data_distributed_when(
-    cond: Optional[Callable[[torch.nn.Module], bool]] = None
-):
+def data_distributed_when(cond: Optional[Callable[[torch.nn.Module], bool]] = None):
     """This is @ data_distributed with an extra conditionon.
 
     The condition is a function that returns True or False given the wrapped
@@ -206,9 +204,7 @@ def data_distributed_when(
             if not hasattr(module_to_wrap, "_ddp_performer_map"):
                 setattr(module_to_wrap, "_ddp_performer_map", {})
 
-            performer = module_to_wrap._ddp_performer_map.get(
-                method.__name__, None
-            )
+            performer = module_to_wrap._ddp_performer_map.get(method.__name__, None)
             if performer is None:
                 performer = make_ddp_performer(module_to_wrap, method)
                 module_to_wrap._ddp_performer_map[method.__name__] = performer

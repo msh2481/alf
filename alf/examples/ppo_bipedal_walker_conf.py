@@ -29,9 +29,7 @@ fc_layer_params = (128,) * 4
 env_name = "BipedalWalker-v2"
 num_iterations = 200000
 
-alf.config(
-    "create_environment", env_name=env_name, num_parallel_environments=64
-)
+alf.config("create_environment", env_name=env_name, num_parallel_environments=64)
 
 alf.config(
     "ActorDistributionNetwork",

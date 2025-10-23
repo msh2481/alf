@@ -36,9 +36,7 @@ class AgentTest(alf.test.TestCase):
             prev_action=action_spec.zeros(outer_dims=(batch_size,)),
         )
 
-        actor_net = functools.partial(
-            ActorDistributionNetwork, fc_layer_params=(100,)
-        )
+        actor_net = functools.partial(ActorDistributionNetwork, fc_layer_params=(100,))
         value_net = functools.partial(ValueNetwork, fc_layer_params=(100,))
 
         # TODO: add a goal generator and an entropy target algorithm once they

@@ -31,9 +31,7 @@ from alf.utils.losses import element_wise_squared_loss
 from alf.examples import sac_conf
 
 # environment config
-alf.config(
-    "create_environment", env_name="Humanoid-v2", num_parallel_environments=1
-)
+alf.config("create_environment", env_name="Humanoid-v2", num_parallel_environments=1)
 
 # algorithm config
 fc_layer_params = (256, 256)
@@ -45,15 +43,11 @@ actor_network_cls = partial(
         NormalProjectionNetwork,
         state_dependent_std=True,
         scale_distribution=True,
-        std_transform=partial(
-            clipped_exp, clip_value_min=-10, clip_value_max=2
-        ),
+        std_transform=partial(clipped_exp, clip_value_min=-10, clip_value_max=2),
     ),
 )
 
-critic_network_cls = partial(
-    CriticNetwork, joint_fc_layer_params=fc_layer_params
-)
+critic_network_cls = partial(CriticNetwork, joint_fc_layer_params=fc_layer_params)
 
 alf.config("calc_default_target_entropy", min_prob=0.184)
 

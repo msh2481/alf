@@ -63,9 +63,7 @@ class TruncatedNormal(td.Distribution):
         low = (self._low - loc) / scale
         high = (self._high - loc) / scale
         # 0.9189385332046727 = math.log(math.sqrt(2 * math.pi))
-        log_prob = (
-            -((value - loc) ** 2) / (2 * var) - log_scale - 0.9189385332046727
-        )
+        log_prob = -((value - loc) ** 2) / (2 * var) - log_scale - 0.9189385332046727
         return log_prob - normcdf(low, high).log()
 
     def sample(self):
@@ -126,9 +124,9 @@ class SameActionPriorActor(Algorithm):
             spec["maximum"] = torch.as_tensor(
                 np.broadcast_to(action_spec.maximum, action_spec.shape)
             ).reshape(1, *action_spec.shape, 1)
-            spec["background_loc"] = 0.5 * (
-                spec["minimum"] + spec["maximum"]
-            ).squeeze(-1)
+            spec["background_loc"] = 0.5 * (spec["minimum"] + spec["maximum"]).squeeze(
+                -1
+            )
             spec["scale"] = torch.cat(
                 [
                     spec["maximum"] - spec["minimum"],
@@ -147,9 +145,7 @@ class SameActionPriorActor(Algorithm):
 
         self._action_spec = action_spec
         flat_action_spec = alf.nest.flatten(action_spec)
-        self._prepared_specs = [
-            _prepare_spec(spec) for spec in flat_action_spec
-        ]
+        self._prepared_specs = [_prepare_spec(spec) for spec in flat_action_spec]
 
     def _make_dist(self, step_type, prev_action, spec):
         logits = spec["mix_logits"].expand(*prev_action.shape, -1).clone()
@@ -236,9 +232,7 @@ class UniformPriorActor(Algorithm):
 
         self._action_spec = action_spec
         flat_action_spec = alf.nest.flatten(action_spec)
-        self._prepared_specs = [
-            _prepare_spec(spec) for spec in flat_action_spec
-        ]
+        self._prepared_specs = [_prepare_spec(spec) for spec in flat_action_spec]
 
     def _make_dist(self, step_type, prev_action, spec):
         low = spec["minimum"].expand_as(prev_action)

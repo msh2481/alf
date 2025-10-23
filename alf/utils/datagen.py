@@ -157,9 +157,7 @@ def load_cifar10(label_idx=None, train_bs=100, test_bs=100, num_workers=0):
     data_transform = transforms.Compose(
         [
             transforms.ToTensor(),
-            transforms.Normalize(
-                (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
-            ),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
         ]
     )
 
@@ -212,9 +210,7 @@ def _load_textdata(load_fn, train_bs, test_bs, max_vocab_size=None):
 
     def _data_process(raw_text_iter):
         data = [
-            np.array(
-                [vocab[token] for token in tokenizer(item)], dtype=np.int64
-            )
+            np.array([vocab[token] for token in tokenizer(item)], dtype=np.int64)
             for item in raw_text_iter
         ]
         data = np.concatenate(tuple(filter(lambda t: t.size > 0, data)))
@@ -279,6 +275,4 @@ def load_wikitext103(train_bs, test_bs, max_vocab_size=32768):
     """
     from torchtext.datasets import WikiText103
 
-    return _load_textdata(
-        WikiText103, train_bs, test_bs, max_vocab_size=max_vocab_size
-    )
+    return _load_textdata(WikiText103, train_bs, test_bs, max_vocab_size=max_vocab_size)

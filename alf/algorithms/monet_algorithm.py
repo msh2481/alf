@@ -119,9 +119,7 @@ class MoNetUNet(alf.networks.Network):
         deconv_blocks = []
         filters = filters[::-1]
         for i in range(len(filters)):
-            out_channels = (
-                filters[i + 1] if i < len(filters) - 1 else filters[-1]
-            )
+            out_channels = filters[i + 1] if i < len(filters) - 1 else filters[-1]
             block = [
                 alf.layers.Conv2D(
                     channels * 2,
@@ -386,9 +384,7 @@ class MoNetAlgorithm(Algorithm):
         # [B,G,H,W]
         mask_logprobs = self._compute_mask_logprobs(inputs)
         # [B,G,C,H,W]
-        inputs = tensor_utils.tensor_extend_new_dim(
-            inputs, dim=1, n=self._n_slots
-        )
+        inputs = tensor_utils.tensor_extend_new_dim(inputs, dim=1, n=self._n_slots)
         # Even though the MoNet paper appends the mask in the log space,
         # a linear space is actually more numerically stable.
         # [B,G,C+1,H,W]
@@ -413,9 +409,8 @@ class MoNetAlgorithm(Algorithm):
             return l.sum(list(range(1, l.ndim)))
 
         def _compute_rec_loss(rec, target):
-            rec_log_prob = (
-                self._inv_var.log()
-                - self._inv_var * alf.math.square(rec - target)
+            rec_log_prob = self._inv_var.log() - self._inv_var * alf.math.square(
+                rec - target
             )
             return _reduce_loss(-torch.logsumexp(rec_log_prob + mask, dim=1))
 
@@ -473,9 +468,7 @@ class MoNetAlgorithm(Algorithm):
         # [B,G,1,H,W]
         mask = mask_logprobs.unsqueeze(2)
 
-        rec_loss, mask_rec_loss = self._rec_loss_step(
-            inputs, rec, mask, mask_rec
-        )
+        rec_loss, mask_rec_loss = self._rec_loss_step(inputs, rec, mask, mask_rec)
 
         info = MoNetInfo(
             kld=kld,

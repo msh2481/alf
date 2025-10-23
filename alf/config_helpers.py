@@ -90,16 +90,12 @@ def get_observation_spec(field=None):
     """
     global _transformed_observation_spec
     if _transformed_observation_spec is None:
-        data_transformer_ctor = get_config_value(
-            "TrainerConfig.data_transformer_ctor"
-        )
+        data_transformer_ctor = get_config_value("TrainerConfig.data_transformer_ctor")
         env = get_env()
         data_transformer = create_data_transformer(
             data_transformer_ctor, env.observation_spec()
         )
-        _transformed_observation_spec = (
-            data_transformer.transformed_observation_spec
-        )
+        _transformed_observation_spec = data_transformer.transformed_observation_spec
 
     specs = _transformed_observation_spec
     if field:

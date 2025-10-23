@@ -141,10 +141,7 @@ class _NormBase(nn.Module):
         if self.training or not self._track_running_stats:
             if self._track_running_stats:
                 current_step = self._current_step
-                if (
-                    isinstance(current_step, torch.Tensor)
-                    and current_step.ndim != 0
-                ):
+                if isinstance(current_step, torch.Tensor) and current_step.ndim != 0:
                     assert torch.all(
                         current_step == current_step[0]
                     ), "all current_steps must be same for training."
@@ -153,14 +150,10 @@ class _NormBase(nn.Module):
                 running_mean = self._running_means[current_step]
                 running_var = self._running_vars[current_step]
                 if not self._clamped:
-                    num_batches_tracked = self._num_batches_tracked[
-                        current_step
-                    ]
+                    num_batches_tracked = self._num_batches_tracked[current_step]
                     num_batches_tracked.add_(1)
                     if self._momentum is None:  # use cumulative moving average
-                        exponential_average_factor = 1.0 / float(
-                            num_batches_tracked
-                        )
+                        exponential_average_factor = 1.0 / float(num_batches_tracked)
                     else:  # use exponential moving average
                         exponential_average_factor = self._momentum
                 else:
@@ -185,12 +178,8 @@ class _NormBase(nn.Module):
                 self._eps,
             )
         else:  # not training and tracking running stats
-            running_means = torch.stack(self._running_means, dim=0)[
-                self._current_step
-            ]
-            running_vars = torch.stack(self._running_vars, dim=0)[
-                self._current_step
-            ]
+            running_means = torch.stack(self._running_means, dim=0)[self._current_step]
+            running_vars = torch.stack(self._running_vars, dim=0)[self._current_step]
             if running_means.ndim == 1:
                 running_means = running_means[None, :].expand(input.shape[:2])
                 running_vars = running_vars[None, :].expand(input.shape[:2])
@@ -332,9 +321,7 @@ class BatchNorm2d(_NormBase):
 
     def _check_input_dim(self, input):
         if input.dim() != 4:
-            raise ValueError(
-                "expected 4D input (got {}D input)".format(input.dim())
-            )
+            raise ValueError("expected 4D input (got {}D input)".format(input.dim()))
 
 
 def set_batch_norm_max_steps(module, max_steps: int):
@@ -390,9 +377,7 @@ def prepare_rnn_batch_norm(module: nn.Module) -> bool:
                     visited.add(submodule)
 
     module._all_bns = bns
-    module.set_batch_norm_max_steps = types.MethodType(
-        set_batch_norm_max_steps, module
-    )
+    module.set_batch_norm_max_steps = types.MethodType(set_batch_norm_max_steps, module)
     module.set_batch_norm_current_step = types.MethodType(
         set_batch_norm_current_step, module
     )
@@ -541,9 +526,7 @@ class ParamLayerNorm(nn.Module):
         """
         inputs = self._preprocess_input(inputs)
 
-        res = F.group_norm(
-            inputs, self._n_groups, self.weight, self.bias, self._eps
-        )
+        res = F.group_norm(inputs, self._n_groups, self.weight, self.bias, self._eps)
 
         if self._n_groups > 1 and keep_group_dim:
             res = res.reshape(
@@ -634,9 +617,7 @@ class ParamLayerNorm2d(ParamLayerNorm):
                     inputs = inputs.repeat(1, self._n_groups, 1, 1)
                 else:
                     # case 2: parallel input
-                    assert (
-                        inputs.shape[1] == self._n_groups * self.output_channels
-                    ), (
+                    assert inputs.shape[1] == self._n_groups * self.output_channels, (
                         "Input img has wrong shape %s. Expecting (B, %d, H, W) or (B, %d, H, W)"
                         % (
                             inputs.shape,
@@ -649,9 +630,10 @@ class ParamLayerNorm2d(ParamLayerNorm):
                 assert (
                     inputs.shape[1] == self._n_groups
                     and inputs.shape[2] == self.output_channels
-                ), (
-                    "Input img has wrong shape %s. Expecting (B, %d, %d, H, W)"
-                    % (inputs.shape, self._n_groups, self.output_channels)
+                ), "Input img has wrong shape %s. Expecting (B, %d, %d, H, W)" % (
+                    inputs.shape,
+                    self._n_groups,
+                    self.output_channels,
                 )
                 # merge group and channel dim
                 inputs = inputs.reshape(

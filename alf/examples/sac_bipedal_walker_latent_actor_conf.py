@@ -31,7 +31,5 @@ alf.config(
 
 alf.config(
     "SacAlgorithm",
-    actor_network_cls=partial(
-        LatentActorDistributionNetwork, scale_distribution=True
-    ),
+    actor_network_cls=partial(LatentActorDistributionNetwork, scale_distribution=True),
 )

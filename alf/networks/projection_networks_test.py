@@ -32,9 +32,7 @@ from alf.utils.dist_utils import DistributionSpec
 import alf.utils.math_ops as math_ops
 
 
-class TestCategoricalProjectionNetwork(
-    parameterized.TestCase, alf.test.TestCase
-):
+class TestCategoricalProjectionNetwork(parameterized.TestCase, alf.test.TestCase):
 
     def test_uniform_projection_net(self):
         """A zero-weight net generates uniform actions."""
@@ -141,12 +139,8 @@ class TestNormalProjectionNetwork(parameterized.TestCase, alf.test.TestCase):
         )
         dist, _ = net(embedding)
         self.assertTrue(dist.mean.std() > 0)
-        self.assertTrue(
-            torch.all(dist.mean > torch.tensor(action_spec.minimum))
-        )
-        self.assertTrue(
-            torch.all(dist.mean < torch.tensor(action_spec.maximum))
-        )
+        self.assertTrue(torch.all(dist.mean > torch.tensor(action_spec.minimum)))
+        self.assertTrue(torch.all(dist.mean < torch.tensor(action_spec.maximum)))
 
     @parameterized.parameters(
         (NormalProjectionNetwork,), (StableNormalProjectionNetwork,)
@@ -155,9 +149,7 @@ class TestNormalProjectionNetwork(parameterized.TestCase, alf.test.TestCase):
         """A net with `scale_distribution=True` should always sample actions
         within the action spec."""
         input_spec = TensorSpec((10,), torch.float32)
-        embedding = 10 * torch.rand(
-            (100,) + input_spec.shape, dtype=torch.float32
-        )
+        embedding = 10 * torch.rand((100,) + input_spec.shape, dtype=torch.float32)
 
         action_spec = TensorSpec((8,), torch.float32)
         # For scaling distribution, we need a bounded action spec
@@ -217,12 +209,8 @@ class TestNormalProjectionNetwork(parameterized.TestCase, alf.test.TestCase):
         self.assertEqual((100, 5), dist.batch_shape)
         self.assertEqual((2,), dist.event_shape)
         self.assertTrue(dist.mean.std() > 0)
-        self.assertTrue(
-            torch.all(dist.mean > torch.tensor(action_spec.minimum))
-        )
-        self.assertTrue(
-            torch.all(dist.mean < torch.tensor(action_spec.maximum))
-        )
+        self.assertTrue(torch.all(dist.mean > torch.tensor(action_spec.minimum)))
+        self.assertTrue(torch.all(dist.mean < torch.tensor(action_spec.maximum)))
 
     def test_stable_normal_projection_net_minmax_std(self):
         """Test max and min stds for StableNormalProjectionNetwork."""
@@ -305,9 +293,7 @@ class TestNormalProjectionNetwork(parameterized.TestCase, alf.test.TestCase):
         self.assertTrue(torch.any(samples >= 0))
 
 
-class TestOnehotCategoricalProjectionNetwork(
-    parameterized.TestCase, alf.test.TestCase
-):
+class TestOnehotCategoricalProjectionNetwork(parameterized.TestCase, alf.test.TestCase):
 
     @parameterized.parameters("st", "st-gumbel", "plain", "gumbel")
     def test_onehot_categorical_uniform_projection_net(self, mode):
@@ -483,9 +469,7 @@ class TestMixtureProjectionNetwork(parameterized.TestCase, alf.test.TestCase):
             input_size=input_spec.shape[0],
             action_spec=BoundedTensorSpec((2,), minimum=0.0, maximum=4.0),
             num_components=3,
-            component_ctor=partial(
-                BetaProjectionNetwork, min_concentration=1.0
-            ),
+            component_ctor=partial(BetaProjectionNetwork, min_concentration=1.0),
         )
 
         self.assertEqual(3, net.num_components)

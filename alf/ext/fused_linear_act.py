@@ -96,9 +96,7 @@ class FusedLinearAct(torch.autograd.Function):
         assert (
             weight.ndim == 2 and weight.shape[1] == input.shape[-1]
         ), f"Invalid shape: {input.shape} {weight.shape}"
-        assert bias is None or (
-            bias.ndim == 1 and bias.shape[0] == weight.shape[0]
-        )
+        assert bias is None or (bias.ndim == 1 and bias.shape[0] == weight.shape[0])
 
         if (
             torch.is_autocast_enabled()
@@ -125,9 +123,7 @@ class FusedLinearAct(torch.autograd.Function):
         input, weight, output = ctx.saved_tensors
         grad_output = grad_output.contiguous()
         grad_output = grad_output.reshape(-1, grad_output.shape[-1])
-        output = (
-            output.reshape(-1, output.shape[-1]) if output is not None else None
-        )
+        output = output.reshape(-1, output.shape[-1]) if output is not None else None
         grad = act_backward(output, grad_output, ctx.act)
 
         grad_input = None

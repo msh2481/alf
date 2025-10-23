@@ -34,9 +34,7 @@ alf.config(
     ),
 )
 
-alf.config(
-    "DynamicActionRepeatAgent", K=5, rl_algorithm_cls=SacAlgorithm, gamma=0.99
-)
+alf.config("DynamicActionRepeatAgent", K=5, rl_algorithm_cls=SacAlgorithm, gamma=0.99)
 
 alf.config(
     "TrainerConfig",

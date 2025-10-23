@@ -33,9 +33,7 @@ from alf.networks import (
     EncodingNetwork,
 )
 
-alf.config(
-    "create_environment", env_name="Vectorized", num_parallel_environments=36
-)
+alf.config("create_environment", env_name="Vectorized", num_parallel_environments=36)
 
 alf.config(
     "metadrive.sensors.VectorizedObservation",
@@ -135,9 +133,7 @@ class MaskedTransformer(torch.nn.Module):
     def forward(self, inputs):
         x, map_mask, agent_mask = inputs
         B = x.shape[0]
-        mask = torch.hstack(
-            (torch.zeros(B, 1, dtype=bool), map_mask, agent_mask)
-        )
+        mask = torch.hstack((torch.zeros(B, 1, dtype=bool), map_mask, agent_mask))
         for layer in self._tf_layers:
             x = layer(memory=x, mask=mask)
 

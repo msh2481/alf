@@ -40,9 +40,7 @@ class TestActorDistributionNetworks(parameterized.TestCase, alf.test.TestCase):
             TensorSpec((3, 20, 20), torch.float32),
             TensorSpec((1, 20, 20), torch.float32),
         ]
-        self._image = zero_tensor_from_nested_spec(
-            self._input_spec, batch_size=1
-        )
+        self._image = zero_tensor_from_nested_spec(self._input_spec, batch_size=1)
         self._conv_layer_params = ((8, 3, 1), (16, 3, 2, 1))
         self._fc_layer_params = (100,)
         self._input_preprocessors = [torch.tanh, None]
@@ -103,19 +101,13 @@ class TestActorDistributionNetworks(parameterized.TestCase, alf.test.TestCase):
         act_dist, _ = actor_dist_net(self._image, state)
         actions = act_dist.sample((100,))
 
-        self.assertTrue(
-            isinstance(actor_dist_net.output_spec, DistributionSpec)
-        )
+        self.assertTrue(isinstance(actor_dist_net.output_spec, DistributionSpec))
 
         # (num_samples, batch_size)
         self.assertEqual(actions.shape, (100, 1))
 
-        self.assertTrue(
-            torch.all(actions >= torch.as_tensor(action_spec.minimum))
-        )
-        self.assertTrue(
-            torch.all(actions <= torch.as_tensor(action_spec.maximum))
-        )
+        self.assertTrue(torch.all(actions >= torch.as_tensor(action_spec.minimum)))
+        self.assertTrue(torch.all(actions <= torch.as_tensor(action_spec.maximum)))
 
     @parameterized.parameters((100,), (None,), ((200, 100),))
     def test_continuous_actor_distribution(self, lstm_hidden_size):
@@ -136,19 +128,13 @@ class TestActorDistributionNetworks(parameterized.TestCase, alf.test.TestCase):
         act_dist, _ = actor_dist_net(self._image, state)
         actions = act_dist.sample((100,))
 
-        self.assertTrue(
-            isinstance(actor_dist_net.output_spec, DistributionSpec)
-        )
+        self.assertTrue(isinstance(actor_dist_net.output_spec, DistributionSpec))
 
         # (num_samples, batch_size, action_spec_shape)
         self.assertEqual(actions.shape, (100, 1) + action_spec.shape)
 
-        self.assertTrue(
-            torch.all(actions >= torch.as_tensor(action_spec.minimum))
-        )
-        self.assertTrue(
-            torch.all(actions <= torch.as_tensor(action_spec.maximum))
-        )
+        self.assertTrue(torch.all(actions >= torch.as_tensor(action_spec.minimum)))
+        self.assertTrue(torch.all(actions <= torch.as_tensor(action_spec.maximum)))
 
     @parameterized.parameters(((200, 100),), (None,))
     def test_mixed_actor_distributions(self, lstm_hidden_size):
@@ -173,9 +159,7 @@ class TestActorDistributionNetworks(parameterized.TestCase, alf.test.TestCase):
             isinstance(actor_dist_net.output_spec["discrete"], DistributionSpec)
         )
         self.assertTrue(
-            isinstance(
-                actor_dist_net.output_spec["continuous"], DistributionSpec
-            )
+            isinstance(actor_dist_net.output_spec["continuous"], DistributionSpec)
         )
 
         self.assertTrue(isinstance(act_dist["discrete"], td.Categorical))
@@ -184,9 +168,7 @@ class TestActorDistributionNetworks(parameterized.TestCase, alf.test.TestCase):
         if lstm_hidden_size is None:
             self.assertEqual(state, ())
         else:
-            self.assertEqual(
-                len(alf.nest.flatten(state)), 2 * len(lstm_hidden_size)
-            )
+            self.assertEqual(len(alf.nest.flatten(state)), 2 * len(lstm_hidden_size))
 
     def test_make_parallel(self):
         obs_spec = TensorSpec((3, 20, 20), torch.float32)
@@ -209,20 +191,12 @@ class TestActorDistributionNetworks(parameterized.TestCase, alf.test.TestCase):
         pnet = actor_dist_net.make_parallel(replicas)
         self.assertTrue(isinstance(pnet, ParallelActorDistributionNetwork))
         self.assertEqual(pnet.name, "parallel_" + actor_dist_net.name)
-        self.assertTrue(
-            isinstance(actor_dist_net.output_spec, DistributionSpec)
-        )
+        self.assertTrue(isinstance(actor_dist_net.output_spec, DistributionSpec))
         act_dist, _ = pnet(obs_spec.randn((batch_size,)))
         actions = act_dist.sample()
-        self.assertEqual(
-            actions.shape, (batch_size, replicas) + action_spec.shape
-        )
-        self.assertTrue(
-            torch.all(actions >= torch.as_tensor(action_spec.minimum))
-        )
-        self.assertTrue(
-            torch.all(actions <= torch.as_tensor(action_spec.maximum))
-        )
+        self.assertEqual(actions.shape, (batch_size, replicas) + action_spec.shape)
+        self.assertTrue(torch.all(actions >= torch.as_tensor(action_spec.minimum)))
+        self.assertTrue(torch.all(actions <= torch.as_tensor(action_spec.maximum)))
 
         # test discrete action
 
@@ -244,15 +218,9 @@ class TestActorDistributionNetworks(parameterized.TestCase, alf.test.TestCase):
         pnet = actor_dist_net.make_parallel(replicas)
         act_dist, _ = pnet(obs_spec.randn((batch_size,)))
         actions = act_dist.sample()
-        self.assertEqual(
-            actions.shape, (batch_size, replicas) + action_spec.shape
-        )
-        self.assertTrue(
-            torch.all(actions >= torch.as_tensor(action_spec.minimum))
-        )
-        self.assertTrue(
-            torch.all(actions <= torch.as_tensor(action_spec.maximum))
-        )
+        self.assertEqual(actions.shape, (batch_size, replicas) + action_spec.shape)
+        self.assertTrue(torch.all(actions >= torch.as_tensor(action_spec.minimum)))
+        self.assertTrue(torch.all(actions <= torch.as_tensor(action_spec.maximum)))
 
     def test_rnn_make_parallel(self):
         obs_spec = TensorSpec((3, 20, 20), torch.float32)

@@ -123,9 +123,7 @@ class ParVIAlgorithm(Algorithm):
         else:
             raise ValueError("Unsupported par_vi method: %s" % par_vi)
 
-        self._kernel_width_averager = AdaptiveAverager(
-            tensor_spec=TensorSpec(shape=())
-        )
+        self._kernel_width_averager = AdaptiveAverager(tensor_spec=TensorSpec(shape=()))
 
         self._particles = torch.nn.Parameter(
             torch.randn(num_particles, particle_dim, requires_grad=True)
@@ -326,13 +324,9 @@ class ParVIAlgorithm(Algorithm):
             self.num_particles
         )  # [N, D]
 
-        loss_prop_kernel_logp = torch.sum(
-            kernel_logp.detach() * particles, dim=-1
-        )
+        loss_prop_kernel_logp = torch.sum(kernel_logp.detach() * particles, dim=-1)
         loss_prop_kernel_grad = torch.sum(
-            -entropy_regularization
-            * kernel_grad.mean(0).detach()
-            * aug_particles,
+            -entropy_regularization * kernel_grad.mean(0).detach() * aug_particles,
             dim=-1,
         )
         loss_propagated = loss_prop_kernel_logp + loss_prop_kernel_grad
@@ -367,9 +361,7 @@ class ParVIAlgorithm(Algorithm):
     def _jacobian_trace(self, fx, x):
         """Hutchinson's trace Jacobian estimator O(1) call to autograd,
         used by ``minmax`` method"""
-        assert (
-            fx.shape[-1] == x.shape[-1]
-        ), "Jacobian is not square, no trace defined."
+        assert fx.shape[-1] == x.shape[-1], "Jacobian is not square, no trace defined."
         eps = torch.randn_like(fx)
         jvp = torch.autograd.grad(
             fx, x, grad_outputs=eps, retain_graph=True, create_graph=True
@@ -420,11 +412,7 @@ class ParVIAlgorithm(Algorithm):
 
         loss_inputs = aug_particles
         loss = loss_func(loss_inputs.detach())
-        critic_outputs = self._critic.predict_step(
-            aug_particles.detach()
-        ).output
-        loss_propagated = torch.sum(
-            -critic_outputs.detach() * aug_particles, dim=-1
-        )
+        critic_outputs = self._critic.predict_step(aug_particles.detach()).output
+        loss_propagated = torch.sum(-critic_outputs.detach() * aug_particles, dim=-1)
 
         return loss, loss_propagated

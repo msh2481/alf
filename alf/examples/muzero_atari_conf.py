@@ -132,9 +132,7 @@ last_bn_fixed_weight_norm = define_config("last_bn_fixed_weight_norm", True)
 bn_fixed_weight_norm = define_config("bn_fixed_weight_norm", True)
 
 pred_fixed_weight_norm = pred_use_bn and fixed_weight_norm
-pred_fixed_weight_norm = define_config(
-    "pred_fixed_weight_norm", pred_fixed_weight_norm
-)
+pred_fixed_weight_norm = define_config("pred_fixed_weight_norm", pred_fixed_weight_norm)
 
 if fixed_weight_norm:
     weight_opt_args = dict(fixed_norm=fixed_weight_norm)
@@ -142,9 +140,7 @@ else:
     weight_opt_args = None
 
 alf.config("Conv2D", activation=activation, weight_opt_args=weight_opt_args)
-alf.config(
-    "ResidueBlock", activation=activation, weight_opt_args=weight_opt_args
-)
+alf.config("ResidueBlock", activation=activation, weight_opt_args=weight_opt_args)
 alf.config("BatchNorm1d", fixed_weight_norm=bn_fixed_weight_norm)
 alf.config("BatchNorm2d", fixed_weight_norm=bn_fixed_weight_norm)
 
@@ -184,9 +180,7 @@ if suite == "ATARI":
     )
     num_env_steps = 100000
     initial_collect_steps = 2000
-    alf.config(
-        "TrainerConfig", mini_batch_size=256, num_updates_per_train_iter=5
-    )
+    alf.config("TrainerConfig", mini_batch_size=256, num_updates_per_train_iter=5)
     alf.config(
         "MuzeroRepresentationImpl",
         reanalyze_batch_size=1280 if use_small_net else 640,
@@ -203,9 +197,7 @@ elif suite == "PROCGEN":
     )
     num_env_steps = 1000000
     initial_collect_steps = 10000
-    alf.config(
-        "TrainerConfig", mini_batch_size=1024, num_updates_per_train_iter=1
-    )
+    alf.config("TrainerConfig", mini_batch_size=1024, num_updates_per_train_iter=1)
 else:
     raise ValueError(f"Invalid value suite={suite}")
 
@@ -237,9 +229,9 @@ aug_shift = define_config("aug_shift", 4)
 def rand_intensity_(x: torch.Tensor) -> torch.Tensor:
 
     def _f(x: torch.Tensor) -> torch.Tensor:
-        ratio = 1 + 0.05 * torch.randn(
-            x.shape[0], 1, 1, 1, device=x.device
-        ).clamp_(-2, 2)
+        ratio = 1 + 0.05 * torch.randn(x.shape[0], 1, 1, 1, device=x.device).clamp_(
+            -2, 2
+        )
         return (ratio * x).round_().clamp_(max=255)
 
     # Do it in two batches to reduce memory footprint.
@@ -253,9 +245,7 @@ _data_augmenter = alf.layers.Sequential(
     alf.layers.RandomCrop((img_height, img_width), aug_shift), rand_intensity_
 )
 
-consistent_data_augmentation = define_config(
-    "consistent_data_augmentation", True
-)
+consistent_data_augmentation = define_config("consistent_data_augmentation", True)
 
 aug_scheduler = StepScheduler("percent", [(0.1, 0), (1, 1)])
 
@@ -309,9 +299,7 @@ def create_dynamics_net(input_tensor_spec):
         lambda x: torch.cat(
             [
                 x[0],
-                (x[1] / num_actions)
-                .reshape(-1, 1, 1, 1)
-                .expand(-1, 1, *plane_size),
+                (x[1] / num_actions).reshape(-1, 1, 1, 1).expand(-1, 1, *plane_size),
             ],
             dim=1,
         ),
@@ -354,9 +342,7 @@ def create_dynamics_net_small(input_tensor_spec):
         lambda x: torch.cat(
             [
                 x[0],
-                (x[1] / num_actions)
-                .reshape(-1, 1, 1, 1)
-                .expand(-1, 1, *plane_size),
+                (x[1] / num_actions).reshape(-1, 1, 1, 1).expand(-1, 1, *plane_size),
             ],
             dim=1,
         ),
@@ -397,9 +383,7 @@ def create_prediction_net(state_spec, action_spec, initial_game_over_bias=-5):
         if not x.requires_grad:
             return x
         if alf.summary.should_record_summaries():
-            return summarize_tensor_gradients(
-                "SimpleMCTSModel/" + name, x, clone=True
-            )
+            return summarize_tensor_gradients("SimpleMCTSModel/" + name, x, clone=True)
         else:
             return x
 
@@ -447,9 +431,7 @@ def create_prediction_net(state_spec, action_spec, initial_game_over_bias=-5):
                 ]
             else:
                 return [
-                    alf.layers.ResidueBlock(
-                        state_channels, state_channels, 3, 1
-                    ),
+                    alf.layers.ResidueBlock(state_channels, state_channels, 3, 1),
                     alf.layers.Conv2D(
                         state_channels,
                         16,
@@ -490,9 +472,7 @@ def create_prediction_net(state_spec, action_spec, initial_game_over_bias=-5):
         max_norm=last_weight_max_norm,
     )
 
-    rv_bias_opt_args = dict(
-        weight_decay=rv_bias_decay, l2_regularization=rv_bias_l2
-    )
+    rv_bias_opt_args = dict(weight_decay=rv_bias_decay, l2_regularization=rv_bias_l2)
 
     value_net = alf.layers.Sequential(
         partial(_summarize_grad, name="value_grad"),

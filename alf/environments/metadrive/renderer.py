@@ -48,9 +48,7 @@ class Renderer(TopDownRenderer):
 
     def __init__(
         self,
-        observation_renderer: Optional[
-            Callable[[pygame.Surface, Any], None]
-        ] = None,
+        observation_renderer: Optional[Callable[[pygame.Surface, Any], None]] = None,
     ):
         """Construct a Renderer instance.
 
@@ -109,14 +107,10 @@ class Renderer(TopDownRenderer):
             f"Lon: {ego.throttle_brake:.3f}", True, (0, 0, 255)
         )
         self.canvas.blit(text, (40, 40))
-        text = self.pygame_font.render(
-            f"Lat: {ego.steering:.3f}", True, (0, 0, 255)
-        )
+        text = self.pygame_font.render(f"Lat: {ego.steering:.3f}", True, (0, 0, 255))
         self.canvas.blit(text, (40, 60))
         speed = ego.speed * 1000.0 / 3600.0
-        text = self.pygame_font.render(
-            f"Vel: {speed:.3f} m/s", True, (0, 0, 255)
-        )
+        text = self.pygame_font.render(f"Vel: {speed:.3f} m/s", True, (0, 0, 255))
         self.canvas.blit(text, (40, 80))
 
     def render(self, observation=None):
@@ -142,9 +136,7 @@ class Renderer(TopDownRenderer):
 
         """
         # Record current target vehicle
-        objects = self.engine.get_objects(
-            lambda obj: not is_map_related_instance(obj)
-        )
+        objects = self.engine.get_objects(lambda obj: not is_map_related_instance(obj))
         this_frame_objects = self._append_frame_objects(objects)
         self.history_objects.append(this_frame_objects)
 
@@ -191,9 +183,7 @@ def make_vectorized_observation_renderer(sensor: VectorizedObservation):
     background = pygame.Rect((0.0, 1000.0, width, 200.0))
 
     # Extract the centers of all segments.
-    origin = np.array(
-        [-fov.bbox[0][0] * scale, 1000.0 + fov.bbox[2][1] * scale]
-    )
+    origin = np.array([-fov.bbox[0][0] * scale, 1000.0 + fov.bbox[2][1] * scale])
     # Number of segments per polyline.
     k = sensor.polyline_size
 
@@ -210,9 +200,7 @@ def make_vectorized_observation_renderer(sensor: VectorizedObservation):
         points[:, :-1] = r - ab
         points[:, -1] = r[:, -1] + ab[:, -1]
         points = points * scale + origin
-        colors = (map_feature[:, (k * 6 + 1) : (k * 6 + 4)] * 255.0).astype(
-            np.int32
-        )
+        colors = (map_feature[:, (k * 6 + 1) : (k * 6 + 4)] * 255.0).astype(np.int32)
 
         for i in range(map_feature.shape[0]):
             pygame.draw.lines(canvas, colors[i], False, points[i])
@@ -221,9 +209,7 @@ def make_vectorized_observation_renderer(sensor: VectorizedObservation):
     def draw_agents(canvas, agent_feature):
         n, h = agent_feature.shape[:2]
         # n * h * 2
-        cg = agent_feature[:, :, 1:3] * np.expand_dims(
-            agent_feature[:, :, 0], -1
-        )
+        cg = agent_feature[:, :, 1:3] * np.expand_dims(agent_feature[:, :, 0], -1)
         lon = agent_feature[:, :, 5:7]
         lat = np.matmul(lon, np.array([[0.0, -1.0], [1.0, 0.0]]))
         lon = lon * np.expand_dims(agent_feature[:, :, 3], -1) * 0.5

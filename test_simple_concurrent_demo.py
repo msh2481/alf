@@ -34,9 +34,7 @@ class SimpleGridWorld(gym.Env):
 
     def __init__(self):
         super().__init__()
-        self.observation_space = spaces.Box(
-            low=0, high=1, shape=(5,), dtype=np.float32
-        )
+        self.observation_space = spaces.Box(low=0, high=1, shape=(5,), dtype=np.float32)
         self.action_space = spaces.Discrete(3)  # LEFT, STAY, RIGHT
         self.reset()
 
@@ -73,9 +71,7 @@ def test_simple_concurrent():
 
     # Create specs
     observation_spec = TensorSpec(shape=(5,), dtype=torch.float32)
-    action_spec = BoundedTensorSpec(
-        shape=(), dtype=torch.int64, minimum=0, maximum=2
-    )
+    action_spec = BoundedTensorSpec(shape=(), dtype=torch.int64, minimum=0, maximum=2)
 
     print(f"Observation spec: {observation_spec}")
     print(f"Action spec: {action_spec}")
@@ -109,18 +105,14 @@ def test_simple_concurrent():
 
     print("Testing rollout_step...")
     alg_step = algorithm.rollout_step(time_step, state)
-    print(
-        f"Rollout output shape: {alf.nest.get_nest_batch_size(alg_step.output)}"
-    )
+    print(f"Rollout output shape: {alf.nest.get_nest_batch_size(alg_step.output)}")
     print(f"Rollout output: {alg_step.output}")
     print(f"New state length: {len(alg_step.state)}")
 
     # Test predict step
     print("Testing predict_step...")
     alg_step = algorithm.predict_step(time_step, state)
-    print(
-        f"Predict output shape: {alf.nest.get_nest_batch_size(alg_step.output)}"
-    )
+    print(f"Predict output shape: {alf.nest.get_nest_batch_size(alg_step.output)}")
     print(f"Predict output: {alg_step.output}")
 
     # Test with larger batch size (must be multiple of num_copies)

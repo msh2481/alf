@@ -58,9 +58,7 @@ def run_cmd(cmd, cwd=None):
         stderr=subprocess.PIPE,
     )
 
-    assert ret.returncode == 0, format_error_message(
-        cmd, ret.stdout, ret.stderr
-    )
+    assert ret.returncode == 0, format_error_message(cmd, ret.stdout, ret.stderr)
 
 
 def get_metrics_from_eval_tfevents(eval_dir):
@@ -348,9 +346,7 @@ class TrainPlayTest(alf.test.TestCase):
         with tempfile.TemporaryDirectory() as root_dir:
             self._test_train(conf_file, extra_train_params, root_dir)
             if test_play:
-                self._test_play(
-                    root_dir, extra_play_params, test_video_recording
-                )
+                self._test_play(root_dir, extra_play_params, test_video_recording)
             if test_perf and test_perf_func:
                 self._test_performance(root_dir, test_perf_func)
 
@@ -417,9 +413,7 @@ class TrainPlayTest(alf.test.TestCase):
                 performance.
         """
         eval_dir = os.path.join(root_dir, "eval")
-        episode_returns, episode_lengths = get_metrics_from_eval_tfevents(
-            eval_dir
-        )
+        episode_returns, episode_lengths = get_metrics_from_eval_tfevents(eval_dir)
         test_func(episode_returns, episode_lengths)
 
     def test_ac_breakout(self):

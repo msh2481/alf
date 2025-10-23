@@ -173,9 +173,7 @@ class BabyAIWrapper(gym.Wrapper):
             # the orientation of the agent
             "direction": gym.spaces.Discrete(4),
             # instruction
-            "mission": gym.spaces.MultiDiscrete(
-                [vocab_size] * max_instruction_length
-            ),
+            "mission": gym.spaces.MultiDiscrete([vocab_size] * max_instruction_length),
         }
         if mode == "word":
             obs_space["mission"] = gym.spaces.Discrete(vocab_size)

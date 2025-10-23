@@ -37,9 +37,7 @@ def define_config(name, default_value):
     return alf.get_config_value("_CONFIG._USER." + name)
 
 
-alf.config(
-    "create_environment", env_name="Pendulum-v0", num_parallel_environments=1
-)
+alf.config("create_environment", env_name="Pendulum-v0", num_parallel_environments=1)
 
 alf.config("ReplayBuffer", keep_episodic_info=True)
 

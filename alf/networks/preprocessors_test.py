@@ -65,9 +65,7 @@ class TestInputpreprocessor(parameterized.TestCase, alf.test.TestCase):
         input_preprocessor_copy = input_preprocessor.copy()
 
         if not preproc._singleton_instance:
-            _check_with_shared_param(
-                input_preprocessor, input_preprocessor_copy
-            )
+            _check_with_shared_param(input_preprocessor, input_preprocessor_copy)
         elif preproc._singleton_instance:
             _check_with_shared_param(
                 input_preprocessor, input_preprocessor_copy, input_preprocessor
@@ -80,9 +78,7 @@ class TestInputpreprocessor(parameterized.TestCase, alf.test.TestCase):
                 post_fc_layer_params=(2, 2),
             )
         else:
-            network_ctor = functools.partial(
-                EncodingNetwork, fc_layer_params=(10, 10)
-            )
+            network_ctor = functools.partial(EncodingNetwork, fc_layer_params=(10, 10))
 
         net = network_ctor(
             input_tensor_spec=[
@@ -133,9 +129,7 @@ class TestInputpreprocessor(parameterized.TestCase, alf.test.TestCase):
         batch = TestInputpreprocessor.input_spec.zeros(outer_dims=(batch_size,))
 
         input_preprocessor(batch)
-        self.assertRaises(
-            AssertionError, input_preprocessor, inputs=batch, state=batch
-        )
+        self.assertRaises(AssertionError, input_preprocessor, inputs=batch, state=batch)
 
 
 if __name__ == "__main__":

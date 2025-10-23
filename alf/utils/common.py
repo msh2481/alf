@@ -255,22 +255,18 @@ class TargetUpdater(nn.Module):
         super().__init__()
         models = as_list(models)
         target_models = as_list(target_models)
-        assert len(models) == len(target_models), (
-            "The length of models and "
-            "target_models are different: %s vs. %s"
-            % (
-                len(models),
-                len(target_models),
-            )
+        assert len(models) == len(
+            target_models
+        ), "The length of models and " "target_models are different: %s vs. %s" % (
+            len(models),
+            len(target_models),
         )
         for model, target_model in zip(models, target_models):
             self._validate(model, target_model)
         self._models = models
         self._target_models = target_models
         if delayed_update:
-            self._recent_models = list(
-                map(self._make_copy, models, target_models)
-            )
+            self._recent_models = list(map(self._make_copy, models, target_models))
         self._tau = as_scheduler(tau)
         self._period = as_scheduler(period)
         self._delayed_update = delayed_update
@@ -379,25 +375,17 @@ class TargetUpdater(nn.Module):
                 ):
                     self._copy_model_or_parameter(model, target_model)
             elif tau != 1.0:
-                for model, target_model in zip(
-                    self._models, self._target_models
-                ):
+                for model, target_model in zip(self._models, self._target_models):
                     self._lerp_model_or_parameter(model, target_model, tau)
             else:
-                for model, target_model in zip(
-                    self._models, self._target_models
-                ):
+                for model, target_model in zip(self._models, self._target_models):
                     self._copy_model_or_parameter(model, target_model)
         if self._delayed_update:
             if tau != 1.0:
-                for model, target_model in zip(
-                    self._models, self._recent_models
-                ):
+                for model, target_model in zip(self._models, self._recent_models):
                     self._lerp_model_or_parameter(model, target_model, tau)
             elif self._counter >= period:
-                for model, target_model in zip(
-                    self._models, self._recent_models
-                ):
+                for model, target_model in zip(self._models, self._recent_models):
                     self._copy_model_or_parameter(model, target_model)
 
         if self._counter >= period:
@@ -450,9 +438,7 @@ class PeriodicReset(nn.Module):
         self._post_processings = post_processings
         # record the initial values of torch.nn.Parameter instances in ``models``
         self._init_param_values = {
-            id(p): p.data.clone()
-            for p in models
-            if isinstance(p, torch.nn.Parameter)
+            id(p): p.data.clone() for p in models if isinstance(p, torch.nn.Parameter)
         }
 
     def _copy_model_or_parameter(self, s, t):
@@ -478,9 +464,7 @@ class PeriodicReset(nn.Module):
                     else:
                         self._copy_model_or_parameter(m.copy(), m)
                 elif isinstance(m, torch.nn.Parameter):
-                    self._copy_model_or_parameter(
-                        self._init_param_values[id(m)], m
-                    )
+                    self._copy_model_or_parameter(self._init_param_values[id(m)], m)
             for c in self._post_processings:
                 c()
 
@@ -832,9 +816,7 @@ def summarize_config():
     inoperative_configs = alf.get_inoperative_configs()
     alf.summary.text("config/operative_config", _format(operative_configs))
     if inoperative_configs:
-        alf.summary.text(
-            "config/inoperative_config", _format(inoperative_configs)
-        )
+        alf.summary.text("config/inoperative_config", _format(inoperative_configs))
 
 
 def read_conf_file(root_dir: str) -> str:
@@ -918,9 +900,7 @@ def get_raw_observation_spec(field=None):
     Returns:
         nested TensorSpec: a spec that describes the observation.
     """
-    assert (
-        _env
-    ), "set a global env by `set_global_env` before using the function"
+    assert _env, "set a global env by `set_global_env` before using the function"
     specs = _env.observation_spec()
     if field:
         for f in field.split("."):
@@ -970,9 +950,7 @@ def get_states_shape():
       ``torch.Size``. We don't raise error so this code can serve to check
       whether ``env`` has states input.
     """
-    assert (
-        _env
-    ), "set a global env by `set_global_env` before using the function"
+    assert _env, "set a global env by `set_global_env` before using the function"
     if isinstance(_env.observation_spec(), dict) and (
         "states" in _env.observation_spec()
     ):
@@ -990,9 +968,7 @@ def get_action_spec():
         nested TensorSpec: a spec that describes the shape and dtype of each tensor
         expected by ``step()``.
     """
-    assert (
-        _env
-    ), "set a global env by `set_global_env` before using the function"
+    assert _env, "set a global env by `set_global_env` before using the function"
     return _env.action_spec()
 
 
@@ -1003,16 +979,12 @@ def get_reward_spec():
         nested TensorSpec: a spec that describes the shape and dtype of each reward
         tensor.
     """
-    assert (
-        _env
-    ), "set a global env by `set_global_env` before using the function"
+    assert _env, "set a global env by `set_global_env` before using the function"
     return _env.reward_spec()
 
 
 def get_env():
-    assert (
-        _env
-    ), "set a global env by `set_global_env` before using the function"
+    assert _env, "set a global env by `set_global_env` before using the function"
     return _env
 
 
@@ -1025,9 +997,7 @@ def get_vocab_size():
         language is not part of observation. We don't raise error so this code
         can serve to check whether the env has language input
     """
-    assert (
-        _env
-    ), "set a global env by `set_global_env` before using the function"
+    assert _env, "set a global env by `set_global_env` before using the function"
     if isinstance(_env.observation_spec(), dict) and (
         "sentence" in _env.observation_spec()
     ):
@@ -1063,9 +1033,7 @@ def active_action_target_entropy(active_action_portion=0.2, min_entropy=0.3):
     """
     assert active_action_portion <= 1.0 and active_action_portion > 0
     action_spec = get_action_spec()
-    assert action_spec.is_discrete(
-        action_spec
-    ), "only support discrete actions!"
+    assert action_spec.is_discrete(action_spec), "only support discrete actions!"
     num_actions = action_spec.maximum - action_spec.minimum + 1
     return max(math.log(num_actions * active_action_portion), min_entropy)
 
@@ -1112,9 +1080,7 @@ def warning_once(msg, *args):
     """
     caller = logging.get_absl_logger().findCaller()
     count = logging._get_next_log_count_per_token(caller)
-    logging.log_if(
-        logging.WARNING, "\033[1;31m" + msg + "\033[1;0m", count == 0, *args
-    )
+    logging.log_if(logging.WARNING, "\033[1;31m" + msg + "\033[1;0m", count == 0, *args)
 
 
 @logging.skip_log_prefix
@@ -1149,9 +1115,7 @@ def info_once(msg, *args):
     """
     caller = logging.get_absl_logger().findCaller()
     count = logging._get_next_log_count_per_token(caller)
-    logging.log_if(
-        logging.INFO, "\033[1;34m" + msg + "\033[1;0m", count == 0, *args
-    )
+    logging.log_if(logging.INFO, "\033[1;34m" + msg + "\033[1;0m", count == 0, *args)
 
 
 def set_random_seed(seed):
@@ -1681,9 +1645,7 @@ def generate_alf_snapshot(alf_root: str, conf_file: str, dest_path: str):
         # other modules in the case where repo is pip installed in 'site-packages'.
         rsync(root + f"/{name}", dest_path, includes, excludes)
         # compress the snapshot repo into a ".tar.gz" file
-        os.system(
-            f"cd {dest_path}; tar -czf {name}.tar.gz {name}; rm -rf {name}"
-        )
+        os.system(f"cd {dest_path}; tar -czf {name}.tar.gz {name}; rm -rf {name}")
         info(f"Generated a snapshot {name}@{root}")
 
 
@@ -1790,12 +1752,8 @@ def compute_summary_or_eval_interval(config, summary_or_eval_calls=100):
     else:
         assert config.num_env_steps
         # the rollout env is always created with ``nonparallel=False``
-        num_envs = alf.get_config_value(
-            "create_environment.num_parallel_environments"
-        )
-        num_iterations = config.num_env_steps / (
-            num_envs * config.unroll_length
-        )
+        num_envs = alf.get_config_value("create_environment.num_parallel_environments")
+        num_iterations = config.num_env_steps / (num_envs * config.unroll_length)
 
     interval = math.ceil(num_iterations / summary_or_eval_calls)
     info_once("A summary or eval interval=%d is calculated" % interval)
@@ -1907,9 +1865,7 @@ def prune_exp_replay_env_info(
         env_info, env_info_spec, value_to_match=()
     )
 
-    exp = exp.update_time_step_field(
-        field="env_info", new_value=pruned_env_info
-    )
+    exp = exp.update_time_step_field(field="env_info", new_value=pruned_env_info)
     return exp
 
 

@@ -202,9 +202,7 @@ class AlfMetaDriveWrapper(AlfEnvironment):
 
         # AlfEnvironment requires everything to be numpy array
         ts = alf.nest.map_structure(_as_array, ts, self.time_step_spec())
-        env_info = alf.nest.map_structure(
-            _as_array, env_info, self._env_info_spec
-        )
+        env_info = alf.nest.map_structure(_as_array, env_info, self._env_info_spec)
         return ts._replace(env_info=env_info)
 
     def _step(self, action) -> ds.TimeStep:

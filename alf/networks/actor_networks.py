@@ -74,8 +74,7 @@ class ActorNetworkBase(Network):
         self._flat_action_spec = flat_action_spec
 
         is_continuous = [
-            single_action_spec.is_continuous
-            for single_action_spec in flat_action_spec
+            single_action_spec.is_continuous for single_action_spec in flat_action_spec
         ]
         assert all(is_continuous), "only continuous action is supported"
 
@@ -130,9 +129,7 @@ class ActorNetworkBase(Network):
                     + ".pre_activation.output_norm."
                     + common.exe_mode_name(),
                     data=torch.mean(
-                        pre_activation.norm(
-                            dim=list(range(1, pre_activation.ndim))
-                        )
+                        pre_activation.norm(dim=list(range(1, pre_activation.ndim)))
                     ),
                 )
                 a_name = (
@@ -145,9 +142,7 @@ class ActorNetworkBase(Network):
                 )
                 alf.summary.scalar(
                     name=a_name,
-                    data=torch.mean(
-                        action.norm(dim=list(range(1, action.ndim)))
-                    ),
+                    data=torch.mean(action.norm(dim=list(range(1, action.ndim)))),
                 )
 
             actions.append(action)

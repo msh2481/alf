@@ -73,9 +73,7 @@ class GeneratorTest(parameterized.TestCase, alf.test.TestCase):
         dict(entropy_regularization=1.0, par_vi="svgd2"),
         dict(entropy_regularization=1.0, par_vi="svgd3"),
         dict(entropy_regularization=1.0, par_vi="minmax"),
-        dict(
-            entropy_regularization=1.0, par_vi="svgd", functional_gradient=True
-        ),
+        dict(entropy_regularization=1.0, par_vi="svgd", functional_gradient=True),
         dict(entropy_regularization=0.0),
         dict(entropy_regularization=0.0, mi_weight=1),
     )
@@ -136,10 +134,7 @@ class GeneratorTest(parameterized.TestCase, alf.test.TestCase):
 
         def _neglogprob(x):
             return torch.squeeze(
-                0.5
-                * torch.matmul(
-                    x * x, torch.reshape(precision, (output_dim, 1))
-                ),
+                0.5 * torch.matmul(x * x, torch.reshape(precision, (output_dim, 1))),
                 axis=-1,
             )
 
@@ -167,9 +162,7 @@ class GeneratorTest(parameterized.TestCase, alf.test.TestCase):
                     torch.zeros(output_dim, output_dim), learned_var, 0.2
                 )
             else:
-                self.assertGreater(
-                    float(torch.sum(torch.abs(learned_var))), 0.5
-                )
+                self.assertGreater(float(torch.sum(torch.abs(learned_var))), 0.5)
 
     @parameterized.parameters(
         dict(entropy_regularization=1.0),
@@ -211,10 +204,7 @@ class GeneratorTest(parameterized.TestCase, alf.test.TestCase):
             x, y = xy
             d = x - torch.matmul(y, u)
             return torch.squeeze(
-                0.5
-                * torch.matmul(
-                    d * d, torch.reshape(precision, (output_dim, 1))
-                ),
+                0.5 * torch.matmul(d * d, torch.reshape(precision, (output_dim, 1))),
                 axis=-1,
             )
 
@@ -237,9 +227,7 @@ class GeneratorTest(parameterized.TestCase, alf.test.TestCase):
             self.assertArrayEqual(torch.diag(var), learned_var, 0.2)
         else:
             self.assertArrayEqual(net.fc2.weight.t(), u, 0.2)
-            self.assertArrayEqual(
-                torch.zeros(output_dim, output_dim), learned_var, 0.2
-            )
+            self.assertArrayEqual(torch.zeros(output_dim, output_dim), learned_var, 0.2)
 
 
 if __name__ == "__main__":

@@ -60,9 +60,7 @@ SarsaInfo = namedtuple(
     ],
     default_value=(),
 )
-SarsaLossInfo = namedtuple(
-    "SarsaLossInfo", ["actor", "critic", "alpha", "neg_entropy"]
-)
+SarsaLossInfo = namedtuple("SarsaLossInfo", ["actor", "critic", "alpha", "neg_entropy"])
 
 nest_map = alf.nest.map_structure
 
@@ -195,9 +193,7 @@ class SarsaAlgorithm(RLAlgorithm):
             input_tensor_spec=observation_spec, action_spec=action_spec
         )
         flat_action_spec = alf.nest.flatten(action_spec)
-        is_continuous = min(
-            map(lambda spec: spec.is_continuous, flat_action_spec)
-        )
+        is_continuous = min(map(lambda spec: spec.is_continuous, flat_action_spec))
         assert is_continuous, (
             "SarsaAlgorithm only supports continuous action."
             " action_spec: %s" % action_spec
@@ -255,9 +251,7 @@ class SarsaAlgorithm(RLAlgorithm):
                 self._target_entropy = _set_target_entropy(
                     self.name, target_entropy, flat_action_spec
                 )
-                log_alpha = torch.tensor(
-                    np.log(initial_alpha), dtype=torch.float32
-                )
+                log_alpha = torch.tensor(np.log(initial_alpha), dtype=torch.float32)
                 if alpha_optimizer is None:
                     self._log_alpha = log_alpha
                 else:
@@ -318,9 +312,7 @@ class SarsaAlgorithm(RLAlgorithm):
         )
         if actor_network.is_distribution_output:
             if epsilon_greedy == 1.0:
-                action = dist_utils.rsample_action_distribution(
-                    action_distribution
-                )
+                action = dist_utils.rsample_action_distribution(action_distribution)
             else:
                 action = dist_utils.epsilon_greedy_sample(
                     action_distribution, epsilon_greedy
@@ -332,9 +324,7 @@ class SarsaAlgorithm(RLAlgorithm):
                 if epsilon_greedy >= 1.0:
                     return a + noise
                 else:
-                    choose_random_action = (
-                        torch.rand(a.shape[:1]) < epsilon_greedy
-                    )
+                    choose_random_action = torch.rand(a.shape[:1]) < epsilon_greedy
                     return torch.where(
                         common.expand_dims_as(choose_random_action, a),
                         a + noise,
@@ -346,10 +336,8 @@ class SarsaAlgorithm(RLAlgorithm):
         return action_distribution, action, actor_state, noise_state
 
     def predict_step(self, inputs: TimeStep, state: SarsaState):
-        action_distribution, action, actor_state, noise_state = (
-            self._get_action(
-                self._rollout_actor_network, inputs, state, self._epsilon_greedy
-            )
+        action_distribution, action, actor_state, noise_state = self._get_action(
+            self._rollout_actor_network, inputs, state, self._epsilon_greedy
         )
         return AlgStep(
             output=action,
@@ -382,8 +370,8 @@ class SarsaAlgorithm(RLAlgorithm):
                 state.critics, critic_states, not_first_step
             )
 
-        action_distribution, action, actor_state, noise_state = (
-            self._get_action(self._rollout_actor_network, inputs, state)
+        action_distribution, action, actor_state, noise_state = self._get_action(
+            self._rollout_actor_network, inputs, state
         )
 
         if not self._is_rnn:
@@ -423,8 +411,8 @@ class SarsaAlgorithm(RLAlgorithm):
             state.critics, critic_states, not_first_step
         )
 
-        action_distribution, action, actor_state, noise_state = (
-            self._get_action(self._actor_network, time_step, state)
+        action_distribution, action, actor_state, noise_state = self._get_action(
+            self._actor_network, time_step, state
         )
 
         critics, _ = self._critic_networks(
@@ -482,8 +470,7 @@ class SarsaAlgorithm(RLAlgorithm):
         if self._log_alpha is not None:
             alpha = self._log_alpha.exp().detach()
             alpha_loss = (
-                self._log_alpha
-                * (-info.neg_entropy - self._target_entropy).detach()
+                self._log_alpha * (-info.neg_entropy - self._target_entropy).detach()
             )
             loss = loss + alpha * info.neg_entropy + alpha_loss
         else:
@@ -506,9 +493,7 @@ class SarsaAlgorithm(RLAlgorithm):
         gamma = self._critic_losses[0].gamma
         reward = info.reward
         if self._use_entropy_reward:
-            reward -= (
-                gamma * (self._log_alpha.exp() * info.neg_entropy).detach()
-            )
+            reward -= gamma * (self._log_alpha.exp() * info.neg_entropy).detach()
         shifted_experience = info._replace(
             discount=tensor_utils.tensor_prepend_zero(info.discount),
             reward=tensor_utils.tensor_prepend_zero(reward),
@@ -517,9 +502,7 @@ class SarsaAlgorithm(RLAlgorithm):
         critic_losses = []
         for i in range(self._num_critic_replicas):
             critic = tensor_utils.tensor_extend_zero(info.critics[..., i])
-            target_critic = tensor_utils.tensor_prepend_zero(
-                info.target_critics
-            )
+            target_critic = tensor_utils.tensor_prepend_zero(info.target_critics)
             loss_info = self._critic_losses[i](
                 shifted_experience, critic, target_critic
             )

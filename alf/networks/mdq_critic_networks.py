@@ -127,9 +127,7 @@ class MdqCriticNetwork(Network):
 
         flat_action_spec = nest.flatten(action_spec)
         if len(flat_action_spec) > 1:
-            raise ValueError(
-                "Only a single action is supported by this network"
-            )
+            raise ValueError("Only a single action is supported by this network")
 
         self._single_action_spec = flat_action_spec[0]
 
@@ -165,10 +163,7 @@ class MdqCriticNetwork(Network):
             self._pre_encoding_nets.append(
                 ParallelEncodingNetwork(
                     TensorSpec(
-                        (
-                            self._obs_encoding_net.output_spec.shape[-1]
-                            + in_size,
-                        )
+                        (self._obs_encoding_net.output_spec.shape[-1] + in_size,)
                     ),
                     self._num_critic_replicas,
                     fc_layer_params=pre_encoding_layer_params,
@@ -183,9 +178,7 @@ class MdqCriticNetwork(Network):
         # output: [B, action_dim*n, d']: need to unstack over dim1 for
         # splitting over networks
         self._pre_encoding_parallel_net = ParallelEncodingNetwork(
-            TensorSpec(
-                (self._obs_encoding_net.output_spec.shape[-1] + in_size,)
-            ),
+            TensorSpec((self._obs_encoding_net.output_spec.shape[-1] + in_size,)),
             self._num_critic_replicas * self._action_dim,
             fc_layer_params=pre_encoding_layer_params,
             activation=activation,
@@ -198,9 +191,7 @@ class MdqCriticNetwork(Network):
         # output: [action_dim*B, n, d']: need to unstack over dim0 for
         # splitting over networks
         self._mid_shared_encoding_nets = ParallelEncodingNetwork(
-            TensorSpec(
-                (self._pre_encoding_parallel_net.output_spec.shape[-1],)
-            ),
+            TensorSpec((self._pre_encoding_parallel_net.output_spec.shape[-1],)),
             self._num_critic_replicas,
             fc_layer_params=mid_encoding_layer_params,
             activation=activation,
@@ -315,9 +306,7 @@ class MdqCriticNetwork(Network):
 
             action_values_i, _ = self._net_forward_individual(joint, alpha, i)
 
-            trans_action_values_i = self._transform_action_value(
-                action_values_i, alpha
-            )
+            trans_action_values_i = self._transform_action_value(action_values_i, alpha)
             sampled_indices, sampled_log_pi = self._sample_action_from_value(
                 trans_action_values_i / alpha, alpha, greedy
             )
@@ -460,16 +449,12 @@ class MdqCriticNetwork(Network):
         action_values_pre = self._reshape_from_ensemble_to_batch(
             action_values_pre, batch_size
         )
-        action_values_mid, state = self._mid_shared_encoding_nets(
-            action_values_pre
-        )
+        action_values_mid, state = self._mid_shared_encoding_nets(action_values_pre)
         # [action_dim*B, n, d] -> [B, action_dim*n, d]
         action_values_mid = self._reshape_from_batch_to_ensemble(
             action_values_mid, batch_size
         )
-        action_values_final, _ = self._post_encoding_parallel_net(
-            action_values_mid
-        )
+        action_values_final, _ = self._post_encoding_parallel_net(action_values_mid)
         # [B, action_dim*n, d]->  [B, action_dim, n, d] -> [action_dim, B, n, d]
         action_values = action_values_final.view(
             batch_size, self._action_dim, self._num_critic_replicas, -1
@@ -503,9 +488,7 @@ class MdqCriticNetwork(Network):
         )
 
         #  [action_dim, B, n, d] ->  [B, action_dim, n, d] -> [B, action_dim*n, d]
-        reshaped_batch = reshaped_batch.transpose(0, 1).reshape(
-            batch_size, -1, d
-        )
+        reshaped_batch = reshaped_batch.transpose(0, 1).reshape(batch_size, -1, d)
         return reshaped_batch
 
     def _reshape_from_ensemble_to_batch(self, joint_batch, batch_size):
@@ -550,9 +533,7 @@ class MdqCriticNetwork(Network):
             transformed_value (torch.Tensor): a tensor with value equals
                 alpha * log_pi computed from input action_values
         """
-        v_value = alpha * torch.logsumexp(
-            action_values / alpha, dim=-1, keepdim=True
-        )
+        v_value = alpha * torch.logsumexp(action_values / alpha, dim=-1, keepdim=True)
         transformed_value = action_values - v_value
         return transformed_value
 
@@ -576,9 +557,7 @@ class MdqCriticNetwork(Network):
 
             # logits [B, n, d] -> [B*n, d]
             batched_logits = logits.reshape(-1, self._action_bins)
-            dist = torch.distributions.categorical.Categorical(
-                logits=batched_logits
-            )
+            dist = torch.distributions.categorical.Categorical(logits=batched_logits)
 
             # [1, B*n] -> [B, n]
             sampled_ind = dist.sample((1,))

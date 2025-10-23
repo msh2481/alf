@@ -42,9 +42,7 @@ class LayersTest(parameterized.TestCase, alf.test.TestCase):
                     self.assertEqual(pp.shape, (n,) + np.shape)
                     np.data.copy_(pp[i])
             pspec = alf.layers.make_parallel_spec(spec, n)
-            input = alf.nest.map_structure(
-                lambda s: s.sample([batch_size]), pspec
-            )
+            input = alf.nest.map_structure(lambda s: s.sample([batch_size]), pspec)
             presult = pnet(input)
             nresult = nnet(input)
             alf.nest.map_structure(
@@ -112,13 +110,9 @@ class LayersTest(parameterized.TestCase, alf.test.TestCase):
             self.assertLess((y - py[:, i, :]).abs().max(), 1e-5)
 
     @parameterized.parameters(
-        dict(
-            n=1, act=math_ops.identity, use_bias=False, specify_comp_weight=True
-        ),
+        dict(n=1, act=math_ops.identity, use_bias=False, specify_comp_weight=True),
         dict(n=1, act=torch.relu, use_bias=False, specify_comp_weight=True),
-        dict(
-            n=1, act=math_ops.identity, use_bias=True, specify_comp_weight=False
-        ),
+        dict(n=1, act=math_ops.identity, use_bias=True, specify_comp_weight=False),
         dict(n=1, act=torch.relu, use_bias=True, specify_comp_weight=False),
         dict(n=2, act=torch.relu, use_bias=True, specify_comp_weight=True),
         dict(n=5, act=torch.relu, use_bias=True, specify_comp_weight=True),
@@ -571,9 +565,7 @@ class LayersTest(parameterized.TestCase, alf.test.TestCase):
         ("haar", 7, 7, None),
         ("unimplemented", 3, 8, None),
     )
-    def test_fixed_decoding_layer(
-        self, basis_type, input_size, output_size, sigma
-    ):
+    def test_fixed_decoding_layer(self, basis_type, input_size, output_size, sigma):
         batch_size = 3
 
         if (
@@ -614,9 +606,9 @@ class LayersTest(parameterized.TestCase, alf.test.TestCase):
                 tau=1.0,
             )
 
-            basis_weight = dec.weight.norm(
+            basis_weight = dec.weight.norm(dim=0) / dec_no_basis_weighting.weight.norm(
                 dim=0
-            ) / dec_no_basis_weighting.weight.norm(dim=0)
+            )
             if basis_type == "poly" or basis_type == "cheb":
                 exp_factor = torch.arange(input_size).float()
                 basis_weight_expected = basis_weight_tau**exp_factor
@@ -643,9 +635,7 @@ class LayersTest(parameterized.TestCase, alf.test.TestCase):
             if input_size == 2:
                 # H2^T
                 expected_haar_basis = torch.as_tensor(
-                    1.0
-                    / np.sqrt(2)
-                    * np.array([[1, 1], [1, -1]]).transpose(1, 0)
+                    1.0 / np.sqrt(2) * np.array([[1, 1], [1, -1]]).transpose(1, 0)
                 )
             elif input_size == 4:
                 # H4^T
@@ -681,9 +671,7 @@ class LayersTest(parameterized.TestCase, alf.test.TestCase):
                 )
 
             # test constructed basis against ground-truth reference
-            self.assertTensorClose(
-                dec.weight, expected_haar_basis, epsilon=1e-6
-            )
+            self.assertTensorClose(dec.weight, expected_haar_basis, epsilon=1e-6)
 
         # test constructed basis are orthogonal
         self.assertTensorClose(
@@ -722,9 +710,7 @@ class LayersTest(parameterized.TestCase, alf.test.TestCase):
         # and ignores the masked elements.
         B = (
             torch.arange(batch_size).unsqueeze(1),
-            torch.argsort(torch.rand(batch_size, max_len), dim=1)[
-                :, :actual_len
-            ],
+            torch.argsort(torch.rand(batch_size, max_len), dim=1)[:, :actual_len],
         )
 
         # mask[b, i] == True means the i-th element in the sequence of batch b
@@ -899,9 +885,7 @@ class LayersTest(parameterized.TestCase, alf.test.TestCase):
 
         batch_size = 256
         x = torch.randn((batch_size, 16))
-        layer1 = alf.layers.FCBatchEnsemble(
-            16, 24, ensemble_size=8, use_bias=True
-        )
+        layer1 = alf.layers.FCBatchEnsemble(16, 24, ensemble_size=8, use_bias=True)
         layer2 = alf.layers.FCBatchEnsemble(
             24, 1, ensemble_size=8, use_bias=False, output_ensemble_ids=False
         )

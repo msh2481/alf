@@ -322,9 +322,7 @@ class Conv2dAdapter(LoRA):
         else:
             # This weight tensor has to be consistent with the two-stage conv in
             # ``self.forward()``
-            wa = self._wA.reshape(
-                self._r, m.in_channels // m.groups, m.kernel_size[1]
-            )
+            wa = self._wA.reshape(self._r, m.in_channels // m.groups, m.kernel_size[1])
             wb = self._wB.reshape(m.out_channels, self._r, m.kernel_size[0])
             w = torch.einsum("rik,org->oigk", wa, wb)
         return w * self.scaling

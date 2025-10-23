@@ -212,8 +212,7 @@ class MCTSModel(nn.Module, metaclass=abc.ABCMeta):
                 "used with predict_reward_sum=True"
             )
             assert (
-                reset_reward_sum_period
-                >= num_unroll_steps + predict_initial_reward
+                reset_reward_sum_period >= num_unroll_steps + predict_initial_reward
             ), (
                 "reset_reward_sum_period must be greater than or equal to "
                 "num_unroll_steps + predict_initial_reward"
@@ -222,9 +221,7 @@ class MCTSModel(nn.Module, metaclass=abc.ABCMeta):
         self._apply_beyond_episode_end_mask = apply_beyond_episode_end_mask
         self._apply_partial_trajectory_mask = apply_partial_trajectory_mask
         if initial_alpha > 0:
-            self.register_buffer(
-                "_log_alpha", torch.tensor(np.log(initial_alpha))
-            )
+            self.register_buffer("_log_alpha", torch.tensor(np.log(initial_alpha)))
         else:
             self._log_alpha = None
         if target_entropy is not None:
@@ -274,9 +271,7 @@ class MCTSModel(nn.Module, metaclass=abc.ABCMeta):
         """
         return self._representation_net(observation)[0]
 
-    def initial_predict(
-        self, latent: torch.Tensor, pred_state=()
-    ) -> ModelOutput:
+    def initial_predict(self, latent: torch.Tensor, pred_state=()) -> ModelOutput:
         """Make predictions based on an initial latent representation.
 
         Note that we specialize for initial prediction (in addition to recurrent
@@ -315,9 +310,7 @@ class MCTSModel(nn.Module, metaclass=abc.ABCMeta):
         return self._predict(model_state)
 
     def initial_inference(self, observation) -> ModelOutput:
-        return self.initial_predict(
-            latent=self.initial_representation(observation)
-        )
+        return self.initial_predict(latent=self.initial_representation(observation))
 
     def recurrent_inference(self, state, action):
         """Generate prediction given state and action.
@@ -334,9 +327,7 @@ class MCTSModel(nn.Module, metaclass=abc.ABCMeta):
             self._dynamics_net.set_batch_norm_current_step(state.step)
             self._prediction_net.set_batch_norm_current_step(current_steps)
         dyn_state = self._dynamics_net((state.state, action))[0]
-        return self._predict(
-            state._replace(state=dyn_state, step=current_steps)
-        )
+        return self._predict(state._replace(state=dyn_state, step=current_steps))
 
     def _predict(self, state: ModelState):
         model_output = self.prediction_model(state.state, state.pred_state)
@@ -355,20 +346,14 @@ class MCTSModel(nn.Module, metaclass=abc.ABCMeta):
                     ) % self._reset_reward_sum_period == 0
                     state.prev_reward_sum[need_to_reset] = 0
                 reward = reward - state.prev_reward_sum
-                model_state = model_state._replace(
-                    prev_reward_sum=prev_reward_sum
-                )
+                model_state = model_state._replace(prev_reward_sum=prev_reward_sum)
         else:
             reward = ()
         if not self.training:
             model_output = model_output._replace(value_pred=(), reward_pred=())
-        return model_output._replace(
-            value=value, reward=reward, state=model_state
-        )
+        return model_output._replace(value=value, reward=reward, state=model_state)
 
-    def calc_loss(
-        self, model_output: ModelOutput, target: ModelTarget
-    ) -> LossInfo:
+    def calc_loss(self, model_output: ModelOutput, target: ModelTarget) -> LossInfo:
         """Calculate the loss.
 
         The shapes of the tensors in model_output are [B, unroll_steps+1, ...]
@@ -384,8 +369,7 @@ class MCTSModel(nn.Module, metaclass=abc.ABCMeta):
         if self._apply_partial_trajectory_mask:
             # [B, unroll_steps + 1]
             partial_traj_mask = ~(
-                target.beyond_episode_end
-                & target.is_partial_trajectory.unsqueeze(-1)
+                target.beyond_episode_end & target.is_partial_trajectory.unsqueeze(-1)
             )
             loss_scale = loss_scale * partial_traj_mask
 
@@ -416,12 +400,9 @@ class MCTSModel(nn.Module, metaclass=abc.ABCMeta):
         if self._train_policy:
             if target.action is ():
                 # This condition is only possible for Categorical distribution
-                assert isinstance(
-                    model_output.action_distribution, td.Categorical
-                )
+                assert isinstance(model_output.action_distribution, td.Categorical)
                 policy_loss = -(
-                    target.action_policy
-                    * model_output.action_distribution.logits
+                    target.action_policy * model_output.action_distribution.logits
                 ).sum(dim=2)
             else:
                 # target_action.shape is [B, unroll_steps+1, num_candidate]
@@ -429,13 +410,9 @@ class MCTSModel(nn.Module, metaclass=abc.ABCMeta):
                 action = target.action.permute(
                     2, 0, 1, *list(range(3, target.action.ndim))
                 )
-                action_log_probs = model_output.action_distribution.log_prob(
-                    action
-                )
+                action_log_probs = model_output.action_distribution.log_prob(action)
                 action_log_probs = action_log_probs.permute(1, 2, 0)
-                policy_loss = -(target.action_policy * action_log_probs).sum(
-                    dim=2
-                )
+                policy_loss = -(target.action_policy * action_log_probs).sum(dim=2)
 
         game_over_loss = ()
         if self._train_game_over_function:
@@ -446,9 +423,7 @@ class MCTSModel(nn.Module, metaclass=abc.ABCMeta):
             )
             if self._train_policy:
                 # no need to train policy after game over.
-                policy_loss = policy_loss * (~target.game_over).to(
-                    torch.float32
-                )
+                policy_loss = policy_loss * (~target.game_over).to(torch.float32)
             unscaled_game_over_loss = game_over_loss
             game_over_loss = (loss_scale * game_over_loss).sum(dim=1)
             loss = loss + self._game_over_loss_weight * game_over_loss
@@ -511,12 +486,8 @@ class MCTSModel(nn.Module, metaclass=abc.ABCMeta):
                             reward[:, 1:], target_reward[:, 1:], dim=0
                         ).mean(),
                     )
-                    summary_utils.add_mean_hist_summary(
-                        "predicted_reward", reward
-                    )
-                    summary_utils.add_mean_hist_summary(
-                        "target_reward", target_reward
-                    )
+                    summary_utils.add_mean_hist_summary("predicted_reward", reward)
+                    summary_utils.add_mean_hist_summary("target_reward", target_reward)
                 if self._train_game_over_function:
 
                     def _entropy(events):
@@ -534,9 +505,7 @@ class MCTSModel(nn.Module, metaclass=abc.ABCMeta):
                         torch.where(
                             h0 == 0,
                             h0,
-                            1.0
-                            - unscaled_game_over_loss[:, 0].mean()
-                            / (h0 + 1e-30),
+                            1.0 - unscaled_game_over_loss[:, 0].mean() / (h0 + 1e-30),
                         ),
                     )
                     alf.summary.scalar(
@@ -544,14 +513,10 @@ class MCTSModel(nn.Module, metaclass=abc.ABCMeta):
                         torch.where(
                             h1 == 0,
                             h1,
-                            1.0
-                            - unscaled_game_over_loss[:, 0].mean()
-                            / (h1 + 1e-30),
+                            1.0 - unscaled_game_over_loss[:, 0].mean() / (h1 + 1e-30),
                         ),
                     )
-                summary_utils.add_mean_hist_summary(
-                    "target_value", target.value
-                )
+                summary_utils.add_mean_hist_summary("target_value", target.value)
                 summary_utils.add_mean_hist_summary("value", model_output.value)
                 summary_utils.add_mean_hist_summary(
                     "td_error", target.value - model_output.value
@@ -599,9 +564,7 @@ class MCTSModel(nn.Module, metaclass=abc.ABCMeta):
 
 
 def get_unique_num_actions(action_spec):
-    unique_num_actions = np.unique(
-        action_spec.maximum - action_spec.minimum + 1
-    )
+    unique_num_actions = np.unique(action_spec.maximum - action_spec.minimum + 1)
     if len(unique_num_actions) > 1 or np.any(unique_num_actions <= 0):
         raise ValueError(
             "Bounds on discrete actions must be the same for all "
@@ -779,9 +742,7 @@ class SimpleMCTSModel(MCTSModel):
         """
         encoding_net = encoding_net_ctor(observation_spec)
         repr_spec = encoding_net.output_spec
-        dynamics_net = dynamics_net_ctor(
-            input_tensor_spec=(repr_spec, action_spec)
-        )
+        dynamics_net = dynamics_net_ctor(input_tensor_spec=(repr_spec, action_spec))
         prediction_net = prediction_net_ctor(repr_spec, action_spec)
         super().__init__(
             num_unroll_steps=num_unroll_steps,
@@ -812,9 +773,9 @@ class SimpleMCTSModel(MCTSModel):
         if not action_spec.is_continuous:
             num_actions = action_spec.maximum - action_spec.minimum + 1
             if num_sampled_actions is None:
-                self._actions = torch.arange(
-                    num_actions, dtype=torch.int64
-                ).unsqueeze(0)
+                self._actions = torch.arange(num_actions, dtype=torch.int64).unsqueeze(
+                    0
+                )
             else:
                 assert num_sampled_actions < num_actions, (
                     "For scalar discrete action"
@@ -845,9 +806,7 @@ class SimpleMCTSModel(MCTSModel):
             # According to the following paper, we should use 1/K as action_probs
             # for sampled actions.
             # Hubert et. al. Learning and Planning in Complex Action Spaces, 2021
-            action_probs = (
-                torch.ones(actions.shape[:2]) / self._num_sampled_actions
-            )
+            action_probs = torch.ones(actions.shape[:2]) / self._num_sampled_actions
         else:
             action_probs = action_distribution.probs
             if self._num_sampled_actions is None:
@@ -856,9 +815,7 @@ class SimpleMCTSModel(MCTSModel):
                 action_probs, actions = action_probs.topk(
                     self._num_sampled_actions, sorted=False
                 )
-                action_probs = action_probs / action_probs.sum(
-                    dim=-1, keepdim=True
-                )
+                action_probs = action_probs / action_probs.sum(dim=-1, keepdim=True)
 
         if not self._train_reward_function:
             reward = ()

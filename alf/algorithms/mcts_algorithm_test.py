@@ -221,9 +221,7 @@ class MCTSAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
         num_parallel_sims=1,
     ):
         observation_spec = alf.TensorSpec((3, 3))
-        action_spec = alf.BoundedTensorSpec(
-            (), dtype=torch.int64, minimum=0, maximum=8
-        )
+        action_spec = alf.BoundedTensorSpec((), dtype=torch.int64, minimum=0, maximum=8)
         model = TicTacToeModel()
         time_step = TimeStep(step_type=torch.tensor([StepType.MID]))
 
@@ -301,9 +299,7 @@ class MCTSAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
                 self.assertEqual(alg_step.output[0], action)
 
         # test batch predict
-        observation = torch.tensor(
-            [case[0] for case in cases], dtype=torch.float32
-        )
+        observation = torch.tensor([case[0] for case in cases], dtype=torch.float32)
         state = MCTSState(steps=(observation != 0).sum(dim=(1, 2)))
         mcts = _create_mcts(observation_spec, action_spec, num_simulations=2500)
         mcts.set_model(model)

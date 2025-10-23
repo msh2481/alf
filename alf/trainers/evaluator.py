@@ -266,9 +266,7 @@ class SyncEvaluator(object):
             ):
                 logging.info("Saving the best checkpoint")
                 checkpointer = Checkpointer(
-                    ckpt_dir=os.path.join(
-                        self._config.root_dir, "train", "algorithm"
-                    ),
+                    ckpt_dir=os.path.join(self._config.root_dir, "train", "algorithm"),
                     algorithm=algorithm,
                     metrics=nn.ModuleList(algorithm.get_metrics()),
                     trainer_progress=policy_trainer.Trainer.get_trainer_progress(),
@@ -290,9 +288,7 @@ class BestEvalChecker(object):
             the result using this name. Default is None.
     """
 
-    def __init__(
-        self, metric_type=alf.metrics.AverageReturnMetric, metric_name=None
-    ):
+    def __init__(self, metric_type=alf.metrics.AverageReturnMetric, metric_name=None):
         self._best_metric = -float("inf")
         self._metric_type = metric_type
         self._metric_name = metric_name
@@ -407,9 +403,7 @@ def _worker(
             elif job.type == "wait":
                 done_queue.put(None)
             else:
-                raise KeyError(
-                    "Received message of unknown type {}".format(job.type)
-                )
+                raise KeyError("Received message of unknown type {}".format(job.type))
 
         env.close()
         done_queue.put(None)
@@ -504,9 +498,7 @@ def evaluate(
         else:
             # env step mode
             if counter + batch_size >= total_num:
-                time_step.cpu().step_type[
-                    torch.arange(batch_size)
-                ] = StepType.LAST
+                time_step.cpu().step_type[torch.arange(batch_size)] = StepType.LAST
                 time_step.step_type[torch.arange(batch_size)] = StepType.LAST
 
         next_time_step, policy_step, trans_state = policy_trainer._step(

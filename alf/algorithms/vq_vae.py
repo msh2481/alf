@@ -155,9 +155,9 @@ class Vqvae(Algorithm):
         )
 
         # encoding loss
-        enc_loss = (
-            q_latent_loss + self._commitment_loss_weight * e_latent_loss
-        ).mean(dim=1)
+        enc_loss = (q_latent_loss + self._commitment_loss_weight * e_latent_loss).mean(
+            dim=1
+        )
 
         # decoding loss
         rec = self._decoding_net(quantized_st)[0]

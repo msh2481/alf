@@ -81,15 +81,11 @@ class TestDisjointPolicyValueNetwork(parameterized.TestCase, alf.test.TestCase):
         self.assertEqual(torch.float32, value_spec.dtype)
 
         # Verify that the outputs have the desired shape and type
-        image = zero_tensor_from_nested_spec(
-            self._observation_spec, self._batch_size
-        )
+        image = zero_tensor_from_nested_spec(self._observation_spec, self._batch_size)
 
         (action_distribution, value, aux), state = network(image, state=())
 
-        self.assertTrue(
-            isinstance(action_distribution["discrete"], td.Categorical)
-        )
+        self.assertTrue(isinstance(action_distribution["discrete"], td.Categorical))
         self.assertTrue(
             isinstance(action_distribution["continuous"].base_dist, td.Normal)
         )

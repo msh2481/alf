@@ -74,9 +74,7 @@ class DynamicsNetwork(Network):
 
         flat_action_spec = nest.flatten(action_spec)
         if len(flat_action_spec) > 1:
-            raise ValueError(
-                "Only a single action is supported by this network"
-            )
+            raise ValueError("Only a single action is supported by this network")
 
         if kernel_initializer is None:
             kernel_initializer = functools.partial(
@@ -170,20 +168,14 @@ class ParallelDynamicsNetwork(Network):
         super().__init__(
             input_tensor_spec=dynamics_network.input_tensor_spec, name=name
         )
-        self._joint_encoder = dynamics_network._joint_encoder.make_parallel(
-            n, True
-        )
+        self._joint_encoder = dynamics_network._joint_encoder.make_parallel(n, True)
         self._prob = dynamics_network._prob
         if self._prob:
-            self._projection_net = (
-                dynamics_network._projection_net.make_parallel(n)
-            )
+            self._projection_net = dynamics_network._projection_net.make_parallel(n)
         else:
             self._projection_net = None
 
-        self._output_spec = TensorSpec(
-            (n,) + dynamics_network.output_spec.shape
-        )
+        self._output_spec = TensorSpec((n,) + dynamics_network.output_spec.shape)
 
     def forward(self, inputs, state=()):
         """Computes prediction given inputs.

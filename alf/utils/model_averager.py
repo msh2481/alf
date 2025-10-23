@@ -53,9 +53,7 @@ def ema_avg_fn(
         ), "ema_rate must be a number or a Scheduler"
         ema_rate = ema_rate()
     if begin_with_simple_average:
-        ema_rate = max(
-            ema_rate, 1 / (num_averaged + 1 - starting_average_after)
-        )
+        ema_rate = max(ema_rate, 1 / (num_averaged + 1 - starting_average_after))
     return torch.lerp(averaged_model_parameter, model_parameter, ema_rate)
 
 

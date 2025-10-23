@@ -148,9 +148,7 @@ class StepScheduler(Scheduler):
         progress = self.progress()
         if progress < self._start + self._warm_up_period:
             return (
-                self._values[0]
-                * max(progress - self._start, 0)
-                / self._warm_up_period
+                self._values[0] * max(progress - self._start, 0) / self._warm_up_period
             )
         index = self._index
         progresses = self._progresses
@@ -187,9 +185,7 @@ class LinearScheduler(Scheduler):
             scale: the values in the schedule will be scaled by this factor.
         """
         super().__init__(progress_type)
-        assert (
-            schedule[0][0] == 0
-        ), "The first progress for linear scheduler must be 0."
+        assert schedule[0][0] == 0, "The first progress for linear scheduler must be 0."
         assert (
             len(schedule) >= 2
         ), "There should be at least two (progress, value) pairs"
@@ -244,9 +240,7 @@ class ExponentialScheduler(Scheduler):
 
     def __call__(self):
         progress = self.progress()
-        return self._initial_value * self._decay_rate ** (
-            progress / self._decay_time
-        )
+        return self._initial_value * self._decay_rate ** (progress / self._decay_time)
 
     def __repr__(self):
         return (
@@ -326,9 +320,7 @@ class CyclicalScheduler(Scheduler):
         # transition due to numerical reasons.
         # For the other progress_types, no rounding is applied.
         self._rounding_func = (
-            partial(round, ndigits=10)
-            if progress_type == "percent"
-            else lambda x: x
+            partial(round, ndigits=10) if progress_type == "percent" else lambda x: x
         )
 
     def __call__(self):
@@ -341,10 +333,7 @@ class CyclicalScheduler(Scheduler):
             % 1
         )
         progress_in_cycle = (
-            self._rounding_func(
-                (progress % self._cycle_size / self._cycle_size)
-            )
-            % 1
+            self._rounding_func((progress % self._cycle_size / self._cycle_size)) % 1
         )
 
         if self._switch_mode == "step":

@@ -149,9 +149,7 @@ def config(
     sole_init = sole_init or GET_ALF_SOLE_CONFIG()
 
     for key, value in configs.items():
-        config1(
-            key, value, mutable, raise_if_used, sole_init, override_sole_init
-        )
+        config1(key, value, mutable, raise_if_used, sole_init, override_sole_init)
 
 
 def override_sole_config(prefix_or_dict, **kwargs):
@@ -223,9 +221,7 @@ def _get_all_leaves(conf_dict):
         if not isinstance(v, dict):
             leaves.append((k, v))
         else:
-            leaves.extend(
-                [(name + "." + k, node) for name, node in _get_all_leaves(v)]
-            )
+            leaves.extend([(name + "." + k, node) for name, node in _get_all_leaves(v)])
     return leaves
 
 
@@ -335,9 +331,7 @@ def _remove_config_node(config_name):
         node = tree[name]
         tree_name_pairs.append((tree, name))
 
-    assert isinstance(node, _Config), (
-        "config_name is not a full path: %s" % config_name
-    )
+    assert isinstance(node, _Config), "config_name is not a full path: %s" % config_name
     del tree[name]
     tree_name_pairs.pop()
     for tree, name in reversed(tree_name_pairs):
@@ -363,8 +357,7 @@ def _get_config_node(config_name):
             leaves = leaves[:3]
             names = [name + "." + config_name for name, node in leaves]
             raise ValueError(
-                "config name '%s' is ambiguous. There are %s"
-                % (config_name, names)
+                "config name '%s' is ambiguous. There are %s" % (config_name, names)
             )
 
         assert len(leaves) == 1
@@ -427,15 +420,13 @@ def config1(
             logging.warning(
                 "The value of config '%s' (%s) is protected by sole_init. "
                 "It is now being overridden by the overide_all flag to a new value %s. "
-                "Use at your own risk."
-                % (config_name, config_node.get_value(), value)
+                "Use at your own risk." % (config_name, config_node.get_value(), value)
             )
         if not config_node.is_mutable():
             logging.warning(
                 "The value of config '%s' (%s) is immutable. "
                 "It is now being overridden by the overide_all flag to a new value %s. "
-                "Use at your own risk."
-                % (config_name, config_node.get_value(), value)
+                "Use at your own risk." % (config_name, config_node.get_value(), value)
             )
         config_node.set_value(value)
         return
@@ -562,8 +553,7 @@ def get_config_value(config_name):
     config_node = _get_config_node(config_name)
     if not config_node.is_configured() and not config_node.has_default_value():
         raise ValueError(
-            "Config '%s' is not configured nor has a default value."
-            % config_name
+            "Config '%s' is not configured nor has a default value." % config_name
         )
 
     config_node.set_used()
@@ -735,18 +725,13 @@ def _make_wrapper(fn, configs, signature, has_self, config_only_args):
                 config.set_used()
 
         for config_only_arg in config_only_args:
-            if (
-                config_only_arg in set_positional_args
-                or config_only_arg in kwargs
-            ):
+            if config_only_arg in set_positional_args or config_only_arg in kwargs:
                 raise ValueError(
                     f"The arg '{config_only_arg}' of {fn.__qualname__} is guarded but has been modified. "
                     f"Most likely partial() was used to change this value, which is not allowed."
                 )
 
-        return fn(
-            *args, *unspecified_positional_args, **kwargs, **unspecified_kw_args
-        )
+        return fn(*args, *unspecified_positional_args, **kwargs, **unspecified_kw_args)
 
     return _wrapper
 
@@ -820,9 +805,9 @@ def _decorate(fn_or_cls, name, whitelist, blacklist, config_only_args):
     ):
         # If a file is executed using runpy.run_path(), the module name is
         # '<run_path>', which is not an acceptable name by gin.
-        return gin.configurable(
-            orig_name, whitelist=whitelist, blacklist=blacklist
-        )(fn_or_cls)
+        return gin.configurable(orig_name, whitelist=whitelist, blacklist=blacklist)(
+            fn_or_cls
+        )
     else:
         return fn_or_cls
 
@@ -903,9 +888,7 @@ def repr_wrapper(cls):
     return cls
 
 
-def configurable(
-    fn_or_name=None, whitelist=[], blacklist=[], config_only_args=[]
-):
+def configurable(fn_or_name=None, whitelist=[], blacklist=[], config_only_args=[]):
     """Decorator to make a function or class configurable.
 
     This decorator registers the decorated function/class as configurable, which
@@ -1042,15 +1025,11 @@ def configurable(
     if not callable(fn_or_name):
 
         def _decorator(fn_or_cls):
-            return _decorate(
-                fn_or_cls, name, whitelist, blacklist, config_only_args
-            )
+            return _decorate(fn_or_cls, name, whitelist, blacklist, config_only_args)
 
         return _decorator
     else:
-        return _decorate(
-            fn_or_name, name, whitelist, blacklist, config_only_args
-        )
+        return _decorate(fn_or_name, name, whitelist, blacklist, config_only_args)
 
 
 def define_config(name, default_value):
@@ -1219,9 +1198,7 @@ def save_config(alf_config_file):
             else:
                 config += "    '%s': %s,\n" % (config_name, config_value)
         config += "})\n\n"
-    config += (
-        f"config = alf.import_config('{config_dirname}/{conf_file_name}')\n"
-    )
+    config += f"config = alf.import_config('{config_dirname}/{conf_file_name}')\n"
     f = open(alf_config_file, "w")
     f.write(config)
     f.close()

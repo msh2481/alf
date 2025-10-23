@@ -41,9 +41,7 @@ class WarningOnceTest(alf.test.TestCase):
                 common.warning_once(warning_messages[1])
             generated_warning_messages = log_stream.getvalue()
 
-        generated_warning_messages = generated_warning_messages.rstrip().split(
-            "\n"
-        )
+        generated_warning_messages = generated_warning_messages.rstrip().split("\n")
 
         # previously we only get one warning message here, although
         # warning once has been called multiple times at difference places

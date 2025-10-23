@@ -72,9 +72,7 @@ class GymWrapperOnProcgenTest(alf.test.TestCase):
             self._env.action_spec(), self._env.batch_size
         )
         time_step = self._env.step(action)
-        self.assertEqual(
-            torch.tensor([StepType.FIRST] * 4), time_step.step_type
-        )
+        self.assertEqual(torch.tensor([StepType.FIRST] * 4), time_step.step_type)
         self.assertEqual((4, 3, 64, 64), time_step.observation["rgb"].shape)
         time_step = self._env.step(action)
         self.assertEqual(torch.tensor([StepType.MID] * 4), time_step.step_type)
@@ -85,9 +83,7 @@ class GymWrapperOnProcgenTest(alf.test.TestCase):
         action = torch.as_tensor([-1, 0, -1, 0])
         new_time_step = self._env.step(action)
         self.assertEqual(
-            torch.tensor(
-                [StepType.LAST, StepType.MID, StepType.LAST, StepType.MID]
-            ),
+            torch.tensor([StepType.LAST, StepType.MID, StepType.LAST, StepType.MID]),
             new_time_step.step_type,
         )
 

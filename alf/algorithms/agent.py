@@ -189,9 +189,7 @@ class Agent(RLAlgorithm):
             entropy_target_algorithm = entropy_target_cls(
                 action_spec, debug_summaries=debug_summaries
             )
-            agent_helper.register_algorithm(
-                entropy_target_algorithm, "entropy_target"
-            )
+            agent_helper.register_algorithm(entropy_target_algorithm, "entropy_target")
 
         # 5. reward weight algorithm
         reward_weight_algorithm = None
@@ -201,9 +199,7 @@ class Agent(RLAlgorithm):
             )
             agent_helper.register_algorithm(reward_weight_algorithm, "rw")
             # Initialize the reward weights of the rl algorithm
-            rl_algorithm.set_reward_weights(
-                reward_weight_algorithm.reward_weights
-            )
+            rl_algorithm.set_reward_weights(reward_weight_algorithm.reward_weights)
 
         super().__init__(
             observation_spec=observation_spec,
@@ -252,9 +248,7 @@ class Agent(RLAlgorithm):
         info = AgentInfo()
 
         if self._representation_learner is not None:
-            input_state = (
-                state.rl if self._representation_use_rl_state else state.repr
-            )
+            input_state = state.rl if self._representation_use_rl_state else state.repr
             repr_step = self._representation_learner.predict_step(
                 time_step, input_state
             )
@@ -287,9 +281,7 @@ class Agent(RLAlgorithm):
         observation = time_step.observation
 
         if self._representation_learner is not None:
-            input_state = (
-                state.rl if self._representation_use_rl_state else state.repr
-            )
+            input_state = state.rl if self._representation_use_rl_state else state.repr
             repr_step = self._representation_learner.rollout_step(
                 time_step, input_state
             )
@@ -321,9 +313,7 @@ class Agent(RLAlgorithm):
 
         if rewards:
             info = info._replace(rewards=rewards)
-            overall_reward = self._calc_overall_reward(
-                time_step.reward, rewards
-            )
+            overall_reward = self._calc_overall_reward(time_step.reward, rewards)
         else:
             overall_reward = time_step.reward
 
@@ -346,9 +336,7 @@ class Agent(RLAlgorithm):
             info = info._replace(entropy_target=et_step.info)
 
         if self._reward_weight_algorithm:
-            rw_step = self._reward_weight_algorithm.rollout_step(
-                time_step, state.rw
-            )
+            rw_step = self._reward_weight_algorithm.rollout_step(time_step, state.rw)
             new_state = new_state._replace(rw=rw_step.state)
             info = info._replace(rw=rw_step.info)
 
@@ -407,9 +395,7 @@ class Agent(RLAlgorithm):
 
         return AlgStep(output=rl_step.output, state=new_state, info=info)
 
-    def train_step_offline(
-        self, time_step: TimeStep, state, rollout_info, pre_train
-    ):
+    def train_step_offline(self, time_step: TimeStep, state, rollout_info, pre_train):
         new_state = AgentState()
         info = AgentInfo(rewards=rollout_info.rewards)
         observation = time_step.observation
@@ -468,9 +454,7 @@ class Agent(RLAlgorithm):
         if self._extrinsic_reward_coef != 1:
             overall_reward *= self._extrinsic_reward_coef
         if "irm" in intrinsic_rewards:
-            overall_reward += (
-                self._intrinsic_reward_coef * intrinsic_rewards["irm"]
-            )
+            overall_reward += self._intrinsic_reward_coef * intrinsic_rewards["irm"]
         if "goal_generator" in intrinsic_rewards:
             overall_reward += intrinsic_rewards["goal_generator"]
         return overall_reward
@@ -549,9 +533,7 @@ class Agent(RLAlgorithm):
         rewards = rollout_info.rewards
         if rewards != ():
             rewards = copy.copy(rewards)
-            rewards["overall"] = self._calc_overall_reward(
-                root_inputs.reward, rewards
-            )
+            rewards["overall"] = self._calc_overall_reward(root_inputs.reward, rewards)
             exp = exp._replace(reward=rewards["overall"])
 
         if self._representation_learner:
@@ -566,13 +548,10 @@ class Agent(RLAlgorithm):
 
         # Expand discounted_return in batch_info to the correct shape, and
         # populate to rl_info.
-        if (
-            hasattr(rl_info, "discounted_return")
-            and batch_info.discounted_return != ()
-        ):
-            discounted_return = batch_info.discounted_return.unsqueeze(
-                1
-            ).expand(exp.reward.shape[:2])
+        if hasattr(rl_info, "discounted_return") and batch_info.discounted_return != ():
+            discounted_return = batch_info.discounted_return.unsqueeze(1).expand(
+                exp.reward.shape[:2]
+            )
             rl_info = rl_info._replace(discounted_return=discounted_return)
 
         return exp, rollout_info._replace(rl=rl_info)

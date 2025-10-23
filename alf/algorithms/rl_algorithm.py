@@ -222,9 +222,11 @@ class RLAlgorithm(Algorithm):
 
         if reward_spec.numel > 1:
             if reward_weights:
-                assert reward_spec.numel == len(reward_weights), (
-                    "Mismatch between len(reward_weights)=%s and reward_dim=%s"
-                    % (len(reward_weights), reward_spec.numel)
+                assert reward_spec.numel == len(
+                    reward_weights
+                ), "Mismatch between len(reward_weights)=%s and reward_dim=%s" % (
+                    len(reward_weights),
+                    reward_spec.numel,
                 )
                 # Note that if training or playing from a checkpoint while specifying
                 # a reward weight vector different from the original one, this new
@@ -255,10 +257,7 @@ class RLAlgorithm(Algorithm):
                 config, self._num_earliest_frames_ignored
             )
 
-            if (
-                config.whole_replay_buffer_training
-                and config.clear_replay_buffer
-            ):
+            if config.whole_replay_buffer_training and config.clear_replay_buffer:
                 # For whole replay buffer training, we would like to be sure
                 # that the replay buffer have enough samples in it to perform
                 # the training, which will most likely happen in the 2nd
@@ -348,8 +347,7 @@ class RLAlgorithm(Algorithm):
     def rollout_info_spec(self):
         """The spec for the ``AlgStep.info`` returned from ``rollout_step()``."""
         assert self._rollout_info_spec is not None, (
-            "rollout_step() has not "
-            " been used. rollout_info_spec is not available."
+            "rollout_step() has not " " been used. rollout_info_spec is not available."
         )
         return self._rollout_info_spec
 
@@ -368,9 +366,7 @@ class RLAlgorithm(Algorithm):
             reward_weights (Tensor): a tensor that is compatible with
                 ``self._reward_spec``.
         """
-        assert (
-            self.has_multidim_reward()
-        ), "Can't update weights for a scalar reward!"
+        assert self.has_multidim_reward(), "Can't update weights for a scalar reward!"
         self._reward_weights.copy_(reward_weights)
 
     def has_multidim_reward(self):
@@ -447,13 +443,9 @@ class RLAlgorithm(Algorithm):
             self.summarize_reward("rollout_reward/extrinsic", experience.reward)
 
         if self._config.summarize_action_distributions:
-            field = alf.nest.find_field(
-                experience.rollout_info, "action_distribution"
-            )
+            field = alf.nest.find_field(experience.rollout_info, "action_distribution")
             if len(field) == 1:
-                summary_utils.summarize_distribution(
-                    "rollout_action_dist", field[0]
-                )
+                summary_utils.summarize_distribution("rollout_action_dist", field[0])
 
         if custom_summary is not None:
             custom_summary(experience)
@@ -577,9 +569,7 @@ class RLAlgorithm(Algorithm):
         assert not self._overwrite_policy_output, (
             "async_unroll does not " "support overwrite_policy_output"
         )
-        assert not self.on_policy, (
-            "async_unroll does not support on-policy " "training"
-        )
+        assert not self.on_policy, "async_unroll does not support on-policy " "training"
 
         if self._current_transform_state is None:
             self._current_transform_state = self.get_initial_transform_state(
@@ -635,16 +625,12 @@ class RLAlgorithm(Algorithm):
         )
         alf.summary.scalar("time/unroll_store_exp", store_exp_time)
         if unroll_length == 0:
-            alf.summary.scalar(
-                "async_unroll/unroll_length", float(len(unroll_results))
-            )
+            alf.summary.scalar("async_unroll/unroll_length", float(len(unroll_results)))
         alf.summary.scalar("async_unroll/queue_size", qsize)
         if not unroll_results:
             return None
 
-        alf.summary.scalar(
-            "time/avg_unroll_step_time", step_time / len(unroll_results)
-        )
+        alf.summary.scalar("time/avg_unroll_step_time", step_time / len(unroll_results))
         alf.summary.scalar("time/max_unroll_step_time", max_step_time)
         original_reward = alf.nest.utils.stack_nests(original_reward_list)
         self.summarize_reward("rollout_reward/original_reward", original_reward)
@@ -749,9 +735,7 @@ class RLAlgorithm(Algorithm):
 
             t0 = time.time()
             with record_time("time/_sync_unroll/1_per_rollout_step"):
-                policy_step = self.rollout_step(
-                    transformed_time_step, policy_state
-                )
+                policy_step = self.rollout_step(transformed_time_step, policy_state)
             policy_step_time += time.time() - t0
 
             action = common.detach(policy_step.output)
@@ -768,9 +752,7 @@ class RLAlgorithm(Algorithm):
             # replay buffer with the actual action that is used (e.g. from
             # an expert), which can be recordered in next_time_step.prev_action.
             if self._overwrite_policy_output:
-                policy_step = policy_step._replace(
-                    output=next_time_step.prev_action
-                )
+                policy_step = policy_step._replace(output=next_time_step.prev_action)
             store_exp_time += self._process_unroll_step(
                 policy_step,
                 action,
@@ -851,21 +833,15 @@ class RLAlgorithm(Algorithm):
         alf.summary.increment_global_counter()
 
         train_info, loss_info, experience = (
-            self._compute_train_info_and_loss_info_on_policy(
-                self._config.unroll_length
-            )
+            self._compute_train_info_and_loss_info_on_policy(self._config.unroll_length)
         )
 
         with record_time("time/train"):
             if self._config.mask_out_loss_for_last_step:
-                valid_masks = (experience.step_type != StepType.LAST).to(
-                    torch.float32
-                )
+                valid_masks = (experience.step_type != StepType.LAST).to(torch.float32)
             else:
                 valid_masks = None
-            loss_info, params = self.update_with_gradient(
-                loss_info, valid_masks
-            )
+            loss_info, params = self.update_with_gradient(loss_info, valid_masks)
             self.after_update(experience.time_step, train_info)
             self.summarize_train(experience, train_info, loss_info, params)
             shape = alf.nest.get_nest_shape(experience)
@@ -909,12 +885,8 @@ class RLAlgorithm(Algorithm):
         if not config.update_counter_every_mini_batch:
             alf.summary.increment_global_counter()
 
-        unroll_length = (
-            self._remaining_unroll_length_fraction + config.unroll_length
-        )
-        self._remaining_unroll_length_fraction = unroll_length - int(
-            unroll_length
-        )
+        unroll_length = self._remaining_unroll_length_fraction + config.unroll_length
+        self._remaining_unroll_length_fraction = unroll_length - int(unroll_length)
         unroll_length = int(unroll_length)
 
         self._ensure_rollout_summary.tick()
@@ -923,8 +895,7 @@ class RLAlgorithm(Algorithm):
         root_inputs = None
         rollout_info = None
         if (
-            alf.summary.get_global_counter()
-            >= self._rl_train_after_update_steps
+            alf.summary.get_global_counter() >= self._rl_train_after_update_steps
             and (unroll_length > 0 or config.unroll_length == 0)
             and (
                 config.num_env_steps == 0
@@ -980,9 +951,7 @@ class RLAlgorithm(Algorithm):
         # For now, we only return the steps of the primary algorithm's training
         return steps
 
-    def load_offline_replay_buffer(
-        self, untransformed_observation_spec, ddp_rank
-    ):
+    def load_offline_replay_buffer(self, untransformed_observation_spec, ddp_rank):
         """Load replay buffer from a replay buffer checkpoint.
         It will construct a replay buffer (``self._offline_replay_buffer``)
         holding the data loaded from the checkpoint, which can be used for
@@ -1031,14 +1000,10 @@ class RLAlgorithm(Algorithm):
                     # Sort so that we can make sure unique buffers are assigned
                     offline_buffer_dir_list.sort()
                     # Assign a unique buffer
-                    offline_buffer_dir_list = [
-                        offline_buffer_dir_list[ddp_rank]
-                    ]
+                    offline_buffer_dir_list = [offline_buffer_dir_list[ddp_rank]]
 
             def _get_full_key(dict, partial_key):
-                full_key = next(
-                    (key for key in dict if partial_key in key), None
-                )
+                full_key = next((key for key in dict if partial_key in key), None)
                 assert (
                     full_key is not None
                 ), "key containing {} " "is not found.".format(partial_key)
@@ -1078,9 +1043,7 @@ class RLAlgorithm(Algorithm):
 
                 # prepare specs for buffer reconstruction
                 reward_key = _get_full_key(buffer_dict, "time_step|reward")
-                step_type_key = _get_full_key(
-                    buffer_dict, "time_step|step_type"
-                )
+                step_type_key = _get_full_key(buffer_dict, "time_step|step_type")
                 discount_key = _get_full_key(buffer_dict, "time_step|discount")
                 env_id_key = _get_full_key(buffer_dict, "time_step|env_id")
 
@@ -1241,9 +1204,7 @@ class RLAlgorithm(Algorithm):
                     bat = alf.nest.map_structure(lambda x: x[:, t, ...], exp)
                     self._offline_replay_buffer.add_batch(bat, bat.env_id)
             else:
-                raise ValueError(
-                    "Unsupported outer rank %s of `exp`" % outer_rank
-                )
+                raise ValueError("Unsupported outer rank %s of `exp`" % outer_rank)
 
         _load_data(exp)
 

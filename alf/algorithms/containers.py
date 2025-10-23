@@ -65,18 +65,16 @@ class AlgorithmContainer(Algorithm):
         if is_on_policy is not None:
             for aname, alg in algs.items():
                 if alg.on_policy is not None:
-                    assert alg.on_policy == is_on_policy, (
-                        "is_on_policy=%s "
-                        "is different from algs[%s].on_policy=%s"
-                        % (is_on_policy, aname, alg.on_policy)
+                    assert (
+                        alg.on_policy == is_on_policy
+                    ), "is_on_policy=%s " "is different from algs[%s].on_policy=%s" % (
+                        is_on_policy,
+                        aname,
+                        alg.on_policy,
                     )
         else:
-            on_policy_algs = [
-                alg for alg in algs.values() if alg.on_policy == True
-            ]
-            off_policy_algs = [
-                alg for alg in algs.values() if alg.on_policy == False
-            ]
+            on_policy_algs = [alg for alg in algs.values() if alg.on_policy == True]
+            off_policy_algs = [alg for alg in algs.values() if alg.on_policy == False]
             if on_policy_algs and off_policy_algs:
                 raise ValueError(
                     "%s is on-policy, but %s is off-policy."
@@ -371,14 +369,10 @@ class _SequentialAlg(AlgorithmContainer):
                 input, module = element
             else:
                 module = element
-            if not (
-                isinstance(module, (Callable, Algorithm))
-                and is_nested_str(input)
-            ):
+            if not (isinstance(module, (Callable, Algorithm)) and is_nested_str(input)):
                 raise ValueError(
                     "Argument %s is not in the form of Callable|Algorithm "
-                    "or (nested str, Callable|Algorithm): %s"
-                    % (out or str(i), element)
+                    "or (nested str, Callable|Algorithm): %s" % (out or str(i), element)
                 )
             if isinstance(module, Algorithm):
                 train_state_spec.append(module.train_state_spec)
@@ -402,9 +396,7 @@ class _SequentialAlg(AlgorithmContainer):
             outputs.append(out)
             modules.append(module)
 
-        assert is_nested_str(output), (
-            "output should be a nested str: %s" % output
-        )
+        assert is_nested_str(output), "output should be a nested str: %s" % output
 
         super().__init__(
             algs,
@@ -417,9 +409,7 @@ class _SequentialAlg(AlgorithmContainer):
         )
 
         self._networks = modules
-        self._nets = nn.ModuleList(
-            filter(lambda m: isinstance(m, nn.Module), modules)
-        )
+        self._nets = nn.ModuleList(filter(lambda m: isinstance(m, nn.Module), modules))
         self._output = output
         self._inputs = inputs
         self._outputs = outputs
@@ -569,9 +559,7 @@ class EchoAlg(Algorithm):
         return self._alg.calc_loss(info)
 
     def preprocess_experience(self, root_inputs, rollout_info, batch_info):
-        return self._alg.preprocess_experience(
-            root_inputs, rollout_info, batch_info
-        )
+        return self._alg.preprocess_experience(root_inputs, rollout_info, batch_info)
 
     def after_update(self, root_inputs, info):
         self._alg.after_update(root_inputs, info)

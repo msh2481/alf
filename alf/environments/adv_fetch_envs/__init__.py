@@ -17,25 +17,20 @@ from gym.envs.registration import registry, register, make, spec
 register(
     id="FetchPickAndPlaceAdv-v0",
     entry_point=(
-        "alf.environments.adv_fetch_envs.pick_and_place_adv:"
-        "FetchPickAndPlaceAdvEnv"
+        "alf.environments.adv_fetch_envs.pick_and_place_adv:" "FetchPickAndPlaceAdvEnv"
     ),
     max_episode_steps=100,
 )
 
 register(
     id="FetchSlideAdv-v0",
-    entry_point=(
-        "alf.environments.adv_fetch_envs.slide_adv:" "FetchSlideAdvEnv"
-    ),
+    entry_point=("alf.environments.adv_fetch_envs.slide_adv:" "FetchSlideAdvEnv"),
     max_episode_steps=100,
 )
 
 register(
     id="FetchReachAdv-v0",
-    entry_point=(
-        "alf.environments.adv_fetch_envs.reach_adv:" "FetchReachAdvEnv"
-    ),
+    entry_point=("alf.environments.adv_fetch_envs.reach_adv:" "FetchReachAdvEnv"),
     max_episode_steps=100,
 )
 

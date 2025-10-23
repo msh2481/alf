@@ -45,11 +45,7 @@ def relu_backward(output, grad_output):
     assert output.dtype == grad_output.dtype
     assert output.is_cuda == grad_output.is_cuda
     assert output.dtype.is_floating_point
-    if (
-        output.is_cuda
-        and output.is_contiguous()
-        and grad_output.is_contiguous()
-    ):
+    if output.is_cuda and output.is_contiguous() and grad_output.is_contiguous():
         return _ext.relu_backward(output, grad_output)
     else:
         return grad_output * (output > 0).float()

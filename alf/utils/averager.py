@@ -38,9 +38,7 @@ def average_outer_dims(tensor, spec):
 @alf.configurable
 class WindowAverager(nn.Module):
 
-    def __init__(
-        self, tensor_spec: TensorSpec, window_size, name="WindowAverager"
-    ):
+    def __init__(self, tensor_spec: TensorSpec, window_size, name="WindowAverager"):
         """
         WindowAverager calculate the average of the past ``window_size`` samples.
         Args:
@@ -53,9 +51,7 @@ class WindowAverager(nn.Module):
         self._name = name
         self._buf = alf.nest.map_structure(
             # Should put data on the default device instead of "cpu"
-            lambda spec: DataBuffer(
-                spec, window_size, alf.get_default_device()
-            ),
+            lambda spec: DataBuffer(spec, window_size, alf.get_default_device()),
             tensor_spec,
         )
         self._tensor_spec = tensor_spec
@@ -86,9 +82,9 @@ class WindowAverager(nn.Module):
         """
 
         def _get(buf):
-            n = torch.max(
-                buf.current_size, torch.ones_like(buf.current_size)
-            ).to(torch.float32)
+            n = torch.max(buf.current_size, torch.ones_like(buf.current_size)).to(
+                torch.float32
+            )
             return torch.sum(buf.get_all(), dim=0) * (1.0 / n)
 
         return alf.nest.map_structure(_get, self._buf)
@@ -111,9 +107,7 @@ class WindowAverager(nn.Module):
 class ScalarWindowAverager(WindowAverager):
     """WindowAverager for scalar value"""
 
-    def __init__(
-        self, window_size, dtype=torch.float32, name="ScalarWindowAverager"
-    ):
+    def __init__(self, window_size, dtype=torch.float32, name="ScalarWindowAverager"):
         """
 
         Args:
@@ -193,8 +187,7 @@ class EMAverager(nn.Module):
             self._tensor_spec,
         )
         self._mass.add_(
-            torch.as_tensor(self._update_rate, dtype=torch.float64)
-            * (1 - self._mass)
+            torch.as_tensor(self._update_rate, dtype=torch.float64) * (1 - self._mass)
         )
 
     def get(self):
@@ -227,9 +220,7 @@ class EMAverager(nn.Module):
 class ScalarEMAverager(EMAverager):
     """EMAverager for scalar value"""
 
-    def __init__(
-        self, update_rate, dtype=torch.float32, name="ScalarEMAverager"
-    ):
+    def __init__(self, update_rate, dtype=torch.float32, name="ScalarEMAverager"):
         """
 
         Args:
@@ -255,9 +246,7 @@ class AdaptiveAverager(EMAverager):
     detail.
     """
 
-    def __init__(
-        self, tensor_spec: TensorSpec, speed=10.0, name="AdaptiveAverager"
-    ):
+    def __init__(self, tensor_spec: TensorSpec, speed=10.0, name="AdaptiveAverager"):
         """
 
         Args:
@@ -281,9 +270,7 @@ class AdaptiveAverager(EMAverager):
             tensor (nested Tensor): a value for updating the average; outer dims
                 will be first averaged before being added to the average
         """
-        self._update_ema_rate.fill_(
-            self._speed / self._total_steps.to(torch.float64)
-        )
+        self._update_ema_rate.fill_(self._speed / self._total_steps.to(torch.float64))
         self._total_steps.add_(1)
         super().update(tensor)
 
@@ -292,9 +279,7 @@ class AdaptiveAverager(EMAverager):
 class ScalarAdaptiveAverager(AdaptiveAverager):
     """AdaptiveAverager for scalar value."""
 
-    def __init__(
-        self, speed=10, dtype=torch.float32, name="ScalarAdaptiveAverager"
-    ):
+    def __init__(self, speed=10, dtype=torch.float32, name="ScalarAdaptiveAverager"):
         """
 
         Args:

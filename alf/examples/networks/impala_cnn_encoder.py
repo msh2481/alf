@@ -61,9 +61,7 @@ def _create_residual_cnn_block(
         torch.nn.ReLU(inplace=False),
         # TODO(breakds): Normalized initialization in openai's
         # original implementation
-        alf.layers.Conv2D(
-            input_channels, input_channels, kernel_size=3, padding=1
-        ),
+        alf.layers.Conv2D(input_channels, input_channels, kernel_size=3, padding=1),
         residual=alf.layers.Conv2D(
             input_channels,
             input_channels,

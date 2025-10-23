@@ -80,9 +80,9 @@ class RandomCategoricalGoalGenerator(RLAlgorithm):
         goals = torch.randint(
             high=self._num_of_goals, size=(batch_size,), dtype=torch.int64
         )
-        goals_onehot = torch.nn.functional.one_hot(
-            goals, self._num_of_goals
-        ).to(torch.float32)
+        goals_onehot = torch.nn.functional.one_hot(goals, self._num_of_goals).to(
+            torch.float32
+        )
         return goals_onehot
 
     def _update_goal(self, observation, state, step_type):

@@ -84,9 +84,7 @@ def _env_constructor(env_load_fn, env_name, batch_size_per_env, seed, env_id):
     # following env IDs: env_id, env_id + 1, ... ,env_id + batch_size - 1
     batched = getattr(_get_wrapped_fn(env_load_fn), "batched", False)
     if batched:
-        return env_load_fn(
-            env_name, env_id=env_id, batch_size=batch_size_per_env
-        )
+        return env_load_fn(env_name, env_id=env_id, batch_size=batch_size_per_env)
     if batch_size_per_env == 1:
         return env_load_fn(env_name, env_id)
     envs = [
@@ -210,9 +208,7 @@ def create_environment(
     # function to get its attributes
     batched = getattr(_get_wrapped_fn(env_load_fn), "batched", False)
     logger.info(f"env_load_fn: {env_load_fn}, batched: {batched}")
-    no_thread_env = getattr(
-        _get_wrapped_fn(env_load_fn), "no_thread_env", False
-    )
+    no_thread_env = getattr(_get_wrapped_fn(env_load_fn), "no_thread_env", False)
 
     if nonparallel:
         assert num_parallel_environments == 1, "nonparallel is True"
@@ -245,9 +241,7 @@ def create_environment(
         )
 
     if isinstance(env_name, (list, tuple)):
-        env_load_fn = functools.partial(
-            alf_wrappers.MultitaskWrapper.load, env_load_fn
-        )
+        env_load_fn = functools.partial(alf_wrappers.MultitaskWrapper.load, env_load_fn)
 
     if batched and batch_size_per_env == num_parallel_environments:
         logger.info(
@@ -277,8 +271,7 @@ def create_environment(
             #   `reset` must run in the same thread which the env is created in
             #   for some simulation environments such as social_bot(gazebo)
             logger.info(
-                f"{env_name} allows thread_env, wrapping it with "
-                "ThreadEnvironment"
+                f"{env_name} allows thread_env, wrapping it with " "ThreadEnvironment"
             )
             alf_env = thread_environment.ThreadEnvironment(
                 lambda: env_load_fn(env_name)
@@ -346,6 +339,4 @@ def load_with_random_max_episode_steps(
     Returns:
         AlfEnvironment:
     """
-    return env_load_fn(
-        env_name, max_episode_steps=random.randint(min_steps, max_steps)
-    )
+    return env_load_fn(env_name, max_episode_steps=random.randint(min_steps, max_steps))

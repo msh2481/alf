@@ -18,9 +18,7 @@ from alf.algorithms.trac_algorithm import TracAlgorithm
 from alf.algorithms.data_transformer import RewardScaling
 
 # environment config
-alf.config(
-    "create_environment", env_name="CartPole-v0", num_parallel_environments=8
-)
+alf.config("create_environment", env_name="CartPole-v0", num_parallel_environments=8)
 
 # reward scaling
 alf.config("TrainerConfig", data_transformer_ctor=RewardScaling)

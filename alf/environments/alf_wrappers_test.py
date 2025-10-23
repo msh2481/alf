@@ -217,9 +217,7 @@ class MultitaskWrapperTest(alf.test.TestCase):
             env.action_spec()["task_id"],
             alf.BoundedTensorSpec((), maximum=1, dtype="int64"),
         )
-        self.assertEqual(
-            env.action_spec()["action"], env._envs[0].action_spec()
-        )
+        self.assertEqual(env.action_spec()["action"], env._envs[0].action_spec())
         time_step = env.reset()
         time_step = env.step(
             OrderedDict(task_id=1, action=time_step.prev_action["action"])
@@ -263,28 +261,16 @@ class CurriculumWrapperTest(alf.test.TestCase):
         self.assertEqual(len(env.env_info_spec()["curriculum_task_score"]), 2)
         self.assertEqual(len(env.env_info_spec()["curriculum_task_prob"]), 2)
         for i in task_names:
-            self.assertEqual(
-                time_step.env_info["curriculum_task_count"][i].shape, (4,)
-            )
-            self.assertEqual(
-                time_step.env_info["curriculum_task_score"][i].shape, (4,)
-            )
-            self.assertEqual(
-                time_step.env_info["curriculum_task_prob"][i].shape, (4,)
-            )
+            self.assertEqual(time_step.env_info["curriculum_task_count"][i].shape, (4,))
+            self.assertEqual(time_step.env_info["curriculum_task_score"][i].shape, (4,))
+            self.assertEqual(time_step.env_info["curriculum_task_prob"][i].shape, (4,))
 
         for j in range(500):
             time_step = env.step(time_step.prev_action)
             self.assertEqual(time_step.env_id, torch.arange(4))
-            self.assertEqual(
-                len(env.env_info_spec()["curriculum_task_count"]), 2
-            )
-            self.assertEqual(
-                len(env.env_info_spec()["curriculum_task_score"]), 2
-            )
-            self.assertEqual(
-                len(env.env_info_spec()["curriculum_task_prob"]), 2
-            )
+            self.assertEqual(len(env.env_info_spec()["curriculum_task_count"]), 2)
+            self.assertEqual(len(env.env_info_spec()["curriculum_task_score"]), 2)
+            self.assertEqual(len(env.env_info_spec()["curriculum_task_prob"]), 2)
             for i in task_names:
                 self.assertEqual(
                     time_step.env_info["curriculum_task_count"][i].shape, (4,)
@@ -327,13 +313,9 @@ class DiscreteWrapperTest(parameterized.TestCase, alf.test.TestCase):
 
         if batched:
             batched_wrappers = [
-                partial(
-                    alf_wrappers.DiscreteActionWrapper, actions_num=actions_num
-                )
+                partial(alf_wrappers.DiscreteActionWrapper, actions_num=actions_num)
             ]
-            load_fn = partial(
-                suite_gym.load, gym_env_wrappers=[ActionInfoWrapper]
-            )
+            load_fn = partial(suite_gym.load, gym_env_wrappers=[ActionInfoWrapper])
         else:
             batched_wrappers = []
             load_fn = partial(

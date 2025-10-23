@@ -62,9 +62,7 @@ def huber_function(x: torch.Tensor, delta: float = 1.0):
     Returns:
         Huber function (Tensor)
     """
-    return torch.where(
-        x.abs() <= delta, 0.5 * x**2, delta * (x.abs() - 0.5 * delta)
-    )
+    return torch.where(x.abs() <= delta, 0.5 * x**2, delta * (x.abs() - 0.5 * delta))
 
 
 @alf.configurable
@@ -106,9 +104,7 @@ def multi_quantile_huber_loss(
     else:
         c = (t - (d < 0).float()).abs()
         d_abs = d.abs()
-        loss = c * torch.where(
-            d_abs < delta, (0.5 / delta) * d**2, d_abs - 0.5 * delta
-        )
+        loss = c * torch.where(d_abs < delta, (0.5 / delta) * d**2, d_abs - 0.5 * delta)
     return loss.mean(dim=(-2, -1))
 
 
@@ -156,9 +152,7 @@ def iqn_huber_loss(
     # (T-1 or T, B, n_quantiles, n_quantiles) for scalar reward and
     # (T-1 or T, B, reward_dim, n_quantiles, n_quantiles) for multi-dim reward
     assert value.shape[0] == target.shape[0]
-    if isinstance(tau_hat, torch.Tensor) and isinstance(
-        next_delta_tau, torch.Tensor
-    ):
+    if isinstance(tau_hat, torch.Tensor) and isinstance(next_delta_tau, torch.Tensor):
         assert tau_hat.shape[0] == next_delta_tau.shape[0] == target.shape[0]
         iqn_tau = True
     else:
@@ -282,9 +276,7 @@ def _get_indexer(shape: Tuple[int]):
     """
     ndim = len(shape)
     ones = [1] * ndim
-    B = tuple(
-        torch.arange(d).reshape(d, *ones[i + 1 :]) for i, d in enumerate(shape)
-    )
+    B = tuple(torch.arange(d).reshape(d, *ones[i + 1 :]) for i, d in enumerate(shape))
     return B
 
 
@@ -477,9 +469,7 @@ class OrderedDiscreteRegressionLoss(_DiscreteRegressionLossBase):
         B = _get_indexer(target.shape)
         w[B + (bin2,)] = w2
         w[B + (bin1,)] = 1
-        cross_entropy = F.binary_cross_entropy_with_logits(
-            logits, w, reduction="none"
-        )
+        cross_entropy = F.binary_cross_entropy_with_logits(logits, w, reduction="none")
         kld = cross_entropy + binary_neg_entropy(w)
         return kld.relu().sum(dim=-1)
 
@@ -817,9 +807,7 @@ class BipartiteMatchingLoss(object):
         `<https://github.com/facebookresearch/detr/blob/main/models/matcher.py>`_
     """
 
-    def __init__(
-        self, reduction: str = "mean", name: str = "BipartiteMatchingLoss"
-    ):
+    def __init__(self, reduction: str = "mean", name: str = "BipartiteMatchingLoss"):
         """
         Args:
             reduction: 'sum', 'mean' or 'none'. This is how to reduce the matching
@@ -831,9 +819,7 @@ class BipartiteMatchingLoss(object):
         assert reduction in ["mean", "sum", "none"]
         self._name = name
 
-    def forward(
-        self, matching_cost_mat: torch.Tensor, cost_mat: torch.Tensor = None
-    ):
+    def forward(self, matching_cost_mat: torch.Tensor, cost_mat: torch.Tensor = None):
         """Compute the optimal matching loss.
 
         Args:

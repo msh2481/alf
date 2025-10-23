@@ -46,17 +46,13 @@ def _check_action_specs_for_critic_networks(
         if spec.is_discrete:
             assert proc is not None, (
                 "CriticNetwork only supports continuous actions. One of given "
-                + "action specs {} is discrete. Use QNetwork instead. ".format(
-                    spec
-                )
+                + "action specs {} is discrete. Use QNetwork instead. ".format(spec)
                 + "Alternatively, specify `action_input_processors` to transform "
                 + "discrete actions to continuous action embeddings first."
             )
 
     if action_input_processors is None:
-        action_input_processors = nest.map_structure(
-            lambda _: None, action_spec
-        )
+        action_input_processors = nest.map_structure(lambda _: None, action_spec)
 
     nest.map_structure(_check_individual, action_spec, action_input_processors)
 
@@ -472,9 +468,7 @@ class CriticQuantileNetwork(EncodingNetwork):
 
         obs_act_encoder = CriticNetwork(
             input_tensor_spec,
-            output_tensor_spec=TensorSpec(
-                (1, obs_act_tau_joint_fc_layer_params[0])
-            ),
+            output_tensor_spec=TensorSpec((1, obs_act_tau_joint_fc_layer_params[0])),
             observation_input_processors=observation_input_processors,
             observation_input_processors_ctor=observation_input_processors_ctor,
             observation_preprocessing_combiner=observation_preprocessing_combiner,
@@ -521,9 +515,7 @@ class CriticQuantileNetwork(EncodingNetwork):
 
         super().__init__(
             input_tensor_spec=(input_tensor_spec, tau_spec),
-            output_tensor_spec=TensorSpec(
-                (tau_spec.numel,) + output_tensor_spec.shape
-            ),
+            output_tensor_spec=TensorSpec((tau_spec.numel,) + output_tensor_spec.shape),
             input_preprocessors=(obs_act_encoder, tau_encoder),
             preprocessing_combiner=alf.layers.NestMultiply(),
             fc_layer_params=obs_act_tau_joint_fc_layer_params,

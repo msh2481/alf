@@ -98,9 +98,7 @@ class EnvironmentSteps(metric.StepMetric):
     skipped ones.
     """
 
-    def __init__(
-        self, name="EnvironmentSteps", prefix="Metrics", dtype=torch.int64
-    ):
+    def __init__(self, name="EnvironmentSteps", prefix="Metrics", dtype=torch.int64):
         super().__init__(name=name, dtype=dtype, prefix=prefix)
         self.register_buffer(
             "_environment_steps", torch.zeros((), dtype=dtype, device="cpu")
@@ -131,12 +129,8 @@ class EnvironmentSteps(metric.StepMetric):
 class NumberOfEpisodes(metric.StepMetric):
     """Counts the number of episodes in the environment."""
 
-    def __init__(
-        self, name="NumberOfEpisodes", prefix="Metrics", dtype=torch.int64
-    ):
-        super(NumberOfEpisodes, self).__init__(
-            name=name, dtype=dtype, prefix=prefix
-        )
+    def __init__(self, name="NumberOfEpisodes", prefix="Metrics", dtype=torch.int64):
+        super(NumberOfEpisodes, self).__init__(name=name, dtype=dtype, prefix=prefix)
         self.register_buffer(
             "_number_episodes", torch.zeros((), dtype=dtype, device="cpu")
         )
@@ -213,9 +207,7 @@ class AverageEpisodicAggregationMetric(metric.StepMetric):
             example_metric_value = torch.zeros((), device=device)
         else:
             example_metric_value = self._extract_metric_values(
-                alf.nest.map_structure(
-                    lambda x: x.to(device), example_time_step
-                )
+                alf.nest.map_structure(lambda x: x.to(device), example_time_step)
             )
         self._batch_size = alf.nest.get_nest_batch_size(example_time_step)
         self._buffer_size = buffer_size
@@ -244,19 +236,13 @@ class AverageEpisodicAggregationMetric(metric.StepMetric):
             return accumulator
 
         def _init_mask(val):
-            return torch.zeros(
-                self._batch_size, dtype=torch.bool, device=device
-            )
+            return torch.zeros(self._batch_size, dtype=torch.bool, device=device)
 
         def _init_step(val):
-            return torch.zeros(
-                self._batch_size, dtype=self._dtype, device=device
-            )
+            return torch.zeros(self._batch_size, dtype=self._dtype, device=device)
 
         self._buffer = alf.nest.map_structure(_init_buf, example_metric_value)
-        self._accumulator = alf.nest.map_structure(
-            _init_acc, example_metric_value
-        )
+        self._accumulator = alf.nest.map_structure(_init_acc, example_metric_value)
         # which samples of a batch in ``self._accumulator`` are valid for being
         # put into ``self._buffer`` when step_type==LAST
         self._mask = alf.nest.map_structure(_init_mask, example_metric_value)
@@ -324,9 +310,7 @@ class AverageEpisodicAggregationMetric(metric.StepMetric):
         )
 
         def _episode_end_aggregate_(path, mask, step, buf, acc):
-            value = self._extract_and_process_acc_value(
-                acc, last_episode_indices
-            )
+            value = self._extract_and_process_acc_value(acc, last_episode_indices)
             # If the metric's name ends with '@step', the value will
             # be further averaged over episode length so that the
             # result is per-step value.
@@ -516,10 +500,7 @@ class AverageDiscountedReturnMetric(AverageEpisodicAggregationMetric):
 
         # update discount for the next time step
         self._accumulated_discount = (
-            self._discount
-            * self._timestep_discount
-            * self._accumulated_discount
-            + 1
+            self._discount * self._timestep_discount * self._accumulated_discount + 1
         )
         self._timestep_discount = time_step.discount
         self._accumulated_discount = torch.where(
@@ -538,9 +519,7 @@ class AverageDiscountedReturnMetric(AverageEpisodicAggregationMetric):
         Returns:
             The value of the accumulator at the episode end.
         """
-        return (
-            acc[last_episode_indices] / self._current_step[last_episode_indices]
-        )
+        return acc[last_episode_indices] / self._current_step[last_episode_indices]
 
 
 @alf.configurable
@@ -618,9 +597,7 @@ class EpisodicStartAverageDiscountedReturnMetric(AverageDiscountedReturnMetric):
 
         # update discount for the next time step
         self._accumulated_discount *= self._discount
-        self._accumulated_discount.masked_fill_(
-            self._accumulated_discount == 0, 1.0
-        )
+        self._accumulated_discount.masked_fill_(self._accumulated_discount == 0, 1.0)
         self._accumulated_discount.masked_fill_(is_first, 0.0)
 
     def _extract_and_process_acc_value(self, acc, last_episode_indices):

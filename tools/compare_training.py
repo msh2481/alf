@@ -39,9 +39,7 @@ from alf.utils.common import alf_root
 from alf.utils.git_utils import get_revision, get_diff, _exec
 from alf.bin.train_play_test import run_cmd
 
-flags.DEFINE_string(
-    "conf", None, help="The config file for training", required=True
-)
+flags.DEFINE_string("conf", None, help="The config file for training", required=True)
 flags.DEFINE_string("rev1", None, help="The first revision.", required=True)
 flags.DEFINE_string(
     "rev2",
@@ -55,9 +53,7 @@ flags.DEFINE_integer(
 flags.DEFINE_integer(
     "num_envs", 10, help="The number of environments to run", required=False
 )
-flags.DEFINE_integer(
-    "mini_batch_size", 256, help="Minibatch size", required=False
-)
+flags.DEFINE_integer("mini_batch_size", 256, help="Minibatch size", required=False)
 flags.DEFINE_integer(
     "initial_collect_steps",
     10,
@@ -93,8 +89,7 @@ def run_train(conf, root_dir, rev1):
         "--conf_param=TrainerConfig.mini_batch_size=%s" % FLAGS.mini_batch_size,
         "--conf_param=TrainerConfig.initial_collect_steps=%s"
         % FLAGS.initial_collect_steps,
-        "--conf_param=create_environment.num_parallel_environments=%s"
-        % FLAGS.num_envs,
+        "--conf_param=create_environment.num_parallel_environments=%s" % FLAGS.num_envs,
         "--conf_param=create_environment.batch_size_per_env=2",
         "--conf_param=TrainerConfig.num_env_steps=0",
     ]
@@ -121,9 +116,7 @@ def main(_):
 
     repo_root = Path(alf_root())
     if get_diff(repo_root):
-        logging.error(
-            "You need to commit all changes before running this script"
-        )
+        logging.error("You need to commit all changes before running this script")
         exit(1)
     current_branch = get_current_branch(repo_root)
     if FLAGS.rev2 is None:

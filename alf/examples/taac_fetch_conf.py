@@ -33,9 +33,7 @@ alf.config(
     ),
 )
 
-alf.config(
-    "Agent", rl_algorithm_cls=TaacAlgorithm, optimizer=fetch_conf.optimizer
-)
+alf.config("Agent", rl_algorithm_cls=TaacAlgorithm, optimizer=fetch_conf.optimizer)
 
 alf.config("TAACTDLoss", gamma=0.98)
 

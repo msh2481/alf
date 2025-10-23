@@ -164,9 +164,9 @@ class Permute(nn.Module):
             *dims: The desired ordering of dimensions (not including batch dimension)
         """
         super().__init__()
-        assert all(
-            [d >= 0 for d in dims]
-        ), "dims should be non-negative. Got %s" % str(dims)
+        assert all([d >= 0 for d in dims]), "dims should be non-negative. Got %s" % str(
+            dims
+        )
         dims = [1 + d for d in dims]
         self._dims = [0] + dims
 
@@ -207,9 +207,7 @@ class OneHot(nn.Module):
 class FixedDecodingLayer(nn.Module):
     """A layer that uses a set of fixed basis for decoding the inputs."""
 
-    def __init__(
-        self, input_size, output_size, basis_type="rbf", sigma=1.0, tau=0.5
-    ):
+    def __init__(self, input_size, output_size, basis_type="rbf", sigma=1.0, tau=0.5):
         """
         Args:
             input_size (int): the size of input to be decoded, representing the
@@ -298,9 +296,7 @@ class FixedDecodingLayer(nn.Module):
                 h = torch.cat((h_n, h_i), dim=1)
                 return h
 
-            B = _get_haar_matrix(n) / torch.sqrt(
-                torch.tensor([n], dtype=torch.float32)
-            )
+            B = _get_haar_matrix(n) / torch.sqrt(torch.tensor([n], dtype=torch.float32))
             # weight for encoding the preference to low-frequency basis
             exp_factor = torch.ceil(torch.log2(torch.arange(n).float() + 1))
             basis_weight = tau**exp_factor
@@ -507,9 +503,7 @@ class FC(nn.Module):
             Tensor: with shape as ``inputs.shape[:-1] + (output_size,)``
         """
         if self._method == "fused_linear_act":
-            y = fused_linear_act(
-                inputs, self._weight, self._bias, self._act_name
-            )
+            y = fused_linear_act(inputs, self._weight, self._bias, self._act_name)
         elif self._method == "linear":
             y = F.linear(inputs, self._weight, self._bias)
         elif inputs.dim() == 2 and self._use_bias:
@@ -625,12 +619,8 @@ class FCBatchEnsemble(FC):
 
         self._r = nn.Parameter(torch.empty(ensemble_size, input_size))
         self._s = nn.Parameter(torch.empty(ensemble_size, output_size))
-        self._ensemble_bias = nn.Parameter(
-            torch.empty(ensemble_size, output_size)
-        )
-        assert isinstance(
-            ensemble_group, int
-        ), "ensemble_group has to be an integer!"
+        self._ensemble_bias = nn.Parameter(torch.empty(ensemble_size, output_size))
+        assert isinstance(ensemble_group, int), "ensemble_group has to be an integer!"
         self._r.ensemble_group = ensemble_group
         self._s.ensemble_group = ensemble_group
         self._ensemble_bias.ensemble_group = ensemble_group
@@ -649,12 +639,8 @@ class FCBatchEnsemble(FC):
         # class when both ``_s`` and ``_r`` are not initialized yet.
         if hasattr(self, "_r") and hasattr(self, "_s"):
             # Both r and s are initialized to +1/-1 according to Appendix B
-            torch.randint(
-                2, size=self._r.shape, dtype=torch.float32, out=self._r.data
-            )
-            torch.randint(
-                2, size=self._s.shape, dtype=torch.float32, out=self._s.data
-            )
+            torch.randint(2, size=self._r.shape, dtype=torch.float32, out=self._r.data)
+            torch.randint(2, size=self._s.shape, dtype=torch.float32, out=self._s.data)
             self._r.data.mul_(2)
             self._r.data.sub_(1)
             self._s.data.mul_(2)
@@ -688,9 +674,7 @@ class FCBatchEnsemble(FC):
         if type(inputs) == tuple:
             inputs, ensemble_ids = inputs
         else:
-            ensemble_ids = torch.randint(
-                self._ensemble_size, size=(inputs.shape[0],)
-            )
+            ensemble_ids = torch.randint(self._ensemble_size, size=(inputs.shape[0],))
         batch_size = inputs.shape[0]
         output_size, input_size = self._weight.shape
         r = self._r[ensemble_ids]  # [batch_size, input_size]
@@ -813,9 +797,7 @@ class ParallelFC(nn.Module):
         for i in range(self._n):
             if self._kernel_initializer is None:
                 if self._use_torch_init:
-                    nn.init.kaiming_uniform_(
-                        self._weight.data[i], a=math.sqrt(5)
-                    )
+                    nn.init.kaiming_uniform_(self._weight.data[i], a=math.sqrt(5))
                 else:
                     variance_scaling_init(
                         self._weight.data[i],
@@ -830,9 +812,7 @@ class ParallelFC(nn.Module):
                 for i in range(self._n):
                     self._bias_initializer(self._bias.data[i])
             elif self._use_torch_init and self._bias_init_value == 0.0:
-                fan_in, _ = nn.init._calculate_fan_in_and_fan_out(
-                    self._weight.data[0]
-                )
+                fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._weight.data[0])
                 bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
                 nn.init.uniform_(self._bias.data[i], -bound, bound)
             else:
@@ -874,9 +854,7 @@ class ParallelFC(nn.Module):
 
         if self._output_size == 1:
             # Temp fix due to https://github.com/pytorch/pytorch/issues/106951
-            y = torch.einsum(
-                "nbi,ni->nb", inputs, self._weight.squeeze(1)
-            )  # [n, B]
+            y = torch.einsum("nbi,ni->nb", inputs, self._weight.squeeze(1))  # [n, B]
             if self._bias is not None:
                 y = y + self._bias
             y = y.unsqueeze(2)  # [n, B, 1]
@@ -1043,9 +1021,7 @@ class CompositionalFC(nn.Module):
         y = y.transpose(0, 1)  # [B, n, k]
 
         if comp_weight is not None:
-            assert comp_weight.ndim == 2, (
-                "Wrong comp_weight.ndim=%d" % comp_weight.ndim
-            )
+            assert comp_weight.ndim == 2, "Wrong comp_weight.ndim=%d" % comp_weight.ndim
 
             # [B, 1, n] x [B, n, k] -> [B, 1, k] -> [B, k]
             y = torch.bmm(comp_weight.unsqueeze(1), y).squeeze(1)
@@ -1184,9 +1160,7 @@ class CausalConv1D(nn.Module):
         else:
             asymmetric_padding = ((kernel_size - 1) * dilation, 0)
 
-        self._pad = partial(
-            F.pad, pad=asymmetric_padding, mode="constant", value=0
-        )
+        self._pad = partial(F.pad, pad=asymmetric_padding, mode="constant", value=0)
         self._causal_conv1d = nn.Conv1d(
             in_channels,
             out_channels,
@@ -1219,9 +1193,7 @@ class CausalConv1D(nn.Module):
         else:
             self._kernel_initializer(self._causal_conv1d.weight.data)
         if self._use_bias:
-            nn.init.constant_(
-                self._causal_conv1d.bias.data, self._bias_init_value
-            )
+            nn.init.constant_(self._causal_conv1d.bias.data, self._bias_init_value)
         if self._bn is not None:
             self._bn.reset_parameters()
 
@@ -1355,9 +1327,7 @@ class Conv2D(nn.Module):
             self._kernel_initializer(self._conv2d.weight.data)
         if self._use_bias:
             if self._bias_init_value == 0:
-                fan_in, _ = nn.init._calculate_fan_in_and_fan_out(
-                    self._conv2d.weight
-                )
+                fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._conv2d.weight)
                 bound = 1 / math.sqrt(fan_in)
                 nn.init.uniform_(self._conv2d.bias, -bound, bound)
             else:
@@ -1479,12 +1449,8 @@ class Conv2DBatchEnsemble(Conv2D):
 
         self._r = nn.Parameter(torch.empty(ensemble_size, in_channels))
         self._s = nn.Parameter(torch.empty(ensemble_size, out_channels))
-        self._ensemble_bias = nn.Parameter(
-            torch.empty(ensemble_size, out_channels)
-        )
-        assert isinstance(
-            ensemble_group, int
-        ), "ensemble_group has to be an integer!"
+        self._ensemble_bias = nn.Parameter(torch.empty(ensemble_size, out_channels))
+        assert isinstance(ensemble_group, int), "ensemble_group has to be an integer!"
         self._r.ensemble_group = ensemble_group
         self._s.ensemble_group = ensemble_group
         self._ensemble_bias.ensemble_group = ensemble_group
@@ -1503,12 +1469,8 @@ class Conv2DBatchEnsemble(Conv2D):
         # class when both ``_s`` and ``_r`` are not initialized yet.
         if hasattr(self, "_r") and hasattr(self, "_s"):
             # Both r and s are initialized to +1/-1 according to Appendix B
-            torch.randint(
-                2, size=self._r.shape, dtype=torch.float32, out=self._r.data
-            )
-            torch.randint(
-                2, size=self._s.shape, dtype=torch.float32, out=self._s.data
-            )
+            torch.randint(2, size=self._r.shape, dtype=torch.float32, out=self._r.data)
+            torch.randint(2, size=self._s.shape, dtype=torch.float32, out=self._s.data)
             self._r.data.mul_(2)
             self._r.data.sub_(1)
             self._s.data.mul_(2)
@@ -1540,9 +1502,7 @@ class Conv2DBatchEnsemble(Conv2D):
         if type(inputs) == tuple:
             inputs, ensemble_ids = inputs
         else:
-            ensemble_ids = torch.randint(
-                self._ensemble_size, size=(inputs.shape[0],)
-            )
+            ensemble_ids = torch.randint(self._ensemble_size, size=(inputs.shape[0],))
         batch_size = inputs.shape[0]
         r = (
             self._r[ensemble_ids].unsqueeze_(-1).unsqueeze_(-1)
@@ -1552,9 +1512,7 @@ class Conv2DBatchEnsemble(Conv2D):
         )  # [B, out_channels, 1, 1]
         y = self._conv2d(inputs * r) * s
         if self._use_ensemble_bias:
-            bias = (
-                self._ensemble_bias[ensemble_ids].unsqueeze_(-1).unsqueeze_(-1)
-            )
+            bias = self._ensemble_bias[ensemble_ids].unsqueeze_(-1).unsqueeze_(-1)
             y += bias
         if self._bn is not None:
             y = self._bn(y)
@@ -1663,18 +1621,14 @@ class ParallelConv2D(nn.Module):
                 if self._use_torch_init:
                     nn.init.kaiming_uniform_(
                         self._conv2d.weight.data[
-                            i
-                            * self._out_channels : (i + 1)
-                            * self._out_channels
+                            i * self._out_channels : (i + 1) * self._out_channels
                         ],
                         a=math.sqrt(5),
                     )
                 else:
                     variance_scaling_init(
                         self._conv2d.weight.data[
-                            i
-                            * self._out_channels : (i + 1)
-                            * self._out_channels
+                            i * self._out_channels : (i + 1) * self._out_channels
                         ],
                         gain=self._kernel_init_gain,
                         nonlinearity=self._activation,
@@ -1753,9 +1707,7 @@ class ParallelConv2D(nn.Module):
             raise ValueError("Wrong img.ndim=%d" % img.ndim)
 
         # merge replica and channels
-        img = img.reshape(
-            img.shape[0], img.shape[1] * img.shape[2], *img.shape[3:]
-        )
+        img = img.reshape(img.shape[0], img.shape[1] * img.shape[2], *img.shape[3:])
 
         res = self._conv2d(img)
 
@@ -1765,9 +1717,7 @@ class ParallelConv2D(nn.Module):
             res = self._bn(res)
 
         # reshape back: [B, n*C', H', W'] -> [B, n, C', H', W']
-        res = res.reshape(
-            res.shape[0], self._n, self._out_channels, *res.shape[2:]
-        )
+        res = res.reshape(res.shape[0], self._n, self._out_channels, *res.shape[2:])
         return self._activation(res)
 
     @property
@@ -1880,9 +1830,7 @@ class ConvTranspose2D(nn.Module):
         else:
             self._kernel_initializer(self._conv_trans2d.weight.data)
         if self._use_bias:
-            nn.init.constant_(
-                self._conv_trans2d.bias.data, self._bias_init_value
-            )
+            nn.init.constant_(self._conv_trans2d.bias.data, self._bias_init_value)
         if self._bn is not None:
             self._bn.reset_parameters()
 
@@ -1997,9 +1945,7 @@ class ParallelConvTranspose2D(nn.Module):
         if use_bias:
             nn.init.constant_(self._conv_trans2d.bias.data, bias_init_value)
             # [n*C]->[n, C]
-            self._bias = self._conv_trans2d.bias.view(
-                self._n, self._out_channels
-            )
+            self._bias = self._conv_trans2d.bias.view(self._n, self._out_channels)
         else:
             self._bias = None
 
@@ -2057,9 +2003,7 @@ class ParallelConvTranspose2D(nn.Module):
             raise ValueError("Wrong img.ndim=%d" % img.ndim)
 
         # merge replica and channels
-        img = img.reshape(
-            img.shape[0], img.shape[1] * img.shape[2], *img.shape[3:]
-        )
+        img = img.reshape(img.shape[0], img.shape[1] * img.shape[2], *img.shape[3:])
 
         res = self._conv_trans2d(img)
         if self._bn is not None:
@@ -2141,9 +2085,7 @@ class ParamFC(nn.Module):
             self._bias = None
 
         if use_ln:
-            assert (
-                n_groups is not None
-            ), "n_groups has to be specified if use_ln"
+            assert n_groups is not None, "n_groups has to be specified if use_ln"
             self._ln = ParamLayerNorm1d(n_groups, output_size)
             self._n_groups = n_groups
         else:
@@ -2206,8 +2148,7 @@ class ParamFC(nn.Module):
         )
         if self._use_ln:
             assert theta.shape[0] == self._n_groups, (
-                "the input has wrong n_groups. Expecting n_groups %d"
-                % self._n_groups
+                "the input has wrong n_groups. Expecting n_groups %d" % self._n_groups
             )
         else:
             self._n_groups = theta.shape[0]
@@ -2232,9 +2173,7 @@ class ParamFC(nn.Module):
                 - ``D``: length of weight vector, should be self._weight_length
             reinitialize (bool): whether to reinitialize self._weight
         """
-        weight = weight.view(
-            self._n_groups, self._output_size, self._input_size
-        )
+        weight = weight.view(self._n_groups, self._output_size, self._input_size)
         if reinitialize:
             for i in range(self._n_groups):
                 if self._kernel_initializer is None:
@@ -2400,9 +2339,7 @@ class ParamConv2D(nn.Module):
             self._bias_length = 0
             self._bias = None
         if use_ln:
-            assert (
-                n_groups is not None
-            ), "n_groups has to be specified if use_ln"
+            assert n_groups is not None, "n_groups has to be specified if use_ln"
             self._ln = ParamLayerNorm2d(n_groups, out_channels)
             self._n_groups = n_groups
         else:
@@ -2466,8 +2403,7 @@ class ParamConv2D(nn.Module):
         )
         if self._use_ln:
             assert theta.shape[0] == self._n_groups, (
-                "the input has wrong n_groups. Expecting n_groups %d"
-                % self._n_groups
+                "the input has wrong n_groups. Expecting n_groups %d" % self._n_groups
             )
         else:
             self._n_groups = theta.shape[0]
@@ -2517,21 +2453,13 @@ class ParamConv2D(nn.Module):
             for i in range(self._n_groups):
                 if self._kernel_initializer is None:
                     variance_scaling_init(
-                        weight[
-                            i
-                            * self._out_channels : (i + 1)
-                            * self._out_channels
-                        ],
+                        weight[i * self._out_channels : (i + 1) * self._out_channels],
                         gain=self._kernel_init_gain,
                         nonlinearity=self._activation,
                     )
                 else:
                     self._kernel_initializer(
-                        weight[
-                            i
-                            * self._out_channels : (i + 1)
-                            * self._out_channels
-                        ]
+                        weight[i * self._out_channels : (i + 1) * self._out_channels]
                     )
         self._weight = weight
 
@@ -2605,11 +2533,11 @@ class ParamConv2D(nn.Module):
             elif img.ndim == 5:
                 # case 3: parallel input with unmerged group dim
                 assert (
-                    img.shape[1] == self._n_groups
-                    and img.shape[2] == self._in_channels
-                ), (
-                    "Input img has wrong shape %s. Expecting (B, %d, %d, H, W)"
-                    % (img.shape, self._n_groups, self._in_channels)
+                    img.shape[1] == self._n_groups and img.shape[2] == self._in_channels
+                ), "Input img has wrong shape %s. Expecting (B, %d, %d, H, W)" % (
+                    img.shape,
+                    self._n_groups,
+                    self._in_channels,
                 )
                 # merge group and channel dim
                 img = img.reshape(
@@ -2751,9 +2679,7 @@ class ResidueBlock(nn.Module):
             padding=padding,
             bias=bias,
         )
-        conv2 = conv_fn(
-            channels, channels, kernel_size, padding=padding, bias=bias
-        )
+        conv2 = conv_fn(channels, channels, kernel_size, padding=padding, bias=bias)
         nn.init.kaiming_normal_(conv1.weight.data)
         nn.init.kaiming_normal_(conv2.weight.data)
 
@@ -2864,9 +2790,7 @@ class BottleneckBlock(nn.Module):
         padding = (kernel_size - 1) // 2
         if v1_5:
             a = conv_fn(in_channels, filters1, 1, bias=bias)
-            b = conv_fn(
-                filters1, filters2, kernel_size, stride, padding, bias=bias
-            )
+            b = conv_fn(filters1, filters2, kernel_size, stride, padding, bias=bias)
         else:
             a = conv_fn(in_channels, filters1, 1, stride, bias=bias)
             b = conv_fn(filters1, filters2, kernel_size, 1, padding, bias=bias)
@@ -3148,9 +3072,7 @@ class TransformerBlock(nn.Module):
         assert m <= self._memory_size
 
         # [B, M, H, d_k] <= [B, M, d_model] * [d_model, d_k]
-        q = torch.matmul(query, self._q_proj).reshape(
-            batch_size, m, num_heads, d_k
-        )
+        q = torch.matmul(query, self._q_proj).reshape(batch_size, m, num_heads, d_k)
 
         # We select different versions of calculation based on memory consumption
         if n * d_k <= m * d_model:
@@ -3301,8 +3223,7 @@ class GFT(nn.Module):
         cnn_out = image.view(batch_size, channels, -1)
         ## compute K transformation matrices
         ts = [
-            l(sentence).view(batch_size, channels, channels + 1)
-            for l in self._t_layers
+            l(sentence).view(batch_size, channels, channels + 1) for l in self._t_layers
         ]
 
         ones = self._ones.expand(batch_size, 1, cnn_out.shape[-1])
@@ -3517,9 +3438,7 @@ def reset_parameters(module):
             reset_parameters(l)
     elif isinstance(module, nn.Module):
         if len(list(module.parameters())) > 0:
-            raise ValueError(
-                "Cannot reset_parameter for layer type %s." % type(module)
-            )
+            raise ValueError("Cannot reset_parameter for layer type %s." % type(module))
 
 
 class Detach(ElementwiseLayerBase):
@@ -3814,17 +3733,13 @@ class Sequential(nn.Module):
         """
         new_networks = []
         new_named_networks = {}
-        for net, input, output in zip(
-            self._networks, self._inputs, self._outputs
-        ):
+        for net, input, output in zip(self._networks, self._inputs, self._outputs):
             pnet = alf.layers.make_parallel_net(net, n)
             if not output:
                 new_networks.append((input, pnet))
             else:
                 new_named_networks[output] = (input, pnet)
-        return Sequential(
-            *new_networks, output=self._output, **new_named_networks
-        )
+        return Sequential(*new_networks, output=self._output, **new_named_networks)
 
 
 def make_parallel_net(module, n: int):
@@ -3889,9 +3804,7 @@ class NaiveParallelLayer(nn.Module):
         """
         super().__init__()
         if isinstance(module, nn.Module):
-            self._networks = nn.ModuleList(
-                [copy.deepcopy(module) for i in range(n)]
-            )
+            self._networks = nn.ModuleList([copy.deepcopy(module) for i in range(n)])
             for net in self._networks:
                 reset_parameters(net)
         else:

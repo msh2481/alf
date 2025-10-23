@@ -145,9 +145,11 @@ class EntropyTargetAlgorithm(Algorithm):
             max_entropy = 0.0
             self._stage.fill_(-2 - average_window)
         else:
-            assert target_entropy() <= max_entropy, (
-                "Target entropy %s should be less or equal than max entropy %s!"
-                % (target_entropy(), max_entropy)
+            assert (
+                target_entropy() <= max_entropy
+            ), "Target entropy %s should be less or equal than max entropy %s!" % (
+                target_entropy(),
+                max_entropy,
             )
         self.register_buffer(
             "_max_entropy", torch.tensor(max_entropy, dtype=torch.float32)
@@ -163,12 +165,8 @@ class EntropyTargetAlgorithm(Algorithm):
         # as required by the `torch.where` function later. This was not needed
         # in lower version of pytorch (e.g. 1.4) as it will cast a np.float64
         # to torch.float32.
-        self._slow_update_rate = torch.tensor(
-            slow_update_rate, dtype=torch.float32
-        )
-        self._fast_update_rate = torch.tensor(
-            fast_update_rate, dtype=torch.float32
-        )
+        self._slow_update_rate = torch.tensor(slow_update_rate, dtype=torch.float32)
+        self._fast_update_rate = torch.tensor(fast_update_rate, dtype=torch.float32)
 
     def predict_step(self, distribution_and_step_type, state):
         return AlgStep()
@@ -191,9 +189,7 @@ class EntropyTargetAlgorithm(Algorithm):
         else:
             return AlgStep()
 
-    def train_step(
-        self, distribution_and_step_type, state=None, rollout_info=None
-    ):
+    def train_step(self, distribution_and_step_type, state=None, rollout_info=None):
         """Train step.
 
         Args:
@@ -269,9 +265,7 @@ class EntropyTargetAlgorithm(Algorithm):
             fast_stage_thresh = 2.0 * target_entropy
 
         def _init_entropy():
-            self._max_entropy.fill_(
-                torch.min(0.8 * avg_entropy, avg_entropy / 0.8)
-            )
+            self._max_entropy.fill_(torch.min(0.8 * avg_entropy, avg_entropy / 0.8))
             self._stage.add_(1)
 
         def _init():
@@ -423,9 +417,7 @@ class NestedEntropyTargetAlgorithm(Algorithm):
         if alf.nest.is_nested(max_entropy):
             alf.nest.assert_same_structure(max_entropy, action_spec)
         else:
-            max_entropy = alf.nest.map_structure(
-                lambda x: max_entropy, action_spec
-            )
+            max_entropy = alf.nest.map_structure(lambda x: max_entropy, action_spec)
         algs = alf.nest.py_map_structure_with_path(
             _create_et, action_spec, target_entropy, max_entropy
         )
@@ -443,9 +435,7 @@ class NestedEntropyTargetAlgorithm(Algorithm):
         else:
             return AlgStep()
 
-    def train_step(
-        self, distribution_and_step_type, state=None, rollout_info=None
-    ):
+    def train_step(self, distribution_and_step_type, state=None, rollout_info=None):
         distribution, step_type = distribution_and_step_type
         infos = alf.nest.map_structure(
             lambda alg, dist: alg.train_step((dist, step_type)).info._replace(
@@ -575,12 +565,8 @@ class SGDEntropyTargetAlgorithm(Algorithm):
         the action distribution.
         """
         loss_info = info.loss
-        avg_entropy = self._entropy_averager.average(
-            -loss_info.extra.neg_entropy
-        )
-        alpha_loss = (
-            avg_entropy - self._target_entropy()
-        ).detach() * self._log_alpha
+        avg_entropy = self._entropy_averager.average(-loss_info.extra.neg_entropy)
+        alpha_loss = (avg_entropy - self._target_entropy()).detach() * self._log_alpha
         alpha = torch.exp(self._log_alpha).detach()
         entropy_loss = loss_info.loss * alpha
 

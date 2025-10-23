@@ -89,9 +89,7 @@ def _get_self_pose(self_transform):
 
     yaw = math.radians(trans.rotation.yaw)
 
-    pose = np.concatenate((self_loc, np.array([yaw])), axis=0).astype(
-        np.float32
-    )
+    pose = np.concatenate((self_loc, np.array([yaw])), axis=0).astype(np.float32)
     return pose
 
 
@@ -112,9 +110,7 @@ def geo_distance(loc1, loc2):
     dlon = d[1] * d2r
     lat1 = loc1[0] * d2r
     lat2 = loc2[0] * d2r
-    a = np.sin(0.5 * dlat) ** 2 + np.sin(0.5 * dlon) ** 2 * np.cos(
-        lat1
-    ) * np.cos(lat2)
+    a = np.sin(0.5 * dlat) ** 2 + np.sin(0.5 * dlon) ** 2 * np.cos(lat1) * np.cos(lat2)
     c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
     c = earth_radius * c
     return np.sqrt(c * c + d[2] * d[2])
@@ -193,9 +189,9 @@ class TrafficLightHandler(object):
             tv_loc = TrafficLightHandler.list_tv_loc[i]
             if tv_loc.distance(query_location) > dist_threshold:
                 continue
-            stopline_vtx[
-                TRAFFIC_LIGHT_STATES.index(traffic_light.state)
-            ].extend(TrafficLightHandler.list_stopline_vtx[i])
+            stopline_vtx[TRAFFIC_LIGHT_STATES.index(traffic_light.state)].extend(
+                TrafficLightHandler.list_stopline_vtx[i]
+            )
 
         return stopline_vtx[0], stopline_vtx[1], stopline_vtx[2]
 
@@ -339,12 +335,8 @@ class MapHandler(object):
 
     def _calculate_mask_size(self):
         """Convert map boundaries to size in term of number of pixel."""
-        width_in_meters = (
-            self._map_boundaries.max_x - self._map_boundaries.min_x
-        )
-        height_in_meters = (
-            self._map_boundaries.max_y - self._map_boundaries.min_y
-        )
+        width_in_meters = self._map_boundaries.max_x - self._map_boundaries.min_x
+        height_in_meters = self._map_boundaries.max_y - self._map_boundaries.min_y
         width_in_pixels = int(width_in_meters * self._pixels_per_meter)
         height_in_pixels = int(height_in_meters * self._pixels_per_meter)
         return height_in_pixels, width_in_pixels
@@ -402,12 +394,10 @@ class MapHandler(object):
         mask = self.make_empty_mask()
         for road_waypoints in self._waypoints_by_road:
             road_left_side = [
-                lateral_shift(w.transform, -w.lane_width * 0.5)
-                for w in road_waypoints
+                lateral_shift(w.transform, -w.lane_width * 0.5) for w in road_waypoints
             ]
             road_right_side = [
-                lateral_shift(w.transform, w.lane_width * 0.5)
-                for w in road_waypoints
+                lateral_shift(w.transform, w.lane_width * 0.5) for w in road_waypoints
             ]
 
             polygon_in_world = [*road_left_side, *reversed(road_right_side)]
@@ -426,10 +416,7 @@ class MapHandler(object):
     def get_lanes_mask(self):
         mask = self.make_empty_mask()
         for road_waypoints in self._waypoints_by_road:
-            if (
-                self._render_lanes_on_junctions
-                or not road_waypoints[0].is_junction
-            ):
+            if self._render_lanes_on_junctions or not road_waypoints[0].is_junction:
                 # Left Side
                 draw_lane_marking_single_side(
                     mask,
@@ -510,9 +497,7 @@ def draw_broken_line(canvas, color, closed, points, thickness):
     """
 
     # Select which lines are going to be rendered from the set of lines
-    broken_lines = [
-        x for n, x in enumerate(zip(*(iter(points),) * 20)) if n % 3 == 0
-    ]
+    broken_lines = [x for n, x in enumerate(zip(*(iter(points),) * 20)) if n % 3 == 0]
 
     # Draw selected lines
     for line in broken_lines:
@@ -551,9 +536,7 @@ def get_lane_markings(
     margin = 0.25
     sign = side.value
     marking_1 = [
-        location_to_pixel_func(
-            lateral_shift(wp.transform, sign * wp.lane_width * 0.5)
-        )
+        location_to_pixel_func(lateral_shift(wp.transform, sign * wp.lane_width * 0.5))
         for wp in waypoints
     ]
     if lane_marking_type == carla.LaneMarkingType.Broken or (
@@ -563,9 +546,7 @@ def get_lane_markings(
     else:
         marking_2 = [
             location_to_pixel_func(
-                lateral_shift(
-                    wp.transform, sign * (wp.lane_width * 0.5 + margin * 2)
-                )
+                lateral_shift(wp.transform, sign * (wp.lane_width * 0.5 + margin * 2))
             )
             for wp in waypoints
         ]
@@ -743,9 +724,7 @@ class CarlaMergedActionWrapper(AlfEnvironmentBaseWrapper):
         assert throttle_damping >= 0 and throttle_damping < 1, (
             "value should" " be in [0, 1)"
         )
-        assert (
-            brake_damping >= 0 and brake_damping < 1
-        ), "value should be in [0, 1)"
+        assert brake_damping >= 0 and brake_damping < 1, "value should be in [0, 1)"
 
         self._throttle_damping = throttle_damping
         self._brake_damping = brake_damping
@@ -783,9 +762,7 @@ class CarlaMergedActionWrapper(AlfEnvironmentBaseWrapper):
 
     def _step(self, action):
 
-        unmerged_action = torch.zeros(
-            *action.shape[0:-1], self._full_action_dim
-        )
+        unmerged_action = torch.zeros(*action.shape[0:-1], self._full_action_dim)
         # throttle
         valid_mask_throttle = (action[..., 0] >= self._throttle_damping).float()
         unmerged_action[..., 0] = (

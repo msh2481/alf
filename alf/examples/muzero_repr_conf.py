@@ -43,9 +43,7 @@ alf.config(
 alf.config(
     "MuzeroRepresentationImpl",
     model_ctor=SimpleMCTSModel,
-    reanalyze_td_steps_func=LinearTdStepFunc(
-        max_bootstrap_age=1.2, min_td_steps=1
-    ),
+    reanalyze_td_steps_func=LinearTdStepFunc(max_bootstrap_age=1.2, min_td_steps=1),
     train_repr_prediction=True,
     train_game_over_function=True,
     train_policy=False,

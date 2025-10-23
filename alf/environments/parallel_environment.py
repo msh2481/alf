@@ -102,17 +102,11 @@ class ParallelAlfEnvironment(alf_environment.AlfEnvironment):
             env_info=self._env_info_spec
         )
         if any(env.is_tensor_based for env in self._envs):
-            raise ValueError(
-                "All environments must be array-based environments."
-            )
+            raise ValueError("All environments must be array-based environments.")
         if any(env.action_spec() != self._action_spec for env in self._envs):
             raise ValueError("All environments must have the same action spec.")
-        if any(
-            env.time_step_spec() != self._time_step_spec for env in self._envs
-        ):
-            raise ValueError(
-                "All environments must have the same time_step_spec."
-            )
+        if any(env.time_step_spec() != self._time_step_spec for env in self._envs):
+            raise ValueError("All environments must have the same time_step_spec.")
         self._flatten = flatten
         self._closed = False
 
@@ -232,15 +226,11 @@ class ParallelAlfEnvironment(alf_environment.AlfEnvironment):
             Batch of observations, rewards, and done flags.
         """
         if not self._blocking:
-            time_steps = self._step_or_handle_last_done(
-                self._unstack_actions(actions)
-            )
+            time_steps = self._step_or_handle_last_done(self._unstack_actions(actions))
         else:
             time_steps = [
                 env.step(action, self._blocking)
-                for env, action in zip(
-                    self._envs, self._unstack_actions(actions)
-                )
+                for env, action in zip(self._envs, self._unstack_actions(actions))
             ]
 
         # When blocking is False we get promises that need to be called.
@@ -347,9 +337,7 @@ class ParallelAlfEnvironment(alf_environment.AlfEnvironment):
 
     def _unstack_actions(self, batched_actions):
         """Returns a list of actions from potentially nested batch of actions."""
-        batched_actions = nest.map_structure(
-            lambda x: x.cpu().numpy(), batched_actions
-        )
+        batched_actions = nest.map_structure(lambda x: x.cpu().numpy(), batched_actions)
         flattened_actions = nest.flatten(batched_actions)
         if self._flatten:
             unstacked_actions = zip(*flattened_actions)

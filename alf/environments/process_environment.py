@@ -78,9 +78,7 @@ def _init_after_spawn(context: SpawnedProcessContext):
 
     """
     if context.ddp_rank >= 0:
-        PerProcessContext().set_distributed(
-            context.ddp_rank, context.ddp_num_procs
-        )
+        PerProcessContext().set_distributed(context.ddp_rank, context.ddp_num_procs)
 
     # 0. Update the global context for this spawned process. This will
     #    alter the behavior of ``get_env()``.
@@ -337,9 +335,7 @@ class ProcessEnvironment(object):
         Args:
             wait_to_start (bool): Whether the call should wait for an env initialization.
         """
-        assert (
-            not self._conn
-        ), "Cannot start() ProcessEnvironment multiple times"
+        assert not self._conn, "Cannot start() ProcessEnvironment multiple times"
         mp_ctx = multiprocessing.get_context(self._start_method)
         self._conn, conn = mp_ctx.Pipe()
 

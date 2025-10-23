@@ -268,9 +268,7 @@ class FuncParVIAlgorithm(ParVIAlgorithm):
             assert (
                 function_bs is not None
             ), "need to specify batch_size of function outputs."
-            self._function_extra_bs = math.ceil(
-                function_bs * function_extra_bs_ratio
-            )
+            self._function_extra_bs = math.ceil(function_bs * function_extra_bs_ratio)
             self._function_extra_bs_sampler = function_extra_bs_sampler
             self._function_extra_bs_std = function_extra_bs_std
 
@@ -402,9 +400,7 @@ class FuncParVIAlgorithm(ParVIAlgorithm):
             data, target = inputs
             return super().train_step(
                 loss_func=functools.partial(self._function_neglogprob, target),
-                transform_func=functools.partial(
-                    self._function_transform, data
-                ),
+                transform_func=functools.partial(self._function_transform, data),
                 entropy_regularization=entropy_regularization,
                 loss_mask=loss_mask,
                 state=(),
@@ -509,9 +505,7 @@ class FuncParVIAlgorithm(ParVIAlgorithm):
             )
         else:
             # [B] -> [B, N]
-            target = target.unsqueeze(1).expand(
-                *target.shape[:1], num_particles
-            )
+            target = target.unsqueeze(1).expand(*target.shape[:1], num_particles)
 
         return self._loss_func(output, target)
 
@@ -554,9 +548,7 @@ class FuncParVIAlgorithm(ParVIAlgorithm):
             pred = probs.argmax(-1).cpu()  # [B, N, 1]
             vote = []
             for i in range(pred.shape[0]):
-                values, counts = torch.unique(
-                    pred[i], sorted=False, return_counts=True
-                )
+                values, counts = torch.unique(pred[i], sorted=False, return_counts=True)
                 modes = (counts == counts.max()).nonzero()
                 label = values[torch.randint(len(modes), (1,))]
                 vote.append(label)
@@ -602,9 +594,7 @@ class FuncParVIAlgorithm(ParVIAlgorithm):
         mean_probs_outlier = probs_outlier.mean(0)
 
         entropy = torch.distributions.Categorical(mean_probs).entropy()
-        entropy_outlier = torch.distributions.Categorical(
-            mean_probs_outlier
-        ).entropy()
+        entropy_outlier = torch.distributions.Categorical(mean_probs_outlier).entropy()
 
         variance = F.softmax(outputs, -1).var(0).sum(-1)
         variance_outlier = F.softmax(outputs_outlier, -1).var(0).sum(-1)

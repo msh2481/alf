@@ -69,9 +69,7 @@ class UnittestEnv(AlfEnvironment):
                     shape=(1,), dtype=torch.float32, minimum=[0], maximum=[1]
                 )
 
-        self._action_spec = alf.nest.map_structure(
-            _create_action_spec, action_type
-        )
+        self._action_spec = alf.nest.map_structure(_create_action_spec, action_type)
 
         self._nested_observation = nested_observation
         observation_spec = TensorSpec(shape=(obs_dim,), dtype=torch.float32)
@@ -125,9 +123,7 @@ class UnittestEnv(AlfEnvironment):
 
     def _step(self, action):
         self._steps += 1
-        time_step = self._gen_time_step(
-            self._steps % self._episode_length, action
-        )
+        time_step = self._gen_time_step(self._steps % self._episode_length, action)
         self._current_time_step = time_step._replace(
             prev_action=action,
             env_id=torch.arange(self.batch_size, dtype=torch.int32),
@@ -168,9 +164,7 @@ class ValueUnittestEnv(UnittestEnv):
             discount = 0.0
 
         return TimeStep(
-            step_type=torch.full(
-                [self.batch_size], step_type, dtype=torch.int32
-            ),
+            step_type=torch.full([self.batch_size], step_type, dtype=torch.int32),
             reward=torch.ones(self.batch_size),
             discount=torch.full(
                 [
@@ -219,9 +213,7 @@ class PolicyUnittestEnv(UnittestEnv):
             observation = (observation, torch.randn_like(observation))
 
         return TimeStep(
-            step_type=torch.full(
-                [self.batch_size], step_type, dtype=torch.int32
-            ),
+            step_type=torch.full([self.batch_size], step_type, dtype=torch.int32),
             reward=reward,
             discount=torch.full([self.batch_size], discount),
             observation=observation,
@@ -263,18 +255,14 @@ class MixedPolicyUnittestEnv(UnittestEnv):
             discount = 0.0
 
         if s > 0:
-            reward = (
-                action[0] == (action[1].squeeze(-1) > 0.5).to(torch.int64)
-            ).to(torch.float32)
+            reward = (action[0] == (action[1].squeeze(-1) > 0.5).to(torch.int64)).to(
+                torch.float32
+            )
 
-        observation = self._observation_spec.randn(
-            outer_dims=(self.batch_size,)
-        )
+        observation = self._observation_spec.randn(outer_dims=(self.batch_size,))
 
         return TimeStep(
-            step_type=torch.full(
-                [self.batch_size], step_type, dtype=torch.int32
-            ),
+            step_type=torch.full([self.batch_size], step_type, dtype=torch.int32),
             reward=reward,
             discount=torch.full([self.batch_size], discount),
             observation=observation,
@@ -328,9 +316,7 @@ class RNNPolicyUnittestEnv(UnittestEnv):
             reward = torch.zeros(self.batch_size)
         else:
             obs0 = self._observation0[:, 0].reshape(self.batch_size, 1)
-            reward = 1.0 - 0.5 * torch.abs(
-                2 * action.reshape(obs0.shape) - 1 - obs0
-            )
+            reward = 1.0 - 0.5 * torch.abs(2 * action.reshape(obs0.shape) - 1 - obs0)
             reward = reward.reshape(self.batch_size)
 
         if s == 0:
@@ -339,9 +325,7 @@ class RNNPolicyUnittestEnv(UnittestEnv):
             observation = torch.zeros(self.batch_size, obs_dim)
 
         return TimeStep(
-            step_type=torch.full(
-                [self.batch_size], step_type, dtype=torch.int32
-            ),
+            step_type=torch.full([self.batch_size], step_type, dtype=torch.int32),
             reward=reward,
             discount=torch.full([self.batch_size], discount),
             observation=observation,

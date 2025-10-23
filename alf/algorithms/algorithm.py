@@ -155,9 +155,7 @@ class Algorithm(AlgorithmInterface):
             self._data_transformer = config.data_transformer
         else:
             self._data_transformer = IdentityDataTransformer()
-        self._num_earliest_frames_ignored = (
-            self._data_transformer.stack_size - 1
-        )
+        self._num_earliest_frames_ignored = self._data_transformer.stack_size - 1
         self._transform_state_spec = self._data_transformer.state_spec
 
         self._observers = []
@@ -204,12 +202,8 @@ class Algorithm(AlgorithmInterface):
         self._is_on_policy = is_on_policy
         self._gns_estimator = None
         if config:
-            self._rl_train_every_update_steps = (
-                config.rl_train_every_update_steps
-            )
-            self._rl_train_after_update_steps = (
-                config.rl_train_after_update_steps
-            )
+            self._rl_train_every_update_steps = config.rl_train_every_update_steps
+            self._rl_train_after_update_steps = config.rl_train_after_update_steps
             if config.summarize_gradient_noise_scale:
                 self._gns_estimator = GradientNoiseScaleEstimator()
 
@@ -247,9 +241,9 @@ class Algorithm(AlgorithmInterface):
 
         if self._checkpoint is not None:
             prefix_and_path = self._checkpoint.split("@")
-            assert len(prefix_and_path) in [1, 2], (
-                "invalid checkpoint: " "{}"
-            ).format(prefix_and_path)
+            assert len(prefix_and_path) in [1, 2], ("invalid checkpoint: " "{}").format(
+                prefix_and_path
+            )
 
             if len(prefix_and_path) == 1:
                 # only path is provided
@@ -267,9 +261,7 @@ class Algorithm(AlgorithmInterface):
             status = self.load_state_dict(stat_dict, strict=True)
             # Currently, optimizers are not handled by this function
             missing_keys = list(
-                filter(
-                    lambda k: k.find("_optimizers.") < 0, status.missing_keys
-                )
+                filter(lambda k: k.find("_optimizers.") < 0, status.missing_keys)
             )
             assert not missing_keys and not status.unexpected_keys, (
                 "\033[1;31m Checkpoint mismatches with the model: \033[1;0m \n"
@@ -281,9 +273,7 @@ class Algorithm(AlgorithmInterface):
                 )
             )
             self._checkpoint_pre_loaded = True
-            common.info(
-                "in-algorithm checkpoint loaded: {}".format(prefix_and_path)
-            )
+            common.info("in-algorithm checkpoint loaded: {}".format(prefix_and_path))
 
     @property
     def pre_loaded(self):
@@ -399,9 +389,7 @@ class Algorithm(AlgorithmInterface):
     def force_params_visible_to_parent(self, flag: bool):
         self._force_params_visible_to_parent = flag
 
-    def set_replay_buffer(
-        self, num_envs, max_length: int, prioritized_sampling=False
-    ):
+    def set_replay_buffer(self, num_envs, max_length: int, prioritized_sampling=False):
         """Set the parameters for the replay buffer.
 
         Args:
@@ -561,8 +549,7 @@ class Algorithm(AlgorithmInterface):
         if alf.summary.should_record_summaries():
             mem = self._proc.memory_info().rss
             mem += sum(
-                child.memory_info().rss
-                for child in self._proc.children(recursive=True)
+                child.memory_info().rss for child in self._proc.children(recursive=True)
             )
             alf.summary.scalar(name="memory/cpu", data=mem // 1e6)
 
@@ -578,9 +565,7 @@ class Algorithm(AlgorithmInterface):
             torch.cuda.reset_peak_memory_stats()
             # TODO: consider using torch.cuda.empty_cache() to save memory.
 
-    def add_optimizer(
-        self, optimizer: torch.optim.Optimizer, modules_and_params
-    ):
+    def add_optimizer(self, optimizer: torch.optim.Optimizer, modules_and_params):
         """Add an optimizer.
 
         Note that the modules and params contained in ``modules_and_params``
@@ -727,9 +712,7 @@ class Algorithm(AlgorithmInterface):
 
         def _add_params_to_optimizer(params, opt):
             existing_params = set(_get_optimizer_params(opt))
-            added_param_list = list(
-                filter(lambda p: p not in existing_params, params)
-            )
+            added_param_list = list(filter(lambda p: p not in existing_params, params))
             if added_param_list:
                 opt.add_param_group({"params": added_param_list})
             return added_param_list
@@ -756,9 +739,7 @@ class Algorithm(AlgorithmInterface):
                     params += child_handled
                 else:
                     for m in child_handled:
-                        assert (
-                            m not in handled
-                        ), duplicate_error % param_to_name.get(m)
+                        assert m not in handled, duplicate_error % param_to_name.get(m)
                         handled[m] = 1
             elif isinstance(child, nn.Module):
                 params = list(child.parameters())
@@ -771,9 +752,7 @@ class Algorithm(AlgorithmInterface):
                     self._module_to_optimizer[child] = default_optimizer
             else:
                 for m in params:
-                    assert (
-                        m not in handled
-                    ), duplicate_error % param_to_name.get(m)
+                    assert m not in handled, duplicate_error % param_to_name.get(m)
                 params = _add_params_to_optimizer(params, optimizer)
                 handled.update((p, 1) for p in params)
 
@@ -806,9 +785,7 @@ class Algorithm(AlgorithmInterface):
             children = self._get_children(include_ignored_attributes)
             for module in children:
                 if isinstance(module, Algorithm):
-                    opts.extend(
-                        module.optimizers(recurse, include_ignored_attributes)
-                    )
+                    opts.extend(module.optimizers(recurse, include_ignored_attributes))
         return opts
 
     def get_optimizer_info(self):
@@ -837,9 +814,7 @@ class Algorithm(AlgorithmInterface):
                 dict(
                     optimizer=optimizer.__class__.__name__,
                     hypers=optimizer.defaults,
-                    parameters=sorted(
-                        [self._param_to_name[p] for p in parameters]
-                    ),
+                    parameters=sorted([self._param_to_name[p] for p in parameters]),
                 )
             )
         json_pretty_str_info = json.dumps(obj=optimizer_info, indent=2)
@@ -915,17 +890,13 @@ class Algorithm(AlgorithmInterface):
     def convert_train_state_to_predict_state(self, state):
         """Convert RNN state for ``train_step()`` to RNN state for
         ``predict_step()``."""
-        alf.nest.assert_same_structure(
-            self._train_state_spec, self._predict_state_spec
-        )
+        alf.nest.assert_same_structure(self._train_state_spec, self._predict_state_spec)
         return state
 
     def get_initial_transform_state(self, batch_size):
         r = self._initial_transform_states.get(batch_size)
         if r is None:
-            r = spec_utils.zeros_from_spec(
-                self._transform_state_spec, batch_size
-            )
+            r = spec_utils.zeros_from_spec(self._transform_state_spec, batch_size)
             self._initial_transform_states[batch_size] = r
         return r
 
@@ -992,9 +963,7 @@ class Algorithm(AlgorithmInterface):
         for name, child in self._modules.items():
             if child is not None and child not in visited:
                 visited.add(child)
-                child.state_dict(
-                    destination, prefix + name + ".", visited=visited
-                )
+                child.state_dict(destination, prefix + name + ".", visited=visited)
         if isinstance(self, Algorithm):
             self._setup_optimizers()
             for i, opt in enumerate(self._optimizers):
@@ -1049,9 +1018,7 @@ class Algorithm(AlgorithmInterface):
                     elif strict:
                         missing_keys.append(opt_key)
 
-            local_metadata = (
-                {} if metadata is None else metadata.get(prefix[:-1], {})
-            )
+            local_metadata = {} if metadata is None else metadata.get(prefix[:-1], {})
             if type(module)._load_from_state_dict in (
                 Algorithm._load_from_state_dict,
                 nn.Module._load_from_state_dict,
@@ -1545,9 +1512,7 @@ class Algorithm(AlgorithmInterface):
             int: number of steps that have been trained
         """
         if self.is_rl() and self._config.mask_out_loss_for_last_step:
-            valid_masks = (experience.step_type != StepType.LAST).to(
-                torch.float32
-            )
+            valid_masks = (experience.step_type != StepType.LAST).to(torch.float32)
         else:
             valid_masks = None
         experience = experience._replace(rollout_info_field="rollout_info")
@@ -1617,8 +1582,7 @@ class Algorithm(AlgorithmInterface):
         ):
 
             if (
-                self._replay_buffer.num_environments
-                * self._replay_buffer.max_length
+                self._replay_buffer.num_environments * self._replay_buffer.max_length
                 < config.initial_collect_steps
             ):
                 common.warning_once(
@@ -1666,10 +1630,7 @@ class Algorithm(AlgorithmInterface):
                     num_updates,
                     mini_batch_size,
                     config.mini_batch_length,
-                    (
-                        config.update_counter_every_mini_batch
-                        and update_global_counter
-                    ),
+                    (config.update_counter_every_mini_batch and update_global_counter),
                     whole_replay_buffer_training=config.whole_replay_buffer_training,
                 )
         else:
@@ -1715,10 +1676,7 @@ class Algorithm(AlgorithmInterface):
                     num_updates,
                     mini_batch_size,
                     config.mini_batch_length,
-                    (
-                        config.update_counter_every_mini_batch
-                        and update_global_counter
-                    ),
+                    (config.update_counter_every_mini_batch and update_global_counter),
                 )
 
     def _train_experience(
@@ -1797,9 +1755,9 @@ class Algorithm(AlgorithmInterface):
             if batch_size % mini_batch_size > 0:
                 num_batches_desired = batch_size // mini_batch_size
                 if num_batches_desired > 0:
-                    mini_batch_size = np.ceil(
-                        batch_size / num_batches_desired
-                    ).astype(int)
+                    mini_batch_size = np.ceil(batch_size / num_batches_desired).astype(
+                        int
+                    )
 
         if self._config.empty_cache:
             torch.cuda.empty_cache()
@@ -1808,9 +1766,7 @@ class Algorithm(AlgorithmInterface):
         indices = None
         for u in range(num_updates):
             if mini_batch_size < batch_size:
-                indices = torch.randperm(
-                    batch_size, device=experience.step_type.device
-                )
+                indices = torch.randperm(batch_size, device=experience.step_type.device)
             for b in range(0, batch_size, mini_batch_size):
                 alf.summary.set_grad_step_counter(grad_step)
                 grad_step += 1
@@ -1859,9 +1815,7 @@ class Algorithm(AlgorithmInterface):
         whole_replay_buffer_training=False,
     ):
         # Apply transformation and enrichment to the experience.
-        experience = dist_utils.params_to_distributions(
-            experience, experience_spec
-        )
+        experience = dist_utils.params_to_distributions(experience, experience_spec)
         experience, batch_info = self.filter_experience(experience, batch_info)
         experience = alf.data_structures.add_batch_info(
             experience, batch_info, replay_buffer
@@ -1891,9 +1845,7 @@ class Algorithm(AlgorithmInterface):
             time_step, rollout_info = self.preprocess_experience(
                 experience.time_step, experience.rollout_info, batch_info
             )
-        experience = experience._replace(
-            time_step=time_step, rollout_info=rollout_info
-        )
+        experience = experience._replace(time_step=time_step, rollout_info=rollout_info)
 
         processed_exp_spec = dist_utils.extract_spec(experience, from_dim=2)
 
@@ -2006,16 +1958,10 @@ class Algorithm(AlgorithmInterface):
                     "contain the 'step_type' field. No way to reinitialize "
                     "the state but will simply keep updating it."
                 )
-            policy_step = self.train_step(
-                exp.time_step, policy_state, exp.rollout_info
-            )
+            policy_step = self.train_step(exp.time_step, policy_state, exp.rollout_info)
             if self._train_info_spec is None:
-                self._train_info_spec = dist_utils.extract_spec(
-                    policy_step.info
-                )
-            info_list.append(
-                dist_utils.distributions_to_params(policy_step.info)
-            )
+                self._train_info_spec = dist_utils.extract_spec(policy_step.info)
+            info_list.append(dist_utils.distributions_to_params(policy_step.info))
             policy_state = policy_step.state
 
         info = alf.nest.utils.stack_nests(info_list)
@@ -2026,9 +1972,7 @@ class Algorithm(AlgorithmInterface):
         shape = alf.nest.get_nest_shape(experience)
         length, batch_size = shape[:2]
 
-        exp = alf.nest.map_structure(
-            lambda x: x.reshape(-1, *x.shape[2:]), experience
-        )
+        exp = alf.nest.map_structure(lambda x: x.reshape(-1, *x.shape[2:]), experience)
 
         if self._use_rollout_state:
             policy_state = exp.state
@@ -2036,12 +1980,8 @@ class Algorithm(AlgorithmInterface):
             size = alf.nest.get_nest_size(exp, dim=0)
             policy_state = self.get_initial_train_state(size)
 
-        exp = dist_utils.params_to_distributions(
-            exp, self.processed_experience_spec
-        )
-        policy_step = self.train_step(
-            exp.time_step, policy_state, exp.rollout_info
-        )
+        exp = dist_utils.params_to_distributions(exp, self.processed_experience_spec)
+        policy_step = self.train_step(exp.time_step, policy_state, exp.rollout_info)
 
         if self._train_info_spec is None:
             self._train_info_spec = dist_utils.extract_spec(policy_step.info)
@@ -2072,9 +2012,7 @@ class Algorithm(AlgorithmInterface):
 
         return train_info, loss_info
 
-    def _update_priority(
-        self, loss_info, batch_info, replay_buffer: ReplayBuffer
-    ):
+    def _update_priority(self, loss_info, batch_info, replay_buffer: ReplayBuffer):
         """Update the priority of the ``replay buffer`` based on the ``priority``
         field of loss_info.
         """
@@ -2089,9 +2027,7 @@ class Algorithm(AlgorithmInterface):
             )
             if self._debug_summaries and alf.summary.should_record_summaries():
                 with alf.summary.scope("PriorityReplay"):
-                    summary_utils.add_mean_hist_summary(
-                        "new_priority", priority
-                    )
+                    summary_utils.add_mean_hist_summary("new_priority", priority)
                     summary_utils.add_mean_hist_summary(
                         "old_importance_weight", batch_info.importance_weights
                     )
@@ -2112,16 +2048,12 @@ class Algorithm(AlgorithmInterface):
         with torch.cuda.amp.autocast(
             self._config.enable_amp, dtype=self._config.amp_dtype
         ):
-            train_info, loss_info = self._compute_train_info_and_loss_info(
-                experience
-            )
+            train_info, loss_info = self._compute_train_info_and_loss_info(experience)
 
         self._update_priority(loss_info, batch_info, self._replay_buffer)
 
         if self.is_rl() and self._config.mask_out_loss_for_last_step:
-            valid_masks = (experience.step_type != StepType.LAST).to(
-                torch.float32
-            )
+            valid_masks = (experience.step_type != StepType.LAST).to(torch.float32)
         else:
             valid_masks = None
         loss_info, params = self.update_with_gradient(
@@ -2135,9 +2067,7 @@ class Algorithm(AlgorithmInterface):
         shape = alf.nest.get_nest_shape(experience)
         length, batch_size = shape[:2]
 
-        exp = alf.nest.map_structure(
-            lambda x: x.reshape(-1, *x.shape[2:]), experience
-        )
+        exp = alf.nest.map_structure(lambda x: x.reshape(-1, *x.shape[2:]), experience)
 
         if self._use_rollout_state:
             policy_state = exp.state
@@ -2214,15 +2144,11 @@ class Algorithm(AlgorithmInterface):
         mini_batch_info_list = []
         for experience, batch_info in zip(experience_list, batch_info_list):
             if experience is not None:
-                batch = alf.nest.map_structure(
-                    lambda x: x[batch_indices], experience
-                )
+                batch = alf.nest.map_structure(lambda x: x[batch_indices], experience)
                 if batch_info:
                     binfo = alf.nest.map_structure(
                         lambda x: (
-                            x[batch_indices]
-                            if isinstance(x, torch.Tensor)
-                            else x
+                            x[batch_indices] if isinstance(x, torch.Tensor) else x
                         ),
                         batch_info,
                     )
@@ -2347,9 +2273,7 @@ class Algorithm(AlgorithmInterface):
                     )
                     if do_summary:
                         if exp:
-                            self.summarize_train(
-                                exp, train_info, loss_info, params
-                            )
+                            self.summarize_train(exp, train_info, loss_info, params)
                         if offline_exp:
                             with alf.summary.scope("offline"):
                                 self.summarize_train(
@@ -2389,9 +2313,7 @@ class Algorithm(AlgorithmInterface):
                 train_info, loss_info = self._compute_train_info_and_loss_info(
                     experience
                 )
-                self._update_priority(
-                    loss_info, batch_info, self._replay_buffer
-                )
+                self._update_priority(loss_info, batch_info, self._replay_buffer)
         else:
             train_info = None
             loss_info = None
@@ -2444,9 +2366,7 @@ class Algorithm(AlgorithmInterface):
 
         if loss_info is not None:
             if self.is_rl():
-                valid_masks = (experience.step_type != StepType.LAST).to(
-                    torch.float32
-                )
+                valid_masks = (experience.step_type != StepType.LAST).to(torch.float32)
             else:
                 valid_masks = None
 
@@ -2455,16 +2375,12 @@ class Algorithm(AlgorithmInterface):
 
             loss_info = self._aggregate_loss(loss_info, valid_masks, batch_info)
             # TODO: merge loss infos into one for summarization
-            loss_info = loss_info._replace(
-                loss=loss_info.loss + offline_loss_info.loss
-            )
+            loss_info = loss_info._replace(loss=loss_info.loss + offline_loss_info.loss)
 
         else:
             loss_info = offline_loss_info
 
-        params, gns = self._backward_and_gradient_update(
-            loss_info.loss * weight
-        )
+        params, gns = self._backward_and_gradient_update(loss_info.loss * weight)
 
         if self._pre_train:
             self.after_update(offline_experience.time_step, offline_train_info)
@@ -2473,9 +2389,7 @@ class Algorithm(AlgorithmInterface):
             self.after_update(experience.time_step, train_info)
 
         loss_info = alf.nest.map_structure(torch.mean, loss_info)
-        offline_loss_info = alf.nest.map_structure(
-            torch.mean, offline_loss_info
-        )
+        offline_loss_info = alf.nest.map_structure(torch.mean, offline_loss_info)
 
         return (
             experience,

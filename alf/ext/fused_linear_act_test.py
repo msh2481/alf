@@ -26,9 +26,7 @@ from alf.tensor_specs import torch_dtype_to_str
 @unittest.skipIf(not torch.cuda.is_available(), "CUDA not available")
 class FusedLinearActTest(alf.test.TestCase, parameterized.TestCase):
 
-    def _do_one_test_fused_linear_act(
-        self, m, n, k, transa, transb, act, dtype
-    ):
+    def _do_one_test_fused_linear_act(self, m, n, k, transa, transb, act, dtype):
         # Test the fused linear activation function
         if transa:
             A = torch.randn(k, m, device="cuda", dtype=dtype)
@@ -144,9 +142,7 @@ class FusedLinearActTest(alf.test.TestCase, parameterized.TestCase):
                         if feature_shape[0] == 360000 and backward:
                             # Too large for backward
                             continue
-                        self.benchmark_one(
-                            feature_shape, out_dim, act, dtype, backward
-                        )
+                        self.benchmark_one(feature_shape, out_dim, act, dtype, backward)
 
     def benchmark_one(self, feature_shape, out_dim, act, dtype, backward):
         A = torch.randn(
@@ -159,9 +155,7 @@ class FusedLinearActTest(alf.test.TestCase, parameterized.TestCase):
             dtype=dtype,
             requires_grad=backward,
         )
-        bias = torch.randn(
-            out_dim, device="cuda", dtype=dtype, requires_grad=backward
-        )
+        bias = torch.randn(out_dim, device="cuda", dtype=dtype, requires_grad=backward)
 
         def fused_linear_act_func():
             C = fused_linear_act(A, B, bias, act)

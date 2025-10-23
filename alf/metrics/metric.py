@@ -43,24 +43,18 @@ class StepMetric(nn.Module):
             *args:
             **kwargs: A mini-batch of inputs to the Metric.
         """
-        raise NotImplementedError(
-            "Metrics must define a call() member function"
-        )
+        raise NotImplementedError("Metrics must define a call() member function")
 
     def forward(self, *args, **kwargs):
         pass
 
     def reset(self):
         """Resets the values being tracked by the metric."""
-        raise NotImplementedError(
-            "Metrics must define a reset() member function"
-        )
+        raise NotImplementedError("Metrics must define a reset() member function")
 
     def result(self):
         """Computes and returns a final value for the metric."""
-        raise NotImplementedError(
-            "Metrics must define a result() member function"
-        )
+        raise NotImplementedError("Metrics must define a result() member function")
 
     def std(self):
         """Computes the standard deviation of the metric.

@@ -142,23 +142,13 @@ class FastParallelEnvironment(alf_environment.AlfEnvironment):
         batch_size_per_env = self._envs[0].batch_size
         batched = self._envs[0].batched
         if any(env.is_tensor_based for env in self._envs):
-            raise ValueError(
-                "All environments must be array-based environments."
-            )
+            raise ValueError("All environments must be array-based environments.")
         if any(env.action_spec() != self._action_spec for env in self._envs):
             raise ValueError("All environments must have the same action spec.")
-        if any(
-            env.time_step_spec() != self._time_step_spec for env in self._envs
-        ):
-            raise ValueError(
-                "All environments must have the same time_step_spec."
-            )
-        if any(
-            env.env_info_spec() != self._env_info_spec for env in self._envs
-        ):
-            raise ValueError(
-                "All environments must have the same env_info_spec."
-            )
+        if any(env.time_step_spec() != self._time_step_spec for env in self._envs):
+            raise ValueError("All environments must have the same time_step_spec.")
+        if any(env.env_info_spec() != self._env_info_spec for env in self._envs):
+            raise ValueError("All environments must have the same env_info_spec.")
         if any(env.batch_size != batch_size_per_env for env in self._envs):
             raise ValueError("All environments must have the same batch_size.")
         if any(env.batched != batched for env in self._envs):
@@ -184,9 +174,7 @@ class FastParallelEnvironment(alf_environment.AlfEnvironment):
         return self._num_spare_envs_for_reload
 
     def start(self):
-        acting_text = {"fork": "Forking", "spawn": "Spawning"}[
-            self._start_method
-        ]
+        acting_text = {"fork": "Forking", "spawn": "Spawning"}[self._start_method]
         logging.info(f"{acting_text} all {len(self._envs)} processes.")
         for env in self._envs:
             env.start(wait_to_start=self._start_serially)

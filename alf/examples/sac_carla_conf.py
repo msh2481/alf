@@ -146,9 +146,7 @@ encoder_cls = partial(
     input_preprocessors=carla_conf.create_input_preprocessors(
         encoding_dim, use_batch_normalization
     ),
-    preprocessing_combiner=alf.layers.NestSum(
-        activation=activation, average=True
-    ),
+    preprocessing_combiner=alf.layers.NestSum(activation=activation, average=True),
     activation=activation,
     fc_layer_params=fc_layers_params,
 )
@@ -177,9 +175,7 @@ decoder_ctor = partial(
 )
 dynamics_net_ctor = partial(
     alf.networks.LSTMEncodingNetwork,
-    preprocessing_combiner=alf.layers.NestSum(
-        activation=activation, average=True
-    ),
+    preprocessing_combiner=alf.layers.NestSum(activation=activation, average=True),
     hidden_size=(encoding_dim, encoding_dim),
 )
 alf.config(

@@ -71,9 +71,7 @@ class ProcessEnvironmentTest(alf.test.TestCase):
 
     def test_reraise_exception_in_step(self):
         crash_at_step = 3
-        constructor = functools.partial(
-            MockEnvironmentCrashInStep, crash_at_step
-        )
+        constructor = functools.partial(MockEnvironmentCrashInStep, crash_at_step)
         env = ProcessEnvironment(constructor)
         env.start()
         env.reset()
@@ -125,9 +123,7 @@ class MockEnvironmentCrashInStep(RandomAlfEnvironment):
         self._steps = 0
 
     def _step(self, *args, **kwargs):
-        transition = super(MockEnvironmentCrashInStep, self)._step(
-            *args, **kwargs
-        )
+        transition = super(MockEnvironmentCrashInStep, self)._step(*args, **kwargs)
         self._steps += 1
         if self._steps == self._crash_at_step:
             raise RuntimeError()

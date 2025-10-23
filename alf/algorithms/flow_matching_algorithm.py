@@ -137,9 +137,7 @@ class FlowMatchingAlgorithm(Algorithm):
 
     def _get_random_noise(self, batch_size):
         # Sample a random noise at t=0
-        noise = (
-            self._noise_spec.randn(outer_dims=(batch_size,)) * self._noise_std
-        )
+        noise = self._noise_spec.randn(outer_dims=(batch_size,)) * self._noise_std
         return self._resize_noise(noise)
 
     def _resize_noise(self, noise):
@@ -228,9 +226,7 @@ class FlowMatchingAlgorithm(Algorithm):
             tau = torch.full((batch_size,), t)
             if self._int_type == "midpoint":
                 output_mid = _time_forward(output, output, tau, delta / 2)
-                output = _time_forward(
-                    output, output_mid, tau + delta / 2, delta
-                )
+                output = _time_forward(output, output_mid, tau + delta / 2, delta)
             else:
                 output = _time_forward(output, output, tau, delta)
             outputs.append(output)

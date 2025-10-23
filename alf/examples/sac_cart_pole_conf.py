@@ -20,9 +20,7 @@ from alf.utils.losses import element_wise_squared_loss
 from alf.algorithms.sac_algorithm import SacAlgorithm
 
 # environment config
-alf.config(
-    "create_environment", env_name="CartPole-v0", num_parallel_environments=8
-)
+alf.config("create_environment", env_name="CartPole-v0", num_parallel_environments=8)
 
 # algorithm config
 alf.config("QNetwork", fc_layer_params=(100,))
@@ -37,9 +35,7 @@ alf.config(
     target_update_tau=0.01,
 )
 
-alf.config(
-    "OneStepTDLoss", td_error_loss_fn=element_wise_squared_loss, gamma=0.98
-)
+alf.config("OneStepTDLoss", td_error_loss_fn=element_wise_squared_loss, gamma=0.98)
 
 # training config
 alf.config(

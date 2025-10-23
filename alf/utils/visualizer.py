@@ -109,9 +109,7 @@ def critic_network_visualizer(
     )
 
     assert action_upper_right.ndim == 1, "Only support 1D action"
-    action_lower_right = (
-        action_upper_right + action_lower_left - action_upper_left
-    )
+    action_lower_right = action_upper_right + action_lower_left - action_upper_left
 
     # create the mini-image: [action_dim, 2, 2]
     # [action_upper_left,  action_upper_right]

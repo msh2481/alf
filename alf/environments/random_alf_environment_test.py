@@ -106,9 +106,7 @@ class RandomAlfEnvironmentTest(parameterized.TestCase, alf.test.TestCase):
 
         action_spec = BoundedTensorSpec((1,), torch.int64, -10, 10)
         observation_spec = BoundedTensorSpec((1,), torch.int32, -10, 10)
-        env = RandomAlfEnvironment(
-            observation_spec, action_spec, reward_fn=reward_fn
-        )
+        env = RandomAlfEnvironment(observation_spec, action_spec, reward_fn=reward_fn)
 
         action = np.array(1, dtype=np.int64)
         time_step = env.step(action)  # No reward in first time_step
@@ -119,9 +117,7 @@ class RandomAlfEnvironmentTest(parameterized.TestCase, alf.test.TestCase):
     def testRendersImage(self):
         action_spec = BoundedTensorSpec((1,), torch.int64, -10, 10)
         observation_spec = BoundedTensorSpec((1,), torch.int32, -10, 10)
-        env = RandomAlfEnvironment(
-            observation_spec, action_spec, render_size=(4, 4, 3)
-        )
+        env = RandomAlfEnvironment(observation_spec, action_spec, render_size=(4, 4, 3))
 
         env.reset()
         img = env.render()

@@ -50,9 +50,7 @@ class SACAlgorithmTestInit(alf.test.TestCase):
             BoundedTensorSpec((10,)),
         ]
 
-        universal_q_network = partial(
-            QNetwork, preprocessing_combiner=NestConcat()
-        )
+        universal_q_network = partial(QNetwork, preprocessing_combiner=NestConcat())
         critic_network = partial(
             CriticNetwork, action_preprocessing_combiner=NestConcat()
         )
@@ -212,17 +210,13 @@ class SACAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
                 n_seconds=1,
             )
 
-        self.assertAlmostEqual(
-            1.0, float(eval_time_step.reward.mean()), delta=0.3
-        )
+        self.assertAlmostEqual(1.0, float(eval_time_step.reward.mean()), delta=0.3)
 
 
 class SACAlgorithmTestDiscrete(parameterized.TestCase, alf.test.TestCase):
 
     @parameterized.parameters((True, 1), (False, 3))
-    def test_sac_algorithm_discrete(
-        self, use_naive_parallel_network, reward_dim
-    ):
+    def test_sac_algorithm_discrete(self, use_naive_parallel_network, reward_dim):
         num_env = 1
         config = TrainerConfig(
             root_dir="dummy",
@@ -290,9 +284,7 @@ class SACAlgorithmTestDiscrete(parameterized.TestCase, alf.test.TestCase):
                 n_seconds=1,
             )
 
-        self.assertAlmostEqual(
-            1.0, float(eval_time_step.reward.mean()), delta=0.2
-        )
+        self.assertAlmostEqual(1.0, float(eval_time_step.reward.mean()), delta=0.2)
 
 
 class SACAlgorithmTestMixed(parameterized.TestCase, alf.test.TestCase):
@@ -370,9 +362,7 @@ class SACAlgorithmTestMixed(parameterized.TestCase, alf.test.TestCase):
                 n_seconds=1,
             )
 
-        self.assertAlmostEqual(
-            1.0, float(eval_time_step.reward.mean()), delta=0.2
-        )
+        self.assertAlmostEqual(1.0, float(eval_time_step.reward.mean()), delta=0.2)
 
 
 if __name__ == "__main__":

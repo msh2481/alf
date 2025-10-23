@@ -20,9 +20,7 @@ from alf.utils.losses import element_wise_squared_loss
 from alf.algorithms.ppg_algorithm import PPGAuxOptions
 
 # Environment Configuration
-alf.config(
-    "create_environment", env_name="bossfight", num_parallel_environments=96
-)
+alf.config("create_environment", env_name="bossfight", num_parallel_environments=96)
 
 
 def encoding_network_ctor(input_tensor_spec):

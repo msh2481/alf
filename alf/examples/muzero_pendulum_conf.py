@@ -41,9 +41,7 @@ def define_config(name, default_value):
 train_repr_prediction = define_config("train_repr_prediction", False)
 initial_scale = define_config("initial_scale", 1.0)
 
-alf.config(
-    "create_environment", env_name="Pendulum-v0", num_parallel_environments=1
-)
+alf.config("create_environment", env_name="Pendulum-v0", num_parallel_environments=1)
 
 alf.config(
     "StableNormalProjectionNetwork",

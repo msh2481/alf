@@ -177,9 +177,7 @@ class MaskedTransformer(torch.nn.Module):
     def forward(self, inputs):
         x, map_mask, agent_mask = inputs
         B = x.shape[0]
-        mask = torch.hstack(
-            (torch.zeros(B, 1, dtype=bool), map_mask, agent_mask)
-        )
+        mask = torch.hstack((torch.zeros(B, 1, dtype=bool), map_mask, agent_mask))
         for layer in self._tf_layers:
             x = layer(memory=x, mask=mask)
         return x
@@ -227,9 +225,7 @@ def create_representation_net(observation_spec):
 def create_ego_centric_dynamics(input_tensor_spec):
     _, action_spec = input_tensor_spec
 
-    action_embedding = EmbeddingConfig(
-        d_input=action_spec.shape[-1], hidden=(128,)
-    )
+    action_embedding = EmbeddingConfig(d_input=action_spec.shape[-1], hidden=(128,))
     transition = EmbeddingConfig(d_input=d_model * 2, hidden=(512,))
 
     return alf.nn.Sequential(
@@ -260,9 +256,7 @@ def create_prediction_net(state_spec, action_spec, initial_game_over_bias=-5):
         if not x.requires_grad:
             return x
         if alf.summary.should_record_summaries():
-            return summarize_tensor_gradients(
-                "SimpleMCTSModel/" + name, x, clone=True
-            )
+            return summarize_tensor_gradients("SimpleMCTSModel/" + name, x, clone=True)
         else:
             return x
 
@@ -343,9 +337,7 @@ def create_prediction_net(state_spec, action_spec, initial_game_over_bias=-5):
     )
 
 
-lr_schedule = StepScheduler(
-    "percent", [(0.8, initial_lr), (1.0, 0.05 * initial_lr)]
-)
+lr_schedule = StepScheduler("percent", [(0.8, initial_lr), (1.0, 0.05 * initial_lr)])
 
 alf.config(
     "MCTSModel",

@@ -46,9 +46,7 @@ class SegmentTree(nn.Module):
         self._name = name
         self._device = device
         with alf.device(self._device):
-            self.register_buffer(
-                "_values", torch.zeros((2 * capacity,), dtype=dtype)
-            )
+            self.register_buffer("_values", torch.zeros((2 * capacity,), dtype=dtype))
         self._op = op
         self._capacity = capacity
         self._leftmost_leaf = 1
@@ -152,9 +150,7 @@ class SumSegmentTree(SegmentTree):
     def __init__(
         self, capacity, dtype=torch.float32, device="cpu", name="SumSegmentTree"
     ):
-        super().__init__(
-            capacity, torch.add, dtype=dtype, device=device, name=name
-        )
+        super().__init__(capacity, torch.add, dtype=dtype, device=device, name=name)
         self._nnz = 0
 
     def __setitem__(self, indices, values):

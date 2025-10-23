@@ -145,12 +145,8 @@ class _OnnxWrapper(torch.nn.Module):
         # Sometimes we will return Distributions in the output. In this case,
         # we need to convert them to
         example_output = self._method(*example_args, **example_kwargs)
-        self._example_output_params = dist_utils.distributions_to_params(
-            example_output
-        )
-        self._output_params_spec = dist_utils.extract_spec(
-            self._example_output_params
-        )
+        self._example_output_params = dist_utils.distributions_to_params(example_output)
+        self._output_params_spec = dist_utils.extract_spec(self._example_output_params)
         self._output_spec = dist_utils.extract_spec(example_output)
 
     @property
@@ -177,9 +173,7 @@ class _OnnxWrapper(torch.nn.Module):
         output_nest = alf.nest.py_pack_sequence_as(
             self._output_params_spec, forward_output
         )
-        output = dist_utils.params_to_distributions(
-            output_nest, self._output_spec
-        )
+        output = dist_utils.params_to_distributions(output_nest, self._output_spec)
         return output
 
     @torch.no_grad()
@@ -194,11 +188,7 @@ class _OnnxWrapper(torch.nn.Module):
         # TODO: find a better way to figure out which args are actually used
         # in the onnx graph, and pass this info to the run() of tensorRT engine.
         dummy_output = sum(
-            [
-                a.float().mean()
-                for a in flat_all_args
-                if isinstance(a, torch.Tensor)
-            ]
+            [a.float().mean() for a in flat_all_args if isinstance(a, torch.Tensor)]
         )
         ###############################
 
@@ -282,9 +272,7 @@ class OnnxRuntimeEngine(object):
         example_args = _dtype_conversions(example_args)
         example_kwargs = _dtype_conversions(example_kwargs)
 
-        self._onnx_wrapper = _OnnxWrapper(
-            module, method, example_args, example_kwargs
-        )
+        self._onnx_wrapper = _OnnxWrapper(module, method, example_args, example_kwargs)
 
         flat_all_args = tuple(alf.nest.flatten([example_args, example_kwargs]))
 
@@ -391,9 +379,7 @@ class TensorRTEngine(object):
         self._validate_args = validate_args
         self._example_args = example_args
         self._example_kwargs = example_kwargs
-        self._onnx_wrapper = _OnnxWrapper(
-            module, method, example_args, example_kwargs
-        )
+        self._onnx_wrapper = _OnnxWrapper(module, method, example_args, example_kwargs)
         flat_all_args = tuple(alf.nest.flatten([example_args, example_kwargs]))
         self._inputs = flat_all_args
         self._outputs = alf.nest.flatten(self._onnx_wrapper.example_output)
@@ -482,9 +468,7 @@ class TensorRTEngine(object):
             if fp16:
                 config.set_flag(trt.BuilderFlag.FP16)
             # Build the engine
-            serialized_engine = builder.build_serialized_network(
-                network, config
-            )
+            serialized_engine = builder.build_serialized_network(network, config)
             # Create a runtime to deserialize the engine
             runtime = trt.Runtime(TRT_LOGGER)
             # Deserialize the engine
@@ -500,9 +484,7 @@ class TensorRTEngine(object):
         alf.nest.assert_same_structure(kwargs, self._example_kwargs)
 
         def _check_tensor_shape_and_dtype(path, x, y):
-            if not isinstance(x, torch.Tensor) or not isinstance(
-                y, torch.Tensor
-            ):
+            if not isinstance(x, torch.Tensor) or not isinstance(y, torch.Tensor):
                 assert type(x) == type(
                     y
                 ), f"'{path}' has different types: {type(x)} vs {type(y)}"
@@ -524,21 +506,13 @@ class TensorRTEngine(object):
         self._context = engine.create_execution_context()
 
         # allocate device memory (bytes)
-        self._input_mem = [
-            cuda.mem_alloc(self._get_bytes(i)) for i in self._inputs
-        ]
-        self._output_mem = [
-            cuda.mem_alloc(self._get_bytes(o)) for o in self._outputs
-        ]
+        self._input_mem = [cuda.mem_alloc(self._get_bytes(i)) for i in self._inputs]
+        self._output_mem = [cuda.mem_alloc(self._get_bytes(o)) for o in self._outputs]
 
         # Set the IO tensor addresses
-        bindings = list(map(int, self._input_mem)) + list(
-            map(int, self._output_mem)
-        )
+        bindings = list(map(int, self._input_mem)) + list(map(int, self._output_mem))
         for i in range(engine.num_io_tensors):
-            self._context.set_tensor_address(
-                engine.get_tensor_name(i), bindings[i]
-            )
+            self._context.set_tensor_address(engine.get_tensor_name(i), bindings[i])
         # create stream
         self._stream = cuda.Stream()
 
@@ -570,9 +544,7 @@ class TensorRTEngine(object):
             for o in self._outputs
         ]
         for om, o in zip(self._output_mem, outputs):
-            cuda.memcpy_dtod_async(
-                o.data_ptr(), om, self._get_bytes(o), self._stream
-            )
+            cuda.memcpy_dtod_async(o.data_ptr(), om, self._get_bytes(o), self._stream)
 
         self._stream.synchronize()
         return self._onnx_wrapper.recover_module_output(outputs)

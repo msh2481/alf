@@ -71,9 +71,7 @@ class DistributionTest(alf.test.TestCase):
 
         # Test prob sum to 1.
         step = 1 / 128
-        x = torch.arange(-1.5, 2.5, step)[:, None, None].expand(
-            -1, batch_size, dim
-        )
+        x = torch.arange(-1.5, 2.5, step)[:, None, None].expand(-1, batch_size, dim)
         log_prob = dist.log_prob(x)
         prob = log_prob.exp() * step
         self.assertTensorClose(prob.sum(dim=0), torch.ones((batch_size,)), 0.01)

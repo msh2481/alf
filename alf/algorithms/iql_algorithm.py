@@ -35,13 +35,9 @@ IqlActionState = namedtuple(
 
 IqlCriticState = namedtuple("IqlCriticState", ["critics", "target_critics"])
 
-IqlState = namedtuple(
-    "IqlState", ["action", "actor", "critic"], default_value=()
-)
+IqlState = namedtuple("IqlState", ["action", "actor", "critic"], default_value=())
 
-IqlCriticInfo = namedtuple(
-    "IqlCriticInfo", ["critics", "target_value", "value"]
-)
+IqlCriticInfo = namedtuple("IqlCriticInfo", ["critics", "target_value", "value"])
 
 IqlActorInfo = namedtuple("IqlActorInfo", ["actor_loss"], default_value=())
 
@@ -225,9 +221,7 @@ class IqlAlgorithm(OffPolicyAlgorithm):
         # Have different names to separate their summary curves
         self._critic_losses = []
         for i in range(num_critic_replicas):
-            self._critic_losses.append(
-                critic_loss_ctor(name="critic_loss%d" % (i + 1))
-            )
+            self._critic_losses.append(critic_loss_ctor(name="critic_loss%d" % (i + 1)))
 
         self._update_target = common.TargetUpdater(
             models=[self._critic_networks],
@@ -250,9 +244,7 @@ class IqlAlgorithm(OffPolicyAlgorithm):
     ):
 
         def _make_parallel(net):
-            return net.make_parallel(
-                self._num_critic_replicas * reward_spec.numel
-            )
+            return net.make_parallel(self._num_critic_replicas * reward_spec.numel)
 
         def _check_spec_equal(spec1, spec2):
             assert nest.flatten(spec1) == nest.flatten(
@@ -449,9 +441,7 @@ class IqlAlgorithm(OffPolicyAlgorithm):
         # 1) used for constructing the the target value for q-learning
         # 2) used for training the value network using expectile loss over the
         # difference with respect to the prediction of target q-network
-        value, critics_state = self._v_network(
-            inputs.observation, state=critics_state
-        )
+        value, critics_state = self._v_network(inputs.observation, state=critics_state)
         value = value.squeeze(-1)
 
         # use dataset state action pair for training
@@ -466,15 +456,11 @@ class IqlAlgorithm(OffPolicyAlgorithm):
         state = IqlCriticState(
             critics=critics_state, target_critics=target_critics_state
         )
-        info = IqlCriticInfo(
-            critics=critics, target_value=target_value, value=value
-        )
+        info = IqlCriticInfo(critics=critics, target_value=target_value, value=value)
 
         return state, info
 
-    def train_step(
-        self, inputs: TimeStep, state: IqlState, rollout_info: IqlInfo
-    ):
+    def train_step(self, inputs: TimeStep, state: IqlState, rollout_info: IqlInfo):
         self._training_started = True
 
         (action_distribution, action, action_state) = self._predict_action(
@@ -493,9 +479,7 @@ class IqlAlgorithm(OffPolicyAlgorithm):
             rollout_info,
         )
 
-        state = IqlState(
-            action=action_state, actor=actor_state, critic=critic_state
-        )
+        state = IqlState(action=action_state, actor=actor_state, critic=critic_state)
         info = IqlInfo(
             reward=inputs.reward,
             step_type=inputs.step_type,

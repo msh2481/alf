@@ -39,9 +39,7 @@ class SuiteGymTest(alf.test.TestCase):
         self.assertNotIsInstance(env, alf_wrappers.TimeLimit)
 
     def test_load_disable_alf_wrappers_applied(self):
-        duration_wrapper = functools.partial(
-            alf_wrappers.TimeLimit, duration=10
-        )
+        duration_wrapper = functools.partial(alf_wrappers.TimeLimit, duration=10)
         env = suite_gym.load(
             "CartPole-v1",
             max_episode_steps=0,

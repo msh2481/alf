@@ -23,9 +23,7 @@ from alf.algorithms.entropy_target_algorithm import SGDEntropyTargetAlgorithm
 
 alf.config(
     "ActorCriticAlgorithm",
-    actor_network_ctor=partial(
-        LatentActorDistributionNetwork, scale_distribution=True
-    ),
+    actor_network_ctor=partial(LatentActorDistributionNetwork, scale_distribution=True),
 )
 
 alf.config(

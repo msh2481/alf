@@ -72,8 +72,7 @@ def _define_flags():
     flags.DEFINE_integer(
         "num_steps",
         None,
-        "If provided, play for exactly this many steps. "
-        "Will override num_episodes.",
+        "If provided, play for exactly this many steps. " "Will override num_episodes.",
     )
     flags.DEFINE_integer(
         "last_step_repeats",
@@ -120,9 +119,7 @@ def _define_flags():
         "Whether to use ALF snapshot stored in the model dir (if any). You can set "
         "this flag to play a model trained with legacy ALF code.",
     )
-    flags.DEFINE_integer(
-        "parallel_play", 1, "Play so many simulations simultaneously"
-    )
+    flags.DEFINE_integer("parallel_play", 1, "Play so many simulations simultaneously")
 
     flags.DEFINE_bool(
         "selective_mode",

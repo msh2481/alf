@@ -27,9 +27,7 @@ from alf.utils.math_ops import clipped_exp
 from alf.examples import sac_conf
 
 # environment config
-alf.config(
-    "create_environment", env_name="HalfCheetah-v2", num_parallel_environments=1
-)
+alf.config("create_environment", env_name="HalfCheetah-v2", num_parallel_environments=1)
 
 # algorithm config
 fc_layer_params = (256, 256)

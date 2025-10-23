@@ -125,9 +125,7 @@ def ppg_network_forward(
     )
 
     if epsilon_greedy is not None:
-        action = dist_utils.epsilon_greedy_sample(
-            action_distribution, epsilon_greedy
-        )
+        action = dist_utils.epsilon_greedy_sample(action_distribution, epsilon_greedy)
         log_prob = ()
     else:
         action, log_prob = dist_utils.sample_action_distribution(

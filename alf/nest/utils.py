@@ -165,9 +165,7 @@ class NestSum(NestCombiner):
         return self._activation(ret)
 
     def make_parallel(self, n):
-        return NestSum(
-            self._average, self._activation, "parallel_" + self._name
-        )
+        return NestSum(self._average, self._activation, "parallel_" + self._name)
 
 
 @alf.configurable
@@ -294,13 +292,9 @@ def stack_nests(nests, dim=0):
         a nest with same structure as ``nests[0]``.
     """
     if len(nests) == 1:
-        return nest.map_structure(
-            lambda tensor: tensor.unsqueeze(dim), nests[0]
-        )
+        return nest.map_structure(lambda tensor: tensor.unsqueeze(dim), nests[0])
     else:
-        return nest.map_structure(
-            lambda *tensors: torch.stack(tensors, dim), *nests
-        )
+        return nest.map_structure(lambda *tensors: torch.stack(tensors, dim), *nests)
 
 
 def get_outer_rank(tensors, specs):
@@ -444,9 +438,9 @@ def make_nested_module(nested, ignore_non_module_element=True):
     else:
         module = nested
         if not ignore_non_module_element:
-            assert isinstance(
-                nested, torch.nn.Module
-            ), "Unsupported type %s" % type(nested)
+            assert isinstance(nested, torch.nn.Module), "Unsupported type %s" % type(
+                nested
+            )
         elif not isinstance(nested, torch.nn.Module):
             module = None
     return module

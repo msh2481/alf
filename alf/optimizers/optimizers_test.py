@@ -43,9 +43,7 @@ class LRBatchEnsemble(nn.Module):
         """
         nn.Module.__init__(self)
         self._beta = nn.Parameter(torch.rand(ensemble_size, input_size))
-        assert isinstance(
-            ensemble_group, int
-        ), "ensemble_group has to be an integer!"
+        assert isinstance(ensemble_group, int), "ensemble_group has to be an integer!"
         self._beta.ensemble_group = ensemble_group
         self._input_size = input_size
         self._ensemble_size = ensemble_size
@@ -109,9 +107,7 @@ class OptimizersTest(parameterized.TestCase, alf.test.TestCase):
         y = layer(x)
         loss = torch.sum(y**2)
         clip_norm = 1e-4
-        opt = AdamTF(
-            lr=0.1, gradient_clipping=clip_norm, clip_by_global_norm=True
-        )
+        opt = AdamTF(lr=0.1, gradient_clipping=clip_norm, clip_by_global_norm=True)
         opt.add_param_group({"params": layer.parameters()})
         opt.zero_grad()
         loss.backward()
@@ -259,12 +255,8 @@ class OptimizersTest(parameterized.TestCase, alf.test.TestCase):
         self.assertLess(cov_err, 0.5)
 
     @parameterized.parameters(
-        dict(
-            opt_cls=Adam, capacity_ratio=0.2, masked_out_value=None, opt_steps=3
-        ),
-        dict(
-            opt_cls=AdamTF, capacity_ratio=0.7, masked_out_value=0, opt_steps=5
-        ),
+        dict(opt_cls=Adam, capacity_ratio=0.2, masked_out_value=None, opt_steps=3),
+        dict(opt_cls=AdamTF, capacity_ratio=0.7, masked_out_value=0, opt_steps=5),
     )
     def test_capacity_scheduling(
         self, opt_cls, capacity_ratio, masked_out_value, opt_steps
@@ -307,12 +299,8 @@ class OptimizersTest(parameterized.TestCase, alf.test.TestCase):
             in the provided before and after pairs.
             """
             capacity_mask = []
-            for pg_before, pg_after in zip(
-                param_groups_before, param_groups_after
-            ):
-                for p_before, p_after in zip(
-                    pg_before["params"], pg_after["params"]
-                ):
+            for pg_before, pg_after in zip(param_groups_before, param_groups_after):
+                for p_before, p_after in zip(pg_before["params"], pg_after["params"]):
                     capacity_mask.append(p_before == p_after)
             return capacity_mask
 
@@ -347,9 +335,7 @@ class OptimizersTest(parameterized.TestCase, alf.test.TestCase):
             lambda x: 1 - x.float().mean(), capacity_mask
         )
         empirical_capacity_ratio = sum(capacity_ratios) / len(capacity_ratios)
-        self.assertAlmostEqual(
-            empirical_capacity_ratio, capacity_ratio, delta=0.1
-        )
+        self.assertAlmostEqual(empirical_capacity_ratio, capacity_ratio, delta=0.1)
 
 
 if __name__ == "__main__":

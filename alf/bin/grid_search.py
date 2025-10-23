@@ -82,9 +82,7 @@ def _slugify(value, allow_unicode=False):
 
 def _define_flags():
     _train_define_flags()
-    flags.DEFINE_string(
-        "search_config", None, "Path to the grid search config file."
-    )
+    flags.DEFINE_string("search_config", None, "Path to the grid search config file.")
     flags.DEFINE_bool(
         "snapshot_gridsearch_activated",
         False,
@@ -236,9 +234,7 @@ class GridSearch(object):
             device_queue.put(self._conf.gpus[idx])
         return device_queue
 
-    def _generate_run_name(
-        self, parameters, id, repeat, token_len=20, max_len=50
-    ):
+    def _generate_run_name(self, parameters, id, repeat, token_len=20, max_len=50):
         """Generate a run name by writing abbr parameter key-value pairs in it,
         for an easy comparison between different search runs without going
         into Tensorboard 'text' for run details.
@@ -312,9 +308,7 @@ class GridSearch(object):
         device_queue = self._init_device_queue(max_worker_num)
 
         for repeat in range(self._conf.repeats):
-            for task_count, values in enumerate(
-                itertools.product(*param_values)
-            ):
+            for task_count, values in enumerate(itertools.product(*param_values)):
                 parameters = dict(zip(param_keys, values))
                 root_dir = "%s/%s" % (
                     FLAGS.root_dir,
@@ -345,8 +339,7 @@ class GridSearch(object):
             # We still need to keep a snapshot of ALF repo at ``<root_dir>``
             # for playing individual searching job later
             os.system(
-                f"mkdir -p {root_dir}; "
-                f"cp {FLAGS.root_dir}/*.tar.gz {root_dir}/"
+                f"mkdir -p {root_dir}; " f"cp {FLAGS.root_dir}/*.tar.gz {root_dir}/"
             )
 
             device = device_queue.get()
@@ -365,18 +358,14 @@ class GridSearch(object):
                 common.parse_conf_file(conf_file)
                 # re-bind gin conf params
                 with gin.unlock_config():
-                    gin.parse_config(
-                        ["%s=%s" % (k, v) for k, v in parameters.items()]
-                    )
+                    gin.parse_config(["%s=%s" % (k, v) for k, v in parameters.items()])
                     gin.parse_config(
                         "TrainerConfig.confirm_checkpoint_upon_crash=False"
                     )
             else:
                 # need to first pre_config before parsing the conf file
                 confs = copy.copy(parameters)
-                confs.update(
-                    {"TrainerConfig.confirm_checkpoint_upon_crash": False}
-                )
+                confs.update({"TrainerConfig.confirm_checkpoint_upon_crash": False})
                 alf.pre_config(confs)
                 common.parse_conf_file(conf_file)
 

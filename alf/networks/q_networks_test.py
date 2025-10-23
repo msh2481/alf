@@ -32,9 +32,7 @@ class TestQNetworks(parameterized.TestCase, unittest.TestCase):
 
     def _init(self, lstm_hidden_size):
         self._action_spec = BoundedTensorSpec((), torch.int64, 0, 2)
-        self._num_actions = (
-            self._action_spec.maximum - self._action_spec.minimum + 1
-        )
+        self._num_actions = self._action_spec.maximum - self._action_spec.minimum + 1
 
         if lstm_hidden_size is not None:
             network_ctor = functools.partial(
@@ -120,9 +118,7 @@ class TestQNetworks(parameterized.TestCase, unittest.TestCase):
         )
 
         q_value, _ = pnet(inputs, state)
-        self.assertEqual(
-            q_value.shape, (batch_size, replicas, self._num_actions)
-        )
+        self.assertEqual(q_value.shape, (batch_size, replicas, self._num_actions))
 
 
 if __name__ == "__main__":

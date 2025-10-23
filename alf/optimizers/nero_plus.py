@@ -274,10 +274,7 @@ class NeroPlus(Optimizer):
                 # unbiased estimate of the mean. Correct them using bas_correction1
                 # and bias_correct2 as suggest by the original Adam paper.
                 step_size = (
-                    lr_scale
-                    * lr
-                    * math.sqrt(bias_correction2)
-                    / bias_correction1
+                    lr_scale * lr * math.sqrt(bias_correction2) / bias_correction1
                 )
                 # p <- p  - step_size * exp_avg / denom
                 p.addcdiv_(exp_avg, denom, value=-step_size)

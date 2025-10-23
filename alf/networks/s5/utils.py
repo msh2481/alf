@@ -158,9 +158,7 @@ try:
 
             grad_y = tl.load(grad_y_ptr + offsets, mask=mask, other=0)
             if t > 0:
-                s = tl.load(
-                    y_ptr + offsets - batch_size * dim, mask=mask, other=0
-                )
+                s = tl.load(y_ptr + offsets - batch_size * dim, mask=mask, other=0)
             else:
                 s = tl.load(s_ptr + col_offsets, mask=mask, other=0)
 
@@ -199,9 +197,7 @@ try:
         # Load real and imaginary parts of 's' and 'Lambda'
         s_real = tl.load(s_ptr + col_offsets * 2, mask=mask, other=0)
         s_imag = tl.load(s_ptr + col_offsets * 2 + 1, mask=mask, other=0)
-        lambda_real = tl.load(
-            lambda_ptr + (col_offsets % dim) * 2, mask=mask, other=0
-        )
+        lambda_real = tl.load(lambda_ptr + (col_offsets % dim) * 2, mask=mask, other=0)
         lambda_imag = tl.load(
             lambda_ptr + (col_offsets % dim) * 2 + 1, mask=mask, other=0
         )
@@ -261,9 +257,7 @@ try:
         mask = col_offsets < batch_size * dim
 
         # Load real and imaginary parts of 's' and 'Lambda'
-        lambda_real = tl.load(
-            lambda_ptr + (col_offsets % dim) * 2, mask=mask, other=0
-        )
+        lambda_real = tl.load(lambda_ptr + (col_offsets % dim) * 2, mask=mask, other=0)
         lambda_imag = tl.load(
             lambda_ptr + (col_offsets % dim) * 2 + 1, mask=mask, other=0
         )
@@ -292,9 +286,7 @@ try:
                 )
             else:
                 s_real = tl.load(s_ptr + 2 * col_offsets, mask=mask, other=0)
-                s_imag = tl.load(
-                    s_ptr + 2 * col_offsets + 1, mask=mask, other=0
-                )
+                s_imag = tl.load(s_ptr + 2 * col_offsets + 1, mask=mask, other=0)
 
             grad_s_real = grad_y_real + grad_s_real
             grad_s_imag = grad_y_imag + grad_s_imag
@@ -312,9 +304,7 @@ try:
         tl.store(grad_s_ptr + col_offsets * 2, grad_s_real, mask=mask)
         tl.store(grad_s_ptr + col_offsets * 2 + 1, -grad_s_imag, mask=mask)
         tl.store(grad_lambda_ptr + col_offsets * 2, grad_lambda_real, mask=mask)
-        tl.store(
-            grad_lambda_ptr + col_offsets * 2 + 1, -grad_lambda_imag, mask=mask
-        )
+        tl.store(grad_lambda_ptr + col_offsets * 2 + 1, -grad_lambda_imag, mask=mask)
 
     class _ssm_forward(torch.autograd.Function):
         # TODO use @triton.autotune to choose the best BLOCK_SIZE
@@ -323,11 +313,7 @@ try:
 
         @staticmethod
         def forward(ctx, s, x, Lambda):
-            assert (
-                s.is_contiguous()
-                and x.is_contiguous()
-                and Lambda.is_contiguous()
-            )
+            assert s.is_contiguous() and x.is_contiguous() and Lambda.is_contiguous()
             length, batch_size, dim = x.shape
             n = batch_size * dim
             y = torch.zeros_like(x)

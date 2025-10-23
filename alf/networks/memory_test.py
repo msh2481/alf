@@ -51,42 +51,28 @@ class MemoryTest(alf.test.TestCase):
         w0 = torch.stack([v00, v10])
         mem.write(w0)
         # The usage of newly written memory should be 1
-        self.assertArrayEqual(
-            mem.usage, torch.tensor([[1.0, 0, 0], [1.0, 0, 0]])
-        )
+        self.assertArrayEqual(mem.usage, torch.tensor([[1.0, 0, 0], [1.0, 0, 0]]))
         r = mem.read(w0)
         self.assertArrayEqual(r, w0)
-        self.assertArrayEqual(
-            mem.usage, torch.tensor([[2.0, 0, 0], [2.0, 0, 0]])
-        )
+        self.assertArrayEqual(mem.usage, torch.tensor([[2.0, 0, 0], [2.0, 0, 0]]))
 
         # w1 is othorgonal to w0
         w1 = torch.stack([v01, v11])
         mem.write(w1)
-        self.assertArrayEqual(
-            mem.usage, torch.tensor([[2.0, 1, 0], [2.0, 1, 0]])
-        )
+        self.assertArrayEqual(mem.usage, torch.tensor([[2.0, 1, 0], [2.0, 1, 0]]))
         r = mem.read(w1)
         self.assertArrayEqual(r, w1)
-        self.assertArrayEqual(
-            mem.usage, torch.tensor([[2.0, 2, 0], [2.0, 2, 0]])
-        )
+        self.assertArrayEqual(mem.usage, torch.tensor([[2.0, 2, 0], [2.0, 2, 0]]))
         r = mem.read(w0)
         self.assertArrayEqual(r, w0)
-        self.assertArrayEqual(
-            mem.usage, torch.tensor([[3.0, 2, 0], [3.0, 2, 0]])
-        )
+        self.assertArrayEqual(mem.usage, torch.tensor([[3.0, 2, 0], [3.0, 2, 0]]))
         r = mem.read(torch.tensor([[2.0, 2.0], [1, 1]]))
         self.assertArrayEqual(r, torch.tensor([[0.5, 0.5], [1, 2]]))
-        self.assertArrayEqual(
-            mem.usage, torch.tensor([[3.5, 2.5, 0], [4.0, 2, 0]])
-        )
+        self.assertArrayEqual(mem.usage, torch.tensor([[3.5, 2.5, 0], [4.0, 2, 0]]))
 
         mem.write(w0)
         # current memory:  [v00 v01 v00] [v10, v11, v10]
-        self.assertArrayEqual(
-            mem.usage, torch.tensor([[3.5, 2.5, 1], [4.0, 2, 1]])
-        )
+        self.assertArrayEqual(mem.usage, torch.tensor([[3.5, 2.5, 1], [4.0, 2, 1]]))
 
         rkey = torch.stack([w0[0], w1[1]])
         r = mem.read(rkey)
@@ -97,15 +83,11 @@ class MemoryTest(alf.test.TestCase):
         self.assertArrayEqual(r, rkey)
         r = mem.read(rkey)
         self.assertArrayEqual(r, rkey)
-        self.assertArrayEqual(
-            mem.usage, torch.tensor([[5.5, 2.5, 3], [4.0, 6, 1]])
-        )
+        self.assertArrayEqual(mem.usage, torch.tensor([[5.5, 2.5, 3], [4.0, 6, 1]]))
 
         mem.write(w0)
         # current memory:  [v00 v00 v00] [v10, v11, v10]
-        self.assertArrayEqual(
-            mem.usage, torch.tensor([[5.5, 1, 3], [4.0, 6, 1]])
-        )
+        self.assertArrayEqual(mem.usage, torch.tensor([[5.5, 1, 3], [4.0, 6, 1]]))
         mem.read(w1)
         self.assertArrayEqual(r, torch.stack([v00, v11]))
         self.assertArrayEqual(
@@ -117,15 +99,11 @@ class MemoryTest(alf.test.TestCase):
         r = mem.read(torch.stack([w0, w1], dim=1))
         self.assertArrayEqual(r[:, 0, :], torch.stack([v00, v10]))
         self.assertArrayEqual(r[:, 1, :], torch.stack([v00, v11]))
-        self.assertArrayEqual(
-            mem.usage, torch.tensor([[6.5, 2, 4], [4.5, 8, 1.5]])
-        )
+        self.assertArrayEqual(mem.usage, torch.tensor([[6.5, 2, 4], [4.5, 8, 1.5]]))
 
         # test for scale
         r = mem.read(w1, scale=torch.tensor([1.0, 0.0]))
-        self.assertArrayEqual(
-            r, torch.stack([v00, 2.0 / 3 * v10 + 1.0 / 3 * v11])
-        )
+        self.assertArrayEqual(r, torch.stack([v00, 2.0 / 3 * v10 + 1.0 / 3 * v11]))
 
     def test_genkey_and_read(self):
         mem = memory.MemoryWithUsage(2, 3, usage_decay=1.0, scale=20)

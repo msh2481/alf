@@ -81,9 +81,7 @@ class OACAlgorithmTest(alf.test.TestCase):
             continuous_projection_net_ctor=continuous_projection_net_ctor,
         )
 
-        critic_network = partial(
-            CriticNetwork, joint_fc_layer_params=fc_layer_params
-        )
+        critic_network = partial(CriticNetwork, joint_fc_layer_params=fc_layer_params)
 
         alg = OacAlgorithm(
             observation_spec=obs_spec,
@@ -116,9 +114,7 @@ class OACAlgorithmTest(alf.test.TestCase):
                 n_seconds=1,
             )
 
-        self.assertAlmostEqual(
-            1.0, float(eval_time_step.reward.mean()), delta=0.3
-        )
+        self.assertAlmostEqual(1.0, float(eval_time_step.reward.mean()), delta=0.3)
 
 
 def unroll(env, algorithm, steps, epsilon_greedy=0.1):

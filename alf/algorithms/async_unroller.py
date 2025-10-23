@@ -183,9 +183,7 @@ def _worker(
         elif job.type == "stop":
             return True
         else:
-            raise KeyError(
-                "Received message of unknown type {}".format(job.type)
-            )
+            raise KeyError("Received message of unknown type {}".format(job.type))
 
     try:
         logging.set_verbosity(logging.INFO)
@@ -242,9 +240,7 @@ def _worker(
             transformed_time_step, trans_state = algorithm.transform_timestep(
                 time_step, trans_state
             )
-            policy_step = algorithm.rollout_step(
-                transformed_time_step, policy_state
-            )
+            policy_step = algorithm.rollout_step(transformed_time_step, policy_state)
 
             policy_step = common.detach(policy_step)
             action = policy_step.output

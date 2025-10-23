@@ -38,16 +38,12 @@ class SuiteDmcTest(alf.test.TestCase):
         self.assertIsInstance(env, alf_wrappers.TimeLimit)
 
     def test_load_disable_step_limit(self):
-        env = suite_dmc.load(
-            "fish:swim", max_episode_steps=0, from_pixels=False
-        )
+        env = suite_dmc.load("fish:swim", max_episode_steps=0, from_pixels=False)
         self.assertIsInstance(env, AlfEnvironment)
         self.assertNotIsInstance(env, alf_wrappers.TimeLimit)
 
     def test_load_disable_alf_wrappers_applied(self):
-        duration_wrapper = functools.partial(
-            alf_wrappers.TimeLimit, duration=10
-        )
+        duration_wrapper = functools.partial(alf_wrappers.TimeLimit, duration=10)
         env = suite_dmc.load(
             "fish:swim",
             max_episode_steps=0,
@@ -58,9 +54,7 @@ class SuiteDmcTest(alf.test.TestCase):
         self.assertIsInstance(env, alf_wrappers.TimeLimit)
 
     def test_custom_max_steps(self):
-        env = suite_dmc.load(
-            "fish:swim", max_episode_steps=5, from_pixels=False
-        )
+        env = suite_dmc.load("fish:swim", max_episode_steps=5, from_pixels=False)
         self.assertIsInstance(env, AlfEnvironment)
         self.assertIsInstance(env, alf_wrappers.TimeLimit)
         self.assertEqual(5, env._duration)

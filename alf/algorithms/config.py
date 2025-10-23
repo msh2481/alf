@@ -390,9 +390,7 @@ class TrainerConfig(object):
         self.num_env_steps = num_env_steps
         self.unroll_length = unroll_length
         self.unroll_with_grad = unroll_with_grad
-        self.use_root_inputs_for_after_train_iter = (
-            use_root_inputs_for_after_train_iter
-        )
+        self.use_root_inputs_for_after_train_iter = use_root_inputs_for_after_train_iter
         self.async_unroll = async_unroll
         if async_unroll:
             assert not unroll_with_grad, (
@@ -407,9 +405,7 @@ class TrainerConfig(object):
         self.unroll_parameter_update_period = unroll_parameter_update_period
         self.use_rollout_state = use_rollout_state
         self.mask_out_loss_for_last_step = mask_out_loss_for_last_step
-        self.temporally_independent_train_step = (
-            temporally_independent_train_step
-        )
+        self.temporally_independent_train_step = temporally_independent_train_step
         self.sync_progress_to_envs = sync_progress_to_envs
         self.num_checkpoints = num_checkpoints
         self.confirm_checkpoint_upon_crash = confirm_checkpoint_upon_crash
@@ -463,8 +459,6 @@ class TrainerConfig(object):
         self.rl_train_after_update_steps = rl_train_after_update_steps
         self.rl_train_every_update_steps = rl_train_every_update_steps
         self.empty_cache = empty_cache
-        self.normalize_importance_weights_by_max = (
-            normalize_importance_weights_by_max
-        )
+        self.normalize_importance_weights_by_max = normalize_importance_weights_by_max
         self.visualize_alf_tree = visualize_alf_tree
         self.remote_training = remote_training

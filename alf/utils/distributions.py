@@ -167,12 +167,8 @@ class TruncatedDistribution(td.Distribution):
         upper_bound: Tensor,
         its: InverseTransformSampling,
     ):
-        event_shape = torch.broadcast_shapes(
-            lower_bound.shape, upper_bound.shape
-        )
-        batch_shape = torch.broadcast_shapes(
-            scale.shape, loc.shape, event_shape
-        )
+        event_shape = torch.broadcast_shapes(lower_bound.shape, upper_bound.shape)
+        batch_shape = torch.broadcast_shapes(scale.shape, loc.shape, event_shape)
         if len(event_shape) > 0:
             batch_shape = batch_shape[: -len(event_shape)]
 

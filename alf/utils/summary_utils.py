@@ -207,9 +207,10 @@ def summarize_per_category_loss(
     """
 
     if loss_info.batch_label != ():
-        assert loss_info.batch_label.shape == loss_info.loss.shape, (
-            "shape mismatch between batch_label shape {} and loss "
-            "shape {}".format(loss_info.batch_label.shape, loss_info.loss.shape)
+        assert (
+            loss_info.batch_label.shape == loss_info.loss.shape
+        ), "shape mismatch between batch_label shape {} and loss " "shape {}".format(
+            loss_info.batch_label.shape, loss_info.loss.shape
         )
 
         # (T, B) -> (T * B, )
@@ -339,26 +340,20 @@ def summarize_distribution(name, distributions):
             # dist might be a Tensor
             action_dim = dist.shape[-1]
             for a in range(action_dim):
-                add_mean_hist_summary(
-                    "%s_loc/%s/%s" % (name, path, a), dist[..., a]
-                )
+                add_mean_hist_summary("%s_loc/%s/%s" % (name, path, a), dist[..., a])
         else:
             ind = None
             if isinstance(dist, td.MixtureSameFamily):
                 probs = dist.mixture_distribution.probs
                 n = probs.shape[-1]
-                if (
-                    n <= 10
-                ):  # 10 is arbitrarily chosen to avoid too many summaries
+                if n <= 10:  # 10 is arbitrarily chosen to avoid too many summaries
                     for i in range(n):
                         add_mean_hist_summary(
                             "%s_probs/%s/%s" % (name, path, i), probs[..., i]
                         )
                 else:
                     entropy = -torch.xlogy(probs, probs).sum(-1)
-                    add_mean_hist_summary(
-                        "%s_cond_entropy/%s" % (name, path), entropy
-                    )
+                    add_mean_hist_summary("%s_cond_entropy/%s" % (name, path), entropy)
                     probs = probs.reshape(-1, probs.shape[-1]).mean(0)
                     entropy = -torch.xlogy(probs, probs).sum()
                     alf.summary.scalar("%s_entropy/%s" % (name, path), entropy)
@@ -402,9 +397,7 @@ def summarize_distribution(name, distributions):
                 add_mean_hist_summary(
                     "%s_log_scale/%s/%s" % (name, path, a), log_scale[..., a]
                 )
-                add_mean_hist_summary(
-                    "%s_loc/%s/%s" % (name, path, a), loc[..., a]
-                )
+                add_mean_hist_summary("%s_loc/%s/%s" % (name, path, a), loc[..., a])
 
     py_map_structure_with_path(_summarize_one, distributions)
 
@@ -571,9 +564,7 @@ def summarize_tensor_gradients(name, tensor, batch_dims=1, clone=False):
         return tensor
 
 
-def summarize_distribution_gradient(
-    name, distribution, batch_dims=1, clone=False
-):
+def summarize_distribution_gradient(name, distribution, batch_dims=1, clone=False):
     """Summarize the gradient of the parameters of ``distribution`` during backward.
 
     Args:
@@ -593,7 +584,5 @@ def summarize_distribution_gradient(
         spec = dist_utils.extract_spec(distribution)
         dist_params = map_structure(torch.clone, dist_params)
         distribution = dist_utils.params_to_distributions(dist_params, spec)
-    summarize_tensor_gradients(
-        name, dist_params, batch_dims=batch_dims, clone=False
-    )
+    summarize_tensor_gradients(name, dist_params, batch_dims=batch_dims, clone=False)
     return distribution

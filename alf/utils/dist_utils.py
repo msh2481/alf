@@ -76,9 +76,7 @@ class AffineTransform(get_invertible(td.AffineTransform)):
     """
 
     def get_builder(self):
-        return functools.partial(
-            AffineTransform, loc=self.loc, scale=self.scale
-        )
+        return functools.partial(AffineTransform, loc=self.loc, scale=self.scale)
 
 
 @alf.configurable
@@ -257,11 +255,7 @@ class Softclip(td.Transform):
         ``y``.
         """
         s = self._hinge_softness
-        return (
-            y
-            + s
-            * (((self._l - y) / s).expm1() / ((y - self._h) / s).expm1()).log()
-        )
+        return y + s * (((self._l - y) / s).expm1() / ((y - self._h) / s).expm1()).log()
 
     def log_abs_det_jacobian(self, x, y):
         r"""Compute ``log|dy/dx|``."""
@@ -365,9 +359,7 @@ class StableTanh(td.Transform):
         def _atanh(x):
             return 0.5 * torch.log((1 + x) / (1 - x))
 
-        y = torch.where(
-            torch.abs(y) <= 1.0, torch.clamp(y, -0.99999997, 0.99999997), y
-        )
+        y = torch.where(torch.abs(y) <= 1.0, torch.clamp(y, -0.99999997, 0.99999997), y)
         return _atanh(y)
 
     def log_abs_det_jacobian(self, x, y):
@@ -420,9 +412,7 @@ class Beta(td.Beta):
 
     """
 
-    def __init__(
-        self, concentration1, concentration0, eps=None, validate_args=None
-    ):
+    def __init__(self, concentration1, concentration0, eps=None, validate_args=None):
         """
         Args:
             concentration1 (float or Tensor): 1st concentration parameter of the distribution
@@ -639,12 +629,8 @@ def _builder_independent(base_builder, reinterpreted_batch_ndims_, **kwargs):
     return td.Independent(base_builder(**kwargs), reinterpreted_batch_ndims_)
 
 
-def _builder_transformed(
-    base_builder, transform_builders, params_, transforms_params_
-):
-    transforms = [
-        b(**p) for b, p in zip(transform_builders, transforms_params_)
-    ]
+def _builder_transformed(base_builder, transform_builders, params_, transforms_params_):
+    transforms = [b(**p) for b, p in zip(transform_builders, transforms_params_)]
     return td.TransformedDistribution(base_builder(**params_), transforms)
 
 
@@ -711,10 +697,8 @@ def _get_transform_builders_params(transforms):
     if isinstance(transforms, td.Transform):
         if isinstance(transforms, td.ComposeTransform):
             builders, params = _get_transform_builders_params(transforms.parts)
-            compose_transform_builder = (
-                lambda parts_params: td.ComposeTransform(
-                    [b(**p) for b, p in zip(builders, parts_params)]
-                )
+            compose_transform_builder = lambda parts_params: td.ComposeTransform(
+                [b(**p) for b, p in zip(builders, parts_params)]
             )
             return compose_transform_builder, {"parts_params": params}
         else:
@@ -723,9 +707,7 @@ def _get_transform_builders_params(transforms):
             return builder, params
 
     assert isinstance(transforms, list), f"Incorrect transforms {transforms}!"
-    builders_and_params = [
-        _get_transform_builders_params(t) for t in transforms
-    ]
+    builders_and_params = [_get_transform_builders_params(t) for t in transforms]
     builders, params = zip(*builders_and_params)
     return list(builders), list(params)
 
@@ -737,9 +719,7 @@ def _get_transformed_builder(obj: td.TransformedDistribution):
     transform_builders, transform_params = _get_transform_builders_params(
         obj.transforms
     )
-    new_builder = functools.partial(
-        _builder_transformed, builder, transform_builders
-    )
+    new_builder = functools.partial(_builder_transformed, builder, transform_builders)
     new_params = {"params_": params, "transforms_params_": transform_params}
     return new_builder, new_params
 
@@ -759,9 +739,7 @@ def _get_affine_transformed_builder(obj: AffineTransformedDistribution):
 
 def _get_mixture_same_family_builder(obj: td.MixtureSameFamily):
     mixture_builder, mixture_params = _get_builder(obj.mixture_distribution)
-    components_builder, components_params = _get_builder(
-        obj.component_distribution
-    )
+    components_builder, components_params = _get_builder(obj.component_distribution)
 
     def _mixture_builder(mixture, components):
         return td.MixtureSameFamily(
@@ -1070,9 +1048,7 @@ def rsample_action_distribution(nested_distributions, return_log_prob=False):
         - rsampled actions and log_prob if return_log_prob is True
     """
     assert all(
-        nest.flatten(
-            nest.map_structure(lambda d: d.has_rsample, nested_distributions)
-        )
+        nest.flatten(nest.map_structure(lambda d: d.has_rsample, nested_distributions))
     ), (
         "all the distributions need to support rsample in order to enable "
         "backpropagation"
@@ -1166,9 +1142,7 @@ def get_mode(dist):
     ):
         # Our version of one-hot st supports mode with grad
         mode = dist.mode
-    elif isinstance(
-        dist, (td.OneHotCategorical, td.OneHotCategoricalStraightThrough)
-    ):
+    elif isinstance(dist, (td.OneHotCategorical, td.OneHotCategoricalStraightThrough)):
         mode = torch.nn.functional.one_hot(
             torch.argmax(dist.logits, -1), num_classes=dist.logits.shape[-1]
         )
@@ -1187,13 +1161,9 @@ def get_mode(dist):
             mode = component_mode[torch.arange(batch_shape[0]), ind]
         elif len(batch_shape) == 2:
             d0, d1 = batch_shape
-            mode = component_mode[
-                torch.arange(d0).unsqueeze(-1), torch.arange(d1), ind
-            ]
+            mode = component_mode[torch.arange(d0).unsqueeze(-1), torch.arange(d1), ind]
         else:
-            raise NotImplementedError(
-                "Batch shape %s is not supported" % batch_shape
-            )
+            raise NotImplementedError("Batch shape %s is not supported" % batch_shape)
     elif isinstance(dist, StableCauchy):
         mode = dist.loc
     elif isinstance(dist, td.Independent):
@@ -1207,9 +1177,7 @@ def get_mode(dist):
     elif isinstance(dist, (Beta, TruncatedDistribution)):
         return dist.mode
     else:
-        raise NotImplementedError(
-            "Distribution type %s is not supported" % type(dist)
-        )
+        raise NotImplementedError("Distribution type %s is not supported" % type(dist))
 
     return mode
 
@@ -1251,9 +1219,7 @@ def get_rmode(dist):
         for transform in dist.transforms:
             mode = transform(mode)
     else:
-        raise NotImplementedError(
-            "Distribution type %s is not supported" % type(dist)
-        )
+        raise NotImplementedError("Distribution type %s is not supported" % type(dist))
 
     return mode
 
@@ -1278,9 +1244,7 @@ def get_base_dist(dist):
     elif isinstance(dist, (td.Independent, td.TransformedDistribution)):
         return get_base_dist(dist.base_dist)
     else:
-        raise NotImplementedError(
-            "Distribution type %s is not supported" % type(dist)
-        )
+        raise NotImplementedError("Distribution type %s is not supported" % type(dist))
 
 
 @alf.configurable
@@ -1433,11 +1397,7 @@ def calc_default_target_entropy(spec, min_prob=0.1):
     log_mp = np.log(min_prob + 1e-30)
     e = np.sum(
         [
-            (
-                np.log(M - m) + log_mp
-                if cont
-                else _calc_discrete_entropy(m, M, log_mp)
-            )
+            (np.log(M - m) + log_mp if cont else _calc_discrete_entropy(m, M, log_mp))
             for m, M, _ in min_max
         ]
     )
@@ -1445,9 +1405,7 @@ def calc_default_target_entropy(spec, min_prob=0.1):
 
 
 @alf.configurable
-def calc_default_target_entropy_quantized(
-    spec, num_bins, ent_per_action_dim=-1.0
-):
+def calc_default_target_entropy_quantized(spec, num_bins, ent_per_action_dim=-1.0):
     """Calc default target entropy for quantized continuous action.
     Args:
         spec (BoundedTensorSpec): action spec

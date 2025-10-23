@@ -87,9 +87,7 @@ class DIAYNAlgorithm(Algorithm):
             assert isinstance(skill_spec, BoundedTensorSpec)
             skill_dim = skill_spec.maximum - skill_spec.minimum + 1
         else:
-            assert (
-                len(skill_spec.shape) == 1
-            ), "Only 1D skill vector is supported"
+            assert len(skill_spec.shape) == 1, "Only 1D skill vector is supported"
             skill_dim = skill_spec.shape[0]
 
         super().__init__(
@@ -108,9 +106,7 @@ class DIAYNAlgorithm(Algorithm):
             last_activation=math_ops.identity,
         )
 
-        self._reward_normalizer = ScalarAdaptiveNormalizer(
-            speed=reward_adapt_speed
-        )
+        self._reward_normalizer = ScalarAdaptiveNormalizer(speed=reward_adapt_speed)
 
         self._observation_normalizer = None
         if observation_spec is not None:
@@ -162,13 +158,9 @@ class DIAYNAlgorithm(Algorithm):
         intrinsic_reward = ()
         if calc_rewards:
             intrinsic_reward = -loss.detach()
-            intrinsic_reward = self._reward_normalizer.normalize(
-                intrinsic_reward
-            )
+            intrinsic_reward = self._reward_normalizer.normalize(intrinsic_reward)
 
-        return AlgStep(
-            output=intrinsic_reward, state=skill, info=DIAYNInfo(loss=loss)
-        )
+        return AlgStep(output=intrinsic_reward, state=skill, info=DIAYNInfo(loss=loss))
 
     def rollout_step(self, inputs, state):
         return self._step(inputs, state)
@@ -178,6 +170,4 @@ class DIAYNAlgorithm(Algorithm):
 
     def calc_loss(self, info: DIAYNInfo):
         loss = torch.mean(info.loss)
-        return LossInfo(
-            scalar_loss=loss, extra=dict(skill_discriminate_loss=info.loss)
-        )
+        return LossInfo(scalar_loss=loss, extra=dict(skill_discriminate_loss=info.loss))

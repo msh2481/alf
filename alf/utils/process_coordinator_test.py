@@ -45,9 +45,7 @@ def stop_on_event(coord, wait_for_stop, set_when_stopped):
     set_when_stopped.set()
 
 
-def raise_on_event(
-    coord, wait_for_stop, set_when_stopped, ex, report_exception
-):
+def raise_on_event(coord, wait_for_stop, set_when_stopped, ex, report_exception):
     try:
         wait_for_stop.wait()
         raise ex
@@ -61,9 +59,7 @@ def raise_on_event(
             set_when_stopped.set()
 
 
-def raise_on_event_using_context_handler(
-    coord, wait_for_stop, set_when_stopped, ex
-):
+def raise_on_event_using_context_handler(coord, wait_for_stop, set_when_stopped, ex):
     with coord.stop_on_exception():
         wait_for_stop.wait()
         raise ex
@@ -164,9 +160,7 @@ class CoordinatorTest(test.TestCase):
                 t.start()
             wait_for_stop_ev.set()
             has_stopped_ev.wait()
-            with self.assertRaisesRegex(
-                RuntimeError, "processes still running"
-            ):
+            with self.assertRaisesRegex(RuntimeError, "processes still running"):
                 coord.join(processes, stop_grace_period_secs=stop_grace_period)
 
         TestWithGracePeriod(1e-10)
@@ -189,9 +183,7 @@ class CoordinatorTest(test.TestCase):
             t.start()
         wait_for_stop_ev.set()
         has_stopped_ev.wait()
-        coord.join(
-            processes, stop_grace_period_secs=1.0, ignore_live_processes=True
-        )
+        coord.join(processes, stop_grace_period_secs=1.0, ignore_live_processes=True)
 
     def testJoinRaiseReportExcInfo(self):
         coord = coordinator.Coordinator()

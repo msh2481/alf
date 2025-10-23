@@ -126,20 +126,18 @@ class PPOLoss(ActorCriticLoss):
 
     def _pg_loss(self, info, advantages):
         scope = alf.summary.scope(self._name)
-        importance_ratio, importance_ratio_clipped = (
-            value_ops.action_importance_ratio(
-                action_distribution=info.action_distribution,
-                rollout_action_distribution=info.rollout_action_distribution,
-                action=info.action,
-                rollout_log_prob=info.rollout_log_prob,
-                log_prob=info.log_prob,
-                clipping_mode="double_sided",
-                scope=scope,
-                importance_ratio_clipping=self._importance_ratio_clipping,
-                log_prob_clipping=self._log_prob_clipping,
-                check_numerics=self._check_numerics,
-                debug_summaries=self._debug_summaries,
-            )
+        importance_ratio, importance_ratio_clipped = value_ops.action_importance_ratio(
+            action_distribution=info.action_distribution,
+            rollout_action_distribution=info.rollout_action_distribution,
+            action=info.action,
+            rollout_log_prob=info.rollout_log_prob,
+            log_prob=info.log_prob,
+            clipping_mode="double_sided",
+            scope=scope,
+            importance_ratio_clipping=self._importance_ratio_clipping,
+            log_prob_clipping=self._log_prob_clipping,
+            check_numerics=self._check_numerics,
+            debug_summaries=self._debug_summaries,
         )
         if alf.summary.get_grad_step_counter() == 0:
             # For the first gradient step in one iteration, the importance ratios
@@ -148,13 +146,8 @@ class PPOLoss(ActorCriticLoss):
             # importance_ratio0 may not be exactly 1, but it should be very close
             # to 1.
             global_step = alf.summary.get_global_counter()
-            summary_interval = alf.get_config_value(
-                "TrainerConfig.summary_interval"
-            )
-            if (
-                global_step < summary_interval
-                or global_step % summary_interval == 0
-            ):
+            summary_interval = alf.get_config_value("TrainerConfig.summary_interval")
+            if global_step < summary_interval or global_step % summary_interval == 0:
                 with alf.summary.record_if(lambda: True), scope:
                     alf.summary.histogram(
                         "importance_ratio0_minus1", importance_ratio - 1
@@ -173,9 +166,7 @@ class PPOLoss(ActorCriticLoss):
         if self._debug_summaries and alf.summary.should_record_summaries():
             with scope:
                 alf.summary.scalar("pg_objective", pg_objective.mean())
-                alf.summary.scalar(
-                    "pg_objective_clipped", pg_objective_clipped.mean()
-                )
+                alf.summary.scalar("pg_objective_clipped", pg_objective_clipped.mean())
                 alf.summary.scalar(
                     "objective_clip_fraction",
                     (pg_objective_clipped > pg_objective).float().mean(),

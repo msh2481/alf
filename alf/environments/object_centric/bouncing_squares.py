@@ -89,9 +89,7 @@ class BouncingSquares(gym.Env):
             )
 
         def _initialize_speed():
-            return np.array(
-                (np.random.randint(-3, 4), np.random.randint(-3, 4))
-            )
+            return np.array((np.random.randint(-3, 4), np.random.randint(-3, 4)))
 
         def _initialize_size():
             sizes = [4, 5]
@@ -124,9 +122,7 @@ class BouncingSquares(gym.Env):
         return self._obs()
 
     def _obs(self):
-        img = np.zeros(
-            (self._N, self._N, 3 if self._colors else 1), dtype=np.uint8
-        )
+        img = np.zeros((self._N, self._N, 3 if self._colors else 1), dtype=np.uint8)
 
         def _paint_square(sq, img, size, color):
             (i0, i1), (j0, j1) = self._get_square_boundary(sq, size)
@@ -151,12 +147,8 @@ class BouncingSquares(gym.Env):
         return img
 
     def _collision(self):
-        (i0, i1), (j0, j1) = self._get_square_boundary(
-            self._square1, self._size1
-        )
-        (y0, y1), (x0, x1) = self._get_square_boundary(
-            self._square2, self._size2
-        )
+        (i0, i1), (j0, j1) = self._get_square_boundary(self._square1, self._size1)
+        (y0, y1), (x0, x1) = self._get_square_boundary(self._square2, self._size2)
         if (i0 > y1 or y0 > i1) or (j0 > x1 or x0 > j1):
             return False
         return True

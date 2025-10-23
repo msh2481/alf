@@ -174,9 +174,7 @@ class GoBoard(object):
             # The new stone at (y, x) will decrease the qi by 1
             qi[same_player] -= 1
             # merge it with new_cc if it is not merged yet
-            self._change_cc_id(
-                B[not_merged], cc_id[not_merged], new_cc_id[not_merged]
-            )
+            self._change_cc_id(B[not_merged], cc_id[not_merged], new_cc_id[not_merged])
             empty_neighbor = self._board[B, ny, nx] == 0
             # if the neighbor is empty, we increase qi by 1.
             qi[empty_neighbor] += 1
@@ -390,9 +388,7 @@ class GoBoard(object):
             .repeat_interleave(self._width)
             .repeat(board_indices.shape[0])
         )
-        board_indices = board_indices.repeat_interleave(
-            self._height * self._width
-        )
+        board_indices = board_indices.repeat_interleave(self._height * self._width)
         player = player.repeat_interleave(self._height * self._width)
         opponent = -player
 
@@ -452,9 +448,7 @@ class GoBoard(object):
             qi[same_player] -= 1
 
             # merge it with new_cc if it is not merged yet
-            _change_cc_id(
-                B[not_merged], cc_id[not_merged], new_cc_id[not_merged]
-            )
+            _change_cc_id(B[not_merged], cc_id[not_merged], new_cc_id[not_merged])
 
             empty_neighbor = boards[B, ny, nx] == 0
             # if the neighbor is empty, we increase qi by 1.
@@ -480,9 +474,7 @@ class GoBoard(object):
             self._width + 2,
         )
         repeated = boards == prev_boards
-        repeated = (
-            repeated.reshape(*repeated.shape[:-2], -1).all(dim=-1).any(dim=1)
-        )
+        repeated = repeated.reshape(*repeated.shape[:-2], -1).all(dim=-1).any(dim=1)
         suicidal = suicidal.reshape(-1, self._height, self._width)
         occupied = ~empty.reshape(-1, self._height, self._width)
         repeated = repeated & ~occupied
@@ -681,9 +673,7 @@ class GoEnvironment(AlfEnvironment):
         self._board.reset_board(self._B[prev_game_over])
         current_board = self._board.get_board()
         player = ((self._num_moves % 2) * 2 - 1).to(torch.int8)
-        step_type = torch.full(
-            (self._batch_size,), StepType.MID, dtype=torch.int32
-        )
+        step_type = torch.full((self._batch_size,), StepType.MID, dtype=torch.int32)
         height = self._height
         width = self._width
 
@@ -912,9 +902,7 @@ class GoEnvironment(AlfEnvironment):
             time.sleep(0.1)
         elif mode == "rgb_array":
             # (x, y, c) => (y, x, c)
-            return np.transpose(
-                pygame.surfarray.array3d(self._surface), (1, 0, 2)
-            )
+            return np.transpose(pygame.surfarray.array3d(self._surface), (1, 0, 2))
         else:
             raise ValueError("Unsupported render mode: %s" % mode)
 

@@ -107,9 +107,7 @@ class TestValueNetworks(parameterized.TestCase, alf.test.TestCase):
                 optimizer.zero_grad()
                 cost.backward()
                 optimizer.step()
-            logging.info(
-                "%s time=%s cost=%s" % (name, time.time() - t0, float(cost))
-            )
+            logging.info("%s time=%s cost=%s" % (name, time.time() - t0, float(cost)))
 
         pnet = value_net.make_parallel(replicas)
         _train(pnet, "ParallelValueNetwork")

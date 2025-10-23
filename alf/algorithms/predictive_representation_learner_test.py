@@ -53,9 +53,7 @@ class PredictiveRepresentationLearnerTest(alf.test.TestCase):
             (1,), minimum=0, maximum=1, dtype=torch.float32
         )
         reward_spec = alf.TensorSpec(())
-        time_step_spec = ds.time_step_spec(
-            observation_spec, action_spec, reward_spec
-        )
+        time_step_spec = ds.time_step_spec(observation_spec, action_spec, reward_spec)
 
         repr_learner = PredictiveRepresentationLearner(
             observation_spec,
@@ -70,9 +68,7 @@ class PredictiveRepresentationLearnerTest(alf.test.TestCase):
             dynamics_net_ctor=LSTMEncodingNetwork,
         )
 
-        time_step = common.zero_tensor_from_nested_spec(
-            time_step_spec, batch_size
-        )
+        time_step = common.zero_tensor_from_nested_spec(time_step_spec, batch_size)
         state = repr_learner.get_initial_predict_state(batch_size)
         alg_step = repr_learner.rollout_step(time_step, state)
         alg_step = alg_step._replace(output=torch.tensor([[1.0], [0.0]]))
@@ -118,18 +114,14 @@ class PredictiveRepresentationLearnerTest(alf.test.TestCase):
                 env_id=torch.arange(batch_size, dtype=torch.int32),
             )
             alg_step = repr_learner.rollout_step(time_step, state)
-            alg_step = alg_step._replace(
-                output=i + torch.tensor([[1.0], [0.0]])
-            )
+            alg_step = alg_step._replace(output=i + torch.tensor([[1.0], [0.0]]))
             prev_action = alg_step.output
             experience = ds.make_experience(time_step, alg_step, state)
             replay_buffer.add_batch(experience)
             state = alg_step.state
 
         env_ids = torch.tensor([0] * 14 + [1] * 14, dtype=torch.int64)
-        positions = torch.tensor(
-            list(range(14)) + list(range(14)), dtype=torch.int64
-        )
+        positions = torch.tensor(list(range(14)) + list(range(14)), dtype=torch.int64)
         experience = replay_buffer.get_field(
             None, env_ids.unsqueeze(-1).cpu(), positions.unsqueeze(-1).cpu()
         )

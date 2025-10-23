@@ -33,9 +33,7 @@ class SuiteSafetyGymTest(alf.test.TestCase):
         self._env.close()
 
     def test_unwrapped_env(self):
-        self._env = suite_safety_gym.load(
-            environment_name="Safexp-PointGoal1-v0"
-        )
+        self._env = suite_safety_gym.load(environment_name="Safexp-PointGoal1-v0")
 
         self.assertIsInstance(self._env, alf_environment.AlfEnvironment)
         self.assertEqual(torch.float32, self._env.observation_spec().dtype)
@@ -52,9 +50,7 @@ class SuiteSafetyGymTest(alf.test.TestCase):
 
     def test_thread_env(self):
         self._env = thread_environment.ThreadEnvironment(
-            lambda: suite_safety_gym.load(
-                environment_name="Safexp-PointGoal1-v0"
-            )
+            lambda: suite_safety_gym.load(environment_name="Safexp-PointGoal1-v0")
         )
         self.assertIsInstance(self._env, alf_environment.AlfEnvironment)
         self.assertEqual(torch.float32, self._env.observation_spec().dtype)
@@ -71,15 +67,11 @@ class SuiteSafetyGymTest(alf.test.TestCase):
         env_num = 8
 
         def ctor(env_id=None):
-            return suite_safety_gym.load(
-                environment_name="Safexp-PointGoal1-v0"
-            )
+            return suite_safety_gym.load(environment_name="Safexp-PointGoal1-v0")
 
         constructor = functools.partial(ctor)
 
-        self._env = parallel_environment.ParallelAlfEnvironment(
-            [constructor] * env_num
-        )
+        self._env = parallel_environment.ParallelAlfEnvironment([constructor] * env_num)
         self.assertTrue(self._env.batched)
         self.assertEqual(self._env.batch_size, env_num)
         self.assertEqual(torch.float32, self._env.observation_spec().dtype)

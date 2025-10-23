@@ -83,9 +83,7 @@ class PreprocessorNetwork(Network):
                 elif isinstance(preproc, Network):
                     assert not nest.flatten(
                         preproc.state_spec
-                    ), "stateful preprocessor is not supported: %s" % type(
-                        preproc
-                    )
+                    ), "stateful preprocessor is not supported: %s" % type(preproc)
                     preproc = preproc.copy()
                     self._input_preprocessor_modules.append(preproc)
                     return preproc
@@ -94,8 +92,7 @@ class PreprocessorNetwork(Network):
                     self._input_preprocessor_modules.append(preproc)
                 else:
                     raise ValueError(
-                        "Unsupported type in input_preprocessors: %s"
-                        % type(preproc)
+                        "Unsupported type in input_preprocessors: %s" % type(preproc)
                     )
                 return preproc
 
@@ -147,13 +144,9 @@ class PreprocessorNetwork(Network):
             )
 
         proc_inputs = self._preprocessing_combiner(inputs)
-        outer_rank = get_outer_rank(
-            proc_inputs, self._processed_input_tensor_spec
-        )
+        outer_rank = get_outer_rank(proc_inputs, self._processed_input_tensor_spec)
         assert min_outer_rank <= outer_rank <= max_outer_rank, (
-            "Only supports {}<=outer_rank<={}! ".format(
-                min_outer_rank, max_outer_rank
-            )
+            "Only supports {}<=outer_rank<={}! ".format(min_outer_rank, max_outer_rank)
             + "After preprocessing: inputs size {} vs. input tensor spec {}".format(
                 proc_inputs.size(), self._processed_input_tensor_spec
             )

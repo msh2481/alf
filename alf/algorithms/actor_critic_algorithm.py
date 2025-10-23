@@ -16,17 +16,16 @@
 import torch
 
 import alf
-from alf.algorithms.on_policy_algorithm import OnPolicyAlgorithm
-from alf.networks import ActorDistributionNetwork, ValueNetwork
 from alf.algorithms.actor_critic_loss import ActorCriticLoss
-from alf.data_structures import TimeStep, AlgStep, namedtuple
-from alf.utils import common, dist_utils, tensor_utils
+from alf.algorithms.on_policy_algorithm import OnPolicyAlgorithm
+from alf.data_structures import AlgStep, TimeStep, namedtuple
+from alf.networks import ActorDistributionNetwork, ValueNetwork
 from alf.tensor_specs import TensorSpec
+from alf.utils import common, dist_utils, tensor_utils
+
 from .config import TrainerConfig
 
-ActorCriticState = namedtuple(
-    "ActorCriticState", ["actor", "value"], default_value=()
-)
+ActorCriticState = namedtuple("ActorCriticState", ["actor", "value"], default_value=())
 
 ActorCriticInfo = namedtuple(
     "ActorCriticInfo",
@@ -123,9 +122,7 @@ class ActorCriticAlgorithm(OnPolicyAlgorithm):
         )
         value_network = None
         if value_network_ctor is not None:
-            value_network = value_network_ctor(
-                input_tensor_spec=observation_spec
-            )
+            value_network = value_network_ctor(input_tensor_spec=observation_spec)
 
             if reward_spec.numel > 1:
                 value_network = value_network.make_parallel(
@@ -191,9 +188,7 @@ class ActorCriticAlgorithm(OnPolicyAlgorithm):
             inputs.observation, state=state.actor
         )
 
-        action = dist_utils.epsilon_greedy_sample(
-            action_dist, self._epsilon_greedy
-        )
+        action = dist_utils.epsilon_greedy_sample(action_dist, self._epsilon_greedy)
         return AlgStep(
             output=action,
             state=ActorCriticState(actor=actor_state),
@@ -202,9 +197,7 @@ class ActorCriticAlgorithm(OnPolicyAlgorithm):
 
     def rollout_step(self, inputs: TimeStep, state: ActorCriticState):
         """Rollout for one step."""
-        value, value_state = self._value_network(
-            inputs.observation, state=state.value
-        )
+        value, value_state = self._value_network(inputs.observation, state=state.value)
 
         action_distribution, actor_state = self._actor_network(
             inputs.observation, state=state.actor

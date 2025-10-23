@@ -32,9 +32,7 @@ class RealNVPTransformTest(parameterized.TestCase, alf.test.TestCase):
         spec = TensorSpec((D,))
         mask = torch.rand((D,)) > prob
         # scale=1, translation=0
-        scale_trans_net = NetworkWrapper(lambda x: x * 0.0, spec).make_parallel(
-            2
-        )
+        scale_trans_net = NetworkWrapper(lambda x: x * 0.0, spec).make_parallel(2)
         transform = _RealNVPTransform(
             spec, scale_trans_net, mask, cache_size=0, scale_nonlinear=torch.exp
         )
@@ -44,9 +42,7 @@ class RealNVPTransformTest(parameterized.TestCase, alf.test.TestCase):
         y_inv = transform.inv(y)
         self.assertTensorClose(y_inv, x)
 
-    @parameterized.parameters(
-        (alf.math.identity,), (torch.relu_), (alf.math.square)
-    )
+    @parameterized.parameters((alf.math.identity,), (torch.relu_), (alf.math.square))
     def test_RealNVP_elementwise_zero(self, elementwise_func):
         """If the scale and translation networks are both elementwise functions that
         map 0 to 0, then RealNVPTransform with torch.exp is always an identical
@@ -54,9 +50,7 @@ class RealNVPTransformTest(parameterized.TestCase, alf.test.TestCase):
         """
         spec = TensorSpec((100,))
         mask = torch.rand((100,)) > 0.5
-        scale_trans_net = NetworkWrapper(elementwise_func, spec).make_parallel(
-            2
-        )
+        scale_trans_net = NetworkWrapper(elementwise_func, spec).make_parallel(2)
         transform = _RealNVPTransform(
             spec, scale_trans_net, mask, cache_size=0, scale_nonlinear=torch.exp
         )
@@ -100,9 +94,7 @@ class RealNVPTransformTest(parameterized.TestCase, alf.test.TestCase):
         (100, 1, alf.math.clipped_exp),
         (500, 0, torch.nn.functional.softplus),
     )
-    def test_RealNVP_transform_jacobian_diagonal(
-        self, D, cache_size, scale_nonlinear
-    ):
+    def test_RealNVP_transform_jacobian_diagonal(self, D, cache_size, scale_nonlinear):
         spec = TensorSpec((D,))
         mask = torch.rand((D,)) > 0.5
 
@@ -137,9 +129,7 @@ class RealNVPTransformTest(parameterized.TestCase, alf.test.TestCase):
         jacob_diag = torch.diagonal(jacob, 0)
         self.assertTrue(torch.all(jacob_diag > 0))
         j = transform.log_abs_det_jacobian(x, y)
-        self.assertTensorClose(
-            j, jacob_diag.log().sum(-1, keepdim=True), epsilon=1e-4
-        )
+        self.assertTensorClose(j, jacob_diag.log().sum(-1, keepdim=True), epsilon=1e-4)
 
     @parameterized.parameters(
         ((1,), (10,)), ((1, 2), (10, 10)), ((3, 4, 5, 6), (5, 5, 5))
@@ -260,16 +250,10 @@ class RealNVPNetworkTest(parameterized.TestCase, alf.test.TestCase):
         jacob_det = torch.det(jacob)
         j = transform.log_abs_det_jacobian(x, y)  # [B,D]
         j = j.reshape(-1)
-        self.assertTensorClose(
-            j.sum(), jacob_det.abs().log().sum(-1), epsilon=1e-3
-        )
+        self.assertTensorClose(j.sum(), jacob_det.abs().log().sum(-1), epsilon=1e-3)
 
-    @parameterized.parameters(
-        (True, 10), (True, None), (False, None), (False, 10)
-    )
-    def test_cached_transform(
-        self, use_transform_cache, conditional_input_size
-    ):
+    @parameterized.parameters((True, 10), (True, None), (False, None), (False, 10))
+    def test_cached_transform(self, use_transform_cache, conditional_input_size):
         input_size = 10
         spec = TensorSpec((input_size,))
         if conditional_input_size is not None:

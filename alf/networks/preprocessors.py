@@ -109,9 +109,7 @@ class EmbeddingPreprocessor(Network):
             Tensor or TensorSpec: if ``Tensor``, the returned is the preprocessed
                 result; otherwise it's the tensor spec of the result.
         """
-        assert (
-            state is ()
-        ), "The preprocessor is assumed to be stateless currently."
+        assert state is (), "The preprocessor is assumed to be stateless currently."
 
         ret = self._preprocess(inputs)
         return ret, state
@@ -129,9 +127,7 @@ class CosineEmbeddingPreprocessor(Network):
 
     """
 
-    def __init__(
-        self, input_tensor_spec, embedding_dim, name="CosineEmbeddingNetwork"
-    ):
+    def __init__(self, input_tensor_spec, embedding_dim, name="CosineEmbeddingNetwork"):
         """
         Args:
             input_tensor_spec (TensorSpec): the input spec

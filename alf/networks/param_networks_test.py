@@ -129,9 +129,7 @@ class ParamNetworksTest(parameterized.TestCase, alf.test.TestCase):
         self.assertEqual(output.shape, replica_output.shape)
 
         output_shape = (batch_size, replica, last_layer_size)
-        self.assertEqual(
-            output_shape[1:], (replica,) + network.output_spec.shape
-        )
+        self.assertEqual(output_shape[1:], (replica,) + network.output_spec.shape)
         self.assertEqual(output_shape, tuple(output.size()))
 
 

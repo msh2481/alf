@@ -72,9 +72,7 @@ class SuiteMarioTest(alf.test.TestCase):
 
         constructor = functools.partial(ctor, game)
 
-        self._env = parallel_environment.ParallelAlfEnvironment(
-            [constructor] * env_num
-        )
+        self._env = parallel_environment.ParallelAlfEnvironment([constructor] * env_num)
         self.assertTrue(self._env.batched)
         self.assertEqual(self._env.batch_size, env_num)
         self.assertEqual(torch.uint8, self._env.observation_spec().dtype)

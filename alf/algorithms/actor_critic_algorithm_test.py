@@ -31,9 +31,7 @@ from alf.algorithms.rl_algorithm_test import MyEnv
 def create_algorithm(env):
     config = TrainerConfig(root_dir="dummy", unroll_length=5)
     obs_spec = alf.TensorSpec((2,), dtype="float32")
-    action_spec = alf.BoundedTensorSpec(
-        shape=(), dtype="int32", minimum=0, maximum=2
-    )
+    action_spec = alf.BoundedTensorSpec(shape=(), dtype="int32", minimum=0, maximum=2)
 
     fc_layer_params = (10, 8, 6)
 

@@ -172,9 +172,7 @@ class DisjointPolicyValueNetwork(Network):
         # | Step 1: The policy network encoder |
         # +------------------------------------+
 
-        self._actor_encoder = encoding_network_ctor(
-            input_tensor_spec=observation_spec
-        )
+        self._actor_encoder = encoding_network_ctor(input_tensor_spec=observation_spec)
 
         encoder_output_size = self._actor_encoder.output_spec.shape[0]
 
@@ -213,9 +211,7 @@ class DisjointPolicyValueNetwork(Network):
                     alf.nn.Sequential(
                         # Use the same encoder, but the encoder is DETACHED.
                         alf.layers.Detach(),
-                        alf.layers.FC(
-                            input_size=encoder_output_size, output_size=1
-                        ),
+                        alf.layers.FC(input_size=encoder_output_size, output_size=1),
                         alf.layers.Reshape(()),
                         input_tensor_spec=self._actor_encoder.output_spec,
                     ),
@@ -241,9 +237,7 @@ class DisjointPolicyValueNetwork(Network):
                     ),
                     alf.nn.Sequential(
                         self._value_encoder,
-                        alf.layers.FC(
-                            input_size=encoder_output_size, output_size=1
-                        ),
+                        alf.layers.FC(input_size=encoder_output_size, output_size=1),
                         alf.layers.Reshape(()),
                     ),
                 ),

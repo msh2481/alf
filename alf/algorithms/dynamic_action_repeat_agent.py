@@ -102,9 +102,7 @@ class DynamicActionRepeatAgent(OffPolicyAlgorithm):
             debug_summaries (bool): True if debug summaries should be created.
             name (str): name of this agent.
         """
-        assert (
-            action_spec.is_continuous
-        ), "Only support continuous actions for now!"
+        assert action_spec.is_continuous, "Only support continuous actions for now!"
 
         rl_observation_spec = observation_spec
 
@@ -175,9 +173,7 @@ class DynamicActionRepeatAgent(OffPolicyAlgorithm):
         self._repr_learner = repr_learner
         self._reward_normalizer = None
         if reward_normalizer_ctor is not None:
-            self._reward_normalizer = reward_normalizer_ctor(
-                observation_spec=()
-            )
+            self._reward_normalizer = reward_normalizer_ctor(observation_spec=())
         self._rl = rl
         self._K = K
 
@@ -196,9 +192,7 @@ class DynamicActionRepeatAgent(OffPolicyAlgorithm):
         def _generate_new_action(time_step, state):
             repr_state = ()
             if self._repr_learner is not None:
-                repr_step = self._repr_learner.predict_step(
-                    time_step, state.repr
-                )
+                repr_step = self._repr_learner.predict_step(time_step, state.repr)
                 time_step = time_step._replace(observation=repr_step.output)
                 repr_state = repr_step.state
 
@@ -233,8 +227,7 @@ class DynamicActionRepeatAgent(OffPolicyAlgorithm):
         # state.k is the current step index over K steps
         state = state._replace(
             rl_reward=state.rl_reward
-            + torch.pow(self._gamma, state.k.to(torch.float32))
-            * time_step.reward,
+            + torch.pow(self._gamma, state.k.to(torch.float32)) * time_step.reward,
             rl_discount=state.rl_discount * time_step.discount * self._gamma,
             k=state.k + 1,
         )
@@ -265,9 +258,7 @@ class DynamicActionRepeatAgent(OffPolicyAlgorithm):
 
             observation, repr_state = rl_time_step.observation, ()
             if self._repr_learner is not None:
-                repr_step = self._repr_learner.rollout_step(
-                    time_step, state.repr
-                )
+                repr_step = self._repr_learner.rollout_step(time_step, state.repr)
                 observation = repr_step.output
                 repr_state = repr_step.state
 
@@ -313,9 +304,7 @@ class DynamicActionRepeatAgent(OffPolicyAlgorithm):
 
         return AlgStep(output=new_state.action, state=new_state)
 
-    def train_step(
-        self, inputs: TimeStep, state: ActionRepeatState, rollout_info
-    ):
+    def train_step(self, inputs: TimeStep, state: ActionRepeatState, rollout_info):
         """Train the underlying RL algorithm ``self._rl``. Because in
         ``self.rollout_step()`` the replay buffer only stores info related to
         ``self._rl``, here we can directly call ``self._rl.train_step()``.
@@ -347,14 +336,10 @@ class DynamicActionRepeatAgent(OffPolicyAlgorithm):
         """Overwrite the function because the training action spec is
         different from the rollout action spec.
         """
-        Algorithm.summarize_train(
-            self, experience, train_info, loss_info, params
-        )
+        Algorithm.summarize_train(self, experience, train_info, loss_info, params)
 
         if self._debug_summaries:
-            summary_utils.summarize_action(
-                experience.action, self._rl_action_spec
-            )
+            summary_utils.summarize_action(experience.action, self._rl_action_spec)
             self.summarize_reward("training_reward", experience.reward)
 
         if self._config.summarize_action_distributions:

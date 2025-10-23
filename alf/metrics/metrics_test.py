@@ -213,9 +213,7 @@ class THMetricsTest(parameterized.TestCase, unittest.TestCase):
                 metric.result(),
             )
         else:
-            self.assertEqual(
-                [0.0] * 2 if vector_reward else 0.0, metric.result()
-            )
+            self.assertEqual([0.0] * 2 if vector_reward else 0.0, metric.result())
 
     def test_average_per_step(self):
         trajectories = []

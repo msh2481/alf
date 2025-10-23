@@ -25,13 +25,9 @@ from alf.utils import dist_utils, tensor_utils
 
 BcState = namedtuple("BcState", ["actor"], default_value=())
 
-BcInfo = namedtuple(
-    "BcInfo", ["actor", "discriminator", "target"], default_value=()
-)
+BcInfo = namedtuple("BcInfo", ["actor", "discriminator", "target"], default_value=())
 
-BcLossInfo = namedtuple(
-    "LossInfo", ["actor", "discriminator"], default_value=()
-)
+BcLossInfo = namedtuple("LossInfo", ["actor", "discriminator"], default_value=())
 
 
 @alf.configurable
@@ -144,10 +140,7 @@ class CausalBcAlgorithm(OffPolicyAlgorithm):
             self.add_optimizer(actor_optimizer, [actor_network])
         self._actor_optimizer = actor_optimizer
 
-        if (
-            discriminator_optimizer is not None
-            and discriminator_network is not None
-        ):
+        if discriminator_optimizer is not None and discriminator_network is not None:
             self.add_optimizer(discriminator_optimizer, [discriminator_network])
         self._discriminator_optimizer = discriminator_optimizer
 
@@ -155,9 +148,7 @@ class CausalBcAlgorithm(OffPolicyAlgorithm):
         self._f_norm_penalty_weight = f_norm_penalty_weight
 
     def _predict_action(self, observation, state):
-        action_dist, actor_network_state = self._actor_network(
-            observation, state=state
-        )
+        action_dist, actor_network_state = self._actor_network(observation, state=state)
 
         return action_dist, actor_network_state
 
@@ -165,9 +156,7 @@ class CausalBcAlgorithm(OffPolicyAlgorithm):
         action_dist, new_state = self._predict_action(
             inputs.observation, state=state.actor
         )
-        action = dist_utils.epsilon_greedy_sample(
-            action_dist, self._epsilon_greedy
-        )
+        action = dist_utils.epsilon_greedy_sample(action_dist, self._epsilon_greedy)
 
         return AlgStep(output=action, state=BcState(actor=new_state))
 
@@ -216,9 +205,7 @@ class CausalBcAlgorithm(OffPolicyAlgorithm):
             discriminator=pred_residuals,
             target=rollout_info.action,
         )
-        return AlgStep(
-            rollout_info.action, state=BcState(actor=new_state), info=info
-        )
+        return AlgStep(rollout_info.action, state=BcState(actor=new_state), info=info)
 
     def calc_loss_offline(self, info, pre_train=False):
 
@@ -234,9 +221,7 @@ class CausalBcAlgorithm(OffPolicyAlgorithm):
         if self._debug_summaries and alf.summary.should_record_summaries():
             with alf.summary.scope(self._name):
                 alf.summary.scalar("actor_loss", actor_loss.mean())
-                alf.summary.scalar(
-                    "discriminator_loss", discriminator_loss.mean()
-                )
+                alf.summary.scalar("discriminator_loss", discriminator_loss.mean())
 
         loss = actor_loss + discriminator_loss
         loss = tensor_utils.tensor_extend_zero(loss)
@@ -244,8 +229,6 @@ class CausalBcAlgorithm(OffPolicyAlgorithm):
             loss=loss,
             extra=BcLossInfo(
                 actor=tensor_utils.tensor_extend_zero(actor_loss),
-                discriminator=tensor_utils.tensor_extend_zero(
-                    discriminator_loss
-                ),
+                discriminator=tensor_utils.tensor_extend_zero(discriminator_loss),
             ),
         )

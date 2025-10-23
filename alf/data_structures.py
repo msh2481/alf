@@ -239,9 +239,7 @@ class Experience(
             Experience: a structure the same as the original experience except
             that the field ``field`` in the time_step is replaced by ``new_value``.
         """
-        return nest.set_field(
-            self, field="time_step." + field, new_value=new_value
-        )
+        return nest.set_field(self, field="time_step." + field, new_value=new_value)
 
 
 def add_batch_info(experience, batch_info, buffer=()):
@@ -249,9 +247,7 @@ def add_batch_info(experience, batch_info, buffer=()):
     if batch_info is not None:
         if buffer == () and batch_info.replay_buffer != ():
             buffer = batch_info.replay_buffer
-        experience = experience._replace(
-            batch_info=batch_info, replay_buffer=buffer
-        )
+        experience = experience._replace(batch_info=batch_info, replay_buffer=buffer)
     return experience._replace(rollout_info_field="rollout_info")
 
 
@@ -261,9 +257,7 @@ def clear_batch_info(experience):
     Useful as certain nest functions like convert_device do not skip
     non-tensor objects in nests.
     """
-    return experience._replace(
-        batch_info=(), replay_buffer=(), rollout_info_field=()
-    )
+    return experience._replace(batch_info=(), replay_buffer=(), rollout_info_field=())
 
 
 AlgStep = namedtuple("AlgStep", ["output", "state", "info"], default_value=())
@@ -481,9 +475,7 @@ def time_step_spec(observation_spec, action_spec, reward_spec):
     return TimeStep(
         step_type=ts.TensorSpec([], torch.int32),
         reward=reward_spec,
-        discount=ts.BoundedTensorSpec(
-            [], torch.float32, minimum=0.0, maximum=1.0
-        ),
+        discount=ts.BoundedTensorSpec([], torch.float32, minimum=0.0, maximum=1.0),
         observation=observation_spec,
         prev_action=action_spec,
         env_id=ts.TensorSpec([], torch.int32),

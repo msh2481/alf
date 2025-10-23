@@ -154,9 +154,7 @@ def variance_scaling_init(
     if transposed:
         fan_in, fan_out = fan_out, fan_in
 
-    assert mode in ["fan_in", "fan_out", "fan_avg"], (
-        "Unrecognized mode %s!" % mode
-    )
+    assert mode in ["fan_in", "fan_out", "fan_avg"], "Unrecognized mode %s!" % mode
     if mode == "fan_in":
         size = max(1.0, fan_in)
     elif mode == "fan_out":

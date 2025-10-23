@@ -125,9 +125,7 @@ class BcAlgorithm(OffPolicyAlgorithm):
         self._actor_optimizer = actor_optimizer
 
     def _predict_action(self, observation, state):
-        action_dist, actor_network_state = self._actor_network(
-            observation, state=state
-        )
+        action_dist, actor_network_state = self._actor_network(observation, state=state)
 
         return action_dist, actor_network_state
 
@@ -135,15 +133,11 @@ class BcAlgorithm(OffPolicyAlgorithm):
         action_dist, new_state = self._predict_action(
             inputs.observation, state=state.actor
         )
-        action = dist_utils.epsilon_greedy_sample(
-            action_dist, self._epsilon_greedy
-        )
+        action = dist_utils.epsilon_greedy_sample(action_dist, self._epsilon_greedy)
 
         return AlgStep(output=action, state=BcState(actor=new_state))
 
-    def _actor_train_step_imitation(
-        self, inputs: TimeStep, rollout_info, action_dist
-    ):
+    def _actor_train_step_imitation(self, inputs: TimeStep, rollout_info, action_dist):
 
         exp_action = rollout_info.action
         im_loss = -action_dist.log_prob(exp_action)
@@ -160,22 +154,16 @@ class BcAlgorithm(OffPolicyAlgorithm):
             inputs.observation, state=state.actor
         )
 
-        actor_loss = self._actor_train_step_imitation(
-            inputs, rollout_info, action_dist
-        )
+        actor_loss = self._actor_train_step_imitation(inputs, rollout_info, action_dist)
 
         if self._debug_summaries and alf.summary.should_record_summaries():
             with alf.summary.scope(self._name):
                 alf.summary.scalar("imitation_loss", actor_loss.loss.mean())
 
         info = BcInfo(actor=actor_loss)
-        return AlgStep(
-            rollout_info.action, state=BcState(actor=new_state), info=info
-        )
+        return AlgStep(rollout_info.action, state=BcState(actor=new_state), info=info)
 
     def calc_loss_offline(self, info, pre_train=False):
 
         actor_loss = info.actor
-        return LossInfo(
-            loss=actor_loss.loss, extra=BcLossInfo(actor=actor_loss.extra)
-        )
+        return LossInfo(loss=actor_loss.loss, extra=BcLossInfo(actor=actor_loss.extra))

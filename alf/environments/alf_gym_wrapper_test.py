@@ -43,9 +43,7 @@ class GymWrapperSpecTest(alf.test.TestCase):
 
         self.assertEqual((4,), spec.shape)
         self.assertEqual(torch.int64, spec.dtype)
-        np.testing.assert_array_equal(
-            np.array([0], dtype=np.int64), spec.minimum
-        )
+        np.testing.assert_array_equal(np.array([0], dtype=np.int64), spec.minimum)
         np.testing.assert_array_equal(
             np.array([0, 1, 2, 3], dtype=np.int64), spec.maximum
         )
@@ -56,12 +54,8 @@ class GymWrapperSpecTest(alf.test.TestCase):
 
         self.assertEqual((4,), spec.shape)
         self.assertEqual(torch.int8, spec.dtype)
-        np.testing.assert_array_equal(
-            np.array([0], dtype=np.int64), spec.minimum
-        )
-        np.testing.assert_array_equal(
-            np.array([1], dtype=np.int64), spec.maximum
-        )
+        np.testing.assert_array_equal(np.array([0], dtype=np.int64), spec.minimum)
+        np.testing.assert_array_equal(np.array([1], dtype=np.int64), spec.maximum)
 
     def test_tensor_spec_from_gym_space_box_scalars(self):
         for dtype in (np.float32, np.float64):
@@ -96,12 +90,8 @@ class GymWrapperSpecTest(alf.test.TestCase):
 
         self.assertEqual((3, 4), spec.shape)
         self.assertEqual(torch.float32, spec.dtype)
-        np.testing.assert_array_equal(
-            np.array([-1], dtype=np.int64), spec.minimum
-        )
-        np.testing.assert_array_equal(
-            np.array([1], dtype=np.int64), spec.maximum
-        )
+        np.testing.assert_array_equal(np.array([-1], dtype=np.int64), spec.minimum)
+        np.testing.assert_array_equal(np.array([1], dtype=np.int64), spec.maximum)
 
     def test_tensor_spec_from_gym_space_when_simplify_box_bounds_false(self):
         # testing on gym.spaces.Dict which makes recursive calls to
@@ -157,9 +147,7 @@ class GymWrapperSpecTest(alf.test.TestCase):
                 self.assertEqual(torch_float_dtype, spec.dtype)
 
     def test_tensor_spec_from_gym_space_tuple(self):
-        tuple_space = gym.spaces.Tuple(
-            (gym.spaces.Discrete(2), gym.spaces.Discrete(3))
-        )
+        tuple_space = gym.spaces.Tuple((gym.spaces.Discrete(2), gym.spaces.Discrete(3)))
         spec = alf_gym_wrapper.tensor_spec_from_gym_space(tuple_space)
 
         self.assertEqual(2, len(spec))
@@ -178,9 +166,7 @@ class GymWrapperSpecTest(alf.test.TestCase):
             (
                 gym.spaces.Discrete(2),
                 gym.spaces.Box(-1.0, 1.0, (3, 4)),
-                gym.spaces.Tuple(
-                    (gym.spaces.Discrete(2), gym.spaces.Discrete(3))
-                ),
+                gym.spaces.Tuple((gym.spaces.Discrete(2), gym.spaces.Discrete(3))),
                 gym.spaces.Dict(
                     {
                         "spec_1": gym.spaces.Discrete(2),

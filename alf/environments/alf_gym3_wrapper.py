@@ -227,10 +227,7 @@ class AlfGym3Wrapper(AlfEnvironment):
         # Create metadata with 'render.modes' so that it is compatible with
         # VideoRecorder.
         self.metadata = {"render.modes": []}
-        if (
-            self._render_activator is not None
-            and self._frame_extrator is not None
-        ):
+        if self._render_activator is not None and self._frame_extrator is not None:
             self.metadata["render.modes"].append("rgb_array")
 
         # +--------------------------+
@@ -239,9 +236,7 @@ class AlfGym3Wrapper(AlfEnvironment):
 
         # NOTE(breakds): when needed, expose this and allow an user to set it.
         self._discount = 1.0
-        self._observation_spec = _gym3_space_to_tensor_spec(
-            self._gym3_env.ob_space
-        )
+        self._observation_spec = _gym3_space_to_tensor_spec(self._gym3_env.ob_space)
 
         self._image_channel_first = image_channel_first
 
@@ -315,9 +310,7 @@ class AlfGym3Wrapper(AlfEnvironment):
         3. Trim ignored keys from the env info
 
         """
-        observation = nest.map_structure(
-            lambda x: torch.as_tensor(x), observation
-        )
+        observation = nest.map_structure(lambda x: torch.as_tensor(x), observation)
         if self._image_channel_first:
             observation = nest.map_structure(
                 lambda x: x.permute(0, 3, 1, 2).contiguous(), observation
@@ -330,9 +323,7 @@ class AlfGym3Wrapper(AlfEnvironment):
 
         # In the case when we assume no timeouts, all episode end will
         # be due to success or failure, where discount is set to 0.0.
-        discount = [
-            0.0 if s == ds.StepType.LAST else self._discount for s in step_type
-        ]
+        discount = [0.0 if s == ds.StepType.LAST else self._discount for s in step_type]
 
         return ds.TimeStep(
             step_type=torch.as_tensor(step_type),
@@ -434,11 +425,7 @@ class AlfGym3Wrapper(AlfEnvironment):
         # This does the trick of repeating end-of-episode frames and throwing
         # away first-of-episode frames.
         step_type = [
-            (
-                ds.StepType.FIRST
-                if d
-                else (ds.StepType.LAST if f else ds.StepType.MID)
-            )
+            (ds.StepType.FIRST if d else (ds.StepType.LAST if f else ds.StepType.MID))
             for d, f in zip(self._prev_first, first)
         ]
 

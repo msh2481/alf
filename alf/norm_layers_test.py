@@ -55,9 +55,7 @@ class BatchNormTest(alf.test.TestCase):
             y = bn(10 + 10 * x)
 
         bn.eval()
-        bn.set_batch_norm_current_step(
-            torch.tensor([0] * n + [1] * n + [2] * n)
-        )
+        bn.set_batch_norm_current_step(torch.tensor([0] * n + [1] * n + [2] * n))
         for i in range(2):
             # multiple evals should not change the statistics
             x = torch.randn((n, dim))

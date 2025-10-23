@@ -100,9 +100,7 @@ class PpoTest(parameterized.TestCase, alf.test.TestCase):
         steps_per_episode = 13
         env = env_class(batch_size, steps_per_episode, reward_dim=reward_dim)
 
-        eval_env = env_class(
-            batch_size, steps_per_episode, reward_dim=reward_dim
-        )
+        eval_env = env_class(batch_size, steps_per_episode, reward_dim=reward_dim)
 
         algorithm = create_algorithm(env, learning_rate=learning_rate)
 
@@ -115,9 +113,7 @@ class PpoTest(parameterized.TestCase, alf.test.TestCase):
             eval_time_step = unroll(eval_env, algorithm, steps_per_episode - 1)
             logging.info("%d reward=%f", i, float(eval_time_step.reward.mean()))
 
-        self.assertAlmostEqual(
-            1.0, float(eval_time_step.reward.mean()), delta=1e-1
-        )
+        self.assertAlmostEqual(1.0, float(eval_time_step.reward.mean()), delta=1e-1)
 
 
 def unroll(env, algorithm, steps):
@@ -134,9 +130,7 @@ def unroll(env, algorithm, steps):
         transformed_time_step, trans_state = algorithm.transform_timestep(
             time_step, trans_state
         )
-        policy_step = algorithm.predict_step(
-            transformed_time_step, policy_state
-        )
+        policy_step = algorithm.predict_step(transformed_time_step, policy_state)
         time_step = env.step(policy_step.output)
         policy_state = policy_step.state
     return time_step

@@ -20,9 +20,7 @@ import alf
 class MathOpsTest(alf.test.TestCase):
 
     def test_argmin(self):
-        a = torch.tensor(
-            [[2, 5, 2], [0, 1, 2], [1, 1, 1], [3, 2, 1], [4, 2, 2]]
-        )
+        a = torch.tensor([[2, 5, 2], [0, 1, 2], [1, 1, 1], [3, 2, 1], [4, 2, 2]])
         i = alf.math.argmin(a)
         self.assertEqual(i, torch.tensor([0, 0, 0, 2, 1]))
 

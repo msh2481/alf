@@ -140,9 +140,7 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
                 optimizer.zero_grad()
                 cost.backward()
                 optimizer.step()
-            logging.info(
-                "%s time=%s cost=%s" % (name, time.time() - t0, float(cost))
-            )
+            logging.info("%s time=%s cost=%s" % (name, time.time() - t0, float(cost)))
 
         pnet = critic_net.make_parallel(replicas)
         _train(pnet, "ParallelCriticNetwork")
@@ -185,9 +183,7 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
         self.assertRaises(AssertionError, net_ctor, (obs_spec, action_spec))
 
         # ... unless a combiner is specified
-        net_ctor(
-            (obs_spec, action_spec), action_preprocessing_combiner=NestConcat()
-        )
+        net_ctor((obs_spec, action_spec), action_preprocessing_combiner=NestConcat())
 
 
 if __name__ == "__main__":

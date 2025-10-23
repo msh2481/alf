@@ -55,21 +55,15 @@ class RewardTransformerTest(parameterized.TestCase, alf.test.TestCase):
         self.assertTensorEqual(y1, y2)
 
 
-class FunctionalRewardTransformerTest(
-    parameterized.TestCase, alf.test.TestCase
-):
+class FunctionalRewardTransformerTest(parameterized.TestCase, alf.test.TestCase):
 
     @parameterized.parameters((1, 1), (1, 10), (10, 1), (10, 10))
-    def test_functional_reward_transformer_for_clipping(
-        self, reward_dim, clamp_bound
-    ):
+    def test_functional_reward_transformer_for_clipping(self, reward_dim, clamp_bound):
         transformer = alf.algorithms.data_transformer.RewardClipping(
             minmax=(-clamp_bound, clamp_bound)
         )
-        func_transformer = (
-            alf.algorithms.data_transformer.FunctionalRewardTransformer(
-                func=lambda x: x.clamp(-clamp_bound, clamp_bound)
-            )
+        func_transformer = alf.algorithms.data_transformer.FunctionalRewardTransformer(
+            func=lambda x: x.clamp(-clamp_bound, clamp_bound)
         )
         x = torch.randn(100, reward_dim)
         common.set_exe_mode(common.EXE_MODE_OTHER)
@@ -80,10 +74,8 @@ class FunctionalRewardTransformerTest(
     @parameterized.parameters((1, 1), (1, 10), (10, 1), (10, 10))
     def test_functional_reward_transformer_for_scaling(self, reward_dim, scale):
         transformer = alf.algorithms.data_transformer.RewardScaling(scale=scale)
-        func_transformer = (
-            alf.algorithms.data_transformer.FunctionalRewardTransformer(
-                func=lambda x: x * scale
-            )
+        func_transformer = alf.algorithms.data_transformer.FunctionalRewardTransformer(
+            func=lambda x: x * scale
         )
         x = torch.randn(100, reward_dim)
         common.set_exe_mode(common.EXE_MODE_OTHER)
@@ -94,10 +86,8 @@ class FunctionalRewardTransformerTest(
     @parameterized.parameters((1, 1), (1, 10), (10, 1), (10, 10))
     def test_functional_reward_transformer_for_shifting(self, reward_dim, bias):
         transformer = alf.algorithms.data_transformer.RewardShifting(bias=bias)
-        func_transformer = (
-            alf.algorithms.data_transformer.FunctionalRewardTransformer(
-                func=lambda x: x + bias
-            )
+        func_transformer = alf.algorithms.data_transformer.FunctionalRewardTransformer(
+            func=lambda x: x + bias
         )
         x = torch.randn(100, reward_dim)
         common.set_exe_mode(common.EXE_MODE_OTHER)
@@ -116,15 +106,11 @@ class FunctionalRewardTransformerTest(
 
         def multi_dim_reward_trans_func(reward):
             # only apply transformation to the dimension specified by ``dim_for_trans``
-            reward[..., dim_for_trans] = (
-                reward[..., dim_for_trans] * scale + bias
-            )
+            reward[..., dim_for_trans] = reward[..., dim_for_trans] * scale + bias
             return reward
 
-        func_transformer = (
-            alf.algorithms.data_transformer.FunctionalRewardTransformer(
-                func=multi_dim_reward_trans_func
-            )
+        func_transformer = alf.algorithms.data_transformer.FunctionalRewardTransformer(
+            func=multi_dim_reward_trans_func
         )
         x = torch.randn(100, reward_dim)
         common.set_exe_mode(common.EXE_MODE_OTHER)
@@ -213,9 +199,7 @@ class FrameStackerTest(parameterized.TestCase, alf.test.TestCase):
                 return dict(
                     scalar=observation["scalar"][t, b],
                     vector=observation["vector"][t, b].reshape(-1),
-                    matrix=observation["matrix"][t, b]
-                    .transpose(0, 1)
-                    .reshape(5, 18),
+                    matrix=observation["matrix"][t, b].transpose(0, 1).reshape(5, 18),
                     tensor=observation["tensor"][t, b]
                     .permute(1, 2, 0, 3)
                     .reshape(2, 3, 12),
@@ -330,9 +314,7 @@ class ImageScaleTransformerTest(alf.test.TestCase):
         experience = Experience(time_step=timestep)
         transformed_exp = transformer.transform_experience(experience)
         self.assertLess(
-            (transformed_exp.observation * 255 - timestep.observation)
-            .abs()
-            .max(),
+            (transformed_exp.observation * 255 - timestep.observation).abs().max(),
             1e-4,
         )
 
@@ -450,9 +432,7 @@ class HindsightExperienceTransformerTest(ReplayBufferTest):
                     assert False, "".join(outs)
 
                 # Save original exp for later testing.
-                g_orig = replay_buffer._buffer.get_time_step_field(
-                    "o.g"
-                ).clone()
+                g_orig = replay_buffer._buffer.get_time_step_field("o.g").clone()
                 r_orig = replay_buffer._buffer.reward.clone()
 
                 # HER relabel experience
@@ -466,21 +446,15 @@ class HindsightExperienceTransformerTest(ReplayBufferTest):
                 )
 
                 # Test relabeling doesn't change original experience
-                self.assertTrue(
-                    torch.allclose(r_orig, replay_buffer._buffer.reward)
-                )
+                self.assertTrue(torch.allclose(r_orig, replay_buffer._buffer.reward))
                 self.assertTrue(
                     torch.allclose(
                         g_orig, replay_buffer._buffer.get_time_step_field("o.g")
                     )
                 )
+                self.assertTrue(torch.all(idx_orig == replay_buffer._indexed_pos))
                 self.assertTrue(
-                    torch.all(idx_orig == replay_buffer._indexed_pos)
-                )
-                self.assertTrue(
-                    torch.all(
-                        idx_headless_orig == replay_buffer._headless_indexed_pos
-                    )
+                    torch.all(idx_headless_orig == replay_buffer._headless_indexed_pos)
                 )
 
 

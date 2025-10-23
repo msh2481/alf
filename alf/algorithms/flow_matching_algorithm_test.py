@@ -31,9 +31,7 @@ class _VectorFieldNetwork(alf.networks.Network):
     """
 
     def __init__(self, input_tensor_spec):
-        super().__init__(
-            input_tensor_spec=input_tensor_spec, name="VectorFieldNetwork"
-        )
+        super().__init__(input_tensor_spec=input_tensor_spec, name="VectorFieldNetwork")
         self._img_spec = input_tensor_spec[0]
         label_spec = None
         in_channels = self._img_spec.shape[0] + 1
@@ -63,9 +61,7 @@ class _VectorFieldNetwork(alf.networks.Network):
         if label is not None:
             # [B] -> [B,4]
             label = self._label_embedding(label)
-            label = label[..., None, None].expand(
-                -1, -1, H, W
-            )  # [B,4] -> [B,4,H,W]
+            label = label[..., None, None].expand(-1, -1, H, W)  # [B,4] -> [B,4,H,W]
             inputs = torch.cat([img, tau, label], dim=1)
         else:
             inputs = torch.cat([img, tau], dim=1)
@@ -139,9 +135,7 @@ class FlowMatchingAlgorithmTest(alf.test.TestCase):
             classes = torch.tensor(list(range(10)), dtype=torch.int64)
             classes = torch.repeat_interleave(classes, samples_per_class)
             # [B,1,H,W]
-            imgs = flow_match_alg.generate(
-                classes, return_intermediate_steps=True
-            )
+            imgs = flow_match_alg.generate(classes, return_intermediate_steps=True)
             # take the denoising steps every two
             imgs = imgs[::2]
 

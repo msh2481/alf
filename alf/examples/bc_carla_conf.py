@@ -95,9 +95,7 @@ rl_train_after_update_steps = num_iterations
 initial_collect_steps = 0
 offline_mini_batch_length = 1
 offline_mini_batch_size = 64
-offline_buffer_dir = (
-    "./hybrid_rl/replay_buffer_data/carla-replay-buffer-mini100"
-)
+offline_buffer_dir = "./hybrid_rl/replay_buffer_data/carla-replay-buffer-mini100"
 
 fc_layers_params = (256,) * 2
 encoding_dim = 256

@@ -30,9 +30,7 @@ from alf.environments.alf_environment import AlfEnvironment
 from alf.tensor_specs import BoundedTensorSpec, TensorSpec, torch_dtype_to_str
 
 
-def tensor_spec_from_gym_space(
-    space, simplify_box_bounds=True, float_dtype=np.float32
-):
+def tensor_spec_from_gym_space(space, simplify_box_bounds=True, float_dtype=np.float32):
     """
     Construct tensor spec from gym space.
 
@@ -98,15 +96,10 @@ def tensor_spec_from_gym_space(
         return tuple([tensor_spec_from_gym_space(s) for s in space.spaces])
     elif isinstance(space, gym.spaces.Dict):
         return collections.OrderedDict(
-            [
-                (key, tensor_spec_from_gym_space(s))
-                for key, s in space.spaces.items()
-            ]
+            [(key, tensor_spec_from_gym_space(s)) for key, s in space.spaces.items()]
         )
     else:
-        raise ValueError(
-            "The gym space {} is currently not supported.".format(space)
-        )
+        raise ValueError("The gym space {} is currently not supported.".format(space))
 
 
 def _as_array(nested):
@@ -177,9 +170,7 @@ class AlfGymWrapper(AlfEnvironment):
         self._done = True
         self._zero_info = self._obtain_zero_info()
 
-        self._env_info_spec = nest.map_structure(
-            TensorSpec.from_array, self._zero_info
-        )
+        self._env_info_spec = nest.map_structure(TensorSpec.from_array, self._zero_info)
 
     @property
     def gym(self):
@@ -195,9 +186,7 @@ class AlfGymWrapper(AlfEnvironment):
         This info will be filled in each ``FIRST`` time step as a placeholder.
         """
         self._gym_env.reset()
-        action = nest.map_structure(
-            lambda spec: spec.numpy_zeros(), self._action_spec
-        )
+        action = nest.map_structure(lambda spec: spec.numpy_zeros(), self._action_spec)
         _, _, _, info = self._gym_env.step(action)
         self._gym_env.reset()
         info = _as_array(info)
@@ -282,9 +271,7 @@ class AlfGymWrapper(AlfEnvironment):
             else:
                 return arr.astype(dtype)
 
-        return nest.map_structure(
-            _as_spec_dtype, observation, self._observation_spec
-        )
+        return nest.map_structure(_as_spec_dtype, observation, self._observation_spec)
 
     def env_info_spec(self):
         return self._env_info_spec

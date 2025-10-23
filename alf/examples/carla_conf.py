@@ -24,9 +24,7 @@ from alf.environments.alf_wrappers import (
 )
 from alf.networks import SocialAttentionNetwork
 
-alf.config(
-    "suite_carla.load", wrappers=[ActionObservationWrapper, ScalarRewardWrapper]
-)
+alf.config("suite_carla.load", wrappers=[ActionObservationWrapper, ScalarRewardWrapper])
 
 alf.config("CameraSensor", image_size_x=192, image_size_y=96, fov=135)
 

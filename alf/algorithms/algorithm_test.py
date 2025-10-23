@@ -109,9 +109,7 @@ class AlgorithmTest(alf.test.TestCase):
         )
         info = json.loads(alg_root.get_optimizer_info())
         self.assertEqual(len(info), 1)
-        self.assertEqual(
-            info[0]["parameters"], [alg_root.get_param_name(param_1)]
-        )
+        self.assertEqual(info[0]["parameters"], [alg_root.get_param_name(param_1)])
 
         alg_1 = MyAlg(params=[param_1, param_1], name="alg_1")
         alg_root = MyAlg(
@@ -121,9 +119,7 @@ class AlgorithmTest(alf.test.TestCase):
         )
         info = json.loads(alg_root.get_optimizer_info())
         self.assertEqual(len(info), 1)
-        self.assertEqual(
-            info[0]["parameters"], [alg_root.get_param_name(param_1)]
-        )
+        self.assertEqual(info[0]["parameters"], [alg_root.get_param_name(param_1)])
 
         alg_root = MyAlg(
             optimizer=alf.optimizers.Adam(lr=0.25),
@@ -148,24 +144,16 @@ class AlgorithmTest(alf.test.TestCase):
             opt_default = info[1]
             opt_2 = info[0]
 
-        self.assertEqual(
-            opt_default["parameters"], [alg_root.get_param_name(param_1)]
-        )
-        self.assertEqual(
-            opt_2["parameters"], [alg_root.get_param_name(param_2)]
-        )
+        self.assertEqual(opt_default["parameters"], [alg_root.get_param_name(param_1)])
+        self.assertEqual(opt_2["parameters"], [alg_root.get_param_name(param_2)])
 
         alg_root = MyAlg(sub_algs=[alg_1, alg_2], name="root")
         alg_root.add_optimizer(alf.optimizers.Adam(lr=0.5), [alg_2])
         info = json.loads(alg_root.get_optimizer_info())
         self.assertEqual(len(info), 2)
         self.assertEqual(info[0]["optimizer"], "None")
-        self.assertEqual(
-            info[0]["parameters"], [alg_root.get_param_name(param_1)]
-        )
-        self.assertEqual(
-            info[1]["parameters"], [alg_root.get_param_name(param_2)]
-        )
+        self.assertEqual(info[0]["parameters"], [alg_root.get_param_name(param_1)])
+        self.assertEqual(info[1]["parameters"], [alg_root.get_param_name(param_2)])
 
         # Test cycle detection
         alg_2.root = alg_root
@@ -182,12 +170,8 @@ class AlgorithmTest(alf.test.TestCase):
         alg_2.ignored_param = param_1
         info = json.loads(alg_root.get_optimizer_info())
         self.assertEqual(len(info), 2)
-        self.assertEqual(
-            info[0]["parameters"], [alg_root.get_param_name(param_2)]
-        )
-        self.assertEqual(
-            info[1]["parameters"], [alg_root.get_param_name(param_1)]
-        )
+        self.assertEqual(info[0]["parameters"], [alg_root.get_param_name(param_2)])
+        self.assertEqual(info[1]["parameters"], [alg_root.get_param_name(param_1)])
 
         # test __repr__
         logging.info("\n" + repr(alg_root))
@@ -247,9 +231,7 @@ class AlgorithmTest(alf.test.TestCase):
         sub_algorithm = MyAlg(optimizer=optimizer1)
         my_algorithm = MyAlg(sub_algs=[sub_algorithm])
         self.assertTrue("_optimizers.0" in sub_algorithm.state_dict())
-        self.assertTrue(
-            "_module_list.0._optimizers.0" in my_algorithm.state_dict()
-        )
+        self.assertTrue("_module_list.0._optimizers.0" in my_algorithm.state_dict())
 
     def test_update_with_gradient(self):
         param_1 = nn.Parameter(torch.tensor([1.0]))
@@ -472,9 +454,7 @@ class AlgorithmTest(alf.test.TestCase):
                     checkpoint="alg._sub_alg3@" + ckpt_path,
                 )
 
-            ckpt_check_msg = (
-                "(keys in model but not in checkpoint): ['_param_list.0']"
-            )
+            ckpt_check_msg = "(keys in model but not in checkpoint): ['_param_list.0']"
             self.assertTrue(ckpt_check_msg in str(context.exception))
 
             # 4) test can detect the case when there is dimension mismatch between

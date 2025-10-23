@@ -76,9 +76,7 @@ alf.config("metadrive.extra_rewards.CrashVehicleReward", cost=20.0)
 def summarize_metadrive(experience: Experience):
     with alf.summary.scope("MetaDrive"):
         env_info = experience.time_step.env_info
-        summary_utils.add_mean_hist_summary(
-            "velocity@step", env_info["velocity@step"]
-        )
+        summary_utils.add_mean_hist_summary("velocity@step", env_info["velocity@step"])
         summary_utils.add_mean_hist_summary(
             "abs_steering@step", env_info["abs_steering@step"]
         )
@@ -89,18 +87,10 @@ def summarize_metadrive(experience: Experience):
         summary_utils.add_mean_hist_summary(
             "harsh_brake", env_info["MetaDrive/harsh_brake"]
         )
-        summary_utils.add_mean_hist_summary(
-            "lon_acc", env_info["MetaDrive/lon_acc"]
-        )
-        summary_utils.add_mean_hist_summary(
-            "lon_jerk", env_info["MetaDrive/lon_jerk"]
-        )
-        summary_utils.add_mean_hist_summary(
-            "lat_acc", env_info["MetaDrive/lat_acc"]
-        )
-        summary_utils.add_mean_hist_summary(
-            "lat_jerk", env_info["MetaDrive/lat_jerk"]
-        )
+        summary_utils.add_mean_hist_summary("lon_acc", env_info["MetaDrive/lon_acc"])
+        summary_utils.add_mean_hist_summary("lon_jerk", env_info["MetaDrive/lon_jerk"])
+        summary_utils.add_mean_hist_summary("lat_acc", env_info["MetaDrive/lat_acc"])
+        summary_utils.add_mean_hist_summary("lat_jerk", env_info["MetaDrive/lat_jerk"])
         with alf.summary.scope("costs"):
             summary_utils.add_mean_hist_summary(
                 "lon_acc", env_info["MetaDrive/costs/lon_acc"]

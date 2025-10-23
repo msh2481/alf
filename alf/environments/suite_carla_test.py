@@ -36,12 +36,8 @@ class SuiteCarlaTest(alf.test.TestCase):
         alf.config("suite_carla.Player", with_bev_sensor=True)
 
         env = suite_carla.CarlaEnvironment(4, "Town01")
-        logging.info(
-            "observation_spec: %s" % pprint.pformat(env.observation_spec())
-        )
-        logging.info(
-            "observation_desc: %s" % pprint.pformat(env.observation_desc())
-        )
+        logging.info("observation_spec: %s" % pprint.pformat(env.observation_spec()))
+        logging.info("observation_desc: %s" % pprint.pformat(env.observation_desc()))
         logging.info("action_spec: %s" % pprint.pformat(env.action_spec()))
         logging.info("action_desc: %s" % pprint.pformat(env.action_desc()))
         action_spec = env.action_spec()
@@ -66,12 +62,8 @@ class SuiteCarlaTest(alf.test.TestCase):
 
 
 def play(env):
-    logging.info(
-        "observation_spec: %s" % pprint.pformat(env.observation_spec())
-    )
-    logging.info(
-        "observation_desc: %s" % pprint.pformat(env.observation_desc())
-    )
+    logging.info("observation_spec: %s" % pprint.pformat(env.observation_spec()))
+    logging.info("observation_desc: %s" % pprint.pformat(env.observation_desc()))
     logging.info("action_spec: %s" % pprint.pformat(env.action_spec()))
     logging.info("action_desc: %s" % pprint.pformat(env.action_desc()))
     logging.info(
@@ -127,9 +119,7 @@ def play(env):
             action[:, THROTTLE] = 0
 
         if keys[K.K_DOWN] or keys[K.K_s]:
-            action[:, BRAKE] = torch.min(
-                action[:, BRAKE] + 0.2, torch.tensor(1.0)
-            )
+            action[:, BRAKE] = torch.min(action[:, BRAKE] + 0.2, torch.tensor(1.0))
         else:
             action[:, BRAKE] = 0
 

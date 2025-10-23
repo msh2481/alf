@@ -187,12 +187,8 @@ class DMCGYMWrapper(gym.core.Env):
         """Render an RGB image.
         Copied from https://github.com/denisyarats/dmc2gym
         """
-        assert mode == "rgb_array", (
-            "only support rgb_array mode, given %s" % mode
-        )
+        assert mode == "rgb_array", "only support rgb_array mode, given %s" % mode
         height = height or self._height
         width = width or self._width
         camera_id = camera_id or self._camera_id
-        return self._env.physics.render(
-            height=height, width=width, camera_id=camera_id
-        )
+        return self._env.physics.render(height=height, width=width, camera_id=camera_id)

@@ -253,9 +253,7 @@ class AlfEnvironment(object):
         """Allows the environment to be used in a with-statement context."""
         return self
 
-    def __exit__(
-        self, unused_exception_type, unused_exc_value, unused_traceback
-    ):
+    def __exit__(self, unused_exception_type, unused_exc_value, unused_traceback):
         """Allows the environment to be used in a with-statement context."""
         self.close()
 
@@ -296,9 +294,7 @@ class AlfEnvironment(object):
         Raises:
             NotImplementedError: If the environment does not use info.
         """
-        raise NotImplementedError(
-            "No support of get_info for this environment."
-        )
+        raise NotImplementedError("No support of get_info for this environment.")
 
     #  These methods are to be implemented by subclasses:
 

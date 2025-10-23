@@ -64,9 +64,7 @@ class SuiteHighwayTest(parameterized.TestCase, alf.test.TestCase):
 
         constructor = functools.partial(ctor)
 
-        self._env = parallel_environment.ParallelAlfEnvironment(
-            [constructor] * env_num
-        )
+        self._env = parallel_environment.ParallelAlfEnvironment([constructor] * env_num)
 
         self.assertTrue(self._env.batched)
         self.assertEqual(self._env.batch_size, env_num)
@@ -111,9 +109,7 @@ class SuiteHighwayTest(parameterized.TestCase, alf.test.TestCase):
             "action": {"type": "DiscreteMetaAction"},
         }
 
-        env = suite_highway.load(
-            environment_name="highway-v0", env_config=env_config
-        )
+        env = suite_highway.load(environment_name="highway-v0", env_config=env_config)
         self.assertEqual(env.observation_spec().shape, (21,))
         self.assertTrue(env.action_spec().is_discrete)
         self.assertEqual(env.action_spec().numel, 1)
@@ -157,10 +153,7 @@ class SuiteHighwayTest(parameterized.TestCase, alf.test.TestCase):
         if time_step.env_info["crashed"].item() is True:
             assert time_step.discount == 0.0
 
-        if (
-            i == max_episode_steps - 1
-            and not time_step.env_info["crashed"].item()
-        ):
+        if i == max_episode_steps - 1 and not time_step.env_info["crashed"].item():
             assert time_step.discount == 1.0
 
 

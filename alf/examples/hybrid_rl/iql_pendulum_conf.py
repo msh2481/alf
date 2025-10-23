@@ -30,9 +30,7 @@ offline_buffer_dir = [
     "./hybrid_rl/replay_buffer_data/pendulum_replay_buffer_from_sac_10k"
 ]
 
-alf.config(
-    "create_environment", env_name="Pendulum-v0", num_parallel_environments=1
-)
+alf.config("create_environment", env_name="Pendulum-v0", num_parallel_environments=1)
 
 alf.config(
     "Agent",
@@ -69,9 +67,7 @@ critic_network_cls = partial(
     joint_fc_layer_params=fc_layers_params,
 )
 
-v_network_cls = partial(
-    alf.networks.ValueNetwork, fc_layer_params=fc_layers_params
-)
+v_network_cls = partial(alf.networks.ValueNetwork, fc_layer_params=fc_layers_params)
 
 alf.config(
     "IqlAlgorithm",

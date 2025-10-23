@@ -62,9 +62,7 @@ def _define_flags():
     )
     flags.DEFINE_float("epsilon_greedy", 1.0, "probability of sampling action.")
     flags.DEFINE_integer("random_seed", None, "random seed")
-    flags.DEFINE_integer(
-        "num_train_iterations", 2, "number of training iterations"
-    )
+    flags.DEFINE_integer("num_train_iterations", 2, "number of training iterations")
     flags.DEFINE_integer("num_test_steps", 10, "number of test steps")
     flags.DEFINE_string("gin_file", None, "Path to the gin-config file.")
     flags.DEFINE_multi_string("gin_param", None, "Gin binding parameters.")
@@ -215,9 +213,7 @@ def main(_):
         ckpt_mngr2.load(step_num)
 
         seed = common.set_random_seed(FLAGS.random_seed)
-        policy_steps1, time_steps = _run_steps(
-            algorithm1, env1, FLAGS.num_test_steps
-        )
+        policy_steps1, time_steps = _run_steps(algorithm1, env1, FLAGS.num_test_steps)
         # We calculate policy_steps1 again to make sure policy_steps1 and
         # policy_steps2 go through exactly same computation sequence so that
         # they can be compared with each other.

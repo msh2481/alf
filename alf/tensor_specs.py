@@ -169,9 +169,7 @@ class TensorSpec(object):
         return self.dtype.is_floating_point
 
     def __repr__(self):
-        return "TensorSpec(shape={}, dtype={})".format(
-            self.shape, repr(self.dtype)
-        )
+        return "TensorSpec(shape={}, dtype={})".format(self.shape, repr(self.dtype))
 
     def __eq__(self, other):
         if type(self) != type(other):
@@ -438,9 +436,7 @@ class BoundedTensorSpec(TensorSpec):
         else:
             # torch.randint cannot have multi-dim lows and highs; currently only
             # support a scalar minimum and maximum
-            assert (
-                np.shape(self._minimum) == () and np.shape(self._maximum) == ()
-            )
+            assert np.shape(self._minimum) == () and np.shape(self._maximum) == ()
             return torch.randint(
                 low=self._minimum.item(),
                 high=self._maximum.item() + 1,
@@ -519,17 +515,11 @@ def concat_specs(specs: Union[NestedTensorSpec, NestedBoundedTensorSpec]):
     ), "All action specs should have the same type"
     if spec_type == alf.BoundedTensorSpec:
         minimum = np.concatenate(
-            [
-                np.broadcast_to(spec.minimum, spec.shape).reshape(-1)
-                for spec in specs
-            ],
+            [np.broadcast_to(spec.minimum, spec.shape).reshape(-1) for spec in specs],
             axis=0,
         )
         maximum = np.concatenate(
-            [
-                np.broadcast_to(spec.maximum, spec.shape).reshape(-1)
-                for spec in specs
-            ],
+            [np.broadcast_to(spec.maximum, spec.shape).reshape(-1) for spec in specs],
             axis=0,
         )
         return alf.BoundedTensorSpec(
@@ -539,6 +529,4 @@ def concat_specs(specs: Union[NestedTensorSpec, NestedBoundedTensorSpec]):
             dtype=dtype,
         )
     else:
-        return alf.TensorSpec(
-            shape=(sum(spec.numel for spec in specs),), dtype=dtype
-        )
+        return alf.TensorSpec(shape=(sum(spec.numel for spec in specs),), dtype=dtype)

@@ -28,9 +28,7 @@ critic_network_cls = partial(
     use_fc_ln=True,
 )  # turning on critic layernorm is crucial for high utd
 
-alf.config(
-    "Agent", optimizer=dmc_conf.optimizer, rl_algorithm_cls=RlpdAlgorithm
-)
+alf.config("Agent", optimizer=dmc_conf.optimizer, rl_algorithm_cls=RlpdAlgorithm)
 
 alf.config(
     "RlpdAlgorithm",

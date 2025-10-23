@@ -83,21 +83,15 @@ class PlanAlgorithm(OffPolicyAlgorithm):
         self._planning_horizon = planning_horizon
 
         self._upper_bound = (
-            torch.tensor(action_spec.maximum)
-            if upper_bound is None
-            else upper_bound
+            torch.tensor(action_spec.maximum) if upper_bound is None else upper_bound
         )
         self._lower_bound = (
-            torch.tensor(action_spec.minimum)
-            if lower_bound is None
-            else lower_bound
+            torch.tensor(action_spec.minimum) if lower_bound is None else lower_bound
         )
 
         self._action_seq_cost_func = None
 
-    def train_step(
-        self, time_step: TimeStep, state: PlannerState, rollout_info=None
-    ):
+    def train_step(self, time_step: TimeStep, state: PlannerState, rollout_info=None):
         """
         Args:
             time_step (TimeStep): input data for dynamics learning
@@ -121,9 +115,7 @@ class PlanAlgorithm(OffPolicyAlgorithm):
         """
         self._action_seq_cost_func = action_seq_cost_func
 
-    def predict_plan(
-        self, time_step: TimeStep, state: PlannerState, epsilon_greedy
-    ):
+    def predict_plan(self, time_step: TimeStep, state: PlannerState, epsilon_greedy):
         """Compute the plan based on the provided observation and action
         Args:
             time_step (TimeStep): input data for next step prediction
@@ -222,9 +214,7 @@ class RandomShootingAlgorithm(PlanAlgorithm):
         """
         return AlgStep(output=(), state=state, info=())
 
-    def predict_plan(
-        self, time_step: TimeStep, state: PlannerState, epsilon_greedy
-    ):
+    def predict_plan(self, time_step: TimeStep, state: PlannerState, epsilon_greedy):
         assert self._action_seq_cost_func is not None, (
             "specify " "action sequence cost function before planning"
         )
@@ -249,9 +239,7 @@ class RandomShootingAlgorithm(PlanAlgorithm):
         Returns:
             cost (Tensor) with shape [batch_size, population_size]
         """
-        ac_seqs = ac_seqs.reshape(
-            *ac_seqs.shape[0:2], self._planning_horizon, -1
-        )
+        ac_seqs = ac_seqs.reshape(*ac_seqs.shape[0:2], self._planning_horizon, -1)
         cost = self._action_seq_cost_func(obs, ac_seqs)
         return cost
 
@@ -349,9 +337,7 @@ class CEMPlanAlgorithm(RandomShootingAlgorithm):
         else:
             self._scalar_var = scalar_var
 
-    def predict_plan(
-        self, time_step: TimeStep, state: PlannerState, epislon_greedy
-    ):
+    def predict_plan(self, time_step: TimeStep, state: PlannerState, epislon_greedy):
         prev_plan = state.prev_plan
         # [B, horizon, action_dim] -> [B, horizon*action_dim]
         prev_solution = prev_plan.reshape(prev_plan.shape[0], -1)

@@ -36,9 +36,7 @@ hidden_layers = (10,)
 actor_network_cls = functools.partial(
     ActorDistributionNetwork, fc_layer_params=hidden_layers
 )
-value_network_cls = functools.partial(
-    ValueNetwork, fc_layer_params=hidden_layers
-)
+value_network_cls = functools.partial(ValueNetwork, fc_layer_params=hidden_layers)
 
 alf.config("CategoricalProjectionNetwork", logits_init_output_factor=1e-10)
 

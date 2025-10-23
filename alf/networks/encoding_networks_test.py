@@ -67,9 +67,7 @@ class EncodingNetworkTest(parameterized.TestCase, alf.test.TestCase):
         self.assertEqual(output_shape, tuple(output.size()[1:]))
 
     @parameterized.parameters((None, True), ((100, 100), False))
-    def test_image_decoding_network(
-        self, preprocessing_fc_layers, same_padding
-    ):
+    def test_image_decoding_network(self, preprocessing_fc_layers, same_padding):
         input_spec = TensorSpec((100,), torch.float32)
         embedding = input_spec.zeros(outer_dims=(1,))
         network = ImageDecodingNetwork(
@@ -116,9 +114,7 @@ class EncodingNetworkTest(parameterized.TestCase, alf.test.TestCase):
             )
         self.assertEqual(output_shape, network.output_spec.shape)
 
-    @parameterized.parameters(
-        (None, 1, (64, 21, 65)), ((100, 100), 5, (18, 31, 24))
-    )
+    @parameterized.parameters((None, 1, (64, 21, 65)), ((100, 100), 5, (18, 31, 24)))
     def test_image_deconv_network(
         self, preprocessing_fc_layers, start_decoding_channels, output_shape
     ):
@@ -214,9 +210,7 @@ class EncodingNetworkTest(parameterized.TestCase, alf.test.TestCase):
                     self.assertEqual(output.size()[1], last_layer_size)
                 self.assertEqual(output_spec.shape, tuple(output.size()[1:]))
             else:
-                self.assertEqual(
-                    tuple(output.size()[1:]), output_tensor_spec.shape
-                )
+                self.assertEqual(tuple(output.size()[1:]), output_tensor_spec.shape)
                 self.assertEqual(output_spec.shape, output_tensor_spec.shape)
 
     @parameterized.parameters(False, True)
@@ -248,17 +242,13 @@ class EncodingNetworkTest(parameterized.TestCase, alf.test.TestCase):
         self.assertEqual(output.shape[-1], np.prod(output_spec.shape))
 
     @parameterized.parameters((True,), (False,))
-    def test_encoding_network_preprocessing_combiner(
-        self, input_with_ensemble_ids
-    ):
+    def test_encoding_network_preprocessing_combiner(self, input_with_ensemble_ids):
         batch_size = 4
         input_spec = dict(
             a=TensorSpec((3, 80, 80)),
             b=[TensorSpec((3, 80, 80)), TensorSpec((1, 80, 80))],
         )
-        imgs = common.zero_tensor_from_nested_spec(
-            input_spec, batch_size=batch_size
-        )
+        imgs = common.zero_tensor_from_nested_spec(input_spec, batch_size=batch_size)
         if input_with_ensemble_ids:
             ids = torch.randint(10, size=(batch_size,))
             imgs = (imgs, ids)
@@ -272,9 +262,7 @@ class EncodingNetworkTest(parameterized.TestCase, alf.test.TestCase):
 
         output, _ = network(imgs)
         if input_with_ensemble_ids:
-            self.assertTensorEqual(
-                output[0], torch.zeros((batch_size, 40 * 40))
-            )
+            self.assertTensorEqual(output[0], torch.zeros((batch_size, 40 * 40)))
             self.assertEqual(output[1].size(), (batch_size,))
         else:
             self.assertTensorEqual(output, torch.zeros((batch_size, 40 * 40)))
@@ -324,9 +312,7 @@ class EncodingNetworkTest(parameterized.TestCase, alf.test.TestCase):
         )
 
         if lstm:
-            network_ctor = functools.partial(
-                LSTMEncodingNetwork, hidden_size=(100,)
-            )
+            network_ctor = functools.partial(LSTMEncodingNetwork, hidden_size=(100,))
         else:
             network_ctor = EncodingNetwork
 
@@ -388,9 +374,7 @@ class EncodingNetworkTest(parameterized.TestCase, alf.test.TestCase):
                 self.assertEqual(
                     output.shape, (batch_size, replicas, *output_spec.shape)
                 )
-                self.assertEqual(
-                    pnet.output_spec.shape, (replicas, *output_spec.shape)
-                )
+                self.assertEqual(pnet.output_spec.shape, (replicas, *output_spec.shape))
 
         pnet = network.make_parallel(replicas, True)
         test_net_copy(pnet)
@@ -406,9 +390,7 @@ class EncodingNetworkTest(parameterized.TestCase, alf.test.TestCase):
         self.assertEqual(pnet.name, "naive_parallel_" + network.name)
 
         # test on user-defined network name
-        pnet = alf.networks.network.NaiveParallelNetwork(
-            network, replicas, name="pnet"
-        )
+        pnet = alf.networks.network.NaiveParallelNetwork(network, replicas, name="pnet")
         self.assertEqual(pnet.name, "pnet")
 
     def test_make_parallel_warning_on_using_naive_parallel(self):
@@ -479,8 +461,7 @@ class EncodingNetworkSideEffectsTest(alf.test.TestCase):
 
         target_net = enc_net.copy()
         self.assertTrue(
-            len(list(target_net.parameters()))
-            == len(list(enc_net.parameters()))
+            len(list(target_net.parameters())) == len(list(enc_net.parameters()))
         )
 
 

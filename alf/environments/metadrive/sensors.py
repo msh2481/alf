@@ -135,17 +135,13 @@ class VectorizedObservation(ObservationBase):
     def observation_spec(self):
         return {
             "map": self._map_perception.observation_spec,
-            "map_mask": TensorSpec(
-                shape=(self.polyline_limit,), dtype=torch.bool
-            ),
+            "map_mask": TensorSpec(shape=(self.polyline_limit,), dtype=torch.bool),
             "ego": TensorSpec(
                 shape=((self._position_history.point.shape[0] - 1) * 6,),
                 dtype=torch.float32,
             ),
             "agents": self._agent_perception.observation_spec,
-            "agent_mask": TensorSpec(
-                shape=(self.agent_limit,), dtype=torch.bool
-            ),
+            "agent_mask": TensorSpec(shape=(self.agent_limit,), dtype=torch.bool),
         }
 
     def observe(self, vehicle: BaseVehicle):
@@ -172,9 +168,7 @@ class VectorizedObservation(ObservationBase):
         agent_mask = np.ones(agent_feature.shape[0], dtype=bool)
         agent_mask[agent_count:] = False
 
-        self._position_history.point[:-1, :] = self._position_history.point[
-            1:, :
-        ]
+        self._position_history.point[:-1, :] = self._position_history.point[1:, :]
         self._position_history.point[-1, :] = vehicle.position
 
         return {
@@ -190,9 +184,7 @@ class VectorizedObservation(ObservationBase):
     def reset(self, env, vehicle=None):
         # Initialize by generating all the polylines of map and navigation via the
         # MapPolylinePerception object.
-        self._map_perception.reset(
-            env.current_map.road_network, vehicle.navigation
-        )
+        self._map_perception.reset(env.current_map.road_network, vehicle.navigation)
         self._agent_perception.reset(env.engine, vehicle)
         # Initialize the vehicle history buffer.
         self._position_history.point[:, :] = vehicle.position
@@ -243,9 +235,7 @@ class BirdEyeObservation(TopDownMultiChannel):
 
         self._velocity_steps = velocity_steps
         self._velocity_normalization = velocity_normalization
-        self._velocity_history = np.zeros(
-            self._velocity_steps, dtype=np.float32
-        )
+        self._velocity_history = np.zeros(self._velocity_steps, dtype=np.float32)
 
     @property
     def observation_spec(self):

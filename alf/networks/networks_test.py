@@ -29,9 +29,7 @@ class NestworksTest(alf.test.TestCase):
         x = torch.randn((batch_size, 20, dim))
         l = TemporalPool(dim, 5, 3)
         self.assertEqual(l.output_spec, alf.TensorSpec((5, dim)))
-        state = alf.utils.common.zero_tensor_from_nested_spec(
-            l.state_spec, batch_size
-        )
+        state = alf.utils.common.zero_tensor_from_nested_spec(l.state_spec, batch_size)
 
         for i in range(0, 3):
             o, state = l(x[:, i, :], state)
@@ -68,9 +66,7 @@ class NestworksTest(alf.test.TestCase):
         x = torch.randn((batch_size, 20, dim))
         l = TemporalPool(dim, 5, 3, mode="max")
         self.assertEqual(l.output_spec, alf.TensorSpec((5, dim)))
-        state = alf.utils.common.zero_tensor_from_nested_spec(
-            l.state_spec, batch_size
-        )
+        state = alf.utils.common.zero_tensor_from_nested_spec(l.state_spec, batch_size)
 
         for i in range(0, 2):
             o, state = l(x[:, i, :], state)
@@ -124,9 +120,7 @@ class NestworksTest(alf.test.TestCase):
         x = torch.randn((batch_size, 20, dim))
         l = TemporalPool(dim, 5, 3, mode="avg")
         self.assertEqual(l.output_spec, alf.TensorSpec((5, dim)))
-        state = alf.utils.common.zero_tensor_from_nested_spec(
-            l.state_spec, batch_size
-        )
+        state = alf.utils.common.zero_tensor_from_nested_spec(l.state_spec, batch_size)
 
         for i in range(0, 2):
             o, state = l(x[:, i, :], state)

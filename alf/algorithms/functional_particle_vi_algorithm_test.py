@@ -152,9 +152,7 @@ class FuncParVIAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
             absl.logging.info("train_iter {}: pred err {}".format(i, pred_err))
             absl.logging.info("train_iter {}: mean err {}".format(i, mean_err))
             absl.logging.info("train_iter {}: cov err {}".format(i, cov_err))
-            absl.logging.info(
-                "computed_cov norm: {}".format(computed_cov.norm())
-            )
+            absl.logging.info("computed_cov norm: {}".format(computed_cov.norm()))
 
         train_iter = 1000
         for i in range(train_iter):
@@ -172,12 +170,8 @@ class FuncParVIAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
         cov_err = torch.norm(computed_cov - true_cov)
         cov_err = cov_err / torch.norm(true_cov)
         absl.logging.info("-" * 68)
-        absl.logging.info(
-            "train_iter {}: mean err {}".format(train_iter, mean_err)
-        )
-        absl.logging.info(
-            "train_iter {}: cov err {}".format(train_iter, cov_err)
-        )
+        absl.logging.info("train_iter {}: mean err {}".format(train_iter, mean_err))
+        absl.logging.info("train_iter {}: cov err {}".format(train_iter, cov_err))
 
         self.assertLess(mean_err, 0.5)
         self.assertLess(cov_err, 0.5)
@@ -195,9 +189,7 @@ class FuncParVIAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
         trainset = TensorDataset(
             torch.randn(100, 1, 28, 28), torch.randint(0, 9, (100,))
         )
-        testset = TensorDataset(
-            torch.randn(50, 1, 28, 28), torch.randint(0, 9, (50,))
-        )
+        testset = TensorDataset(torch.randn(50, 1, 28, 28), torch.randint(0, 9, (50,)))
         outlier_trainset = TensorDataset(
             torch.randn(100, 1, 28, 28), torch.randint(0, 9, (100,))
         )

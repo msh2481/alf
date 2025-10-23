@@ -37,24 +37,16 @@ class TestCase(unittest.TestCase):
         alf.summary.reset_global_counter()
 
     def assertTensorEqual(self, t1, t2, msg=None):
-        self.assertIsInstance(
-            t1, torch.Tensor, "First argument is not a Tensor"
-        )
-        self.assertIsInstance(
-            t2, torch.Tensor, "Second argument is not a Tensor"
-        )
+        self.assertIsInstance(t1, torch.Tensor, "First argument is not a Tensor")
+        self.assertIsInstance(t2, torch.Tensor, "Second argument is not a Tensor")
         self.assertEqual(t1.shape, t2.shape, msg=msg)
         if not torch.all(t1.cpu() == t2.cpu()):
             standardMsg = "%s != %s" % (t1, t2)
             self.fail(self._formatMessage(msg, standardMsg))
 
     def assertTensorClose(self, t1, t2, epsilon=1e-6, msg=None):
-        self.assertIsInstance(
-            t1, torch.Tensor, "First argument is not a Tensor"
-        )
-        self.assertIsInstance(
-            t2, torch.Tensor, "Second argument is not a Tensor"
-        )
+        self.assertIsInstance(t1, torch.Tensor, "First argument is not a Tensor")
+        self.assertIsInstance(t2, torch.Tensor, "Second argument is not a Tensor")
         self.assertEqual(t1.shape, t2.shape, msg=msg)
         diff = torch.max(torch.abs(t1 - t2))
         if not (diff <= epsilon):
@@ -62,12 +54,8 @@ class TestCase(unittest.TestCase):
             self.fail(self._formatMessage(msg, standardMsg))
 
     def assertTensorNotClose(self, t1, t2, epsilon=1e-6, msg=None):
-        self.assertIsInstance(
-            t1, torch.Tensor, "First argument is not a Tensor"
-        )
-        self.assertIsInstance(
-            t2, torch.Tensor, "Second argument is not a Tensor"
-        )
+        self.assertIsInstance(t1, torch.Tensor, "First argument is not a Tensor")
+        self.assertIsInstance(t2, torch.Tensor, "Second argument is not a Tensor")
         self.assertEqual(t1.shape, t2.shape, msg=msg)
         if torch.max(torch.abs(t1 - t2)) < epsilon:
             standardMsg = "%s is actually close to %s" % (t1, t2)

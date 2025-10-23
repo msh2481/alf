@@ -48,9 +48,7 @@ class MoNetVisualizer(Algorithm):
                     render.render_text(
                         name="", data="reconstructed image", font_size=6
                     ),
-                    self._tensor_to_image(
-                        monet_info.full_rec.squeeze(0), height=256
-                    ),
+                    self._tensor_to_image(monet_info.full_rec.squeeze(0), height=256),
                 ],
                 horizontal=False,
             )
@@ -63,9 +61,7 @@ class MoNetVisualizer(Algorithm):
                     ),
                     height=height,
                 )
-                img = self._tensor_to_image(
-                    im.squeeze(0).squeeze(0), height=height
-                )
+                img = self._tensor_to_image(im.squeeze(0).squeeze(0), height=height)
                 return render.Image(img.data / 5 + slot_sel.data / 5 * 4)
 
             # [B,G,H,W]
@@ -190,9 +186,7 @@ alf.config(
 
 alf.config(
     "TrainerConfig",
-    algorithm_ctor=partial(
-        MoNetAgent, optimizer=alf.optimizers.AdamTF(lr=1e-4)
-    ),
+    algorithm_ctor=partial(MoNetAgent, optimizer=alf.optimizers.AdamTF(lr=1e-4)),
     data_transformer_ctor=[partial(ImageScaleTransformer, min=0.0)],
     whole_replay_buffer_training=False,
     clear_replay_buffer=False,

@@ -55,12 +55,10 @@ class _LeanFunction(torch.autograd.Function):
             )
             for arg in args
         )
-        assert num_parameters > 0 or len(tensors) > 0, (
-            "No Tensor input for %s" % func
-        )
+        assert num_parameters > 0 or len(tensors) > 0, "No Tensor input for %s" % func
         ctx.device = _infer_device_type(*tensors, *ctx.parameters)
-        ctx.device_autocast_kwargs, ctx.cpu_autocast_kwargs = (
-            _get_autocast_kwargs(ctx.device)
+        ctx.device_autocast_kwargs, ctx.cpu_autocast_kwargs = _get_autocast_kwargs(
+            ctx.device
         )
         ctx.save_for_backward(*tensors)
         func._inside_lean_function = True
@@ -110,9 +108,7 @@ class _LeanFunction(torch.autograd.Function):
             func = ctx.func
             parameters = ctx.parameters
             num_parameters = len(parameters)
-            args = tuple(
-                tensors.pop(0) if arg[0] else arg[1] for arg in ctx.args
-            )
+            args = tuple(tensors.pop(0) if arg[0] else arg[1] for arg in ctx.args)
             tensors = tuple(
                 arg
                 for i, arg in enumerate(args)
@@ -130,12 +126,8 @@ class _LeanFunction(torch.autograd.Function):
             func._inside_lean_function = False
         if isinstance(func, Network):
             out = tuple(flatten(out))
-        grads = list(
-            torch.autograd.grad(out, parameters + tensors, grad_output)
-        )
-        grads = tuple(
-            grads.pop(0) if need else None for need in ctx.needs_input_grad
-        )
+        grads = list(torch.autograd.grad(out, parameters + tensors, grad_output))
+        grads = tuple(grads.pop(0) if need else None for need in ctx.needs_input_grad)
         return grads
 
 

@@ -29,9 +29,7 @@ except:
 class PrettyPrinter(pprint.PrettyPrinter):
     """Copied from https://stackoverflow.com/questions/30062384/pretty-print-namedtuple"""
 
-    def format_namedtuple(
-        self, object, stream, indent, allowance, context, level
-    ):
+    def format_namedtuple(self, object, stream, indent, allowance, context, level):
         # Code almost equal to _format_dict, see pprint code
         write = stream.write
         write(object.__class__.__name__ + "(")
@@ -98,13 +96,8 @@ class PrettyPrinter(pprint.PrettyPrinter):
         # formatting methods
         # We use a simple criteria (_asdict method) that allows us to use the
         # same formatting on other classes but a more precise one is possible
-        if (
-            hasattr(object, "_asdict")
-            and type(object).__repr__ not in self._dispatch
-        ):
-            self._dispatch[type(object).__repr__] = (
-                PrettyPrinter.format_namedtuple
-            )
+        if hasattr(object, "_asdict") and type(object).__repr__ not in self._dispatch:
+            self._dispatch[type(object).__repr__] = PrettyPrinter.format_namedtuple
         super()._format(object, stream, indent, allowance, context, level)
 
 

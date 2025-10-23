@@ -134,9 +134,7 @@ class QRSACAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
                 n_seconds=1,
             )
 
-        self.assertAlmostEqual(
-            1.0, float(eval_time_step.reward.mean()), delta=0.3
-        )
+        self.assertAlmostEqual(1.0, float(eval_time_step.reward.mean()), delta=0.3)
 
 
 def unroll(env, algorithm, steps, epsilon_greedy: float = 0.1):

@@ -73,9 +73,7 @@ class PPOAlgorithm(ActorCriticAlgorithm):
             )
         )
 
-    def preprocess_experience(
-        self, root_inputs: TimeStep, rollout_info, batch_info
-    ):
+    def preprocess_experience(self, root_inputs: TimeStep, rollout_info, batch_info):
         """Compute advantages and put it into exp.rollout_info."""
 
         # The device of rollout_info can be different from the default device
@@ -110,9 +108,7 @@ class PPOAlgorithm(ActorCriticAlgorithm):
             normalized_advantages = normalize(
                 self._loss._adv_norm, scalar_advantages.reshape(-1, 1)
             )
-            normalized_advantages = normalized_advantages.reshape_as(
-                scalar_advantages
-            )
+            normalized_advantages = normalized_advantages.reshape_as(scalar_advantages)
             normalized_advantages = tensor_utils.tensor_extend_zero(
                 normalized_advantages, dim=1
             )

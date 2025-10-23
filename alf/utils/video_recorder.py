@@ -133,9 +133,7 @@ class VideoRecorder(GymVideoRecorder):
                     for _ in range(self._append_blank_frames):
                         self._encode_frame(self._blank_frame)
 
-            assert (
-                not self.broken
-            ), "The output file is broken! Check warning messages."
+            assert not self.broken, "The output file is broken! Check warning messages."
 
     def capture_env_frame(self):
         """Return un-encoded env frame"""
@@ -183,9 +181,7 @@ class VideoRecorder(GymVideoRecorder):
             for _ in range(self._append_blank_frames):
                 self._encode_frame(self._blank_frame)
 
-            assert (
-                not self.broken
-            ), "The output file is broken! Check warning messages."
+            assert not self.broken, "The output file is broken! Check warning messages."
 
     def _encode_frame(self, frame):
         """Perform encoding of the input frame
@@ -214,11 +210,7 @@ class VideoRecorder(GymVideoRecorder):
         Returns:
             np.ndarray:
         """
-        imgs = [
-            i
-            for i in alf.nest.flatten(pred_info)
-            if isinstance(i, render.Image)
-        ]
+        imgs = [i for i in alf.nest.flatten(pred_info) if isinstance(i, render.Image)]
         if self._pred_info_img_shapes is None:
             self._pred_info_img_shapes = [i.shape for i in imgs]
         else:
@@ -237,12 +229,8 @@ class VideoRecorder(GymVideoRecorder):
             info_img = render.Image.pack_image_nest(imgs)
             # always put env frame on top/left; for simplicity here we generate
             # both and compare their sizes.
-            horizontal = render.Image.stack_images(
-                [frame, info_img], horizontal=True
-            )
-            vertical = render.Image.stack_images(
-                [frame, info_img], horizontal=False
-            )
+            horizontal = render.Image.stack_images([frame, info_img], horizontal=True)
+            vertical = render.Image.stack_images([frame, info_img], horizontal=False)
             if np.product(horizontal.shape) < np.product(vertical.shape):
                 frame = horizontal
             else:

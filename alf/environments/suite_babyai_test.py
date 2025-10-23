@@ -81,13 +81,11 @@ class SuiteBabyAITest(alf.test.TestCase):
         )
         obs = env.reset().observation
         self.assertTrue(
-            np.alltrue(obs["mission"] == instr1)
-            or np.alltrue(obs["mission"] == instr2)
+            np.alltrue(obs["mission"] == instr1) or np.alltrue(obs["mission"] == instr2)
         )
         obs = env.step(0).observation
         self.assertTrue(
-            np.alltrue(obs["mission"] == instr1)
-            or np.alltrue(obs["mission"] == instr2)
+            np.alltrue(obs["mission"] == instr1) or np.alltrue(obs["mission"] == instr2)
         )
 
     def test_timelimit_discount(self):

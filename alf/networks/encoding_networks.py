@@ -392,9 +392,7 @@ class ImageDecodingNetworkV2(_Sequential):
         in_channels = start_decoding_channels
         for i, paras in enumerate(upsample_conv_layer_params):
             if isinstance(paras, int):
-                nets.append(
-                    torch.nn.Upsample(scale_factor=paras, mode=upsampling_mode)
-                )
+                nets.append(torch.nn.Upsample(scale_factor=paras, mode=upsampling_mode))
             else:
                 filters, kernel_size, strides = paras[:3]
                 padding = paras[3] if len(paras) > 3 else 0
@@ -641,9 +639,7 @@ class AutoShapeImageDeconvNetwork(_Sequential):
         """
 
         def _conv_out_1d(input_size, padding, kernel_size, stride):
-            return int(
-                (input_size + 2.0 * padding - kernel_size) / stride + 1.0
-            )
+            return int((input_size + 2.0 * padding - kernel_size) / stride + 1.0)
 
         return tuple(
             _conv_out_1d(x, p, k, stride)
@@ -658,12 +654,8 @@ class AutoShapeImageDeconvNetwork(_Sequential):
         size that matches the ``input size``.
         """
 
-        def _output_padding_1d(
-            input_size, conv_out, padding, kernel_size, stride
-        ):
-            return (
-                input_size - (conv_out - 1) * stride + 2 * padding - kernel_size
-            )
+        def _output_padding_1d(input_size, conv_out, padding, kernel_size, stride):
+            return input_size - (conv_out - 1) * stride + 2 * padding - kernel_size
 
         return tuple(
             _output_padding_1d(x, c, p, k, stride)
@@ -842,8 +834,7 @@ class EncodingNetwork(_Sequential):
             input_size = spec.shape[-1]
         else:
             raise ValueError(
-                f"The input shape {spec.shape} should be like (N, )"
-                "or (N, D, )."
+                f"The input shape {spec.shape} should be like (N, )" "or (N, D, )."
             )
 
         if fc_layer_params is None:
@@ -904,9 +895,7 @@ class EncodingNetwork(_Sequential):
                 assert output_tensor_spec.numel == input_size, (
                     "network output "
                     "size {a} is inconsistent with specified out_tensor_spec "
-                    "of size {b}".format(
-                        a=input_size, b=output_tensor_spec.numel
-                    )
+                    "of size {b}".format(a=input_size, b=output_tensor_spec.numel)
                 )
             elif spec.numel == 2:
                 assert output_tensor_spec.numel % input_size == 0
@@ -958,9 +947,7 @@ class EncodingNetwork(_Sequential):
 class _ReplicateInputForParallel(Network):
 
     def __init__(self, input_tensor_spec, n, pnet, name):
-        super().__init__(
-            input_tensor_spec, state_spec=pnet.state_spec, name=name
-        )
+        super().__init__(input_tensor_spec, state_spec=pnet.state_spec, name=name)
         self._input_tensor_spec = input_tensor_spec
         self._n = n
         self._pnet = pnet

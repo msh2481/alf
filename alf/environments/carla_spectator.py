@@ -162,8 +162,7 @@ def main(_):
                     vehicle = vehicles[vehicle_id]
                     camera = _make_camera(vehicle, view)
                     logging.info(
-                        "Switched to id: %s type_id: %s"
-                        % (vehicle.id, vehicle.type_id)
+                        "Switched to id: %s type_id: %s" % (vehicle.id, vehicle.type_id)
                     )
                 if event.key == K.K_SPACE:
                     view = 1 - view

@@ -23,9 +23,7 @@ from alf.examples import ac_stochastic_with_risky_branch_conf
 from alf.examples import sac_conf
 
 CONV_LAYER_PARAMS = None
-alf.config(
-    "QNetwork", conv_layer_params=CONV_LAYER_PARAMS, fc_layer_params=(10,)
-)
+alf.config("QNetwork", conv_layer_params=CONV_LAYER_PARAMS, fc_layer_params=(10,))
 
 alf.config(
     "SacAlgorithm",

@@ -89,9 +89,7 @@ class Normalizer(nn.Module):
         self._auto_update = auto_update
         self._variance_epsilon = variance_epsilon
         self._tensor_spec = tensor_spec
-        assert (
-            zero_mean or not unit_std
-        ), "Must at least subtract mean or divide std!"
+        assert zero_mean or not unit_std, "Must at least subtract mean or divide std!"
         if zero_mean:
             self._mean_averager = self._create_averager()
         else:
@@ -404,9 +402,7 @@ class AdaptiveNormalizer(Normalizer):
 
     def _create_averager(self):
         """Create an adaptive averager."""
-        return AdaptiveAverager(
-            tensor_spec=self._tensor_spec, speed=self._speed
-        )
+        return AdaptiveAverager(tensor_spec=self._tensor_spec, speed=self._speed)
 
 
 @alf.configurable

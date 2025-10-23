@@ -172,9 +172,7 @@ class MuzeroAlgorithm(OffPolicyAlgorithm):
                 reward=self._reward_transformer(time_step.reward)
             )
         latent = self._repr_learner.rollout_step(time_step, state).output
-        return self._mcts.rollout_step(
-            time_step._replace(observation=latent), state
-        )
+        return self._mcts.rollout_step(time_step._replace(observation=latent), state)
 
     def train_step(self, exp: TimeStep, state, rollout_info: MuzeroInfo):
         return self._repr_learner.train_step(exp, state, rollout_info)

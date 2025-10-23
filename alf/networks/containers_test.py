@@ -35,9 +35,7 @@ class ContainersTest(alf.test.TestCase):
             test_net_copy(pnet)
             nnet = alf.nn.NaiveParallelNetwork(net, n)
             for i in range(n):
-                for pp, np in zip(
-                    pnet.parameters(), nnet._networks[i].parameters()
-                ):
+                for pp, np in zip(pnet.parameters(), nnet._networks[i].parameters()):
                     self.assertEqual(pp.shape, (n,) + np.shape)
                     np.data.copy_(pp[i])
             pspec = alf.layers.make_parallel_spec(spec, n)

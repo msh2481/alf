@@ -195,9 +195,7 @@ class AgentHelper(object):
         """
         for alg in algorithms:
             field = self._get_algorithm_field(alg)
-            info = (
-                None if rollout_info is None else getattr(rollout_info, field)
-            )
+            info = None if rollout_info is None else getattr(rollout_info, field)
             alg.after_train_iter(root_inputs, info)
 
     def set_path(self, path):

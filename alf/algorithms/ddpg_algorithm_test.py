@@ -35,9 +35,7 @@ from alf.utils.math_ops import clipped_exp
 class DDPGAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
 
     @parameterized.parameters((1, 1, None), (2, 3, [1, 2, 3]))
-    def test_ddpg_algorithm(
-        self, num_critic_replicas, reward_dim, reward_weights
-    ):
+    def test_ddpg_algorithm(self, num_critic_replicas, reward_dim, reward_weights):
         num_env = 128
         num_eval_env = 100
         steps_per_episode = 13
@@ -71,9 +69,7 @@ class DDPGAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
 
         fc_layer_params = (16, 16)
 
-        actor_network = functools.partial(
-            ActorNetwork, fc_layer_params=fc_layer_params
-        )
+        actor_network = functools.partial(ActorNetwork, fc_layer_params=fc_layer_params)
 
         critic_network = functools.partial(
             CriticNetwork,
@@ -105,9 +101,7 @@ class DDPGAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
         eval_time_step = unroll(eval_env, alg, steps_per_episode - 1)
         print(eval_time_step.reward.mean())
 
-        self.assertAlmostEqual(
-            1.0, float(eval_time_step.reward.mean()), delta=2e-1
-        )
+        self.assertAlmostEqual(1.0, float(eval_time_step.reward.mean()), delta=2e-1)
 
 
 if __name__ == "__main__":

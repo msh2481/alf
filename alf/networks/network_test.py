@@ -146,9 +146,7 @@ class NaiveParallelNetworkTest(alf.test.TestCase):
 
         pnet = NaiveParallelNetwork(network, replicas)
 
-        self.assertEqual(
-            len(list(pnet.parameters())), num_layers * 2 * replicas
-        )
+        self.assertEqual(len(list(pnet.parameters())), num_layers * 2 * replicas)
 
         output, _ = pnet(embedding)
         self.assertEqual(output.shape, (6, replicas, 50))
@@ -171,9 +169,7 @@ class NaiveParallelNetworkTest(alf.test.TestCase):
                 (TensorSpec((4, 40)), TensorSpec((4, 40))),
             ],
         )
-        state = alf.utils.common.zero_tensor_from_nested_spec(
-            pnet.state_spec, 6
-        )
+        state = alf.utils.common.zero_tensor_from_nested_spec(pnet.state_spec, 6)
         output, state = pnet(embedding, state)
         self.assertEqual(output.shape, (6, replicas, 40))
         self.assertEqual(pnet.output_spec.shape, (replicas, 40))
@@ -188,9 +184,7 @@ class NaiveParallelNetworkTest(alf.test.TestCase):
     def test_distribution(self):
         input_size = 100
         action_spec = BoundedTensorSpec((4,))
-        network = BetaProjectionNetwork(
-            input_size=input_size, action_spec=action_spec
-        )
+        network = BetaProjectionNetwork(input_size=input_size, action_spec=action_spec)
         pnet = NaiveParallelNetwork(network, 2)
         x = torch.zeros(
             (
@@ -235,9 +229,7 @@ class PreprocessorNetworkTest(alf.test.TestCase):
 
         PreprocessorNetwork(
             input_tensor_spec=input_spec,
-            input_preprocessors=EmbeddingPreprocessor(
-                input_spec, embedding_dim=10
-            ),
+            input_preprocessors=EmbeddingPreprocessor(input_spec, embedding_dim=10),
             preprocessing_combiner=combiner,
         )
         PreprocessorNetwork(
@@ -249,9 +241,7 @@ class PreprocessorNetworkTest(alf.test.TestCase):
             AssertionError,
             PreprocessorNetwork,
             input_tensor_spec=input_spec,
-            input_preprocessors=LSTMEncodingNetwork(
-                input_tensor_spec=input_spec
-            ),
+            input_preprocessors=LSTMEncodingNetwork(input_tensor_spec=input_spec),
             preprocessing_combiner=combiner,
         )
 
@@ -274,9 +264,7 @@ class PreprocessorNetworkTest(alf.test.TestCase):
             AssertionError,
             _create_transformer_net,
             alf.nn.Sequential(
-                LSTMEncodingNetwork(
-                    input_tensor_spec=input_spec, hidden_size=(100,)
-                ),
+                LSTMEncodingNetwork(input_tensor_spec=input_spec, hidden_size=(100,)),
                 alf.layers.Reshape(10, 10),
             ),
         )

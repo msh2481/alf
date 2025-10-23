@@ -77,9 +77,7 @@ def _create_algorithm(env, sac, use_rnn, on_policy, priority_replay):
                 continuous_projection_net_ctor=continuous_projection_net_ctor,
             )
         else:
-            actor_net = functools.partial(
-                ActorNetwork, fc_layer_params=fc_layer_params
-            )
+            actor_net = functools.partial(ActorNetwork, fc_layer_params=fc_layer_params)
 
         critic_net = functools.partial(
             CriticNetwork, joint_fc_layer_params=fc_layer_params
@@ -132,21 +130,15 @@ class SarsaTest(parameterized.TestCase, alf.test.TestCase):
     def test_sarsa(
         self, on_policy=False, sac=True, use_rnn=False, priority_replay=False
     ):
-        logging.info(
-            "sac=%d on_policy=%s use_rnn=%s" % (sac, on_policy, use_rnn)
-        )
+        logging.info("sac=%d on_policy=%s use_rnn=%s" % (sac, on_policy, use_rnn))
         env_class = PolicyUnittestEnv
         iterations = 500
         num_env = 128
         if on_policy:
             num_env = 128
         steps_per_episode = 12
-        env = env_class(
-            num_env, steps_per_episode, action_type=ActionType.Continuous
-        )
-        eval_env = env_class(
-            100, steps_per_episode, action_type=ActionType.Continuous
-        )
+        env = env_class(num_env, steps_per_episode, action_type=ActionType.Continuous)
+        eval_env = env_class(100, steps_per_episode, action_type=ActionType.Continuous)
 
         algorithm = _create_algorithm(
             env,
@@ -169,9 +161,7 @@ class SarsaTest(parameterized.TestCase, alf.test.TestCase):
                 n_seconds=1,
             )
 
-        self.assertAlmostEqual(
-            1.0, float(eval_time_step.reward.mean()), delta=0.3
-        )
+        self.assertAlmostEqual(1.0, float(eval_time_step.reward.mean()), delta=0.3)
 
 
 if __name__ == "__main__":

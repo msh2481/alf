@@ -184,8 +184,7 @@ class MIEstimator(Algorithm):
                 "Currently, 'ML' does " "not support nested y_spec: %s" % y_spec
             )
             assert y_spec.is_continuous, (
-                "Currently, 'ML' does "
-                "not support discreted y_spec: %s" % y_spec
+                "Currently, 'ML' does " "not support discreted y_spec: %s" % y_spec
             )
             hidden_size = self._model.output_spec.shape[-1]
             self._delta_loc_layer = alf.layers.FC(

@@ -96,9 +96,7 @@ alf.config(
     std_transform=partial(clipped_exp, clip_value_min=-10, clip_value_max=2),
 )
 
-actor_network_cls = partial(
-    ActorDistributionNetwork, fc_layer_params=hidden_layers
-)
+actor_network_cls = partial(ActorDistributionNetwork, fc_layer_params=hidden_layers)
 
 obs_act_tau_joint_fc_layer_params = (layer_width,)
 num_quantiles = 32

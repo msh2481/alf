@@ -142,8 +142,7 @@ class ParamConvNet(Network):
         if theta.ndim == 1:
             theta = theta.unsqueeze(0)
         assert theta.ndim == 2 and theta.shape[1] == self.param_length, (
-            "Input theta has wrong shape %s. Expecting shape (, %d)"
-            % self.param_length
+            "Input theta has wrong shape %s. Expecting shape (, %d)" % self.param_length
         )
         pos = 0
         for conv_l in self._conv_layers:
@@ -261,9 +260,7 @@ class ParamNetwork(Network):
         else:
             assert (
                 input_tensor_spec.ndim == 1
-            ), "The input shape {} should be like (N,)!".format(
-                input_tensor_spec.shape
-            )
+            ), "The input shape {} should be like (N,)!".format(input_tensor_spec.shape)
             input_size = input_tensor_spec.shape[0]
 
         self._fc_layers = nn.ModuleList()
@@ -337,8 +334,7 @@ class ParamNetwork(Network):
         if theta.ndim == 1:
             theta = theta.unsqueeze(0)
         assert theta.ndim == 2 and theta.shape[1] == self.param_length, (
-            "Input theta has wrong shape %s. Expecting shape (, %d)"
-            % self.param_length
+            "Input theta has wrong shape %s. Expecting shape (, %d)" % self.param_length
         )
         if self._conv_net is not None:
             split = self._conv_net.param_length

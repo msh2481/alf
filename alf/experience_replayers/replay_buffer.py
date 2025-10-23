@@ -294,8 +294,7 @@ class ReplayBuffer(RingBuffer):
             )
             # If positions are outdated, we don't update their priorities.
             (valid,) = torch.where(
-                positions
-                >= self._current_pos[env_ids] - self._current_size[env_ids]
+                positions >= self._current_pos[env_ids] - self._current_size[env_ids]
             )
             indices = self._env_id_idx_to_index(
                 env_ids[valid], self.circular(positions[valid])
@@ -333,9 +332,7 @@ class ReplayBuffer(RingBuffer):
                 buffer_step_types = self._buffer.step_type
                 (first,) = torch.where(
                     (
-                        buffer_step_types[
-                            (env_ids, self.circular(overwriting_pos))
-                        ]
+                        buffer_step_types[(env_ids, self.circular(overwriting_pos))]
                         == ds.StepType.FIRST
                     )
                     * (self._current_size[env_ids] == self._max_length)
@@ -367,9 +364,7 @@ class ReplayBuffer(RingBuffer):
                 step_types = batch.step_type
                 epi_first = step_types == ds.StepType.FIRST
                 # 3.2. update episode ending positions
-                self._store_episode_end_pos(
-                    ~epi_first, overwriting_pos, env_ids
-                )
+                self._store_episode_end_pos(~epi_first, overwriting_pos, env_ids)
                 # 3.3. initialize episode beginning positions to itself
                 self._indexed_pos[
                     (
@@ -425,9 +420,7 @@ class ReplayBuffer(RingBuffer):
                     # recent data will get enough samples from recent data. So
                     # we don't need to have a separate step just for sampling from
                     # the recent data.
-                    recent_batch_size = math.ceil(
-                        batch_size * self._recent_data_ratio
-                    )
+                    recent_batch_size = math.ceil(batch_size * self._recent_data_ratio)
 
             normal_batch_size = batch_size - recent_batch_size
             if self._prioritized_sampling:
@@ -438,9 +431,7 @@ class ReplayBuffer(RingBuffer):
             if recent_batch_size > 0:
                 # Note that _uniform_sample() get samples duplicated with those
                 # from _recent_sample()
-                recent_info = self._recent_sample(
-                    recent_batch_size, batch_length
-                )
+                recent_info = self._recent_sample(recent_batch_size, batch_length)
                 info = alf.nest.map_structure(
                     lambda *x: torch.cat(x), recent_info, info
                 )
@@ -449,9 +440,7 @@ class ReplayBuffer(RingBuffer):
             env_ids = info.env_ids
 
             idx = start_pos.reshape(-1, 1)  # [B, 1]
-            idx = self.circular(
-                idx + torch.arange(batch_length).unsqueeze(0)
-            )  # [B, T]
+            idx = self.circular(idx + torch.arange(batch_length).unsqueeze(0))  # [B, T]
             out_env_ids = env_ids.reshape(-1, 1).expand(
                 batch_size, batch_length
             )  # [B, T]
@@ -482,14 +471,11 @@ class ReplayBuffer(RingBuffer):
         min_size = self._current_size.min() - self._num_earliest_frames_ignored
         assert min_size >= batch_length, (
             "Not all environments have enough data. The smallest data "
-            "size is: %s Try storing more data before calling get_batch"
-            % min_size
+            "size is: %s Try storing more data before calling get_batch" % min_size
         )
         return self._sample(batch_size, batch_length)
 
-    def _sample(
-        self, batch_size, batch_length, sample_from_recent_n_data_steps=None
-    ):
+    def _sample(self, batch_size, batch_length, sample_from_recent_n_data_steps=None):
         batch_size_per_env = batch_size // self._num_envs
         remaining = batch_size % self._num_envs
         env_ids = torch.arange(self._num_envs).repeat(batch_size_per_env)
@@ -541,8 +527,7 @@ class ReplayBuffer(RingBuffer):
                 warning_once(
                     "It is not advisable to use different batch_length "
                     "for different calls to get_batch(). Previous batch_length=%d "
-                    "new batch_length=%d"
-                    % (self._mini_batch_length, batch_length)
+                    "new batch_length=%d" % (self._mini_batch_length, batch_length)
                 )
             self._change_mini_batch_length(batch_length)
 
@@ -561,9 +546,7 @@ class ReplayBuffer(RingBuffer):
         env_ids, idx = self._index_to_env_id_idx(indices)
         info = BatchInfo(env_ids=env_ids, positions=self._pad(idx, env_ids))
         avg_weight = self._sum_tree.nnz / total_weight
-        info = info._replace(
-            importance_weights=self._sum_tree[indices] * avg_weight
-        )
+        info = info._replace(importance_weights=self._sum_tree[indices] * avg_weight)
 
         return info
 
@@ -610,21 +593,14 @@ class ReplayBuffer(RingBuffer):
         # Atari games is limited to 4500, which can be reached quite often.
 
         # Start computation from a previous first or discount 0 step:
-        first_step_pos = self.get_disc_0_begin_position(
-            current_pos - 1, env_ids
-        )
+        first_step_pos = self.get_disc_0_begin_position(current_pos - 1, env_ids)
 
         headless = first_step_pos < current_pos - self._max_length + 1
-        first_step_pos[headless] = (current_pos - self._max_length + 1)[
-            headless
-        ]
+        first_step_pos[headless] = (current_pos - self._max_length + 1)[headless]
         max_len = torch.max(current_pos - first_step_pos) + 1
         # Indexes cover all env_ids for the length of the longest episode.
         epi_pos = (
-            current_pos.unsqueeze(1)
-            - max_len
-            + 1
-            + torch.arange(max_len).unsqueeze(0)
+            current_pos.unsqueeze(1) - max_len + 1 + torch.arange(max_len).unsqueeze(0)
         )
         epi_pos_idx = self.circular(epi_pos)
         all_ind = (env_ids.unsqueeze(1), epi_pos_idx)
@@ -655,9 +631,7 @@ class ReplayBuffer(RingBuffer):
             env_ids.unsqueeze(1).expand(-1, max_len)[valid],
             epi_pos_idx[valid],
         )
-        self._episodic_discounted_return[valid_ind] = future_discounted_return[
-            valid
-        ]
+        self._episodic_discounted_return[valid_ind] = future_discounted_return[valid]
 
     def _filter_populate_from_prev_step(self, buffer, mask, pos, env_ids):
         _env_ids = env_ids[mask]
@@ -704,9 +678,9 @@ class ReplayBuffer(RingBuffer):
         # Store episode end into the ``FIRST`` step of the episode.
         has_head_cond = prev_first > _pos - self._max_length
         (has_head,) = torch.where(has_head_cond)
-        self._indexed_pos[(_env_ids[has_head], prev_first_idx[has_head])] = (
-            _pos[has_head]
-        )
+        self._indexed_pos[(_env_ids[has_head], prev_first_idx[has_head])] = _pos[
+            has_head
+        ]
         # For a headless episode whose ``FIRST`` step was overwritten by new
         # data, the current step has to belong to the same episode as all the
         # other steps in the buffer, i.e. episode is longer than max_length of
@@ -733,9 +707,7 @@ class ReplayBuffer(RingBuffer):
         # (The case where current step is a ``FIRST`` step can be safely
         # ignored because the first_step_pos points to episode end which
         # is guaranteed to be existing.)
-        headless = (
-            self._current_pos[env_ids] > first_step_pos + self._max_length
-        )
+        headless = self._current_pos[env_ids] > first_step_pos + self._max_length
         headless_env_ids = env_ids.expand_as(idx)[headless]
         result[headless] = self._headless_indexed_pos[headless_env_ids]
         return result
@@ -808,9 +780,11 @@ class ReplayBuffer(RingBuffer):
         """
         size = self._current_size.min()
         max_size = self._current_size.max()
-        assert size == max_size, (
-            "Not all environments have the same size. min_size: %s "
-            "max_size: %s" % (size, max_size)
+        assert (
+            size == max_size
+        ), "Not all environments have the same size. min_size: %s " "max_size: %s" % (
+            size,
+            max_size,
         )
 
         if ignore_earliest_frames:
@@ -880,15 +854,10 @@ class ReplayBuffer(RingBuffer):
 
         info = BatchInfo(
             env_ids=torch.arange(self._num_envs),
-            positions=torch.full(
-                (self._num_envs,), start_pos, dtype=torch.int64
-            ),
+            positions=torch.full((self._num_envs,), start_pos, dtype=torch.int64),
         )
 
-        if (
-            convert_to_default_device
-            and alf.get_default_device() != self._device
-        ):
+        if convert_to_default_device and alf.get_default_device() != self._device:
             result, info = convert_device((result, info))
 
         info = info._replace(replay_buffer=self)

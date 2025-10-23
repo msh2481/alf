@@ -124,9 +124,7 @@ class DiscountedReturnTest(unittest.TestCase):
 class GeneralizedAdvantageTest(unittest.TestCase):
     """Tests for alf.utils.value_ops.generalized_advantage_estimation"""
 
-    def _check(
-        self, rewards, values, step_types, discounts, td_lambda, expected
-    ):
+    def _check(self, rewards, values, step_types, discounts, td_lambda, expected):
         np.testing.assert_array_almost_equal(
             value_ops.generalized_advantage_estimation(
                 rewards=rewards,
@@ -217,9 +215,7 @@ class GeneralizedAdvantageTest(unittest.TestCase):
             ],
             dtype=torch.int32,
         )
-        discounts = torch.tensor(
-            [[0.9, 0.9, 0.0, 0.9, 0.9]], dtype=torch.float32
-        )
+        discounts = torch.tensor([[0.9, 0.9, 0.0, 0.9, 0.9]], dtype=torch.float32)
         expected = torch.tensor([[1 * 0.6 + d, 1, 0, d]], dtype=torch.float32)
 
         self._check(

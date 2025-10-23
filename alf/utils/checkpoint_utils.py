@@ -257,9 +257,7 @@ class Checkpointer(object):
         if global_step == "latest":
             global_step = self._get_latest_checkpoint_step()
         elif isinstance(global_step, str):
-            assert (
-                global_step == "best"
-            ), "global_step must be int, 'latest' or 'best'"
+            assert global_step == "best", "global_step must be int, 'latest' or 'best'"
 
         if global_step is None:
             warnings.warn(
@@ -304,9 +302,7 @@ class Checkpointer(object):
             else:
                 _load_one(self._modules[k], checkpoint[k])
 
-        logging.info(
-            "Checkpoint 'ckpt-{}' is loaded successfully.".format(global_step)
-        )
+        logging.info("Checkpoint 'ckpt-{}' is loaded successfully.".format(global_step))
 
         return self._global_step
 
@@ -419,20 +415,14 @@ class Checkpointer(object):
             with open(
                 os.path.join(self._ckpt_dir, "ckpt-structure.json"), "w"
             ) as outfile:
-                json.dump(
-                    _use_placeholder_value(model_state), outfile, indent=4
-                )
+                json.dump(_use_placeholder_value(model_state), outfile, indent=4)
             with open(
                 os.path.join(self._ckpt_dir, "ckpt-structure-optimizer.json"),
                 "w",
             ) as outfile:
-                json.dump(
-                    _use_placeholder_value(optimizer_state), outfile, indent=4
-                )
+                json.dump(_use_placeholder_value(optimizer_state), outfile, indent=4)
             with open(
-                os.path.join(
-                    self._ckpt_dir, "ckpt-structure-replay_buffer.json"
-                ),
+                os.path.join(self._ckpt_dir, "ckpt-structure-replay_buffer.json"),
                 "w",
             ) as outfile:
                 json.dump(
@@ -443,6 +433,4 @@ class Checkpointer(object):
 
         self._global_step = global_step
 
-        logging.info(
-            "Checkpoint 'ckpt-{}' is saved successfully.".format(global_step)
-        )
+        logging.info("Checkpoint 'ckpt-{}' is saved successfully.".format(global_step))

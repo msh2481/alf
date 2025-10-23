@@ -95,9 +95,7 @@ class VariationalAutoEncoder(Algorithm):
                 file saved by ALF. Refer to ``Algorithm`` for more details.
             name (str):
         """
-        super(VariationalAutoEncoder, self).__init__(
-            checkpoint=checkpoint, name=name
-        )
+        super(VariationalAutoEncoder, self).__init__(checkpoint=checkpoint, name=name)
 
         self._preprocess_network = preprocess_network
         if preprocess_network is None:
@@ -364,9 +362,7 @@ class DiscreteVAE(VariationalAutoEncoder):
             kl_div_loss = self._kl_divergence(z_logits)
 
         if self._mode == "st":
-            z_dist = dist_utils.OneHotCategoricalStraightThrough(
-                logits=z_logits
-            )
+            z_dist = dist_utils.OneHotCategoricalStraightThrough(logits=z_logits)
         else:
             z_dist = dist_utils.OneHotCategoricalGumbelSoftmax(
                 hard_sample=True,

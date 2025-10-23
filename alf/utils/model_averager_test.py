@@ -24,9 +24,7 @@ class ModelAveragerTest(alf.test.TestCase):
     def test_averaged_model(self):
         model = nn.Sequential(nn.Linear(3, 4), nn.BatchNorm1d(4))
 
-        averaged_model = AveragedModel(
-            model, avg_fn=partial(ema_avg_fn, ema_rate=0.0)
-        )
+        averaged_model = AveragedModel(model, avg_fn=partial(ema_avg_fn, ema_rate=0.0))
 
         n = 16
         for i in range(n):

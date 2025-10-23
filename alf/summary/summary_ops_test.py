@@ -52,9 +52,7 @@ class SummaryTest(alf.test.TestCase):
                 alf.summary.enable_summary()
                 with alf.summary.scope("b") as scope_name:
                     self.assertEqual(scope_name, "root/b/")
-                    alf.summary.histogram(
-                        "histogram", torch.arange(100).numpy()
-                    )
+                    alf.summary.histogram("histogram", torch.arange(100).numpy())
             writer.close()
 
             event_file = _find_event_file(root_dir)
@@ -67,20 +65,14 @@ class SummaryTest(alf.test.TestCase):
                 "root/b/histogram": None,
             }
 
-            for event_str in event_file_loader.EventFileLoader(
-                event_file
-            ).Load():
+            for event_str in event_file_loader.EventFileLoader(event_file).Load():
                 if event_str.summary.value:
                     for item in event_str.summary.value:
                         self.assertTrue(item.tag in tag2val)
-                        tag2val[item.tag] = tensor_util.make_ndarray(
-                            item.tensor
-                        )
+                        tag2val[item.tag] = tensor_util.make_ndarray(item.tensor)
 
             self.assertEqual(tag2val["root/scalar"], 2020)
-            self.assertEqual(
-                tag2val["root/a/text/text_summary"][0], b"sample text"
-            )
+            self.assertEqual(tag2val["root/a/text/text_summary"][0], b"sample text")
             self.assertEqual(tag2val["root/b/histogram"].min(), 0)
             self.assertEqual(tag2val["root/b/histogram"].max(), 99)
             self.assertEqual(len(tag2val["root/b/histogram"]), 30)

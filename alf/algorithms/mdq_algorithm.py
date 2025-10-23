@@ -133,9 +133,7 @@ class MdqAlgorithm(OffPolicyAlgorithm):
         self._epsilon_greedy = epsilon_greedy
 
         critic_networks = critic_network
-        target_critic_networks = critic_networks.copy(
-            name="target_critic_networks"
-        )
+        target_critic_networks = critic_networks.copy(name="target_critic_networks")
 
         train_state_spec = MdqState(
             critic=MdqCriticState(
@@ -169,18 +167,14 @@ class MdqAlgorithm(OffPolicyAlgorithm):
         flat_action_spec = nest.flatten(self._action_spec)
         self._flat_action_spec = flat_action_spec
         self._action_dim = flat_action_spec[0].shape[0]
-        self._log_pi_uniform_prior = (
-            self._critic_networks.get_uniform_prior_logpi()
-        )
+        self._log_pi_uniform_prior = self._critic_networks.get_uniform_prior_logpi()
 
         self._num_critic_replicas = self._critic_networks._num_critic_replicas
 
         self._critic_losses = []
 
         for i in range(self._num_critic_replicas):
-            self._critic_losses.append(
-                critic_loss_ctor(name="critic_loss%d" % (i + 1))
-            )
+            self._critic_losses.append(critic_loss_ctor(name="critic_loss%d" % (i + 1)))
 
         self._is_continuous = flat_action_spec[0].is_continuous
         self._target_entropy = _set_target_entropy(
@@ -217,9 +211,7 @@ class MdqAlgorithm(OffPolicyAlgorithm):
 
         empty_state = nest.map_structure(lambda x: (), self.train_state_spec)
 
-        return AlgStep(
-            output=action, state=empty_state, info=MdqInfo(action=action)
-        )
+        return AlgStep(output=action, state=empty_state, info=MdqInfo(action=action))
 
     def predict_step(self, time_step: TimeStep, state):
         return self._predict(time_step, state, self._epsilon_greedy)
@@ -227,8 +219,7 @@ class MdqAlgorithm(OffPolicyAlgorithm):
     def rollout_step(self, time_step: TimeStep, state):
         if self.need_full_rollout_state():
             raise NotImplementedError(
-                "Storing RNN state to replay buffer "
-                "is not supported by SacAlgorithm"
+                "Storing RNN state to replay buffer " "is not supported by SacAlgorithm"
             )
 
         return self._predict(time_step, state, epsilon_greedy=1.0)
@@ -317,9 +308,7 @@ class MdqAlgorithm(OffPolicyAlgorithm):
             kl_wrt_prior=kl_wrt_prior,
         )
 
-        state = MdqCriticState(
-            critic=critic_state, target_critic=target_critic_state
-        )
+        state = MdqCriticState(critic=critic_state, target_critic=target_critic_state)
 
         return state, info
 
@@ -332,9 +321,7 @@ class MdqAlgorithm(OffPolicyAlgorithm):
         """
 
         log_pi_full = log_pi_per_dim.sum(dim=-1)
-        alpha_loss = (
-            self._log_alpha * (-log_pi_full - self._target_entropy).detach()
-        )
+        alpha_loss = self._log_alpha * (-log_pi_full - self._target_entropy).detach()
 
         # mean over critic
         alpha_loss = torch.mean(alpha_loss, -1).view(-1)
@@ -383,9 +370,7 @@ class MdqAlgorithm(OffPolicyAlgorithm):
         alpha_loss = info.alpha
         critic_loss, distill_loss = self._calc_critic_loss(info)
 
-        total_loss = (
-            critic_loss.loss + distill_loss + alpha_loss.loss.squeeze(-1)
-        )
+        total_loss = critic_loss.loss + distill_loss + alpha_loss.loss.squeeze(-1)
         return LossInfo(
             loss=total_loss,
             extra=MdqLossInfo(
@@ -417,9 +402,7 @@ class MdqAlgorithm(OffPolicyAlgorithm):
         kl_wrt_prior = kl_wrt_prior[..., 0, 0]
 
         # [t, B, n] -> [t, B]
-        target_critic, min_target_ind = torch.min(
-            target_critic_free_form, dim=2
-        )
+        target_critic, min_target_ind = torch.min(target_critic_free_form, dim=2)
 
         # [t, B, n] -> [t, B]
         distill_target, _ = torch.min(distill_target, dim=2)

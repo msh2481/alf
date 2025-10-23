@@ -35,9 +35,7 @@ class FieldOfView(object):
 
     """
 
-    def __init__(
-        self, front: float = 60.0, rear: float = 40.0, lateral: float = 30.0
-    ):
+    def __init__(self, front: float = 60.0, rear: float = 40.0, lateral: float = 30.0):
         """Construct a FieldOfView object by specifying the relative metrics. Note that
         this is in car-body coordinate frame, where (1, 0) points to the car's
         orientation direction.
@@ -230,9 +228,7 @@ class Polyline(NamedTuple):
         seg_len = lane.length / (num_polylines * polyline_size)
 
         result = Polyline(
-            point=np.zeros(
-                (num_polylines, polyline_size + 1, 2), dtype=np.float32
-            ),
+            point=np.zeros((num_polylines, polyline_size + 1, 2), dtype=np.float32),
             category=np.full((num_polylines,), category, dtype=np.int32),
         )
 
@@ -317,9 +313,7 @@ class Polyline(NamedTuple):
         if self.point.shape[0] > n:
             distances = np.min(np.linalg.norm(self.point, axis=-1), axis=-1)
             closest = np.argpartition(distances, n)[:n]
-            return Polyline(
-                point=self.point[closest], category=self.category[closest]
-            )
+            return Polyline(point=self.point[closest], category=self.category[closest])
         return self
 
     def to_feature(
@@ -392,9 +386,7 @@ class Polyline(NamedTuple):
             feature[:size, (S * 4) : (S * 5)] = r.squeeze(axis=-1)
             feature[:size, (S * 5) : (S * 6)] = d.squeeze(axis=-1)
             if category_encoder is not None and self.category is not None:
-                feature[:size, (S * 6) :] = category_encoder.get_codes(
-                    self.category
-                )
+                feature[:size, (S * 6) :] = category_encoder.get_codes(self.category)
         else:
             feature = np.zeros(6 * S, dtype=np.float32)
             feature[: (S * 2)] = mid_points.reshape(S * 2)

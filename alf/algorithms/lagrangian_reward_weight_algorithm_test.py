@@ -26,9 +26,7 @@ from alf.utils import common, dist_utils
 from alf.optimizers import Adam
 
 
-class LagrangianRewardWeightAlgorithmTest(
-    parameterized.TestCase, alf.test.TestCase
-):
+class LagrangianRewardWeightAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
 
     @parameterized.parameters((False,), (True,))
     def test_lagrangian_algorithm(self, reward_weight_normalization):
@@ -39,9 +37,7 @@ class LagrangianRewardWeightAlgorithmTest(
             (1,), minimum=0, maximum=1, dtype=torch.float32
         )
         reward_spec = alf.TensorSpec((4,))
-        time_step_spec = ds.time_step_spec(
-            observation_spec, action_spec, reward_spec
-        )
+        time_step_spec = ds.time_step_spec(observation_spec, action_spec, reward_spec)
 
         alg = LagrangianRewardWeightAlgorithm(
             reward_spec,
@@ -52,9 +48,7 @@ class LagrangianRewardWeightAlgorithmTest(
         )
 
         # rewards will be all zeros
-        time_step = common.zero_tensor_from_nested_spec(
-            time_step_spec, batch_size
-        )
+        time_step = common.zero_tensor_from_nested_spec(time_step_spec, batch_size)
         time_step = time_step._replace(untransformed=time_step)
         alg_step = alg.rollout_step(time_step, state=())
         alg_step_spec = dist_utils.extract_spec(alg_step)

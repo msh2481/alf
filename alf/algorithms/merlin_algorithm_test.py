@@ -78,9 +78,7 @@ class MerlinAlgorithmTest(alf.test.TestCase):
         batch_size = 200
         steps_per_episode = 15
         gap = 10
-        env = RNNPolicyUnittestEnv(
-            batch_size, steps_per_episode, gap, obs_dim=3
-        )
+        env = RNNPolicyUnittestEnv(batch_size, steps_per_episode, gap, obs_dim=3)
         eval_env = RNNPolicyUnittestEnv(100, steps_per_episode, gap, obs_dim=3)
 
         algorithm = _create_merlin_algorithm(
@@ -91,16 +89,10 @@ class MerlinAlgorithmTest(alf.test.TestCase):
             algorithm.train_iter()
             if (i + 1) % 100 == 0:
                 eval_env.reset()
-                eval_time_step = unroll(
-                    eval_env, algorithm, steps_per_episode - 1
-                )
-                logging.info(
-                    "%d reward=%f" % (i, float(eval_time_step.reward.mean()))
-                )
+                eval_time_step = unroll(eval_env, algorithm, steps_per_episode - 1)
+                logging.info("%d reward=%f" % (i, float(eval_time_step.reward.mean())))
 
-        self.assertAlmostEqual(
-            1.0, float(eval_time_step.reward.mean()), delta=1e-2
-        )
+        self.assertAlmostEqual(1.0, float(eval_time_step.reward.mean()), delta=1e-2)
 
 
 if __name__ == "__main__":

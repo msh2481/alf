@@ -37,9 +37,7 @@ class ICMAlgorithmTest(alf.test.TestCase):
         self._hidden_size = 100
 
     def test_discrete_action(self):
-        action_spec = BoundedTensorSpec(
-            (), dtype=torch.int64, minimum=0, maximum=3
-        )
+        action_spec = BoundedTensorSpec((), dtype=torch.int64, minimum=0, maximum=3)
         alg = ICMAlgorithm(
             action_spec=action_spec,
             observation_spec=self._input_tensor_spec,
@@ -48,18 +46,14 @@ class ICMAlgorithmTest(alf.test.TestCase):
         state = self._input_tensor_spec.zeros(outer_dims=(1,))
 
         alg_step = alg.train_step(
-            self._time_step._replace(
-                prev_action=action_spec.zeros(outer_dims=(1,))
-            ),
+            self._time_step._replace(prev_action=action_spec.zeros(outer_dims=(1,))),
             state,
         )
 
         # the inverse net should predict a uniform distribution
         self.assertTensorClose(
             torch.sum(alg_step.info.inverse_loss),
-            torch.as_tensor(
-                math.log(action_spec.maximum - action_spec.minimum + 1)
-            ),
+            torch.as_tensor(math.log(action_spec.maximum - action_spec.minimum + 1)),
             epsilon=1e-4,
         )
 
@@ -73,9 +67,7 @@ class ICMAlgorithmTest(alf.test.TestCase):
         state = self._input_tensor_spec.zeros(outer_dims=(1,))
 
         alg_step = alg.train_step(
-            self._time_step._replace(
-                prev_action=action_spec.zeros(outer_dims=(1,))
-            ),
+            self._time_step._replace(prev_action=action_spec.zeros(outer_dims=(1,))),
             state,
         )
 

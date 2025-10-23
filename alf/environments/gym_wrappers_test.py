@@ -31,9 +31,7 @@ from alf.environments.gym_wrappers import (
 class FakeEnvironment(gym.Env):
 
     def __init__(self):
-        self.action_space = spaces.Box(
-            shape=(1,), low=-2, high=3, dtype=np.float32
-        )
+        self.action_space = spaces.Box(shape=(1,), low=-2, high=3, dtype=np.float32)
         self.observation_space = spaces.Box(
             shape=(10,), low=-1, high=1, dtype=np.float32
         )
@@ -60,12 +58,8 @@ class FakeDictObservationEnvironment(FakeEnvironment):
         super().__init__(*args, **kwargs)
         self.observation_space = spaces.Dict(
             {
-                "image": spaces.Box(
-                    shape=(2, 2, 3), low=-1, high=1, dtype=np.float32
-                ),
-                "states": spaces.Box(
-                    shape=(4,), low=-1, high=1, dtype=np.float32
-                ),
+                "image": spaces.Box(shape=(2, 2, 3), low=-1, high=1, dtype=np.float32),
+                "states": spaces.Box(shape=(4,), low=-1, high=1, dtype=np.float32),
                 "language": spaces.MultiDiscrete(nvec=[20, 20, 20]),  # dim == 3
                 "dict": spaces.Dict(
                     {
@@ -81,14 +75,10 @@ class FakeDictObservationEnvironment(FakeEnvironment):
 class FrameStackTest(alf.test.TestCase):
 
     def _create_env(self, stack_fields):
-        return FrameStack(
-            env=FakeDictObservationEnvironment(), fields=stack_fields
-        )
+        return FrameStack(env=FakeDictObservationEnvironment(), fields=stack_fields)
 
     def test_framestack_all_fields(self):
-        env = self._create_env(
-            ["image", "states", "language", "dict.inner_states"]
-        )
+        env = self._create_env(["image", "states", "language", "dict.inner_states"])
         obs = env.reset()
         all_shapes = (
             obs["image"].shape,
@@ -103,10 +93,7 @@ class FrameStackTest(alf.test.TestCase):
             (7 * 4,),
         )
         assert all_shapes == expected, (
-            "Result "
-            + str(all_shapes)
-            + " doesn't match expected "
-            + str(expected)
+            "Result " + str(all_shapes) + " doesn't match expected " + str(expected)
         )
 
     def test_framestack_partial_fields(self):
@@ -125,10 +112,7 @@ class FrameStackTest(alf.test.TestCase):
             (7 * 4,),  # stacking nested field referred by path
         )
         assert all_shapes == expected, (
-            "Result "
-            + str(all_shapes)
-            + " doesn't match expected "
-            + str(expected)
+            "Result " + str(all_shapes) + " doesn't match expected " + str(expected)
         )
 
 
@@ -160,10 +144,7 @@ class FrameResizeTest(parameterized.TestCase, alf.test.TestCase):
             (7,),
         )
         assert all_shapes == expected, (
-            "Result "
-            + str(all_shapes)
-            + " doesn't match expected "
-            + str(expected)
+            "Result " + str(all_shapes) + " doesn't match expected " + str(expected)
         )
 
         # test observation space
@@ -235,10 +216,7 @@ class FrameCropTest(parameterized.TestCase, alf.test.TestCase):
             (7,),
         )
         assert all_shapes == expected, (
-            "Result "
-            + str(all_shapes)
-            + " doesn't match expected "
-            + str(expected)
+            "Result " + str(all_shapes) + " doesn't match expected " + str(expected)
         )
 
         # test observation space

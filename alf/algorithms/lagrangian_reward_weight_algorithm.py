@@ -93,9 +93,7 @@ class LagrangianRewardWeightAlgorithm(Algorithm):
 
         self._reward_spec = reward_spec
 
-        assert (
-            reward_spec.numel > 1
-        ), "Only multi-dim reward needs this algorithm!"
+        assert reward_spec.numel > 1, "Only multi-dim reward needs this algorithm!"
         assert (
             isinstance(reward_thresholds, (list, tuple))
             and len(reward_thresholds) == reward_spec.numel
@@ -118,9 +116,7 @@ class LagrangianRewardWeightAlgorithm(Algorithm):
             lambda_init = tensor_utils.tensor_extend_new_dim(
                 lambda_init, 0, reward_spec.numel
             )
-        assert torch.all(
-            lambda_init >= 0.0
-        ), "Initial weights must be non-negative!"
+        assert torch.all(lambda_init >= 0.0), "Initial weights must be non-negative!"
 
         inv_mapping = dict()
         inv_mapping[F.softplus] = _inv_softplus
@@ -132,9 +128,7 @@ class LagrangianRewardWeightAlgorithm(Algorithm):
 
         self._lambdas = nn.Parameter(self._inv_lambda_transform(lambda_init))
         if max_weight is not None:
-            self._max_lambda = self._inv_lambda_transform(
-                torch.tensor(max_weight)
-            )
+            self._max_lambda = self._inv_lambda_transform(torch.tensor(max_weight))
         else:
             self._max_lambda = None
         self._optimizer = optimizer
@@ -164,9 +158,9 @@ class LagrangianRewardWeightAlgorithm(Algorithm):
         """
         # [T, B, reward_dim]
         reward_weights = self._lambda_transform(self._lambdas)
-        loss = (
-            train_info.rollout_reward - self._reward_thresholds
-        ).detach() * (reward_weights * self._reward_training_mask)
+        loss = (train_info.rollout_reward - self._reward_thresholds).detach() * (
+            reward_weights * self._reward_training_mask
+        )
         loss = loss.sum(dim=-1).mean()
         return LossInfo(scalar_loss=loss, extra=reward_weights)
 
@@ -181,9 +175,7 @@ class LagrangianRewardWeightAlgorithm(Algorithm):
 
         # capped at the upper limit
         if self._max_lambda is not None:
-            self._lambdas.data.copy_(
-                torch.minimum(self._lambdas, self._max_lambda)
-            )
+            self._lambdas.data.copy_(torch.minimum(self._lambdas, self._max_lambda))
 
         if self._debug_summaries:
             with alf.summary.scope(self._name):
@@ -285,7 +277,5 @@ class LagrangianPredRewardWeightAlgorithm(LagrangianRewardWeightAlgorithm):
         if self._debug_summaries:
             with alf.summary.scope(self._name):
                 for i in range(len(self._reward_thresholds)):
-                    alf.summary.scalar(
-                        "average_pred_reward/%d" % i, pred_rewards[i]
-                    )
+                    alf.summary.scalar("average_pred_reward/%d" % i, pred_rewards[i])
         return LossInfo(scalar_loss=loss, extra=reward_weights)

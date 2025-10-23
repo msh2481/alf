@@ -57,9 +57,7 @@ class LoRATest(alf.test.TestCase, parameterized.TestCase):
         opt.add_param_group({"params": pretrained.parameters()})
 
         paras = [copy.deepcopy(p) for p in model.parameters()]
-        adapter_paras = [
-            copy.deepcopy(p) for p in pretrained._adapters.parameters()
-        ]
+        adapter_paras = [copy.deepcopy(p) for p in pretrained._adapters.parameters()]
 
         for i in range(2):
             y = pretrained(x).sum()

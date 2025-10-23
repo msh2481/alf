@@ -89,9 +89,7 @@ class ExperienceTest(alf.test.TestCase):
 
         flat_exp = flatten(exp)
         flat_res = map_structure(func, flat_exp)
-        map_structure(
-            lambda x, y: self.assertTensorClose(x, y), flatten(res), flat_res
-        )
+        map_structure(lambda x, y: self.assertTensorClose(x, y), flatten(res), flat_res)
 
 
 if __name__ == "__main__":

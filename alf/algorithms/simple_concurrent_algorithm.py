@@ -81,15 +81,9 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         is_on_policy = temp_alg.on_policy
 
         # Collect state specs from temporary algorithm
-        train_state_spec = [
-            temp_alg.train_state_spec for _ in range(num_copies)
-        ]
-        rollout_state_spec = [
-            temp_alg.rollout_state_spec for _ in range(num_copies)
-        ]
-        predict_state_spec = [
-            temp_alg.predict_state_spec for _ in range(num_copies)
-        ]
+        train_state_spec = [temp_alg.train_state_spec for _ in range(num_copies)]
+        rollout_state_spec = [temp_alg.rollout_state_spec for _ in range(num_copies)]
+        predict_state_spec = [temp_alg.predict_state_spec for _ in range(num_copies)]
 
         # Clean up temporary algorithm
         del temp_alg
@@ -141,22 +135,16 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
             return self._algorithms[0].get_initial_predict_state(batch_size)
         else:
             return [
-                alg.get_initial_predict_state(batch_size)
-                for alg in self._algorithms
+                alg.get_initial_predict_state(batch_size) for alg in self._algorithms
             ]
 
     def get_initial_rollout_state(self, batch_size):
         """Get initial rollout state for all algorithm copies."""
-        return [
-            alg.get_initial_rollout_state(batch_size)
-            for alg in self._algorithms
-        ]
+        return [alg.get_initial_rollout_state(batch_size) for alg in self._algorithms]
 
     def get_initial_train_state(self, batch_size):
         """Get initial train state for all algorithm copies."""
-        return [
-            alg.get_initial_train_state(batch_size) for alg in self._algorithms
-        ]
+        return [alg.get_initial_train_state(batch_size) for alg in self._algorithms]
 
         # Setup replay buffers for off-policy algorithms
         if not is_on_policy and config:
@@ -184,9 +172,7 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         routing = {}
         for i in range(self._num_copies):
             # Use efficient slicing: elements where j % K == i
-            batch_indices = torch.arange(
-                i, batch_size, self._num_copies, device=device
-            )
+            batch_indices = torch.arange(i, batch_size, self._num_copies, device=device)
 
             if len(batch_indices) == 0:
                 continue
@@ -357,26 +343,20 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
                 continue
 
             # Slice info for this algorithm
-            sliced_info = alf.nest.map_structure(
-                lambda x: x[:, batch_indices], info
-            )
+            sliced_info = alf.nest.map_structure(lambda x: x[:, batch_indices], info)
 
             # Compute loss for this algorithm
             loss_info = self._algorithms[alg_idx].calc_loss(sliced_info)
 
             # Accumulate losses using add_ignore_empty to handle () gracefully
-            total_loss = alf.utils.math_ops.add_ignore_empty(
-                total_loss, loss_info.loss
-            )
+            total_loss = alf.utils.math_ops.add_ignore_empty(total_loss, loss_info.loss)
             total_priority = alf.utils.math_ops.add_ignore_empty(
                 total_priority, loss_info.priority
             )
 
             extra_dict[f"alg_{alg_idx}"] = loss_info.extra
 
-        return LossInfo(
-            loss=total_loss, priority=total_priority, extra=extra_dict
-        )
+        return LossInfo(loss=total_loss, priority=total_priority, extra=extra_dict)
 
     def predict_step(self, inputs: TimeStep, state) -> AlgStep:
         """Route batch elements to algorithm copies for prediction.

@@ -86,9 +86,7 @@ class ContainersTest(alf.test.TestCase):
         time_step = common.get_initial_time_step(env)
         state = alg1.get_initial_predict_state(env.batch_size)
         policy_step = alg1.rollout_step(time_step, state)
-        action_dist = alf.nest.find_field(
-            policy_step.info, "action_distribution"
-        )[0]
+        action_dist = alf.nest.find_field(policy_step.info, "action_distribution")[0]
         logits = action_dist.log_prob(torch.arange(3).reshape(3, 1))
         print("logits: ", logits)
         self.assertTrue(torch.all(logits[1, :] > logits[0, :]))
@@ -103,9 +101,7 @@ class ContainersTest(alf.test.TestCase):
         )
         echo_alg = EchoAlg(alg, echo_spec=echo_spec)
 
-        self.assertEqual(
-            echo_alg.train_state_spec, (alg.train_state_spec, echo_spec)
-        )
+        self.assertEqual(echo_alg.train_state_spec, (alg.train_state_spec, echo_spec))
         self.assertEqual(
             echo_alg.predict_state_spec, (alg.predict_state_spec, echo_spec)
         )
@@ -117,14 +113,10 @@ class ContainersTest(alf.test.TestCase):
         alg_step = echo_alg.rollout_step(torch.tensor([1.0, 1.0]), state)
         self.assertEqual(alg_step.output, torch.tensor([0.0, 0.0]))
         self.assertEqual(alg_step.state[1], torch.tensor([1.0, 1.0]))
-        alg_step = echo_alg.rollout_step(
-            torch.tensor([3.0, 2.0]), alg_step.state
-        )
+        alg_step = echo_alg.rollout_step(torch.tensor([3.0, 2.0]), alg_step.state)
         self.assertEqual(alg_step.output, torch.tensor([2.0, 2.0]))
         self.assertEqual(alg_step.state[1], torch.tensor([4.0, 3.0]))
-        alg_step = echo_alg.rollout_step(
-            torch.tensor([2.0, 1.0]), alg_step.state
-        )
+        alg_step = echo_alg.rollout_step(torch.tensor([2.0, 1.0]), alg_step.state)
         self.assertEqual(alg_step.output, torch.tensor([8.0, 6.0]))
         self.assertEqual(alg_step.state[1], torch.tensor([6.0, 4.0]))
 
@@ -132,14 +124,10 @@ class ContainersTest(alf.test.TestCase):
         alg_step = echo_alg.predict_step(torch.tensor([1.0, 1.0]), state)
         self.assertEqual(alg_step.output, torch.tensor([0.0, 0.0]))
         self.assertEqual(alg_step.state[1], torch.tensor([1.0, 1.0]))
-        alg_step = echo_alg.predict_step(
-            torch.tensor([3.0, 2.0]), alg_step.state
-        )
+        alg_step = echo_alg.predict_step(torch.tensor([3.0, 2.0]), alg_step.state)
         self.assertEqual(alg_step.output, torch.tensor([2.0, 2.0]))
         self.assertEqual(alg_step.state[1], torch.tensor([4.0, 3.0]))
-        alg_step = echo_alg.predict_step(
-            torch.tensor([2.0, 1.0]), alg_step.state
-        )
+        alg_step = echo_alg.predict_step(torch.tensor([2.0, 1.0]), alg_step.state)
         self.assertEqual(alg_step.output, torch.tensor([8.0, 6.0]))
         self.assertEqual(alg_step.state[1], torch.tensor([6.0, 4.0]))
 
@@ -147,14 +135,10 @@ class ContainersTest(alf.test.TestCase):
         alg_step = echo_alg.train_step(torch.tensor([1.0, 1.0]), state, ())
         self.assertEqual(alg_step.output, torch.tensor([0.0, 0.0]))
         self.assertEqual(alg_step.state[1], torch.tensor([1.0, 1.0]))
-        alg_step = echo_alg.train_step(
-            torch.tensor([3.0, 2.0]), alg_step.state, ()
-        )
+        alg_step = echo_alg.train_step(torch.tensor([3.0, 2.0]), alg_step.state, ())
         self.assertEqual(alg_step.output, torch.tensor([2.0, 2.0]))
         self.assertEqual(alg_step.state[1], torch.tensor([4.0, 3.0]))
-        alg_step = echo_alg.train_step(
-            torch.tensor([2.0, 1.0]), alg_step.state, ()
-        )
+        alg_step = echo_alg.train_step(torch.tensor([2.0, 1.0]), alg_step.state, ())
         self.assertEqual(alg_step.output, torch.tensor([8.0, 6.0]))
         self.assertEqual(alg_step.state[1], torch.tensor([6.0, 4.0]))
 

@@ -34,56 +34,40 @@ class DIAYNAlgorithmTest(alf.test.TestCase):
             prev_action=None,
             env_id=None,
         )
-        self._encoding_net = EncodingNetwork(
-            input_tensor_spec=input_tensor_spec
-        )
+        self._encoding_net = EncodingNetwork(input_tensor_spec=input_tensor_spec)
 
     def test_discrete_skill_loss(self):
-        skill_spec = BoundedTensorSpec(
-            (), dtype=torch.int64, minimum=0, maximum=3
-        )
-        alg = DIAYNAlgorithm(
-            skill_spec=skill_spec, encoding_net=self._encoding_net
-        )
+        skill_spec = BoundedTensorSpec((), dtype=torch.int64, minimum=0, maximum=3)
+        alg = DIAYNAlgorithm(skill_spec=skill_spec, encoding_net=self._encoding_net)
         skill = state = torch.nn.functional.one_hot(
             skill_spec.zeros(outer_dims=(1,)),
             int(skill_spec.maximum - skill_spec.minimum + 1),
         ).to(torch.float32)
 
         alg_step = alg.train_step(
-            self._time_step._replace(
-                observation=[self._time_step.observation, skill]
-            ),
+            self._time_step._replace(observation=[self._time_step.observation, skill]),
             state,
         )
 
         # the discriminator should predict a uniform distribution
         self.assertTensorClose(
             torch.sum(alg_step.info.loss),
-            torch.as_tensor(
-                math.log(skill_spec.maximum - skill_spec.minimum + 1)
-            ),
+            torch.as_tensor(math.log(skill_spec.maximum - skill_spec.minimum + 1)),
             epsilon=1e-4,
         )
 
     def test_continuous_skill_loss(self):
         skill_spec = TensorSpec((4,))
-        alg = DIAYNAlgorithm(
-            skill_spec=skill_spec, encoding_net=self._encoding_net
-        )
+        alg = DIAYNAlgorithm(skill_spec=skill_spec, encoding_net=self._encoding_net)
         skill = state = skill_spec.zeros(outer_dims=(1,))
 
         alg_step = alg.train_step(
-            self._time_step._replace(
-                observation=[self._time_step.observation, skill]
-            ),
+            self._time_step._replace(observation=[self._time_step.observation, skill]),
             state,
         )
 
         # the discriminator should predict a zero skill vector
-        self.assertTensorClose(
-            torch.sum(alg_step.info.loss), torch.as_tensor(0)
-        )
+        self.assertTensorClose(torch.sum(alg_step.info.loss), torch.as_tensor(0))
 
 
 if __name__ == "__main__":

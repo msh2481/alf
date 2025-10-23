@@ -33,9 +33,7 @@ class TransformerNetworkTest(parameterized.TestCase, alf.test.TestCase):
             alf.TensorSpec((3, 7, 7), dtype=torch.float32),
         ]
         input_preprocessors = [
-            nn.Sequential(
-                nn.Embedding(100, d_model), alf.layers.Reshape((1, d_model))
-            ),
+            nn.Sequential(nn.Embedding(100, d_model), alf.layers.Reshape((1, d_model))),
             nn.Sequential(
                 alf.layers.Conv2D(3, d_model, kernel_size=1),
                 alf.layers.Reshape((d_model, 49)),
@@ -67,9 +65,7 @@ class TransformerNetworkTest(parameterized.TestCase, alf.test.TestCase):
             torch.randint(100, size=(batch_size,)),
             torch.rand((batch_size, 3, 7, 7)),
         ]
-        state = alf.utils.spec_utils.zeros_from_spec(
-            transformer.state_spec, batch_size
-        )
+        state = alf.utils.spec_utils.zeros_from_spec(transformer.state_spec, batch_size)
         y, state = transformer(x, state)
 
         self.assertEqual(y.shape, (batch_size, core_size * d_model))

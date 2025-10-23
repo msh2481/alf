@@ -107,9 +107,7 @@ class PPGAuxAlgorithm(OffPolicyAlgorithm):
         # Use a config with overridden fields as auxiliary phase updates has a
         # bunch of its own options.
         updated_config = copy.copy(config)
-        updated_config.unroll_length = (
-            config.unroll_length * aux_options.interval
-        )
+        updated_config.unroll_length = config.unroll_length * aux_options.interval
         updated_config.whole_replay_buffer_training = True
         updated_config.clear_replay_buffer = True
         updated_config.mini_batch_length = (
@@ -166,9 +164,7 @@ class PPGAuxAlgorithm(OffPolicyAlgorithm):
 
         # Construct the aux specific replay buffer if not present.
         if self._replay_buffer is None:
-            exp_spec = dist_utils.to_distribution_param_spec(
-                self._experience_spec
-            )
+            exp_spec = dist_utils.to_distribution_param_spec(self._experience_spec)
             # Note that this unroll_length is the updated one for auxiliary
             # phase update. It is equal to auxiliary phase interval * policy
             # phase unroll_length (see __init__()).
@@ -188,9 +184,7 @@ class PPGAuxAlgorithm(OffPolicyAlgorithm):
     def train_step(
         self, inputs: TimeStep, state, plain_rollout_info: PPGRolloutInfo
     ) -> AlgStep:
-        alg_step = ppg_network_forward(
-            self._network, inputs, state, require_aux=True
-        )
+        alg_step = ppg_network_forward(self._network, inputs, state, require_aux=True)
 
         train_info = PPGTrainInfo(
             action=plain_rollout_info.action,

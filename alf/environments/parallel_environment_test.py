@@ -54,9 +54,7 @@ class ProgressEnvironment(AlfEnvironment):
         self._env_id = np.int32(env_id)
 
     def action_spec(self):
-        return ts.BoundedTensorSpec(
-            (), torch.float32, minimum=-1.0, maximum=1.0
-        )
+        return ts.BoundedTensorSpec((), torch.float32, minimum=-1.0, maximum=1.0)
 
     def observation_spec(self):
         return ts.TensorSpec((), torch.float32)
@@ -118,9 +116,7 @@ def _batch_env_ctor(env_ctor, batch_size_per_env, env_id):
 class ParallelAlfEnvironmentTest(parameterized.TestCase, alf.test.TestCase):
 
     def setUp(self):
-        self._parallel_environment_ctor = (
-            parallel_environment.ParallelAlfEnvironment
-        )
+        self._parallel_environment_ctor = parallel_environment.ParallelAlfEnvironment
 
     def _set_default_specs(self):
         self.observation_spec = ts.TensorSpec((3, 3), torch.float32)
@@ -182,17 +178,13 @@ class ParallelAlfEnvironmentTest(parameterized.TestCase, alf.test.TestCase):
         # Take one step and assert observation is batched the right way.
         time_step = env.step(action)
         self.assertEqual(num_envs, time_step.observation.shape[0])
-        self.assertEqual(
-            observation_spec.shape, time_step.observation.shape[1:]
-        )
+        self.assertEqual(observation_spec.shape, time_step.observation.shape[1:])
         self.assertEqual(num_envs, action.shape[0])
         self.assertEqual(torch.Size(action_spec.shape), action.shape[1:])
 
         # Take another step and assert that observations have the same shape.
         time_step2 = env.step(action)
-        self.assertEqual(
-            time_step.observation.shape, time_step2.observation.shape
-        )
+        self.assertEqual(time_step.observation.shape, time_step2.observation.shape)
         env.close()
 
     def test_non_blocking_reset_with_spare_envs(self):
@@ -230,9 +222,7 @@ class ParallelAlfEnvironmentTest(parameterized.TestCase, alf.test.TestCase):
         action_spec = env.action_spec()
         action = torch.stack([action_spec.sample() for _ in range(num_envs)])
         time_step1 = env.step(action)
-        self.assertEqual(
-            time_step0.observation.shape, time_step1.observation.shape
-        )
+        self.assertEqual(time_step0.observation.shape, time_step1.observation.shape)
         # need to wait a little so that the spare env can have enough time
         # to reset
         time.sleep(sleep_time)
@@ -241,9 +231,7 @@ class ParallelAlfEnvironmentTest(parameterized.TestCase, alf.test.TestCase):
         time_step2 = env.step(action)
         reset_t = time.time()
         reset_time = reset_t - step1_t
-        self.assertEqual(
-            time_step1.observation.shape, time_step2.observation.shape
-        )
+        self.assertEqual(time_step1.observation.shape, time_step2.observation.shape)
         assert torch.all(time_step2.env_id < num_envs)
         self.assertLessEqual(
             reset_time,
@@ -354,8 +342,7 @@ class ParallelAlfEnvironmentTest(parameterized.TestCase, alf.test.TestCase):
             end_time - start_time,
             10,
             msg=(
-                "Expected all processes to start one "
-                "after another, got {} wait time"
+                "Expected all processes to start one " "after another, got {} wait time"
             ).format(end_time - start_time),
         )
         env.close()
@@ -364,9 +351,7 @@ class ParallelAlfEnvironmentTest(parameterized.TestCase, alf.test.TestCase):
         num_envs = 2
         env = self._make_parallel_environment(num_envs=num_envs, flatten=False)
         action_spec = env.action_spec()
-        batched_action = torch.stack(
-            [action_spec.sample() for _ in range(num_envs)]
-        )
+        batched_action = torch.stack([action_spec.sample() for _ in range(num_envs)])
 
         # Test that actions are correctly unstacked when just batched in np.array.
         unstacked_actions = env._unstack_actions(batched_action)
@@ -378,9 +363,7 @@ class ParallelAlfEnvironmentTest(parameterized.TestCase, alf.test.TestCase):
         num_envs = 2
         env = self._make_parallel_environment(num_envs=num_envs, flatten=False)
         action_spec = env.action_spec()
-        batched_action = torch.stack(
-            [action_spec.sample() for _ in range(num_envs)]
-        )
+        batched_action = torch.stack([action_spec.sample() for _ in range(num_envs)])
 
         # Test that actions are correctly unstacked when nested in namedtuple.
         class NestedAction(
@@ -438,9 +421,7 @@ class FastParallelEnvironmentTest(ParallelAlfEnvironmentTest):
         alf.nest.py_map_structure_with_path(_same_tensor, nest1, nest2)
 
     def test_fast_parallel_environment(self):
-        self._parallel_environment_ctor = (
-            parallel_environment.ParallelAlfEnvironment
-        )
+        self._parallel_environment_ctor = parallel_environment.ParallelAlfEnvironment
         env1 = self._make_parallel_environment()
         self._parallel_environment_ctor = FastParallelEnvironment
         env2 = self._make_parallel_environment()
@@ -455,9 +436,7 @@ class FastParallelEnvironmentTest(ParallelAlfEnvironmentTest):
 
     def test_fast_parallel_environment2(self):
         # test batch_size_per_env > 1
-        self._parallel_environment_ctor = (
-            parallel_environment.ParallelAlfEnvironment
-        )
+        self._parallel_environment_ctor = parallel_environment.ParallelAlfEnvironment
         env1 = self._make_parallel_environment(num_envs=6)
         self._parallel_environment_ctor = FastParallelEnvironment
         env2 = self._make_parallel_environment(num_envs=6, batch_size_per_env=2)

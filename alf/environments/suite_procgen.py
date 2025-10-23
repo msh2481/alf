@@ -53,9 +53,7 @@ def load(env_name: str, batch_size: int = 1):
         image_channel_first=True,
         ignored_info_keys=["rgb"],
         support_force_reset=True,
-        render_activator=lambda: _load_procgen(
-            env_name, batch_size, render=True
-        ),
+        render_activator=lambda: _load_procgen(env_name, batch_size, render=True),
         frame_extractor=_extract_frame,
     )
 

@@ -360,9 +360,7 @@ def py_flatten(nest, keep_fields_order=False):
         for value in nest:
             flattened.extend(py_flatten(value))
     else:
-        for _, value in extract_fields_from_nest(
-            nest, keep_order=keep_fields_order
-        ):
+        for _, value in extract_fields_from_nest(nest, keep_order=keep_fields_order):
             flattened.extend(py_flatten(value))
     return flattened
 
@@ -381,9 +379,7 @@ def py_flatten_up_to(shallow_nest, nest):
     except AssertionError as e:
         logging.error(str(e))
         raise AssertionError(
-            "Different types or lengths between {} and {}".format(
-                shallow_nest, nest
-            )
+            "Different types or lengths between {} and {}".format(shallow_nest, nest)
         )
 
     flattened = []
@@ -412,9 +408,7 @@ def py_assert_same_structure(nest1, nest2):
         except AssertionError as e:
             logging.error(str(e))
             raise AssertionError(
-                "assert_same_structure() fails between {} and {}".format(
-                    nest1, nest2
-                )
+                "assert_same_structure() fails between {} and {}".format(nest1, nest2)
             )
 
         if isinstance(nest1, list) or is_unnamedtuple(nest1):
@@ -460,9 +454,7 @@ def py_map_structure_with_path(func, *nests):
             ):
                 field = fields_and_values[0][0]
                 values = map(lambda fv: fv[1], fields_and_values)
-                ret[field] = _map(
-                    *values, path=path + ("." if path else "") + field
-                )
+                ret[field] = _map(*values, path=path + ("." if path else "") + field)
             ret = type(nests[0])(**ret)
         return ret
 
@@ -752,9 +744,7 @@ def find_field(nest, name, ignore_empty=True):
     elif isinstance(nest, dict) or is_namedtuple(nest):
         for field, elem in extract_fields_from_nest(nest):
             if field == name:
-                if (
-                    elem is not None and not _is_empty(elem)
-                ) or not ignore_empty:
+                if (elem is not None and not _is_empty(elem)) or not ignore_empty:
                     ret.append(elem)
             elif isinstance(elem, (dict, tuple, list)):
                 ret = ret + find_field(elem, name)
@@ -802,9 +792,7 @@ def py_prune_nest_like(nest, slim_nest, value_to_match=None):
             if isinstance(nest, list) or is_unnamedtuple(nest):
                 assert len(nest) == len(
                     slim_nest
-                ), "{} should have the same length with {}".format(
-                    nest, slim_nest
-                )
+                ), "{} should have the same length with {}".format(nest, slim_nest)
                 ret = type(nest)(
                     [
                         sn if sn == value_to_match else _prune(n, sn)
@@ -814,9 +802,7 @@ def py_prune_nest_like(nest, slim_nest, value_to_match=None):
             else:
                 ret = {}
                 nest_fields_values = dict(extract_fields_from_nest(nest))
-                for field, slim_nest_value in extract_fields_from_nest(
-                    slim_nest
-                ):
+                for field, slim_nest_value in extract_fields_from_nest(slim_nest):
                     if field not in nest_fields_values:
                         raise ValueError("Field '%s' not in nest!" % field)
                     nest_value = nest_fields_values[field]
@@ -876,9 +862,7 @@ def get_field(nested, field):
             raise LookupError()
 
     try:
-        return _traverse(
-            nested=nested, levels=field.split(".") if field else []
-        )
+        return _traverse(nested=nested, levels=field.split(".") if field else [])
     except (AttributeError, LookupError, ValueError):
         raise LookupError(
             "Cannot find path '%s' in nested. nested has paths: %s"
@@ -942,9 +926,7 @@ def transform_nest(nested, field, func):
         else:
             raise TypeError("")
 
-    return _traverse_transform(
-        nested=nested, levels=field.split(".") if field else []
-    )
+    return _traverse_transform(nested=nested, levels=field.split(".") if field else [])
 
 
 def transform_nests(nests, field, func):
@@ -978,9 +960,7 @@ def transform_nests(nests, field, func):
         if not levels:
             return func(nests)
 
-        type_check = [
-            is_namedtuple(nest) or isinstance(nest, dict) for nest in nests
-        ]
+        type_check = [is_namedtuple(nest) or isinstance(nest, dict) for nest in nests]
         assert all(type_check), TypeError(
             "For multiple nested inputs, each of "
             "its elements must be either a dict or namedtuple!"
@@ -1031,9 +1011,7 @@ def set_field(nested, field, new_value):
     return transform_nest(nested, field, lambda _: new_value)
 
 
-def transpose(
-    nested: Nest, shallow_nest: Nest = None, new_shallow_nest: Nest = None
-):
+def transpose(nested: Nest, shallow_nest: Nest = None, new_shallow_nest: Nest = None):
     """Given a nest ``A`` and its shallow nest ``a``, assuming that each child
     of ``a`` has the same nest structure ``B``, this function
     returns a new nest whose shallow nest ``b`` is a shallow nest of ``B``,

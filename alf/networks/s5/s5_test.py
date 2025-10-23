@@ -53,9 +53,7 @@ class S5SSMTest(parameterized.TestCase, alf.test.TestCase):
         x.requires_grad_(True)
         s.requires_grad_(True)
 
-        mask = torch.view_as_complex(
-            torch.randn((length, batch_size, state_dim, 2))
-        )
+        mask = torch.view_as_complex(torch.randn((length, batch_size, state_dim, 2)))
 
         Lambda.grad = None
         x.grad = None
@@ -122,9 +120,7 @@ class S5SSMTest(parameterized.TestCase, alf.test.TestCase):
         x.requires_grad_(True)
         s.requires_grad_(True)
 
-        mask = torch.view_as_complex(
-            torch.randn((length, batch_size, state_dim, 2))
-        )
+        mask = torch.view_as_complex(torch.randn((length, batch_size, state_dim, 2)))
 
         x_grad = torch.autograd.grad((x * mask).sum(), [x])[0]
         self.assertTensorEqual(x_grad, mask.conj())

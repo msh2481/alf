@@ -247,9 +247,7 @@ class Coordinator(object):
             processes = list(processes)
 
         # Wait for all processes to stop or for request_stop() to be called.
-        while any(t.is_alive() for t in processes) and not self.wait_for_stop(
-            1.0
-        ):
+        while any(t.is_alive() for t in processes) and not self.wait_for_stop(1.0):
             pass
 
         # If any process is still alive, wait for the grace period to expire.
@@ -258,19 +256,14 @@ class Coordinator(object):
         # down without losing too many cycles.
         # The sleep duration is limited to the remaining grace duration.
         stop_wait_secs = 0.001
-        while (
-            any(t.is_alive() for t in processes)
-            and stop_grace_period_secs >= 0.0
-        ):
+        while any(t.is_alive() for t in processes) and stop_grace_period_secs >= 0.0:
             time.sleep(stop_wait_secs)
             stop_grace_period_secs -= stop_wait_secs
             stop_wait_secs = 2 * stop_wait_secs
             # Keep the waiting period within sane bounds.
             # The minimum value is to avoid decreasing stop_wait_secs to a value
             # that could cause stop_grace_period_secs to remain unchanged.
-            stop_wait_secs = max(
-                min(stop_wait_secs, stop_grace_period_secs), 0.001
-            )
+            stop_wait_secs = max(min(stop_wait_secs, stop_grace_period_secs), 0.001)
 
         # List the processes still alive after the grace period.
         stragglers = [t.name for t in processes if t.is_alive()]
@@ -318,9 +311,7 @@ class Process(mp.Process):
             kwargs (dict): optional keyword arguments for target callable.
         """
         if not isinstance(coord, Coordinator):
-            raise ValueError(
-                "'coord' argument must be a Coordinator: %s" % coord
-            )
+            raise ValueError("'coord' argument must be a Coordinator: %s" % coord)
         super().__init__()
         self._coord = coord
         # allow pass in target or overriding body

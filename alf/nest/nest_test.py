@@ -72,9 +72,7 @@ class TestFlattenUpTo(parameterized.TestCase, alf.test.TestCase):
         shallow_nest = NTuple(a=1, b=2)
         self.assertEqual(flatten_up_to(shallow_nest, ntuple), [1, ntuple.b])
         shallow_nest = NTuple(a=1, b=NTuple(a=1, b=dict(x=3)))
-        self.assertEqual(
-            flatten_up_to(shallow_nest, ntuple), [1, ntuple.b.a, 2]
-        )
+        self.assertEqual(flatten_up_to(shallow_nest, ntuple), [1, ntuple.b.a, 2])
 
         shallow_nest = NTuple(a=dict(x=1), b=1)
         self.assertRaises(error, flatten_up_to, shallow_nest, ntuple)
@@ -106,9 +104,7 @@ class TestAssertSameStructure(parameterized.TestCase, alf.test.TestCase):
         self.assertRaises(
             error, assert_same_structure, dict(x=1, y=[2]), dict(x=[2], y=1)
         )
-        self.assertRaises(
-            error, assert_same_structure, dict(y=[2]), dict(x=[2])
-        )
+        self.assertRaises(error, assert_same_structure, dict(y=[2]), dict(x=[2]))
         self.assertRaises(
             error, assert_same_structure, dict(x=1, y=[2]), dict(y=(2,), x=1)
         )
@@ -133,9 +129,7 @@ class TestAssertSameStructureUpTo(parameterized.TestCase, alf.test.TestCase):
 
     def test_assert_same_structure_up_to(self):
         nest.assert_same_structure_up_to(1.0, 10)
-        nest.assert_same_structure_up_to(
-            NTuple(a=1, b=2), NTuple(a=[2, 3], b=(1, 2))
-        )
+        nest.assert_same_structure_up_to(NTuple(a=1, b=2), NTuple(a=[2, 3], b=(1, 2)))
         nest.assert_same_structure_up_to(
             dict(x=1, y=NTuple(a=[1], b=3)), dict(y=NTuple(a=[3], b=1), x=1)
         )
@@ -180,20 +174,14 @@ class TestMapStructure(parameterized.TestCase, alf.test.TestCase):
             map_structure(lambda a, b, c: a + b + c, nest1, nest2, nest3),
             expected_result,
         )
-        self.assertEqual(
-            map_structure(lambda a, b: a + b, [1, 3], [4, 5]), [5, 8]
-        )
+        self.assertEqual(map_structure(lambda a, b: a + b, [1, 3], [4, 5]), [5, 8])
         self.assertEqual(map_structure(lambda a, b: a * b, 1, 3), 3)
 
         add = lambda a, b: a + b
         self.assertRaises(error, map_structure, add, [1], 2)
         self.assertRaises(error, map_structure, add, [1], (2,))
-        self.assertRaises(
-            error, map_structure, add, [1, 2, 3], [1, dict(x=1), 3]
-        )
-        self.assertRaises(
-            error, map_structure, add, dict(a=0, x=1), dict(y=1, a=0)
-        )
+        self.assertRaises(error, map_structure, add, [1, 2, 3], [1, dict(x=1), 3])
+        self.assertRaises(error, map_structure, add, dict(a=0, x=1), dict(y=1, a=0))
 
 
 class TestFastMapStructure(alf.test.TestCase):
@@ -204,9 +192,7 @@ class TestFastMapStructure(alf.test.TestCase):
         nest3 = NTuple(a=dict(x=1, y=-2), b=[50.0, (6,)])
         expected_result = NTuple(a=dict(x=5, y=-2), b=[250.0, (21,)])
         self.assertEqual(
-            nest.fast_map_structure(
-                lambda a, b, c: a + b + c, nest1, nest2, nest3
-            ),
+            nest.fast_map_structure(lambda a, b, c: a + b + c, nest1, nest2, nest3),
             expected_result,
         )
         self.assertEqual(
@@ -265,9 +251,7 @@ class TestMapStructureUpTo(parameterized.TestCase, alf.test.TestCase):
             [[1], [[2, 4], [3, 5], 3]],
         )
 
-    @parameterized.parameters(
-        nest.py_map_structure_up_to, cnest.map_structure_up_to
-    )
+    @parameterized.parameters(nest.py_map_structure_up_to, cnest.map_structure_up_to)
     def test_map_structure_to(self, map_structure_up_to):
         shallow_nest = [[None], None]
         inp_val = [[1], 2]
@@ -287,9 +271,7 @@ class TestMapStructureUpTo(parameterized.TestCase, alf.test.TestCase):
             name_list,
             data_list,
         )
-        self.assertEqual(
-            out, ["first_4_evens", ["first_5_odds", "first_3_primes"]]
-        )
+        self.assertEqual(out, ["first_4_evens", ["first_5_odds", "first_3_primes"]])
 
         ab_tuple = namedtuple("ab_tuple", "a, b")
         op_tuple = namedtuple("op_tuple", "add, mul")
@@ -316,9 +298,7 @@ class TestMapStructureUpToWithPath(alf.test.TestCase):
             called.append((path, v1, v2))
             return f"{path}:{v1}+{v2}"
 
-        out = nest.py_map_structure_up_to_with_path(
-            shallow_nest, func, deep1, deep2
-        )
+        out = nest.py_map_structure_up_to_with_path(shallow_nest, func, deep1, deep2)
 
         self.assertEqual(out, ["0:v0+u0", ["1.0:v1+u1", "1.1:v2+u2"]])
         self.assertEqual(
@@ -336,14 +316,10 @@ class TestMapStructureUpToWithPath(alf.test.TestCase):
             called.append((path, v1, v2))
             return v1 + v2
 
-        out = nest.py_map_structure_up_to_with_path(
-            shallow_nest, func, deep1, deep2
-        )
+        out = nest.py_map_structure_up_to_with_path(shallow_nest, func, deep1, deep2)
 
         self.assertEqual(out, {"a": 11, "b": {"c": [5.0, 10.0, 2.0, 20.0]}})
-        self.assertEqual(
-            called, [("a", 1, 10), ("b.c", [5.0, 10.0], [2.0, 20.0])]
-        )
+        self.assertEqual(called, [("a", 1, 10), ("b.c", [5.0, 10.0], [2.0, 20.0])])
 
     def test_structure_mismatch_raises(self):
         shallow_nest = {"a": {"b": None}}
@@ -377,9 +353,7 @@ class TestPackSequenceAs(parameterized.TestCase, alf.test.TestCase):
             {"a": 3, "b": 4},
         )
         self.assertEqual(
-            nest.py_pack_sequence_as(
-                {"b": 1, "a": 2}, [3, 4], keep_fields_order=True
-            ),
+            nest.py_pack_sequence_as({"b": 1, "a": 2}, [3, 4], keep_fields_order=True),
             # Keep the fields order when packing
             {"b": 3, "a": 4},
         )
@@ -523,14 +497,10 @@ class TestNestOuterProduct(parameterized.TestCase, alf.test.TestCase):
                 ),
             )
         else:
-            self.assertTensorEqual(
-                ret, torch.tensor([[3, 4, 6, 8], [3, 4, 6, 8]])
-            )
+            self.assertTensorEqual(ret, torch.tensor([[3, 4, 6, 8], [3, 4, 6, 8]]))
 
         tensors = [torch.zeros([2, 3]), torch.zeros([3, 2])]
-        self.assertRaises(
-            AssertionError, NestOuterProduct(batch_dims=2), tensors
-        )
+        self.assertRaises(AssertionError, NestOuterProduct(batch_dims=2), tensors)
 
     @parameterized.parameters((False,), (True,))
     def test_nest_outer_product_specs(self, padding):
@@ -587,9 +557,7 @@ class TestTransformNest(alf.test.TestCase):
             a=dict(x=torch.zeros(()), y=torch.zeros((2, 4))),
             b=torch.zeros((4,)),
         )
-        transformed_ntuple = transform_nest(
-            ntuple, field="a.x", func=lambda x: x + 1.0
-        )
+        transformed_ntuple = transform_nest(ntuple, field="a.x", func=lambda x: x + 1.0)
         ntuple.a.update({"x": torch.ones(())})
         nest.map_structure(self.assertEqual, transformed_ntuple, ntuple)
 
@@ -597,12 +565,8 @@ class TestTransformNest(alf.test.TestCase):
             a=dict(x=torch.zeros(()), y=torch.zeros((2, 4))),
             b=NTuple(a=torch.zeros((4,)), b=NTuple(a=[1], b=[1])),
         )
-        transformed_ntuple = transform_nest(
-            ntuple, field="b.b.b", func=lambda _: [2]
-        )
-        ntuple = ntuple._replace(
-            b=ntuple.b._replace(b=ntuple.b.b._replace(b=[2]))
-        )
+        transformed_ntuple = transform_nest(ntuple, field="b.b.b", func=lambda _: [2])
+        ntuple = ntuple._replace(b=ntuple.b._replace(b=ntuple.b.b._replace(b=[2])))
         nest.map_structure(self.assertEqual, transformed_ntuple, ntuple)
 
         ntuple = NTuple(a=1, b=2)
@@ -668,9 +632,7 @@ class TestExtractAnyLeaf(alf.test.TestCase):
 
     def test_extract_any_leaf(self):
         nested = NTuple(a=dict(x=3, y=1), b=2)
-        self.assertTrue(
-            isinstance(nest.extract_any_leaf_from_nest(nested), int)
-        )
+        self.assertTrue(isinstance(nest.extract_any_leaf_from_nest(nested), int))
         self.assertEqual(nest.extract_any_leaf_from_nest([]), None)
         self.assertEqual(nest.extract_any_leaf_from_nest(2), 2)
 
@@ -687,15 +649,11 @@ class TestTransposeNest(alf.test.TestCase):
             transposed_nest, dict(x=NTuple(a=3, b=[5]), y=NTuple(a=1, b=[10]))
         )
 
-        nested = NTuple(
-            a=dict(x=3, y=dict(n=1, m=2)), b=dict(x=5, y=dict(n=1, m=3))
-        )
+        nested = NTuple(a=dict(x=3, y=dict(n=1, m=2)), b=dict(x=5, y=dict(n=1, m=3)))
         transposed_nest1 = nest.transpose(nested)
         self.assertEqual(
             transposed_nest1,
-            dict(
-                x=NTuple(a=3, b=5), y=NTuple(a=dict(n=1, m=2), b=dict(n=1, m=3))
-            ),
+            dict(x=NTuple(a=3, b=5), y=NTuple(a=dict(n=1, m=2), b=dict(n=1, m=3))),
         )
 
         transposed_nest2 = nest.transpose(nested, new_shallow_nest=nested.a)

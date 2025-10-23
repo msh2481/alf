@@ -45,24 +45,18 @@ class EstimatedEntropyTest(parameterized.TestCase, alf.test.TestCase):
 
         dist_ctors = [td.Normal, td.Beta]
         for ctor in dist_ctors:
-            dist = td.Independent(
-                ctor(para1, para2), reinterpreted_batch_ndims=1
-            )
+            dist = td.Independent(ctor(para1, para2), reinterpreted_batch_ndims=1)
             exact_entropy = dist.entropy()
             estimated_entropy, _ = dist_utils.estimated_entropy(
                 dist, num_samples=num_samples
             )
-            self.assertArrayAlmostEqual(
-                exact_entropy, estimated_entropy, eps=1e-2
-            )
+            self.assertArrayAlmostEqual(exact_entropy, estimated_entropy, eps=1e-2)
 
 
 class DistributionSpecTest(parameterized.TestCase, alf.test.TestCase):
 
     def test_normal(self):
-        dist = td.Normal(
-            loc=torch.tensor([1.0, 2.0]), scale=torch.tensor([0.5, 0.25])
-        )
+        dist = td.Normal(loc=torch.tensor([1.0, 2.0]), scale=torch.tensor([0.5, 0.25]))
         spec = dist_utils.DistributionSpec.from_distribution(dist)
         params1 = {
             "loc": torch.tensor([0.5, 1.5]),
@@ -192,16 +186,10 @@ class TransformationAndInversionTest(parameterized.TestCase, alf.test.TestCase):
         self.assertEqual(type(dist1), td.TransformedDistribution)
         self.assertEqual(dist1.event_shape, dist.event_shape)
         self.assertEqual(dist1.transforms, transforms)
-        self.assertEqual(
-            type(dist1.base_dist), dist_utils.DiagMultivariateNormal
-        )
+        self.assertEqual(type(dist1.base_dist), dist_utils.DiagMultivariateNormal)
         self.assertEqual(type(dist1.base_dist.base_dist), td.Normal)
-        self.assertEqual(
-            dist1.base_dist.base_dist.mean, params1["params_"]["loc"]
-        )
-        self.assertEqual(
-            dist1.base_dist.base_dist.stddev, params1["params_"]["scale"]
-        )
+        self.assertEqual(dist1.base_dist.base_dist.mean, params1["params_"]["loc"])
+        self.assertEqual(dist1.base_dist.base_dist.stddev, params1["params_"]["scale"])
 
     @parameterized.parameters(math_ops.identity, torch.detach, torch.clone)
     def test_inversion(self, func):
@@ -247,9 +235,7 @@ class TransformationAndInversionTest(parameterized.TestCase, alf.test.TestCase):
         dist = dist_utils.AffineTransformedDistribution(
             base_dist=normal_dist, loc=1, scale=2
         )
-        self.assertEqual(
-            dist.entropy(), normal_dist.entropy() + math.log(2) * 2
-        )
+        self.assertEqual(dist.entropy(), normal_dist.entropy() + math.log(2) * 2)
         spec = dist_utils.DistributionSpec.from_distribution(dist)
 
         params1 = {
@@ -259,9 +245,7 @@ class TransformationAndInversionTest(parameterized.TestCase, alf.test.TestCase):
         dist1 = spec.build_distribution(params1)
         self.assertEqual(type(dist1), dist_utils.AffineTransformedDistribution)
         self.assertEqual(dist1.event_shape, dist.event_shape)
-        self.assertEqual(
-            type(dist1.base_dist), dist_utils.DiagMultivariateNormal
-        )
+        self.assertEqual(type(dist1.base_dist), dist_utils.DiagMultivariateNormal)
         self.assertEqual(type(dist1.base_dist.base_dist), td.Normal)
         self.assertEqual(dist1.base_dist.base_dist.mean, params1["loc"])
         self.assertEqual(dist1.base_dist.base_dist.stddev, params1["scale"])
@@ -302,9 +286,7 @@ class TestConversions(alf.test.TestCase):
 class TestActionSamplingCategorical(alf.test.TestCase):
 
     def test_action_sampling_categorical(self):
-        m = torch.distributions.categorical.Categorical(
-            torch.tensor([0.25, 0.75])
-        )
+        m = torch.distributions.categorical.Categorical(torch.tensor([0.25, 0.75]))
         M = m.expand([10])
         epsilon = 0.0
         action_expected = torch.tensor([1.0]).repeat(10)
@@ -383,13 +365,9 @@ class TestActionSamplingTransformedCategorical(alf.test.TestCase):
 class TestRSampleActionDistribution(alf.test.TestCase):
 
     def test_rsample_action_distribution(self):
-        c = torch.distributions.categorical.Categorical(
-            torch.tensor([0.25, 0.75])
-        )
+        c = torch.distributions.categorical.Categorical(torch.tensor([0.25, 0.75]))
         C = c.expand([10])
-        self.assertRaises(
-            AssertionError, dist_utils.rsample_action_distribution, C
-        )
+        self.assertRaises(AssertionError, dist_utils.rsample_action_distribution, C)
 
         n = torch.distributions.normal.Normal(
             torch.tensor([0.3, 0.7]), torch.tensor([1.0, 1.0])
@@ -467,9 +445,9 @@ class TestNFTransformedDistributionParams(alf.test.TestCase):
 
     def test_distribution_params(self):
         spec = alf.tensor_specs.TensorSpec((4,))
-        scale_trans_net = NetworkWrapper(
-            lambda xz: x + z, (spec, spec)
-        ).make_parallel(2)
+        scale_trans_net = NetworkWrapper(lambda xz: x + z, (spec, spec)).make_parallel(
+            2
+        )
 
         z1 = spec.rand(outer_dims=(1,))
         z2 = spec.rand(outer_dims=(1,))
@@ -523,9 +501,7 @@ class TestNFTransformedDistributionParams(alf.test.TestCase):
             },
         )
 
-        dist_spec2 = dist_utils.DistributionSpec.from_distribution(
-            transformed_dist2
-        )
+        dist_spec2 = dist_utils.DistributionSpec.from_distribution(transformed_dist2)
 
         z4 = spec.rand(outer_dims=(1,))
         z5 = spec.rand(outer_dims=(1,))
@@ -541,13 +517,9 @@ class TestNFTransformedDistributionParams(alf.test.TestCase):
         built_dist5 = dist_spec2.build_distribution(params5)
 
         self.assertEqual(built_dist5.base_dist.mean, spec.ones(outer_dims=(1,)))
-        self.assertEqual(
-            built_dist5.transforms[0].parts[0].parts[0].params, {"z": z4}
-        )
+        self.assertEqual(built_dist5.transforms[0].parts[0].parts[0].params, {"z": z4})
 
-        dist_spec4 = dist_utils.DistributionSpec.from_distribution(
-            transformed_dist4
-        )
+        dist_spec4 = dist_utils.DistributionSpec.from_distribution(transformed_dist4)
         transformed_dist6 = td.TransformedDistribution(
             td.TransformedDistribution(dist, [td.ComposeTransform([t4, t5])]),
             [t3],
@@ -555,9 +527,7 @@ class TestNFTransformedDistributionParams(alf.test.TestCase):
         params6 = dist_utils.distributions_to_params(transformed_dist6)
 
         built_dist6 = dist_spec4.build_distribution(params6)
-        self.assertEqual(
-            built_dist6.base_dist.transforms[0].parts[0].params, {"z": z4}
-        )
+        self.assertEqual(built_dist6.base_dist.transforms[0].parts[0].params, {"z": z4})
 
         # we build another distribution using dist_spec4 and check if ``built_dist6``
         # has an unchanged ``z``
@@ -565,16 +535,13 @@ class TestNFTransformedDistributionParams(alf.test.TestCase):
             alf.nest.map_structure(torch.zeros_like, params6)
         )
         self.assertFalse(
-            built_dist7.base_dist.transforms[0]
-            is built_dist6.base_dist.transforms[0]
+            built_dist7.base_dist.transforms[0] is built_dist6.base_dist.transforms[0]
         )
         self.assertTensorEqual(
             built_dist7.base_dist.transforms[0].parts[0].params["z"],
             torch.zeros_like(z4),
         )
-        self.assertEqual(
-            built_dist6.base_dist.transforms[0].parts[0].params, {"z": z4}
-        )
+        self.assertEqual(built_dist6.base_dist.transforms[0].parts[0].params, {"z": z4})
 
 
 if __name__ == "__main__":

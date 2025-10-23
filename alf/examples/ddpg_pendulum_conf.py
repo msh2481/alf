@@ -25,14 +25,10 @@ from alf.utils.losses import element_wise_huber_loss
 from alf.examples import ddpg_conf
 
 # environment config
-alf.config(
-    "create_environment", env_name="Pendulum-v0", num_parallel_environments=1
-)
+alf.config("create_environment", env_name="Pendulum-v0", num_parallel_environments=1)
 
 hidden_layers = (100, 100)
-actor_network_cls = functools.partial(
-    ActorNetwork, fc_layer_params=hidden_layers
-)
+actor_network_cls = functools.partial(ActorNetwork, fc_layer_params=hidden_layers)
 
 critic_network_cls = functools.partial(
     CriticNetwork, joint_fc_layer_params=hidden_layers

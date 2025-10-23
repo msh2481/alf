@@ -165,13 +165,9 @@ class RingBufferTest(parameterized.TestCase, alf.test.TestCase):
         batch = ring_buffer.dequeue(env_ids=torch.tensor([1, 2]))
         self.assertEqual(batch.step_type, torch.tensor([[8]] * 2))
         batch = ring_buffer.dequeue(env_ids=batch1.env_id)
-        self.assertEqual(
-            batch.step_type, torch.tensor([[9], [9], [8], [8], [8]])
-        )
+        self.assertEqual(batch.step_type, torch.tensor([[9], [9], [8], [8], [8]]))
         # Exception because some environments do not have data
-        self.assertRaises(
-            AssertionError, ring_buffer.dequeue, env_ids=batch1.env_id
-        )
+        self.assertRaises(AssertionError, ring_buffer.dequeue, env_ids=batch1.env_id)
 
         # Test dequeue multiple
         ring_buffer.clear()
@@ -245,9 +241,7 @@ class RingBufferTest(parameterized.TestCase, alf.test.TestCase):
             ring_buffer.revive()
             for t in range(6, 10):
                 batch2 = get_batch(range(0, 8), self.dim, t=t, x=0.4)
-                self.assertEqual(
-                    ring_buffer.enqueue(batch2, blocking=True), True
-                )
+                self.assertEqual(ring_buffer.enqueue(batch2, blocking=True), True)
 
             ring_buffer.stop()
             self.assertEqual(ring_buffer.enqueue(batch2, blocking=True), False)
@@ -288,9 +282,7 @@ class DataBufferTest(alf.test.TestCase):
         batch = _get_batch(100)
         data_buffer.add_batch(batch)
         ret = data_buffer.get_batch_by_indices(
-            torch.arange(
-                data_buffer.current_size - 100, data_buffer.current_size
-            )
+            torch.arange(data_buffer.current_size - 100, data_buffer.current_size)
         )
         self.assertEqual(ret[0], batch[0])
         self.assertEqual(ret[1], batch[1])
@@ -298,21 +290,15 @@ class DataBufferTest(alf.test.TestCase):
 
         # Test checkpoint working
         with tempfile.TemporaryDirectory() as checkpoint_directory:
-            checkpoint = Checkpointer(
-                checkpoint_directory, data_buffer=data_buffer
-            )
+            checkpoint = Checkpointer(checkpoint_directory, data_buffer=data_buffer)
             checkpoint.save(10)
             data_buffer = DataBuffer(data_spec=data_spec, capacity=capacity)
-            checkpoint = Checkpointer(
-                checkpoint_directory, data_buffer=data_buffer
-            )
+            checkpoint = Checkpointer(checkpoint_directory, data_buffer=data_buffer)
             global_step = checkpoint.load()
             self.assertEqual(global_step, 10)
 
         ret = data_buffer.get_batch_by_indices(
-            torch.arange(
-                data_buffer.current_size - 100, data_buffer.current_size
-            )
+            torch.arange(data_buffer.current_size - 100, data_buffer.current_size)
         )
         self.assertEqual(ret[0], batch[0])
         self.assertEqual(ret[1], batch[1])

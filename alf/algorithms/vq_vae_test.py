@@ -50,18 +50,14 @@ class VQVaeTest(alf.test.TestCase):
             fc_layer_params=fc_layers_params,
             last_layer_size=self._embedding_dim,
             last_activation=math_ops.identity,
-            last_kernel_initializer=partial(
-                torch.nn.init.uniform_, a=-0.03, b=0.03
-            ),
+            last_kernel_initializer=partial(torch.nn.init.uniform_, a=-0.03, b=0.03),
         )
         decoder_cls = partial(
             alf.networks.EncodingNetwork,
             fc_layer_params=fc_layers_params,
             last_layer_size=1,
             last_activation=math_ops.identity,
-            last_kernel_initializer=partial(
-                torch.nn.init.uniform_, a=-0.03, b=0.03
-            ),
+            last_kernel_initializer=partial(torch.nn.init.uniform_, a=-0.03, b=0.03),
         )
 
         optimizer = alf.optimizers.Adam(lr=self._learning_rate)
@@ -96,9 +92,7 @@ class VQVaeTest(alf.test.TestCase):
 
         alg_step = vq_vae.predict_step(x_test)
 
-        reconstruction_loss = float(
-            torch.mean(self._loss_f(x_test - alg_step.output))
-        )
+        reconstruction_loss = float(torch.mean(self._loss_f(x_test - alg_step.output)))
         print("reconstruction_loss:", reconstruction_loss)
         self.assertLess(reconstruction_loss, 0.05)
 

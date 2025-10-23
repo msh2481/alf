@@ -178,9 +178,7 @@ class MIEstimatorTest(parameterized.TestCase, alf.test.TestCase):
 
     @parameterized.parameters(
         dict(estimator="JSD", switch_xy=False, use_default_model=True, eps=0.2),
-        dict(
-            estimator="JSD", switch_xy=False, use_default_model=False, eps=0.2
-        ),
+        dict(estimator="JSD", switch_xy=False, use_default_model=False, eps=0.2),
         dict(estimator="JSD", switch_xy=True, use_default_model=True, eps=0.2),
         dict(estimator="JSD", switch_xy=True, use_default_model=False, eps=0.2),
         dict(estimator="ML", switch_xy=False, use_default_model=True),
@@ -271,9 +269,7 @@ class MIEstimatorTest(parameterized.TestCase, alf.test.TestCase):
             )
             pmi = pmi * (z > 0).to(torch.float32)
             pmi = torch.sum(pmi, dim=-1)
-            pmi_rmse = torch.sqrt(
-                torch.mean(math_ops.square(pmi - estimated_pmi))
-            )
+            pmi_rmse = torch.sqrt(torch.mean(math_ops.square(pmi - estimated_pmi)))
             estimated_mi = estimated_pmi.mean(dim=0)
             var = torch.var(estimated_pmi, dim=0, unbiased=False)
             estimated_mi = float(estimated_mi)
@@ -325,9 +321,7 @@ class MIEstimatorTest(parameterized.TestCase, alf.test.TestCase):
                 batch = _get_batch(batch_size, z * torch.ones(batch_size, dim))
                 info = "z={z} mi={mi}".format(
                     z=float(z),
-                    mi=float(
-                        0.5 * torch.log(1 + math_ops.square(F.relu(z / e)))
-                    ),
+                    mi=float(0.5 * torch.log(1 + math_ops.square(F.relu(z / e)))),
                 )
                 _estimate_mi(info, batch)
 

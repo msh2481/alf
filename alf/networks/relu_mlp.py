@@ -78,9 +78,7 @@ class ReluMLP(Network):
         """
         assert (
             len(input_tensor_spec.shape) == 1
-        ), "The input shape {} should be a 1-d vector!".format(
-            input_tensor_spec.shape
-        )
+        ), "The input shape {} should be a 1-d vector!".format(input_tensor_spec.shape)
 
         super().__init__(input_tensor_spec, name=name)
 
@@ -104,9 +102,7 @@ class ReluMLP(Network):
         """Get i-th (zero-based) FC layer"""
         return self._fc_layers[i]
 
-    def forward(
-        self, inputs, state=(), requires_jac=False, requires_jac_diag=False
-    ):
+    def forward(self, inputs, state=(), requires_jac=False, requires_jac_diag=False):
         """
         Args:
             inputs (torch.Tensor)
@@ -325,9 +321,9 @@ class ReluMLP(Network):
         assert (
             inputs.shape[-1] == self._input_size
         ), "inputs should has shape {}!".format(self._input_size)
-        assert (
-            vec.shape[-1] == self._input_size
-        ), "vec should has shape {}!".format(self._input_size)
+        assert vec.shape[-1] == self._input_size, "vec should has shape {}!".format(
+            self._input_size
+        )
 
         outputs, _ = self.forward(inputs)
         jvp = self._compute_jvp(vec, output_partial_idx=output_partial_idx)
@@ -352,9 +348,7 @@ class ReluMLP(Network):
                 mask = (fc.hidden_neurons > 0).float()
                 J = torch.matmul(J, fc.weight.t())
                 J = J * mask
-            J = torch.matmul(
-                J, self._fc_layers[-1].weight[output_partial_idx, :].t()
-            )
+            J = torch.matmul(J, self._fc_layers[-1].weight[output_partial_idx, :].t())
         else:
             weight = self._fc_layers[0].weight[output_partial_idx, :]
             J = torch.matmul(vec, weight.t())

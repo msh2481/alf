@@ -88,9 +88,7 @@ def get_learning_rate(optimizers):
 
 class SimpleAlg(Algorithm):
 
-    def __init__(
-        self, optimizer=None, sub_algs=[], params=[], name="SimpleAlg"
-    ):
+    def __init__(self, optimizer=None, sub_algs=[], params=[], name="SimpleAlg"):
         super().__init__(optimizer=optimizer, name=name)
         self._module_list = nn.ModuleList(sub_algs)
         self._param_list = nn.ParameterList(params)
@@ -141,9 +139,7 @@ class TestNetAndOptimizer(alf.test.TestCase):
         optimizer = torch.optim.Adam(net.parameters(), lr=0.1)
 
         with tempfile.TemporaryDirectory() as ckpt_dir:
-            ckpt_mngr = ckpt_utils.Checkpointer(
-                ckpt_dir, net=net, optimizer=optimizer
-            )
+            ckpt_mngr = ckpt_utils.Checkpointer(ckpt_dir, net=net, optimizer=optimizer)
 
             # test the case loading from 'latest' which does not exist
             self.assertWarns(UserWarning, ckpt_mngr.load, "latest")
@@ -200,9 +196,7 @@ class TestMultiAlgSingleOpt(alf.test.TestCase):
             alg_2_1 = SimpleAlg(params=[param_2_1], name="alg_2_1")
 
             param_2 = nn.Parameter(torch.tensor([2.0]))
-            alg_2 = SimpleAlg(
-                params=[param_2], sub_algs=[alg_2_1], name="alg_2"
-            )
+            alg_2 = SimpleAlg(params=[param_2], sub_algs=[alg_2_1], name="alg_2")
 
             optimizer_root = alf.optimizers.Adam(lr=0.1)
             param_root = nn.Parameter(torch.tensor([0.0]))
@@ -257,9 +251,7 @@ class TestMultiAlgMultiOpt(alf.test.TestCase):
 
             param_2 = nn.Parameter(torch.tensor([2.0]))
             optimizer_2 = alf.optimizers.Adam(lr=0.2)
-            alg_2 = SimpleAlg(
-                params=[param_2], optimizer=optimizer_2, name="alg_2"
-            )
+            alg_2 = SimpleAlg(params=[param_2], optimizer=optimizer_2, name="alg_2")
 
             optimizer_root = alf.optimizers.Adam(lr=0.1)
             param_root = nn.Parameter(torch.tensor([0.0]))
@@ -303,9 +295,7 @@ class TestWithParamSharing(alf.test.TestCase):
 
             param_2 = nn.Parameter(torch.tensor([2.0]))
             optimizer_2 = alf.optimizers.Adam(lr=0.2)
-            alg_2 = SimpleAlg(
-                params=[param_2], optimizer=optimizer_2, name="alg_2"
-            )
+            alg_2 = SimpleAlg(params=[param_2], optimizer=optimizer_2, name="alg_2")
             alg_2.ignored_param = param_1
 
             optimizer_root = alf.optimizers.Adam(lr=0.1)
@@ -321,9 +311,7 @@ class TestWithParamSharing(alf.test.TestCase):
             ckpt_mngr = ckpt_utils.Checkpointer(ckpt_dir, alg=alg_root)
 
             # only one copy of the shared param is returned from state_dict
-            self.assertTrue(
-                "_sub_alg2.ignored_param" not in alg_root.state_dict()
-            )
+            self.assertTrue("_sub_alg2.ignored_param" not in alg_root.state_dict())
 
             # a number of training steps
             step_num = 0
@@ -375,9 +363,7 @@ class TestWithCycle(alf.test.TestCase):
 
             param_2 = nn.Parameter(torch.tensor([2.0]))
             optimizer_2 = alf.optimizers.Adam(lr=0.2)
-            alg_2 = SimpleAlg(
-                params=[param_2], optimizer=optimizer_2, name="alg_2"
-            )
+            alg_2 = SimpleAlg(params=[param_2], optimizer=optimizer_2, name="alg_2")
 
             optimizer_root = alf.optimizers.Adam(lr=0.1)
             param_root = nn.Parameter(torch.tensor([0.0]))
@@ -486,9 +472,7 @@ class TestModelMismatch(alf.test.TestCase):
 
             param_2 = nn.Parameter(torch.tensor([2.0]))
             optimizer_2 = alf.optimizers.Adam(lr=0.2)
-            alg_2 = SimpleAlg(
-                params=[param_2], optimizer=optimizer_2, name="alg_2"
-            )
+            alg_2 = SimpleAlg(params=[param_2], optimizer=optimizer_2, name="alg_2")
 
             optimizer_root = alf.optimizers.Adam(lr=0.1)
             param_root = nn.Parameter(torch.tensor([0.0]))
@@ -531,15 +515,11 @@ class TestOptMismatch(alf.test.TestCase):
             param_1 = nn.Parameter(torch.tensor([1.0]))
             optimizer_1 = alf.optimizers.Adam(lr=0.2)
             alg_1_no_op = SimpleAlg(params=[param_1], name="alg_1_no_op")
-            alg_1 = SimpleAlg(
-                params=[param_1], optimizer=optimizer_1, name="alg_1"
-            )
+            alg_1 = SimpleAlg(params=[param_1], optimizer=optimizer_1, name="alg_1")
 
             param_2 = nn.Parameter(torch.tensor([2.0]))
             optimizer_2 = alf.optimizers.Adam(lr=0.2)
-            alg_2 = SimpleAlg(
-                params=[param_2], optimizer=optimizer_2, name="alg_2"
-            )
+            alg_2 = SimpleAlg(params=[param_2], optimizer=optimizer_2, name="alg_2")
 
             optimizer_root = alf.optimizers.Adam(lr=0.1)
             param_root = nn.Parameter(torch.tensor([0.0]))
@@ -574,17 +554,13 @@ class TestOptMismatch(alf.test.TestCase):
             self.assertRaises(RuntimeError, ckpt_mngr.load, step_num)
 
 
-class TestLoadStateDictForParallelNetwork(
-    parameterized.TestCase, alf.test.TestCase
-):
+class TestLoadStateDictForParallelNetwork(parameterized.TestCase, alf.test.TestCase):
 
     @parameterized.parameters((False,), (True,))
     def test_parallel_network_state_dict_and_params(self, lstm):
         input_spec = TensorSpec((10,))
 
-        input_preprocessors = EmbeddingPreprocessor(
-            input_spec, embedding_dim=10
-        )
+        input_preprocessors = EmbeddingPreprocessor(input_spec, embedding_dim=10)
 
         if lstm:
             network_ctor = functools.partial(
@@ -593,9 +569,7 @@ class TestLoadStateDictForParallelNetwork(
                 post_fc_layer_params=(2, 2),
             )
         else:
-            network_ctor = functools.partial(
-                EncodingNetwork, fc_layer_params=(10, 10)
-            )
+            network_ctor = functools.partial(EncodingNetwork, fc_layer_params=(10, 10))
 
         network_wo_preprocessor = network_ctor(input_tensor_spec=input_spec)
         network_w_preprocessor = network_ctor(
@@ -607,9 +581,7 @@ class TestLoadStateDictForParallelNetwork(
         def _check_parallel_param(p_net_source):
             p_net_target = p_net_source.copy()
             p_net_target.load_state_dict(p_net_source.state_dict())
-            for ws, wt in zip(
-                p_net_source.parameters(), p_net_target.parameters()
-            ):
+            for ws, wt in zip(p_net_source.parameters(), p_net_target.parameters()):
                 self.assertTensorEqual(ws, wt)
 
         replicas = 2
@@ -634,8 +606,8 @@ class TestLoadStateDictForParallelNetwork(
             ).singleton(),
         )
 
-        p_net_w_shared_preprocessor = (
-            network_w_shared_preprocessor.make_parallel(replicas)
+        p_net_w_shared_preprocessor = network_w_shared_preprocessor.make_parallel(
+            replicas
         )
 
         # the number of parameters of a parallel network with a shared
@@ -714,9 +686,7 @@ class TestCheckpointMapLocation(alf.test.TestCase):
             # test load state-dict for cpu model
             model_on_gpu.load_state_dict(state_dict)
 
-            for p1, p2 in zip(
-                model_on_cpu.parameters(), model_on_gpu.parameters()
-            ):
+            for p1, p2 in zip(model_on_cpu.parameters(), model_on_gpu.parameters()):
                 self.assertTrue("cpu" == str(p1.device))
                 self.assertTrue(p2.is_cuda)
 

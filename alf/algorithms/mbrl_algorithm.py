@@ -42,9 +42,7 @@ from alf.algorithms.predictive_representation_learner import (
 )
 
 MbrlState = namedtuple("MbrlState", ["dynamics", "reward", "planner"])
-MbrlInfo = namedtuple(
-    "MbrlInfo", ["dynamics", "reward", "planner"], default_value=()
-)
+MbrlInfo = namedtuple("MbrlInfo", ["dynamics", "reward", "planner"], default_value=())
 
 
 @alf.configurable
@@ -130,19 +128,13 @@ class MbrlAlgorithm(OffPolicyAlgorithm):
         )
         train_state_spec = MbrlState(
             dynamics=(
-                dynamics_module.train_state_spec
-                if dynamics_module is not None
-                else ()
+                dynamics_module.train_state_spec if dynamics_module is not None else ()
             ),
             reward=(
-                reward_module.train_state_spec
-                if reward_module is not None
-                else ()
+                reward_module.train_state_spec if reward_module is not None else ()
             ),
             planner=(
-                planner_module.train_state_spec
-                if planner_module is not None
-                else ()
+                planner_module.train_state_spec if planner_module is not None else ()
             ),
         )
         if epsilon_greedy is None:
@@ -239,9 +231,7 @@ class MbrlAlgorithm(OffPolicyAlgorithm):
         and p is the number of particles per replica.
         """
         # [B, ...] -> [B*p, ...]
-        inputs = torch.repeat_interleave(
-            inputs, self._particles_per_replica, dim=0
-        )
+        inputs = torch.repeat_interleave(inputs, self._particles_per_replica, dim=0)
         if self._num_dynamics_replicas > 1:
             # [B*p, ...] -> [B*p, n, ...]
             inputs = inputs.unsqueeze(1).expand(
@@ -269,9 +259,7 @@ class MbrlAlgorithm(OffPolicyAlgorithm):
         time_step = TimeStep()
         dyn_state = state.dynamics._replace(feature=observation)
         dyn_state = nest.map_structure(
-            partial(
-                self._expand_to_population, population_size=population_size
-            ),
+            partial(self._expand_to_population, population_size=population_size),
             dyn_state,
         )
 
@@ -329,15 +317,11 @@ class MbrlAlgorithm(OffPolicyAlgorithm):
             time_step, state.planner, epsilon_greedy
         )
 
-        dynamics_state = self._dynamics_module.update_state(
-            time_step, state.dynamics
-        )
+        dynamics_state = self._dynamics_module.update_state(time_step, state.dynamics)
 
         return AlgStep(
             output=action,
-            state=state._replace(
-                dynamics=dynamics_state, planner=planner_state
-            ),
+            state=state._replace(dynamics=dynamics_state, planner=planner_state),
             info=MbrlInfo(),
         )
 
@@ -509,9 +493,7 @@ class LatentMbrlAlgorithm(MbrlAlgorithm):
         cost = cost.sum(2)
         return cost
 
-    def _predict_with_planning(
-        self, time_step: TimeStep, state, epsilon_greedy
-    ):
+    def _predict_with_planning(self, time_step: TimeStep, state, epsilon_greedy):
         action, planner_state = self._planner_module.predict_plan(
             time_step, state.planner, epsilon_greedy
         )

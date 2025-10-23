@@ -70,9 +70,7 @@ class ActionQuantizer(object):
         # can make it different for different dims in the future
         if self._sampling_method == "uniform":
             if self._rep_mode == "center":
-                bin_size = (
-                    self._upper_bound - self._lower_bound
-                ) / self._action_bins
+                bin_size = (self._upper_bound - self._lower_bound) / self._action_bins
                 # [lb + bin_size/2, up - bin_size/2]
                 # center value representation
                 LUT_BA = torch.linspace(

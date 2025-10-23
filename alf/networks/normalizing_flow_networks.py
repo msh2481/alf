@@ -305,9 +305,7 @@ class RealNVPNetwork(NormalizingFlowNetwork):
         )
 
         if activation in (torch.relu, torch.relu_):
-            logging.warning(
-                "Using relu activation for scaling might be unstable!"
-            )
+            logging.warning("Using relu activation for scaling might be unstable!")
 
         if self.use_conditional_inputs and preprocessing_combiner is None:
             preprocessing_combiner = alf.nest.utils.NestConcat()
@@ -337,14 +335,10 @@ class RealNVPNetwork(NormalizingFlowNetwork):
                 elif mask_mode == "distributed":
                     if sub_dim > 0:
                         delta = spec.numel // sub_dim
-                        idx = torch.arange(0, delta * sub_dim, delta).to(
-                            torch.int64
-                        )
+                        idx = torch.arange(0, delta * sub_dim, delta).to(torch.int64)
                         new_mask[idx] = 1
                 else:
-                    assert (
-                        mask_mode == "random"
-                    ), f"Invalid mask mode {mask_mode}"
+                    assert mask_mode == "random", f"Invalid mask mode {mask_mode}"
                     idx = torch.randperm(spec.numel)[:sub_dim].to(torch.int64)
                     new_mask[idx] = 1
                 new_mask = new_mask.reshape(spec.shape)
@@ -530,9 +524,7 @@ class _RealNVPTransform(td.Transform):
         xy_spec, z_spec = self._tensor_specs
         inputs = x_or_y * self._b
 
-        inputs, bs = _prepare_conditional_flow_inputs(
-            xy_spec, inputs, z_spec, self._z
-        )
+        inputs, bs = _prepare_conditional_flow_inputs(xy_spec, inputs, z_spec, self._z)
 
         inputs = alf.layers.make_parallel_input(inputs, 2)  # [B,2,...]
         scale_trans = self._scale_trans_net(inputs)[0]  # [B,2,D]

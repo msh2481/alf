@@ -297,14 +297,10 @@ class HyperNetwork(Algorithm):
             ), "Unsupported sampling type %s for extra training batch" % (
                 function_extra_bs_sampler
             )
-            self._function_extra_bs = math.ceil(
-                function_bs * function_extra_bs_ratio
-            )
+            self._function_extra_bs = math.ceil(function_bs * function_extra_bs_ratio)
             self._function_extra_bs_sampler = function_extra_bs_sampler
             self._function_extra_bs_std = function_extra_bs_std
-            critic_input_dim = (
-                function_bs + self._function_extra_bs
-            ) * last_layer_size
+            critic_input_dim = (function_bs + self._function_extra_bs) * last_layer_size
         else:
             critic_input_dim = gen_output_dim
 
@@ -524,14 +520,10 @@ class HyperNetwork(Algorithm):
             data, target = inputs
             return self._generator.train_step(
                 inputs=None,
-                loss_func=functools.partial(
-                    self._function_neglogprob, target.view(-1)
-                ),
+                loss_func=functools.partial(self._function_neglogprob, target.view(-1)),
                 batch_size=num_particles,
                 entropy_regularization=entropy_regularization,
-                transform_func=functools.partial(
-                    self._function_transform, data
-                ),
+                transform_func=functools.partial(self._function_transform, data),
                 state=(),
             )
         else:
@@ -673,9 +665,7 @@ class HyperNetwork(Algorithm):
             pred = probs.argmax(-1).cpu()  # [B, N, 1]
             vote = []
             for i in range(pred.shape[0]):
-                values, counts = torch.unique(
-                    pred[i], sorted=False, return_counts=True
-                )
+                values, counts = torch.unique(pred[i], sorted=False, return_counts=True)
                 modes = (counts == counts.max()).nonzero()
                 label = values[torch.randint(len(modes), (1,))]
                 vote.append(label)
@@ -728,9 +718,7 @@ class HyperNetwork(Algorithm):
         mean_probs_outlier = probs_outlier.mean(0)
 
         entropy = torch.distributions.Categorical(mean_probs).entropy()
-        entropy_outlier = torch.distributions.Categorical(
-            mean_probs_outlier
-        ).entropy()
+        entropy_outlier = torch.distributions.Categorical(mean_probs_outlier).entropy()
 
         variance = F.softmax(outputs, -1).var(0).sum(-1)
         variance_outlier = F.softmax(outputs_outlier, -1).var(0).sum(-1)

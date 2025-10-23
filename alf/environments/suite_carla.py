@@ -114,9 +114,7 @@ class WeatherParameters(object):
         self.wind_intensity = wind_intensity  # [0, 100]
         self.fog_density = fog_density  # [0, 100]
         self.fog_distance = fog_distance  # [0, 100]
-        self._fields = [
-            m for m in self.__dict__.keys() if not m.startswith("_")
-        ]
+        self._fields = [m for m in self.__dict__.keys() if not m.startswith("_")]
 
     def get_weather_fields(self):
         """Get the list of configurable weather fields
@@ -399,20 +397,14 @@ class Player(object):
         self._observation_sensors["navigation"] = self._navigation
 
         if with_bev_sensor:
-            self._bev_sensor = BEVSensor(
-                actor, self._alf_world, self._navigation
-            )
+            self._bev_sensor = BEVSensor(actor, self._alf_world, self._navigation)
             self._observation_sensors["bev"] = self._bev_sensor
         else:
             self._bev_sensor = None
 
         if with_dynamic_object_sensor:
-            self._dynamic_object_sensor = DynamicObjectSensor(
-                actor, self._alf_world
-            )
-            self._observation_sensors["dynamic_object"] = (
-                self._dynamic_object_sensor
-            )
+            self._dynamic_object_sensor = DynamicObjectSensor(actor, self._alf_world)
+            self._observation_sensors["dynamic_object"] = self._dynamic_object_sensor
         else:
             self._dynamic_object_sensor = None
 
@@ -420,9 +412,7 @@ class Player(object):
         if self._data_collection_mode:
             from .carla_env.carla_agents import SimpleNavigationAgent
 
-            self._data_agent = SimpleNavigationAgent(
-                actor, self._navigation, alf_world
-            )
+            self._data_agent = SimpleNavigationAgent(actor, self._navigation, alf_world)
         if with_red_light_sensor:
             self._red_light_sensor = RedlightSensor(actor, weakref.ref(self))
             self._observation_sensors["redlight"] = self._red_light_sensor
@@ -436,9 +426,7 @@ class Player(object):
         self._success_distance_thresh = success_distance_thresh
         self._min_speed = min_speed
         self._additional_time = additional_time
-        self._delta_seconds = (
-            actor.get_world().get_settings().fixed_delta_seconds
-        )
+        self._delta_seconds = actor.get_world().get_settings().fixed_delta_seconds
         self._max_collision_penalty = max_collision_penalty
         self._max_stuck_at_collision_frames = (
             max_stuck_at_collision_seconds / self._delta_seconds
@@ -558,12 +546,8 @@ class Player(object):
         if self._data_collection_mode:
             self._data_agent.set_destination()
 
-        self._prev_collision = (
-            False  # whether there is collision in the previous frame
-        )
-        self._collision = (
-            False  # whether there is collision in the current frame
-        )
+        self._prev_collision = False  # whether there is collision in the previous frame
+        self._collision = False  # whether there is collision in the current frame
         self._collision_loc = (
             None  # the location of the car when it starts to have collision
         )
@@ -757,9 +741,7 @@ class Player(object):
             collision=np.float32(0.0),  # all collision events (0/1)
             collision_front=np.float32(0.0),  # front collision event (0/1)
             red_light_violated=np.float32(0.0),  # violated red light (0/1)
-            red_light_encountered=np.float32(
-                0.0
-            ),  # encountered red light (0/1)
+            red_light_encountered=np.float32(0.0),  # encountered red light (0/1)
             overspeed=np.float32(0.0),  # overspeed event (0/1)
         )
 
@@ -770,9 +752,7 @@ class Player(object):
         # another vehicle, it may get an additional collision event in the new frame
         # because the relocation of the car may happen after the simulation of the
         # moving. So we ignore the collision at the first step.
-        self._collision = (
-            not np.all(obs["collision"] == 0) and not self._is_first_step
-        )
+        self._collision = not np.all(obs["collision"] == 0) and not self._is_first_step
 
         if self._collision and not self._prev_collision:
             # We only report the first collision event among contiguous collision
@@ -831,8 +811,7 @@ class Player(object):
             if self._terminate_upon_infraction != "redlight":
                 reward -= min(
                     self._max_red_light_penalty,
-                    Player.PENALTY_RATE_RED_LIGHT
-                    * max(0.0, self._episode_reward),
+                    Player.PENALTY_RATE_RED_LIGHT * max(0.0, self._episode_reward),
                 )
             else:
                 # to encourage stop at red-light, can set max_red_light_penalty
@@ -865,9 +844,7 @@ class Player(object):
             reward_vector[Player.REWARD_SUCCESS] = 1.0
             discount = 0.0
             info["success"] = np.float32(1.0)
-            logging.info(
-                "actor=%d frame=%d SUCCESS" % (self._actor.id, current_frame)
-            )
+            logging.info("actor=%d frame=%d SUCCESS" % (self._actor.id, current_frame))
         elif current_frame >= self._max_frame:
             logging.info(
                 "actor=%d frame=%d FAILURE: out of time"
@@ -936,8 +913,7 @@ class Player(object):
                 )
                 self._intermediate_start = intermediate_goal
                 self._intermediate_goal_index = min(
-                    self._intermediate_goal_index
-                    + self._sparse_reward_index_interval,
+                    self._intermediate_goal_index + self._sparse_reward_index_interval,
                     self._navigation.num_waypoints - 1,
                 )
         else:
@@ -963,9 +939,7 @@ class Player(object):
             )
             reward_vector[Player.REWARD_OVERSPEED] = 1.0
             info["overspeed"] = np.float32(1.0)
-            reward -= (
-                self._overspeed_penalty_weight * overspeed * self._delta_seconds
-            )
+            reward -= self._overspeed_penalty_weight * overspeed * self._delta_seconds
 
         obs["navigation"] = _calculate_relative_position(
             self._actor.get_transform(), obs["navigation"]
@@ -1048,9 +1022,7 @@ class Player(object):
             pygame.font.init()
             self._clock = pygame.time.Clock()
             if self._camera_sensor:
-                height, width = self._camera_sensor.observation_spec().shape[
-                    1:3
-                ]
+                height, width = self._camera_sensor.observation_spec().shape[1:3]
                 height, width = get_scaled_image_size(height, width)
             else:
                 height = MINIMUM_RENDER_HEIGHT
@@ -1084,8 +1056,7 @@ class Player(object):
                 else ""
             ),
             (
-                "Ahead: (%7.1f, %8.1f, %5.1f)"
-                % tuple(obs["navigation"][2].tolist())
+                "Ahead: (%7.1f, %8.1f, %5.1f)" % tuple(obs["navigation"][2].tolist())
                 if "navigation" in obs.keys()
                 else ""
             ),
@@ -1095,14 +1066,12 @@ class Player(object):
                 else ""
             ),
             (
-                "Velocity: (%4.1f, %4.1f, %4.1f) m/s"
-                % tuple(obs["velocity"].tolist())
+                "Velocity: (%4.1f, %4.1f, %4.1f) m/s" % tuple(obs["velocity"].tolist())
                 if "velocity" in obs.keys()
                 else ""
             ),
             (
-                "Acceleration: (%4.1f, %4.1f, %4.1f)"
-                % tuple(obs["imu"][0:3].tolist())
+                "Acceleration: (%4.1f, %4.1f, %4.1f)" % tuple(obs["imu"][0:3].tolist())
                 if "imu" in obs.keys()
                 else ""
             ),
@@ -1118,8 +1087,7 @@ class Player(object):
             "Reward: (%s)" % self._current_time_step.reward,
             "Route Length: %4.2f m" % self._route_length,
             "Speed Limit: %4.2f m/s" % self._speed_limit,
-            "Red light zone: %1d"
-            % (self._prev_encountered_red_light_id != None),
+            "Red light zone: %1d" % (self._prev_encountered_red_light_id != None),
             "Red light violation: %1d" % env_info["red_light_violated"],
             "Red light dist: %4.2f" % self._prev_encountered_red_light_dist,
         ]
@@ -1162,9 +1130,7 @@ class Player(object):
                         np.uint8,
                     )
                     concat_img[: rgb_img.shape[0], : rgb_img.shape[1]] = rgb_img
-                    concat_img[: bev_img.shape[0], -bev_img.shape[1] :] = (
-                        bev_img
-                    )
+                    concat_img[: bev_img.shape[0], -bev_img.shape[1] :] = bev_img
                     rgb_img = concat_img
                 else:
                     rgb_img = bev_img
@@ -1214,12 +1180,8 @@ class Player(object):
         if interp_num >= ego_points.shape[1]:
             time_index = np.linspace(0, 1, ego_points.shape[1])
 
-            interp_func = scipy.interpolate.interp1d(
-                x=time_index, y=ego_points, axis=1
-            )
-            ego_interp = interp_func(
-                np.linspace(time_index[0], time_index[-1], 100)
-            )
+            interp_func = scipy.interpolate.interp1d(x=time_index, y=ego_points, axis=1)
+            ego_interp = interp_func(np.linspace(time_index[0], time_index[-1], 100))
         else:
             if interp_num > 0:
                 common.warning_once(
@@ -1242,9 +1204,7 @@ class Player(object):
         if zero_world_z:
             nav_world[:, 2] = 0
 
-        camera_sensor._draw_world_points_on_image(
-            nav_world, rgb_img, color, size
-        )
+        camera_sensor._draw_world_points_on_image(nav_world, rgb_img, color, size)
 
         return ego_interp
 
@@ -1273,9 +1233,9 @@ class Player(object):
         # shift along forward axis
         ego_points[:, 0] = ego_points[:, 0] + forward_shift_delta
 
-        ego_points = (
-            np.matmul(ego_points, np.linalg.inv(rot)) + self_loc
-        ).astype(np.float32)
+        ego_points = (np.matmul(ego_points, np.linalg.inv(rot)) + self_loc).astype(
+            np.float32
+        )
         if append_self:
             ego_points = np.concatenate([self_loc, ego_points], axis=0)
         return ego_points
@@ -1342,9 +1302,7 @@ class CarlaServer(object):
                 not support vulkan.
         """
         assert quality_level in ["Low", "Epic"], "Unknown quality level"
-        use_docker = (
-            not alf.utils.common.is_inside_docker_container() and docker_image
-        )
+        use_docker = not alf.utils.common.is_inside_docker_container() and docker_image
         opengl = "-opengl" if use_opengl else ""
         if use_docker:
             dev = os.environ.get("CUDA_VISIBLE_DEVICES")
@@ -1518,9 +1476,7 @@ class CarlaEnvironment(AlfEnvironment):
         try:
             for i in range(20):
                 try:
-                    logging.info(
-                        "Waiting for server to start. Try %d" % (i + 1)
-                    )
+                    logging.info("Waiting for server to start. Try %d" % (i + 1))
                     self._client = carla.Client("localhost", rpc_port)
                     self._world = self._client.load_world(map_name)
                     break
@@ -1544,9 +1500,7 @@ class CarlaEnvironment(AlfEnvironment):
                 # can lead to unexpected and undesirable results according to
                 # https://carla.readthedocs.io/en/latest/adv_traffic_manager/#synchronous-mode
                 self._traffic_manager.set_synchronous_mode(True)
-            self._traffic_manager.set_hybrid_physics_mode(
-                use_hybrid_physics_mode
-            )
+            self._traffic_manager.set_hybrid_physics_mode(use_hybrid_physics_mode)
             self._traffic_manager.set_global_distance_to_leading_vehicle(
                 global_distance_to_leading_vehicle
             )
@@ -1579,26 +1533,16 @@ class CarlaEnvironment(AlfEnvironment):
         }
 
     def _spawn_vehicles(self):
-        blueprints = self._world.get_blueprint_library().filter(
-            self._vehicle_filter
-        )
-        assert len(blueprints) > 0, (
-            "Cannot find vehicle '%s'" % self._vehicle_filter
-        )
+        blueprints = self._world.get_blueprint_library().filter(self._vehicle_filter)
+        assert len(blueprints) > 0, "Cannot find vehicle '%s'" % self._vehicle_filter
 
         def _filter_safe(blueprints):
             blueprints = [
-                x
-                for x in blueprints
-                if int(x.get_attribute("number_of_wheels")) == 4
+                x for x in blueprints if int(x.get_attribute("number_of_wheels")) == 4
             ]
             blueprints = [x for x in blueprints if not x.id.endswith("isetta")]
-            blueprints = [
-                x for x in blueprints if not x.id.endswith("carlacola")
-            ]
-            blueprints = [
-                x for x in blueprints if not x.id.endswith("cybertruck")
-            ]
+            blueprints = [x for x in blueprints if not x.id.endswith("carlacola")]
+            blueprints = [x for x in blueprints if not x.id.endswith("cybertruck")]
             return [x for x in blueprints if not x.id.endswith("t2")]
 
         if self._safe:
@@ -1609,21 +1553,13 @@ class CarlaEnvironment(AlfEnvironment):
         )
 
         blueprints = [
-            x
-            for x in blueprints
-            if x.id in self.vehicles_with_functioning_lights
+            x for x in blueprints if x.id in self.vehicles_with_functioning_lights
         ]
-        assert (
-            len(blueprints) > 0
-        ), "Cannot find vehicle with functioning lights"
+        assert len(blueprints) > 0, "Cannot find vehicle with functioning lights"
 
-        other_blueprints = self._world.get_blueprint_library().filter(
-            "vehicle.*"
-        )
+        other_blueprints = self._world.get_blueprint_library().filter("vehicle.*")
         other_blueprints = [
-            x
-            for x in other_blueprints
-            if x.id in self.vehicles_with_functioning_lights
+            x for x in other_blueprints if x.id in self.vehicles_with_functioning_lights
         ]
 
         spawn_points = self._world.get_map().get_spawn_points()
@@ -1683,9 +1619,7 @@ class CarlaEnvironment(AlfEnvironment):
             else:
                 self._other_vehicles.append(vehicle)
             self._alf_world.add_actor(vehicle)
-            self._alf_world.update_actor_location(
-                vehicle.id, spawn_points[i].location
-            )
+            self._alf_world.update_actor_location(vehicle.id, spawn_points[i].location)
 
         assert len(self._players) + len(self._other_vehicles) == num_vehicles, (
             "Fail to create %s vehicles" % num_vehicles
@@ -1722,9 +1656,7 @@ class CarlaEnvironment(AlfEnvironment):
                 * self._weather_transition_ratio
                 / self._step_time,
             )
-            self._dp = (
-                new_weather_parameter - prev_weather_parameter
-            ) / trans_steps
+            self._dp = (new_weather_parameter - prev_weather_parameter) / trans_steps
 
         # for the initial transition period, we smoothly transit between two
         # weather settings
@@ -1817,9 +1749,7 @@ class CarlaEnvironment(AlfEnvironment):
 
         # 5. initialize each controller and set target to walk to (list is [controller, actor, controller, actor ...])
         # set how many pedestrians can cross the road
-        self._world.set_pedestrians_cross_factor(
-            self._percentage_walkers_crossing
-        )
+        self._world.set_pedestrians_cross_factor(self._percentage_walkers_crossing)
         for walker, walker_speed in zip(self._walkers, walker_speeds):
             # start walker
             walker["controller"].start()
@@ -1921,14 +1851,10 @@ class CarlaEnvironment(AlfEnvironment):
         self._current_frame = self._world.tick()
         self._alf_world.on_tick()
         for vehicle in self._other_vehicles:
-            self._alf_world.update_actor_location(
-                vehicle.id, vehicle.get_location()
-            )
+            self._alf_world.update_actor_location(vehicle.id, vehicle.get_location())
         for walker in self._walkers:
             actor = walker["walker"]
-            self._alf_world.update_actor_location(
-                actor.id, actor.get_location()
-            )
+            self._alf_world.update_actor_location(actor.id, actor.get_location())
 
         return self._get_current_time_step()
 
@@ -1946,8 +1872,7 @@ class CarlaEnvironment(AlfEnvironment):
             <= 0.75 * self._day_length
         ):
             light_state = carla.VehicleLightState(
-                carla.VehicleLightState.Position
-                | carla.VehicleLightState.LowBeam
+                carla.VehicleLightState.Position | carla.VehicleLightState.LowBeam
             )
         if light_state is not None:
             for player in self._players:
@@ -1959,9 +1884,7 @@ class CarlaEnvironment(AlfEnvironment):
             self._time_of_the_day -= self._day_length
 
         weather = self._world.get_weather()
-        azimuth = (
-            weather.sun_azimuth_angle + 360 / self._day_length * self._step_time
-        )
+        azimuth = weather.sun_azimuth_angle + 360 / self._day_length * self._step_time
         if azimuth > 360:
             azimuth -= 360
         weather.sun_azimuth_angle = azimuth

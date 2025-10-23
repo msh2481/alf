@@ -29,9 +29,7 @@ class PriorActorTest(alf.test.TestCase):
             b=BoundedTensorSpec((3,), minimum=(-1, 0, -2), maximum=(2, 2, 3)),
             c=BoundedTensorSpec((2, 3), minimum=-1, maximum=1),
         )
-        actor = SameActionPriorActor(
-            observation_spec=(), action_spec=action_spec
-        )
+        actor = SameActionPriorActor(observation_spec=(), action_spec=action_spec)
         batch = TimeStep(
             step_type=torch.tensor([StepType.FIRST, StepType.MID]),
             prev_action=dict(
@@ -48,28 +46,19 @@ class PriorActorTest(alf.test.TestCase):
         )
         self.assertAlmostEqual(
             alg_step.output["a"].log_prob(torch.tensor([0.0, 0.0]))[1],
-            alg_step.output["a"].log_prob(torch.tensor([0.0, 0.0]))[0]
-            + math.log(0.1),
+            alg_step.output["a"].log_prob(torch.tensor([0.0, 0.0]))[0] + math.log(0.1),
             delta=1e-6,
         )
 
         self.assertAlmostEqual(
-            alg_step.output["b"].log_prob(
-                torch.tensor([[-1.0, 0.0, -2.0]] * 2)
-            )[0],
-            alg_step.output["b"].log_prob(torch.tensor([[2.0, 2.0, 3.0]] * 2))[
-                0
-            ],
+            alg_step.output["b"].log_prob(torch.tensor([[-1.0, 0.0, -2.0]] * 2))[0],
+            alg_step.output["b"].log_prob(torch.tensor([[2.0, 2.0, 3.0]] * 2))[0],
             delta=1e-6,
         )
 
         self.assertAlmostEqual(
-            alg_step.output["b"].log_prob(
-                torch.tensor([[-1.0, 0.0, -2.0]] * 2)
-            )[1],
-            alg_step.output["b"].log_prob(
-                torch.tensor([[-1.0, 0.0, -2.0]] * 2)
-            )[0]
+            alg_step.output["b"].log_prob(torch.tensor([[-1.0, 0.0, -2.0]] * 2))[1],
+            alg_step.output["b"].log_prob(torch.tensor([[-1.0, 0.0, -2.0]] * 2))[0]
             + 3 * math.log(0.1),
             delta=1e-6,
         )

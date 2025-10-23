@@ -72,16 +72,12 @@ class ThreadEnvironmentTest(alf.test.TestCase):
 
         # Take one step and assert observation is batched the right way.
         time_step = env.step(action)
-        self.assertEqual(
-            observation_spec.shape, time_step.observation.shape[1:]
-        )
+        self.assertEqual(observation_spec.shape, time_step.observation.shape[1:])
         self.assertEqual(torch.Size(action_spec.shape), action.shape)
 
         # Take another step and assert that observations have the same shape.
         time_step2 = env.step(action)
-        self.assertEqual(
-            time_step.observation.shape, time_step2.observation.shape
-        )
+        self.assertEqual(time_step.observation.shape, time_step2.observation.shape)
         env.close()
 
 

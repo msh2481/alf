@@ -47,9 +47,7 @@ LATENT_SIZE = 64 * 7 * 7
 
 alf.config("AverageDiscountedReturnMetric", discount=discount)
 
-alf.config(
-    "TrainerConfig", data_transformer_ctor=[UntransformedTimeStep, FrameStacker]
-)
+alf.config("TrainerConfig", data_transformer_ctor=[UntransformedTimeStep, FrameStacker])
 
 # From OpenAI gym wiki:
 # "v0 vs v4: v0 has repeat_action_probability of 0.25
@@ -98,15 +96,11 @@ def create_dynamics_net_small(input_tensor_spec):
         lambda x: torch.cat(
             [
                 x[0],
-                (x[1] / num_actions)
-                .reshape(-1, 1, 1, 1)
-                .expand(-1, 1, *plane_size),
+                (x[1] / num_actions).reshape(-1, 1, 1, 1).expand(-1, 1, *plane_size),
             ],
             dim=1,
         ),
-        a=layers.Conv2D(
-            num_planes + 1, 64, 3, padding=1, activation=alf.math.identity
-        ),
+        a=layers.Conv2D(num_planes + 1, 64, 3, padding=1, activation=alf.math.identity),
         b=(("input.0", "a"), lambda x: (x[0] + x[1]).relu_()),
         c=torch.nn.GroupNorm(1, 64),
         input_tensor_spec=input_tensor_spec,
@@ -120,9 +114,7 @@ def create_prediction_net(state_spec, action_spec, initial_game_over_bias=-5):
         if not x.requires_grad:
             return x
         if alf.summary.should_record_summaries():
-            return summarize_tensor_gradients(
-                "SimpleMCTSModel/" + name, x, clone=True
-            )
+            return summarize_tensor_gradients("SimpleMCTSModel/" + name, x, clone=True)
         else:
             return x
 
@@ -136,9 +128,7 @@ def create_prediction_net(state_spec, action_spec, initial_game_over_bias=-5):
         else:
             return [
                 layers.Reshape(-1),
-                layers.FC(
-                    LATENT_SIZE, 1024, activation=torch.relu_, use_bn=False
-                ),
+                layers.FC(LATENT_SIZE, 1024, activation=torch.relu_, use_bn=False),
                 layers.FC(1024, dim, activation=torch.relu_, use_bn=False),
             ]
 
@@ -263,9 +253,7 @@ def create_actor_network(input_tensor_spec, action_spec):
     return alf.nn.Sequential(
         layers.Reshape((-1,)),
         ActorDistributionNetwork(
-            input_tensor_spec=TensorSpec(
-                shape=(LATENT_SIZE,), dtype=torch.float32
-            ),
+            input_tensor_spec=TensorSpec(shape=(LATENT_SIZE,), dtype=torch.float32),
             action_spec=action_spec,
             fc_layer_params=(128,),
         ),
@@ -278,9 +266,7 @@ def create_value_network(input_tensor_spec):
     return alf.nn.Sequential(
         layers.Reshape((-1,)),
         ValueNetwork(
-            input_tensor_spec=TensorSpec(
-                shape=(LATENT_SIZE,), dtype=torch.float32
-            ),
+            input_tensor_spec=TensorSpec(shape=(LATENT_SIZE,), dtype=torch.float32),
             fc_layer_params=(128,),
         ),
         input_tensor_spec=input_tensor_spec,

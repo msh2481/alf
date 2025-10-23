@@ -109,9 +109,7 @@ def _summary_wrapper(summary_func):
     """
 
     @functools.wraps(summary_func)
-    def wrapper(
-        name, data, average_over_summary_interval=False, step=None, **kwargs
-    ):
+    def wrapper(name, data, average_over_summary_interval=False, step=None, **kwargs):
         """
         Args:
             average_over_summary_interval: if True, the average value of data during a
@@ -198,9 +196,7 @@ def video(
         walltime: Optional override default walltime (time.time())
             seconds after epoch of event
     """
-    _summary_writer_stack[-1].add_video(
-        name, data, step, fps=fps, walltime=walltime
-    )
+    _summary_writer_stack[-1].add_video(name, data, step, fps=fps, walltime=walltime)
 
 
 @_summary_wrapper
@@ -300,11 +296,7 @@ def should_record_summaries():
             are not recorded.
 
     """
-    return (
-        _summary_writer_stack[-1]
-        and is_summary_enabled()
-        and _record_if_stack[-1]()
-    )
+    return _summary_writer_stack[-1] and is_summary_enabled() and _record_if_stack[-1]()
 
 
 def get_global_counter():
@@ -473,9 +465,7 @@ def enter_summary_scope(method):
     def wrapped(self, *args, **kwargs):
         # The first argument to the method is going to be ``self``, i.e. the
         # instance that the method belongs to.
-        assert hasattr(
-            self, "_name"
-        ), "self is expected to have attribute '_name'"
+        assert hasattr(self, "_name"), "self is expected to have attribute '_name'"
         scope_name = _scope_stack[-1] + self._name + "/"
         _scope_stack.append(scope_name)
         ret = method(self, *args, **kwargs)

@@ -192,12 +192,8 @@ def wrap_optimizer(cls):
         self._lr_schedulers = []
 
         self._capacity_ratio = alf.utils.schedulers.as_scheduler(capacity_ratio)
-        self._random_number_generator = torch.Generator(
-            alf.get_default_device()
-        )
-        self._rng_state_device = (
-            self._random_number_generator.get_state().device
-        )
+        self._random_number_generator = torch.Generator(alf.get_default_device())
+        self._rng_state_device = self._random_number_generator.get_state().device
 
         super(NewCls, self).__init__([{"params": []}], **kwargs)
         if gradient_clipping is not None:
@@ -210,9 +206,7 @@ def wrap_optimizer(cls):
         self._clip_by_global_norm = clip_by_global_norm
         self._ignore_param_not_requiring_grad = ignore_param_not_requiring_grad
         self._parvi = parvi
-        self._first_stepping_done = (
-            False  # whether done the first optimizer stepping
-        )
+        self._first_stepping_done = False  # whether done the first optimizer stepping
         self._min_capacity = min_capacity
         self._masked_out_value = masked_out_value
         self._norms = {}  # norm of each parameter
@@ -292,38 +286,28 @@ def wrap_optimizer(cls):
                     # get, save and set random number generator state
                     if "rng_state" not in state:
                         # record random number generator state in ``self.state``
-                        state["rng_state"] = (
-                            self._random_number_generator.get_state()
-                        )
+                        state["rng_state"] = self._random_number_generator.get_state()
                     else:
-                        self._random_number_generator.set_state(
-                            state["rng_state"]
-                        )
+                        self._random_number_generator.set_state(state["rng_state"])
 
                     # generate capacity mask using the same random number generator state
                     n = p.numel()
                     ratio = max(self._min_capacity / n, capacity_ratio)
                     mask = (
-                        torch.rand(
-                            p.shape, generator=self._random_number_generator
-                        )
+                        torch.rand(p.shape, generator=self._random_number_generator)
                         >= ratio
                     )
 
                     if self._masked_out_value is None:
                         if old_param_val is not None:
                             # The following is faster than p.data[mask] = old_param[mask]
-                            p.data.copy_(
-                                torch.where(mask, old_param_val, p.data)
-                            )
+                            p.data.copy_(torch.where(mask, old_param_val, p.data))
                             del old_param_val
                     else:
                         p.data[mask] = self._masked_out_value
 
     @common.add_method(NewCls)
-    def _remove_customized_states(
-        self, customized_keys: List[str] = ["rng_state"]
-    ):
+    def _remove_customized_states(self, customized_keys: List[str] = ["rng_state"]):
         """extract and remove the customized states (e.g. ``state['rng_state']``) from the
         optimizer's state attributes (``self.state``)
 
@@ -337,9 +321,7 @@ def wrap_optimizer(cls):
         for param_group in self.param_groups:
             for p in param_group["params"]:
                 state = self.state[p]
-                customized_state[p] = {
-                    key: state[key] for key in customized_keys
-                }
+                customized_state[p] = {key: state[key] for key in customized_keys}
                 [state.pop(key) for key in customized_keys]
         self._customized_state = customized_state
         return customized_state
@@ -393,10 +375,7 @@ def wrap_optimizer(cls):
 
         if not isinstance(self, NeroPlus):
             for param in params:
-                if (
-                    get_opt_arg(param, "fixed_norm", False)
-                    and param not in self._norms
-                ):
+                if get_opt_arg(param, "fixed_norm", False) and param not in self._norms:
                     self._norms[param] = param.norm()
 
         if self._gradient_clipping is not None:
@@ -406,9 +385,7 @@ def wrap_optimizer(cls):
                     grads, self._gradient_clipping, in_place=True
                 )
                 if alf.summary.should_record_summaries():
-                    alf.summary.scalar(
-                        "global_grad_norm/%s" % self.name, global_norm
-                    )
+                    alf.summary.scalar("global_grad_norm/%s" % self.name, global_norm)
             else:
                 tensor_utils.clip_by_norms(
                     grads, self._gradient_clipping, in_place=True
@@ -436,9 +413,7 @@ def wrap_optimizer(cls):
 
         if not isinstance(self, NeroPlus):
             for param in params:
-                if param.grad is not None and get_opt_arg(
-                    param, "fixed_norm", False
-                ):
+                if param.grad is not None and get_opt_arg(param, "fixed_norm", False):
                     param.data.mul_(self._norms[param] / (param.norm() + 1e-30))
 
         self._adjust_capacity(capacity_ratio, param_values)
@@ -467,8 +442,7 @@ def wrap_optimizer(cls):
                     ).detach()  # [N, D]
                     kernel_logp = torch.matmul(kappa, grads_tensor) / batch_size
                     svgd_grad = torch.split(
-                        kernel_logp
-                        - self._repulsive_weight * kappa_grad.mean(0),
+                        kernel_logp - self._repulsive_weight * kappa_grad.mean(0),
                         [p.nelement() // batch_size for p in params],
                         dim=-1,
                     )
@@ -538,9 +512,7 @@ def wrap_optimizer(cls):
                 if group_batch_sizes[ensemble_group_id] == 0:
                     group_batch_sizes[ensemble_group_id] = param.shape[0]
                 else:
-                    assert (
-                        param.shape[0] == group_batch_sizes[ensemble_group_id]
-                    ), (
+                    assert param.shape[0] == group_batch_sizes[ensemble_group_id], (
                         "batch_size of params does not match that of the "
                         "ensemble param_group %d." % (ensemble_group_id)
                     )
@@ -591,22 +563,16 @@ def wrap_optimizer(cls):
     return NewCls
 
 
-Adam = alf.repr_wrapper(
-    alf.configurable("Adam")(wrap_optimizer(torch.optim.Adam))
-)
+Adam = alf.repr_wrapper(alf.configurable("Adam")(wrap_optimizer(torch.optim.Adam)))
 
 if torch.__version__ >= "1.8.1":
     AdamW = alf.configurable("AdamW")(wrap_optimizer(torch.optim.AdamW))
 else:
-    AdamW = alf.repr_wrapper(
-        alf.configurable("AdamW")(wrap_optimizer(adamw.AdamW))
-    )
+    AdamW = alf.repr_wrapper(alf.configurable("AdamW")(wrap_optimizer(adamw.AdamW)))
 
 SGD = alf.repr_wrapper(alf.configurable("SGD")(wrap_optimizer(torch.optim.SGD)))
 
-AdamTF = alf.repr_wrapper(
-    alf.configurable("AdamTF")(wrap_optimizer(adam_tf.AdamTF))
-)
+AdamTF = alf.repr_wrapper(alf.configurable("AdamTF")(wrap_optimizer(adam_tf.AdamTF)))
 
 NeroPlus = alf.repr_wrapper(
     alf.configurable("NeroPlus")(wrap_optimizer(nero_plus.NeroPlus))

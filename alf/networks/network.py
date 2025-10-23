@@ -76,8 +76,7 @@ class _NetworkMeta(abc.ABCMeta):
         arg_spec = inspect.getfullargspec(init)
         if arg_spec.varargs is not None:
             raise RuntimeError(
-                "%s.__init__ function accepts *args. This is not allowed."
-                % classname
+                "%s.__init__ function accepts *args. This is not allowed." % classname
             )
 
         def _capture_init(self, *args, **kwargs):
@@ -138,9 +137,7 @@ class Network(nn.Module):
             lambda x: x.to(torch.float32) if x.dtype.is_floating_point else x,
             inputs,
         )
-        states = common.zero_tensor_from_nested_spec(
-            self.state_spec, batch_size=2
-        )
+        states = common.zero_tensor_from_nested_spec(self.state_spec, batch_size=2)
         return self.forward(inputs, states)
 
     def singleton(self, singleton_instance=True):
@@ -195,9 +192,7 @@ class Network(nn.Module):
                 elif isinstance(a, dict):
                     return type(a)((k, _copy(v)) for k, v in a.items())
                 else:  # namedtuple
-                    return type(a)(
-                        **dict((f, _copy(getattr(a, f))) for f in a._fields)
-                    )
+                    return type(a)(**dict((f, _copy(getattr(a, f))) for f in a._fields))
 
             # we cannot use map_structure to do the copy because map_structure
             # will change the order of the keys in dict. Some Network (e.g. _Sequential)
@@ -230,9 +225,7 @@ class Network(nn.Module):
         if self._output_spec is None:
             training = self.training
             self.eval()
-            self._output_spec = extract_spec(
-                self._test_forward()[0], from_dim=1
-            )
+            self._output_spec = extract_spec(self._test_forward()[0], from_dim=1)
             self.train(training)
         return self._output_spec
 
@@ -305,9 +298,7 @@ class NaiveParallelNetwork(Network):
             network.state_spec,
         )
         name = name if name else "naive_parallel_%s" % network.name
-        super().__init__(
-            network.input_tensor_spec, state_spec=state_spec, name=name
-        )
+        super().__init__(network.input_tensor_spec, state_spec=state_spec, name=name)
         self._networks = nn.ModuleList(
             [network.copy(name=self.name + "_%d" % i) for i in range(n)]
         )
@@ -324,17 +315,13 @@ class NaiveParallelNetwork(Network):
             output (nested torch.Tensor): its shape is ``[B, n, ...]``
             next_state (nested torch.Tensor): its shape is ``[B, n, ...]``
         """
-        outer_rank = alf.nest.utils.get_outer_rank(
-            inputs, self._input_tensor_spec
-        )
+        outer_rank = alf.nest.utils.get_outer_rank(inputs, self._input_tensor_spec)
         assert 1 <= outer_rank <= 2, (
             "inputs should have shape [B, %d, ...] " " or [B, ...]" % self._n
         )
 
         if state != ():
-            state_outer_rank = alf.nest.utils.get_outer_rank(
-                state, self.state_spec
-            )
+            state_outer_rank = alf.nest.utils.get_outer_rank(state, self.state_spec)
             assert state_outer_rank == 1, (
                 "state should have shape [B, %d, ...] " % self._n
             )
@@ -386,9 +373,9 @@ class NetworkWrapper(Network):
             name: name of the wrapped network
         """
         super().__init__(input_tensor_spec, state_spec, name)
-        assert isinstance(
-            module, typing.Callable
-        ), "module is not Callable: %s" % type(module)
+        assert isinstance(module, typing.Callable), "module is not Callable: %s" % type(
+            module
+        )
         self._module = module
 
     def forward(self, x, state=()):

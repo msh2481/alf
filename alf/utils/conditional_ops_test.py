@@ -84,14 +84,10 @@ class ConditionalOpsTest(alf.test.TestCase):
         )
 
     def test_select_from_mask(self):
-        data = torch.as_tensor(
-            [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10], [10, 11]]
-        )
+        data = torch.as_tensor([[1, 2], [3, 4], [5, 6], [7, 8], [9, 10], [10, 11]])
         cond = torch.as_tensor([False, True, True, False, False, True])
         result = select_from_mask(data, cond)
-        self.assertTensorEqual(
-            result, torch.as_tensor([[3, 4], [5, 6], [10, 11]])
-        )
+        self.assertTensorEqual(result, torch.as_tensor([[3, 4], [5, 6], [10, 11]]))
 
 
 if __name__ == "__main__":

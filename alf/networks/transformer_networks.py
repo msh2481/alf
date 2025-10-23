@@ -134,8 +134,7 @@ class TransformerNetwork(PreprocessorNetwork):
                 self._memories = [FIFOMemory(d_model, memory_size)]
             else:
                 self._memories = [
-                    FIFOMemory(d_model, memory_size)
-                    for _ in range(num_memory_layers)
+                    FIFOMemory(d_model, memory_size) for _ in range(num_memory_layers)
                 ]
         else:
             self._memories = []
@@ -143,9 +142,7 @@ class TransformerNetwork(PreprocessorNetwork):
 
         self._core_size = core_size
         if use_core_embedding:
-            self._core_embedding = nn.Parameter(
-                torch.empty(1, core_size, d_model)
-            )
+            self._core_embedding = nn.Parameter(torch.empty(1, core_size, d_model))
             nn.init.uniform_(self._core_embedding, -0.1, 0.1)
         else:
             self._core_embedding = None

@@ -66,9 +66,7 @@ alf.config(
 )
 alf.config("EncodingAlgorithm", encoder_cls=EncodingNetwork)
 
-alf.config(
-    "Agent", representation_learner_cls=EncodingAlgorithm, optimizer=Adam()
-)
+alf.config("Agent", representation_learner_cls=EncodingAlgorithm, optimizer=Adam())
 
 alf.config(
     "TrainerConfig",

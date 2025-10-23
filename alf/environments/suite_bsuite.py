@@ -134,6 +134,4 @@ class BSuiteWrapper(gym_wrapper.GymFromDMEnv):
         self.game_over = False
         timestep = self._env.reset()
         self._last_observation = timestep.observation
-        return np.reshape(
-            timestep.observation, (timestep.observation.shape[1],)
-        )
+        return np.reshape(timestep.observation, (timestep.observation.shape[1],))

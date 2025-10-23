@@ -29,9 +29,7 @@ from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 from alf.networks import StableNormalProjectionNetwork
 
 # Environment Configuration
-alf.config(
-    "create_environment", env_name="BirdEye", num_parallel_environments=36
-)
+alf.config("create_environment", env_name="BirdEye", num_parallel_environments=36)
 
 alf.config("metadrive.sensors.BirdEyeObservation", velocity_steps=1)
 

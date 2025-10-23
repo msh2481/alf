@@ -115,9 +115,7 @@ class MemoryBasedPredictor(Algorithm):
         self._rnn = rnn
         self._memory = memory
 
-        self._key_net = self._memory.create_keynet(
-            rnn.output_spec, num_read_keys
-        )
+        self._key_net = self._memory.create_keynet(rnn.output_spec, num_read_keys)
 
         prior_network = EncodingNetwork(
             input_tensor_spec=(rnn.output_spec, state_spec.mem_readout),
@@ -167,13 +165,9 @@ class MemoryBasedPredictor(Algorithm):
             [state.latent_vector, prev_action, state.mem_readout], dim=-1
         )
 
-        prev_rnn_output, prev_rnn_state = self._rnn(
-            prev_rnn_input, state.rnn_state
-        )
+        prev_rnn_output, prev_rnn_state = self._rnn(prev_rnn_input, state.rnn_state)
 
-        prev_mem_readout = self._memory.genkey_and_read(
-            self._key_net, prev_rnn_output
-        )
+        prev_mem_readout = self._memory.genkey_and_read(self._key_net, prev_rnn_output)
 
         self._memory.write(state.latent_vector.detach())
 
@@ -202,12 +196,8 @@ class MemoryBasedPredictor(Algorithm):
             decoder.train_step((latent_vector, obs)).info
             for decoder, obs in zip(decoders, observations)
         ]
-        loss = math_ops.add_n(
-            [decoder_loss.loss for decoder_loss in decoder_losses]
-        )
-        decoder_losses = alf.nest.pack_sequence_as(
-            self._decoders, decoder_losses
-        )
+        loss = math_ops.add_n([decoder_loss.loss for decoder_loss in decoder_losses])
+        decoder_losses = alf.nest.pack_sequence_as(self._decoders, decoder_losses)
         return LossInfo(loss=loss, extra=decoder_losses)
 
     def predict_step(self, inputs, state: MBPState):
@@ -245,11 +235,8 @@ class MemoryBasedPredictor(Algorithm):
 
         return encode_step._replace(
             info=LossInfo(
-                loss=self._loss_weight
-                * (decoder_loss.loss + encode_step.info.loss),
-                extra=MBPLossInfo(
-                    decoder=decoder_loss.extra, vae=encode_step.info.kld
-                ),
+                loss=self._loss_weight * (decoder_loss.loss + encode_step.info.loss),
+                extra=MBPLossInfo(decoder=decoder_loss.extra, vae=encode_step.info.kld),
             )
         )
 
@@ -299,9 +286,7 @@ class MemoryBasedActor(OnPolicyAlgorithm):
         if epsilon_greedy is None:
             # TODO: use ``epsilon_greedy = alf.utils.common.get_epsilon_greedy(config)``
             # once config is passed into __init__.
-            epsilon_greedy = alf.get_config_value(
-                "TrainerConfig.epsilon_greedy"
-            )
+            epsilon_greedy = alf.get_config_value("TrainerConfig.epsilon_greedy")
         self._epsilon_greedy = epsilon_greedy
         rnn = LSTMEncodingNetwork(
             input_tensor_spec=alf.TensorSpec((latent_dim,)),
@@ -314,9 +299,7 @@ class MemoryBasedActor(OnPolicyAlgorithm):
         )
 
         actor_net = ActorDistributionNetwork(
-            input_tensor_spec=alf.TensorSpec(
-                (actor_input_dim,), dtype=torch.float32
-            ),
+            input_tensor_spec=alf.TensorSpec((actor_input_dim,), dtype=torch.float32),
             action_spec=action_spec,
             fc_layer_params=(200,),
             activation=torch.tanh,
@@ -337,9 +320,7 @@ class MemoryBasedActor(OnPolicyAlgorithm):
         self._loss_weight = loss_weight
         self._memory = memory
 
-        self._key_net = self._memory.create_keynet(
-            rnn.output_spec, num_read_keys
-        )
+        self._key_net = self._memory.create_keynet(rnn.output_spec, num_read_keys)
 
         # TODO: add log p(a_i) as input to value net
         value_input_dim = latent_dim
@@ -388,9 +369,7 @@ class MemoryBasedActor(OnPolicyAlgorithm):
         return AlgStep(output=action, state=state, info=info)
 
     def predict_step(self, time_step: TimeStep, state):
-        action_distribution, state = self._get_action(
-            time_step.observation, state
-        )
+        action_distribution, state = self._get_action(time_step.observation, state)
         action = dist_utils.epsilon_greedy_sample(
             action_distribution, self._epsilon_greedy
         )
@@ -516,9 +495,7 @@ class MerlinAlgorithm(OnPolicyAlgorithm):
 
         return AlgStep(
             output=mba_step.output,
-            state=MerlinState(
-                mbp_state=mbp_step.state, mba_state=mba_step.state
-            ),
+            state=MerlinState(mbp_state=mbp_step.state, mba_state=mba_step.state),
             info=MerlinInfo(mbp_info=mbp_step.info, mba_info=mba_step.info),
         )
 
@@ -533,9 +510,7 @@ class MerlinAlgorithm(OnPolicyAlgorithm):
         )
         return AlgStep(
             output=mba_step.output,
-            state=MerlinState(
-                mbp_state=mbp_step.state, mba_state=mba_step.state
-            ),
+            state=MerlinState(mbp_state=mbp_step.state, mba_state=mba_step.state),
             info=(),
         )
 
@@ -547,9 +522,7 @@ class MerlinAlgorithm(OnPolicyAlgorithm):
 
         return LossInfo(
             loss=mbp_loss_info.loss + mba_loss_info.loss,
-            extra=MerlinLossInfo(
-                mbp=mbp_loss_info.extra, mba=mba_loss_info.extra
-            ),
+            extra=MerlinLossInfo(mbp=mbp_loss_info.extra, mba=mba_loss_info.extra),
         )
 
 

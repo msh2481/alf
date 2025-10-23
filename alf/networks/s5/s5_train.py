@@ -48,9 +48,7 @@ def prep_batch(
     elif len(batch) == 3:
         inputs, targets, aux_data = batch
     else:
-        raise RuntimeError(
-            "Err... not sure what I should do... Unhandled data type. "
-        )
+        raise RuntimeError("Err... not sure what I should do... Unhandled data type. ")
 
     # Grab lengths from aux if it is there.
     lengths = aux_data.get("lengths", None)
@@ -86,9 +84,7 @@ def eval_step(
     batch_labels,
     model,
 ):
-    state = common.zero_tensor_from_nested_spec(
-        model.state_spec, batch_inputs.shape[0]
-    )
+    state = common.zero_tensor_from_nested_spec(model.state_spec, batch_inputs.shape[0])
     logits = model(batch_inputs, state)[0]
     losses = torch.nn.functional.cross_entropy(logits, batch_labels)
     accs = logits.argmax(dim=-1) == batch_labels
@@ -98,9 +94,7 @@ def eval_step(
 
 def train_step(batch_inputs, batch_labels, model, optimizer):
     """Performs a single training step given a batch of data"""
-    state = common.zero_tensor_from_nested_spec(
-        model.state_spec, batch_inputs.shape[0]
-    )
+    state = common.zero_tensor_from_nested_spec(model.state_spec, batch_inputs.shape[0])
     logits = model(batch_inputs, state)[0]
     loss = torch.nn.functional.cross_entropy(logits, batch_labels)
     optimizer.zero_grad()
@@ -132,9 +126,7 @@ def validate(model, testloader, seq_len, in_dim):
     model.eval()
     losses, accuracies = [], []
     for batch_idx, batch in enumerate(tqdm(testloader)):
-        inputs, labels, integration_timesteps = prep_batch(
-            batch, seq_len, in_dim
-        )
+        inputs, labels, integration_timesteps = prep_batch(batch, seq_len, in_dim)
         loss, acc, pred = eval_step(inputs, labels, model)
         losses.append(loss.mean().item())
         accuracies.append(acc.to(torch.float32).mean().item())
@@ -148,8 +140,7 @@ def create_optimizer(model, args, steps_per_epoch):
     ssm_params = []
     for name, param in model.named_parameters():
         if any(
-            s in name
-            for s in ["_ssm._B", "_ssm._Lambda", "._norm.", "._ssm._log_step"]
+            s in name for s in ["_ssm._B", "_ssm._Lambda", "._norm.", "._ssm._log_step"]
         ):
             logging.info(
                 f"ssm param {name}: {param.shape}, magnitude: {param.abs().mean()}"
@@ -192,9 +183,7 @@ def create_optimizer(model, args, steps_per_epoch):
             ],
         )
 
-    optimizer = alf.optimizers.AdamW(
-        lr=lr_scheduler, weight_decay=args.weight_decay
-    )
+    optimizer = alf.optimizers.AdamW(lr=lr_scheduler, weight_decay=args.weight_decay)
     optimizer.add_param_group({"params": other_params})
     optimizer.add_param_group(
         {"params": ssm_params, "lr": ssm_lr_scheduler, "weight_decay": 0.0}
@@ -211,9 +200,7 @@ class LinearWarmupCosineScheduler(Scheduler):
     until `end_step`.
     """
 
-    def __init__(
-        self, progress_type, warmup_end_step, end_step, base_lr, final_lr
-    ):
+    def __init__(self, progress_type, warmup_end_step, end_step, base_lr, final_lr):
         super().__init__(progress_type)
         self._warmup_end_step = warmup_end_step
         self._end_step = end_step
@@ -246,9 +233,7 @@ def train(args):
         seq_len,
         in_dim,
         train_size,
-    ) = create_mnist_classification_dataset(
-        args.dir_name, seed=args.seed, bsz=args.bsz
-    )
+    ) = create_mnist_classification_dataset(args.dir_name, seed=args.seed, bsz=args.bsz)
 
     ssm_ctor = partial(
         s5.S5SSM,

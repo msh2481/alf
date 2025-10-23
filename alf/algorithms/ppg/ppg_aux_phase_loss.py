@@ -111,9 +111,7 @@ class PPGAuxPhaseLoss(Loss):
 
         # Compute the total loss by combing the above 3 components
         loss = (
-            td_loss_actual
-            + td_loss_aux
-            + self._policy_kl_loss_weight * policy_kl_loss
+            td_loss_actual + td_loss_aux + self._policy_kl_loss_weight * policy_kl_loss
         )
 
         return LossInfo(

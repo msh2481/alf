@@ -31,9 +31,7 @@ class MySacAlgorithm(SacAlgorithm):
         action = alg_step.output
         zeros = torch.zeros_like(action)
         print("rollout_step: ", zeros.shape)
-        alg_step = alg_step._replace(
-            info=MySacInfo(sac=alg_step.info, zeros=zeros)
-        )
+        alg_step = alg_step._replace(info=MySacInfo(sac=alg_step.info, zeros=zeros))
         return alg_step
 
     def train_step(self, inputs, state, rollout_info: MySacInfo):

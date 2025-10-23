@@ -102,9 +102,7 @@ class MockMCTSAlgorithm(OffPolicyAlgorithm):
         super().__init__(
             observation_spec,
             action_spec,
-            train_state_spec=MCTSState(
-                steps=alf.TensorSpec((), dtype=torch.int64)
-            ),
+            train_state_spec=MCTSState(steps=alf.TensorSpec((), dtype=torch.int64)),
             debug_summaries=debug_summaries,
             name=name,
         )
@@ -182,13 +180,9 @@ class MuzeroAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
         obs_dim = 3
 
         observation_spec = alf.TensorSpec([obs_dim])
-        action_spec = alf.BoundedTensorSpec(
-            (), minimum=0, maximum=1, dtype=torch.int64
-        )
+        action_spec = alf.BoundedTensorSpec((), minimum=0, maximum=1, dtype=torch.int64)
         reward_spec = alf.TensorSpec(())
-        time_step_spec = ds.time_step_spec(
-            observation_spec, action_spec, reward_spec
-        )
+        time_step_spec = ds.time_step_spec(observation_spec, action_spec, reward_spec)
 
         global _mcts_model_id
         _mcts_model_id = 0
@@ -215,9 +209,7 @@ class MuzeroAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
         )
 
         data_transformer = FrameStacker(observation_spec, stack_size=2)
-        time_step = common.zero_tensor_from_nested_spec(
-            time_step_spec, batch_size
-        )
+        time_step = common.zero_tensor_from_nested_spec(time_step_spec, batch_size)
         dt_state = common.zero_tensor_from_nested_spec(
             data_transformer.state_spec, batch_size
         )
@@ -261,9 +253,7 @@ class MuzeroAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
             step_type = torch.tensor(step_type, dtype=torch.int32)
             reward = reward = torch.full([batch_size], float(i))
             if not train_reward_function or td_steps == -1:
-                reward = reward * (step_type == ds.StepType.LAST).to(
-                    torch.float32
-                )
+                reward = reward * (step_type == ds.StepType.LAST).to(torch.float32)
             time_step = time_step._replace(
                 discount=(step_type != ds.StepType.LAST).to(torch.float32),
                 step_type=step_type,
@@ -274,8 +264,8 @@ class MuzeroAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
                 prev_action=prev_action,
                 env_id=torch.arange(batch_size, dtype=torch.int32),
             )
-            transformed_time_step, dt_state = (
-                data_transformer.transform_timestep(time_step, dt_state)
+            transformed_time_step, dt_state = data_transformer.transform_timestep(
+                time_step, dt_state
             )
             alg_step = muzero.rollout_step(transformed_time_step, state)
             prev_action = alg_step.output
@@ -284,15 +274,11 @@ class MuzeroAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
             state = alg_step.state
 
         # TODO(breakds): Add documentation for this
-        positions = (
-            torch.arange(14).unfold(0, mini_batch_length, 1).repeat(2, 1)
-        )
+        positions = torch.arange(14).unfold(0, mini_batch_length, 1).repeat(2, 1)
         env_ids = torch.zeros(positions.shape[0], 1, dtype=torch.int64)
         env_ids[(positions.shape[0] // 2) :] = 1
 
-        experience = replay_buffer.get_field(
-            None, env_ids.cpu(), positions.cpu()
-        )
+        experience = replay_buffer.get_field(None, env_ids.cpu(), positions.cpu())
 
         batch_info = BatchInfo(
             env_ids=env_ids[:, 0],
@@ -300,19 +286,15 @@ class MuzeroAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
             replay_buffer=replay_buffer,
         )
 
-        processed_experience, processed_rollout_info = (
-            muzero.preprocess_experience(
-                experience, experience.rollout_info, batch_info
-            )
+        processed_experience, processed_rollout_info = muzero.preprocess_experience(
+            experience, experience.rollout_info, batch_info
         )
 
         def _check(path, x, y):
             print(f"checking {path}, shape is {x.shape}, expected: {y.shape}")
             self.assertEqual(x, y)
 
-        alf.nest.py_map_structure_with_path(
-            _check, processed_rollout_info, expected
-        )
+        alf.nest.py_map_structure_with_path(_check, processed_rollout_info, expected)
 
     def get_exptected_info(self, sparse_reward: bool = True):
         # yapf: disable
@@ -826,9 +808,7 @@ class MuzeroAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
         )
 
     @parameterized.parameters(1, 2, 3)
-    def test_monte_carlo_return_without_reward_function(
-        self, mini_batch_length
-    ):
+    def test_monte_carlo_return_without_reward_function(self, mini_batch_length):
         expected = self.get_exptected_info(True)
         expected = expected._replace(
             target=expected.target._replace(

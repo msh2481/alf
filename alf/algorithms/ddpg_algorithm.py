@@ -42,12 +42,8 @@ DdpgCriticState = namedtuple(
 DdpgCriticInfo = namedtuple(
     "DdpgCriticInfo", ["q_values", "target_q_values"], default_value=()
 )
-DdpgActorState = namedtuple(
-    "DdpgActorState", ["actor", "critics"], default_value=()
-)
-DdpgState = namedtuple(
-    "DdpgState", ["actor", "critics", "noise"], default_value=()
-)
+DdpgActorState = namedtuple("DdpgActorState", ["actor", "critics"], default_value=())
+DdpgState = namedtuple("DdpgState", ["actor", "critics", "noise"], default_value=())
 DdpgInfo = namedtuple(
     "DdpgInfo",
     [
@@ -229,9 +225,7 @@ class DdpgAlgorithm(OffPolicyAlgorithm):
         self._num_critic_replicas = num_critic_replicas
         self._critic_networks = critic_networks
 
-        self._target_actor_network = actor_network.copy(
-            name="target_actor_networks"
-        )
+        self._target_actor_network = actor_network.copy(name="target_actor_networks")
         self._target_critic_networks = critic_networks.copy(
             name="target_critic_networks"
         )
@@ -245,9 +239,7 @@ class DdpgAlgorithm(OffPolicyAlgorithm):
         )
         self._critic_losses = [None] * num_critic_replicas
         for i in range(num_critic_replicas):
-            self._critic_losses[i] = critic_loss_ctor(
-                name=("critic_loss" + str(i))
-            )
+            self._critic_losses[i] = critic_loss_ctor(name=("critic_loss" + str(i)))
 
         self._noise_process = noise_process
 
@@ -347,16 +339,12 @@ class DdpgAlgorithm(OffPolicyAlgorithm):
             target_critics=target_critic_states,
         )
 
-        info = DdpgCriticInfo(
-            q_values=q_values, target_q_values=target_q_values
-        )
+        info = DdpgCriticInfo(q_values=q_values, target_q_values=target_q_values)
 
         return state, info
 
     def _actor_train_step(self, inputs: TimeStep, state: DdpgActorState):
-        action, actor_state = self._actor_network(
-            inputs.observation, state=state.actor
-        )
+        action, actor_state = self._actor_network(inputs.observation, state=state.actor)
 
         q_values, critic_states = self._critic_networks(
             (inputs.observation, action), state=state.critics
@@ -372,9 +360,7 @@ class DdpgAlgorithm(OffPolicyAlgorithm):
 
         def actor_loss_fn(dqda, action):
             if self._dqda_clipping:
-                dqda = torch.clamp(
-                    dqda, -self._dqda_clipping, self._dqda_clipping
-                )
+                dqda = torch.clamp(dqda, -self._dqda_clipping, self._dqda_clipping)
             loss = 0.5 * losses.element_wise_squared_loss(
                 (dqda + action).detach(), action
             )
@@ -389,17 +375,13 @@ class DdpgAlgorithm(OffPolicyAlgorithm):
         info = LossInfo(loss=sum(nest.flatten(actor_loss)), extra=actor_loss)
         return AlgStep(output=action, state=state, info=info)
 
-    def train_step(
-        self, inputs: TimeStep, state: DdpgState, rollout_info: DdpgInfo
-    ):
+    def train_step(self, inputs: TimeStep, state: DdpgState, rollout_info: DdpgInfo):
         critic_states, critic_info = self._critic_train_step(
             inputs=inputs, state=state.critics, rollout_info=rollout_info
         )
         policy_step = self._actor_train_step(inputs=inputs, state=state.actor)
         return policy_step._replace(
-            state=state._replace(
-                actor=policy_step.state, critics=critic_states
-            ),
+            state=state._replace(actor=policy_step.state, critics=critic_states),
             info=DdpgInfo(
                 reward=inputs.reward,
                 step_type=inputs.step_type,

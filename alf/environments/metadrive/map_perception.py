@@ -173,9 +173,7 @@ class MapPolylinePerception(object):
             category=np.concatenate([pl.category for pl in polylines], axis=0),
         )
 
-    def observe(
-        self, position: tuple, heading: float
-    ) -> Tuple[np.ndarray, int]:
+    def observe(self, position: tuple, heading: float) -> Tuple[np.ndarray, int]:
         """Called upon every observation to get a rotated and cropped view of the map
         objects and navigation. Returns the feature vector of the observation.
 
@@ -204,9 +202,7 @@ class MapPolylinePerception(object):
 
         """
         # 1. Filter the polylines to keep only the ones that are within FOV
-        polylines = self._polylines.transformed_within_fov(
-            position, heading, self._fov
-        )
+        polylines = self._polylines.transformed_within_fov(position, heading, self._fov)
 
         # 2. Filter the polylines to make the population below the limit
         polylines = polylines.keep_closest_n(self._polyline_limit)

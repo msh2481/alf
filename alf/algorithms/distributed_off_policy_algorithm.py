@@ -47,9 +47,7 @@ class UnrollerMessage(object):
 
 def get_local_ip():
     """Get the ip address of the local machine."""
-    return (
-        subprocess.check_output(["hostname", "-I"]).decode().strip().split()[0]
-    )
+    return subprocess.check_output(["hostname", "-I"]).decode().strip().split()[0]
 
 
 @alf.configurable
@@ -284,9 +282,7 @@ def receive_experience_data(
                 # Add the temp exp buffer to the replay buffer
                 # ``DistributedOffPolicyAlgorithm`` assumes batch_size=1
                 exp_params.env_id.zero_()
-                for i, exp_params in enumerate(
-                    unroller_exps_buffer[unroller_id]
-                ):
+                for i, exp_params in enumerate(unroller_exps_buffer[unroller_id]):
                     replay_buffer.add_batch(exp_params, exp_params.env_id)
                 unroller_exps_buffer[unroller_id] = []
         else:
@@ -381,9 +377,7 @@ class DistributedTrainer(DistributedOffPolicyAlgorithm):
             **kwargs,
         )
 
-        self._push_params_every_n_grad_updates = (
-            push_params_every_n_grad_updates
-        )
+        self._push_params_every_n_grad_updates = push_params_every_n_grad_updates
 
         # Ports:
         # 1. registration port: self._port + self._ddp_rank
@@ -399,9 +393,7 @@ class DistributedTrainer(DistributedOffPolicyAlgorithm):
             zmq.ROUTER, "*", self._port + _params_port_offset + self._ddp_rank
         )
 
-        assert (
-            config.unroll_length == -1
-        ), "unroll_length must be -1 (no unrolling)"
+        assert config.unroll_length == -1, "unroll_length must be -1 (no unrolling)"
         # Total number of gradient updates so far
         self._total_updates = 0
         # How many times ``train_iter()`` has been called.
@@ -410,9 +402,7 @@ class DistributedTrainer(DistributedOffPolicyAlgorithm):
         self._num_train_iters = 0
 
         # respect core_alg's replay buffer setting
-        self._num_earliest_frames_ignored = (
-            self._core_alg._num_earliest_frames_ignored
-        )
+        self._num_earliest_frames_ignored = self._core_alg._num_earliest_frames_ignored
 
         # We always test tensor sharing among processes, because
         # we rely on undocumented features of PyTorch:
@@ -422,9 +412,7 @@ class DistributedTrainer(DistributedOffPolicyAlgorithm):
         _test_tensor_sharing()
 
     def _observe_for_replay(self, exp: Experience):
-        raise RuntimeError(
-            "observe_for_replay should not be called for trainer"
-        )
+        raise RuntimeError("observe_for_replay should not be called for trainer")
 
     @property
     def is_main_ddp_rank(self):
@@ -461,9 +449,7 @@ class DistributedTrainer(DistributedOffPolicyAlgorithm):
         # In case some unrollers might die, we don't want to block forever
         for _ in range(30):
             try:
-                _, message = self._params_socket.recv_multipart(
-                    flags=zmq.NOBLOCK
-                )
+                _, message = self._params_socket.recv_multipart(flags=zmq.NOBLOCK)
                 assert message == UnrollerMessage.OK.encode()
                 logging.debug(
                     f"[worker-{self._ddp_rank}] Params sent to unroller"
@@ -494,9 +480,7 @@ class DistributedTrainer(DistributedOffPolicyAlgorithm):
                     # A new unroller has connected to the trainer
                     # The init message should always be: 'init'
                     assert message.decode() == "init"
-                    _, unroller_ip, unroller_port = unroller_id.decode().split(
-                        "-"
-                    )
+                    _, unroller_ip, unroller_port = unroller_id.decode().split("-")
                     # Store the new unroller ip and port so that later each rank
                     # can connect to it for experience data.
                     self._new_unroller_ips_and_ports.put(
@@ -602,8 +586,7 @@ class DistributedTrainer(DistributedOffPolicyAlgorithm):
         # 2. utd ratio is too high (training is too fast; wait for more data)
         while True:
             replay_buffer_not_ready = (
-                self._replay_buffer.total_size
-                < self._config.initial_collect_steps
+                self._replay_buffer.total_size < self._config.initial_collect_steps
             )
             utd_exceeded = self.utd() > self._max_utd_ratio
             if not (replay_buffer_not_ready or utd_exceeded):
@@ -614,10 +597,7 @@ class DistributedTrainer(DistributedOffPolicyAlgorithm):
         self._total_updates += self._config.num_updates_per_train_iter
 
         with record_time("time/trainer_send_params_to_unroller"):
-            if (
-                self._total_updates % self._push_params_every_n_grad_updates
-                == 0
-            ):
+            if self._total_updates % self._push_params_every_n_grad_updates == 0:
                 # Sending params to all the connected unrollers.
                 dead_unrollers = []
                 logging.debug(
@@ -636,9 +616,7 @@ class DistributedTrainer(DistributedOffPolicyAlgorithm):
         return steps
 
 
-@alf.configurable(
-    whitelist=["episode_length", "name", "optimizer", "unroller_only"]
-)
+@alf.configurable(whitelist=["episode_length", "name", "optimizer", "unroller_only"])
 class DistributedUnroller(DistributedOffPolicyAlgorithm):
 
     def __init__(
@@ -684,9 +662,7 @@ class DistributedUnroller(DistributedOffPolicyAlgorithm):
             # be a port error.
             port=(
                 _trainer_addr_config.port
-                + random.randint(
-                    _unroller_port_offset, 2 * _unroller_port_offset
-                )
+                + random.randint(_unroller_port_offset, 2 * _unroller_port_offset)
             ),
             env=env,
             config=config,
@@ -734,9 +710,7 @@ class DistributedUnroller(DistributedOffPolicyAlgorithm):
         num_trainer_workers, params_socket_rank = message.split(" ")[1:]
         self._num_trainer_workers = int(num_trainer_workers)
         self._params_socket_rank = int(params_socket_rank)
-        logging.info(
-            f"Found {self._num_trainer_workers} workers on the trainer. "
-        )
+        logging.info(f"Found {self._num_trainer_workers} workers on the trainer. ")
         # Randomly select a worker as the cycle start so that multiple unrollers
         # won't contribute to data imbalance on the trainer side.
         self._current_worker = random.randint(0, self._num_trainer_workers - 1)
@@ -873,17 +847,13 @@ class DistributedUnroller(DistributedOffPolicyAlgorithm):
         buffer = None
         with self._shared_mem_lock:
             if self._shared_alg_params.buf[0] == 1:
-                with record_time(
-                    "time/dist_unroller_params_update/1_buffer_from_io"
-                ):
+                with record_time("time/dist_unroller_params_update/1_buffer_from_io"):
                     buffer = io.BytesIO(self._shared_alg_params.buf[1:])
         if buffer is not None:
             with record_time("time/dist_unroller_params_update/2_load_to_cpu"):
                 state_dict = torch.load(buffer, map_location="cpu")
             # We might only update part of the params
-            with record_time(
-                "time/dist_unroller_params_update/3_load_state_dict"
-            ):
+            with record_time("time/dist_unroller_params_update/3_load_state_dict"):
                 self._core_alg.load_state_dict(state_dict, strict=False)
             logging.debug("Params updated from the trainer.")
             with self._shared_mem_lock:
@@ -921,9 +891,7 @@ class DistributedUnroller(DistributedOffPolicyAlgorithm):
             self._registered = True
 
         # Experience will be sent to the trainer in this function
-        with record_time(
-            "time/dist_unroller_train_iter/1_unroll_iter_off_policy"
-        ):
+        with record_time("time/dist_unroller_train_iter/1_unroll_iter_off_policy"):
             self._unroll_iter_off_policy()
         with record_time("time/dist_unroller_train_iter/2_check_params_update"):
             self._check_params_update()

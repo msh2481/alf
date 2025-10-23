@@ -109,9 +109,7 @@ class MyEnv(object):
         self._reward_dim = reward_dim
         self._rewards = torch.tensor([0.5, 1.0, -1.0])
         if reward_dim != 1:
-            self._rewards = self._rewards.unsqueeze(-1).expand(
-                (-1, self._reward_dim)
-            )
+            self._rewards = self._rewards.unsqueeze(-1).expand((-1, self._reward_dim))
         self._observation_spec = alf.TensorSpec(obs_shape, dtype="float32")
         self._action_spec = alf.BoundedTensorSpec(
             shape=(), dtype="int64", minimum=0, maximum=2
@@ -138,9 +136,7 @@ class MyEnv(object):
         self._prev_action = torch.zeros(self._batch_size, dtype=torch.int64)
         self._current_time_step = TimeStep(
             observation=self._observation_spec.randn([self._batch_size]),
-            step_type=torch.full(
-                [self._batch_size], StepType.FIRST, dtype=torch.int32
-            ),
+            step_type=torch.full([self._batch_size], StepType.FIRST, dtype=torch.int32),
             reward=self.reward_spec().zeros(outer_dims=(self._batch_size,)),
             discount=torch.zeros(self._batch_size),
             prev_action=self._prev_action,
@@ -197,9 +193,7 @@ class RLAlgorithmTest(unittest.TestCase):
     def test_on_policy_algorithm(self):
         # root_dir is not used. We have to give it a value because
         # it is a required argument of TrainerConfig.
-        config = TrainerConfig(
-            root_dir="/tmp/rl_algorithm_test", unroll_length=5
-        )
+        config = TrainerConfig(root_dir="/tmp/rl_algorithm_test", unroll_length=5)
         env = MyEnv(batch_size=3)
         alg = MyAlg(
             observation_spec=env.observation_spec(),
@@ -215,9 +209,7 @@ class RLAlgorithmTest(unittest.TestCase):
         time_step = common.get_initial_time_step(env)
         state = alg.get_initial_predict_state(env.batch_size)
         policy_step = alg.rollout_step(time_step, state)
-        logits = policy_step.info["dist"].log_prob(
-            torch.arange(3).reshape(3, 1)
-        )
+        logits = policy_step.info["dist"].log_prob(torch.arange(3).reshape(3, 1))
         print("logits: ", logits)
         self.assertTrue(torch.all(logits[1, :] > logits[0, :]))
         self.assertTrue(torch.all(logits[1, :] > logits[2, :]))
@@ -258,9 +250,7 @@ class RLAlgorithmTest(unittest.TestCase):
         time_step = common.get_initial_time_step(env)
         state = alg.get_initial_predict_state(env.batch_size)
         policy_step = alg.rollout_step(time_step, state)
-        logits = policy_step.info["dist"].log_prob(
-            torch.arange(3).reshape(3, 1)
-        )
+        logits = policy_step.info["dist"].log_prob(torch.arange(3).reshape(3, 1))
         print("logits: ", logits)
         self.assertTrue(torch.all(logits[1, :] > logits[0, :]))
         self.assertTrue(torch.all(logits[1, :] > logits[2, :]))

@@ -44,9 +44,7 @@ actor_distribution_network_cls = partial(
     ),
 )
 
-actor_network_cls = partial(
-    alf.networks.ActorNetwork, fc_layer_params=hidden_layers
-)
+actor_network_cls = partial(alf.networks.ActorNetwork, fc_layer_params=hidden_layers)
 
 critic_network_cls = partial(
     alf.networks.CriticNetwork, joint_fc_layer_params=hidden_layers

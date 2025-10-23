@@ -71,17 +71,11 @@ def _return_diff(item):
 
 
 def _return_1_larger(item):
-    return float(item["alg1_" + AVG_R_METRIC]) > float(
-        item["alg2_" + AVG_R_METRIC]
-    )
+    return float(item["alg1_" + AVG_R_METRIC]) > float(item["alg2_" + AVG_R_METRIC])
 
 
 def _file_exists(file):
-    return (
-        not FLAGS.overwrite
-        and os.path.isfile(file)
-        and os.stat(file).st_size > 100
-    )
+    return not FLAGS.overwrite and os.path.isfile(file) and os.stat(file).st_size > 100
 
 
 def _play_cmd(root_dir, seed):
@@ -96,9 +90,7 @@ def _play_cmd(root_dir, seed):
 
 def _get_metric(pattern, buffer, log_file):
     match = re.search(pattern, buffer)
-    assert match, "{} not found in {}, remove and re-run?".format(
-        pattern, log_file
-    )
+    assert match, "{} not found in {}, remove and re-run?".format(pattern, log_file)
     return "{:.2f}".format(float(match.group(1)))
 
 
@@ -139,17 +131,11 @@ def _create_html(data, all_data, metrics, abbr):
     # Summary:
     html += "\n<pre>Alg1: {}\n".format(FLAGS.root_dir1)
     for m in metrics:
-        html += "&nbsp;&nbsp;&nbsp;|{}: {:.2f}".format(
-            m, _get_avg(all_data, m, 0)
-        )
+        html += "&nbsp;&nbsp;&nbsp;|{}: {:.2f}".format(m, _get_avg(all_data, m, 0))
     html += "\nAlg2: {}\n".format(FLAGS.root_dir2)
     for m in metrics:
-        html += "&nbsp;&nbsp;&nbsp;|{}: {:.2f}".format(
-            m, _get_avg(all_data, m, 1)
-        )
-    html += "\nnum_items: {}, have data for: {}\n".format(
-        FLAGS.num_runs, len(all_data)
-    )
+        html += "&nbsp;&nbsp;&nbsp;|{}: {:.2f}".format(m, _get_avg(all_data, m, 1))
+    html += "\nnum_items: {}, have data for: {}\n".format(FLAGS.num_runs, len(all_data))
     percentiles = [0.05, 0.1, 0.2, 0.4, 0.8, 0.99]
     counts = [0] * len(percentiles)
     wins = [0] * len(percentiles)
@@ -176,9 +162,9 @@ def _create_html(data, all_data, metrics, abbr):
             for i, metric in enumerate(metrics):
                 if metric in k:
                     k = k.replace(metric, abbr[i])
-            html += (
-                "          <th style='word-break: break-word;'>{}</th>\n"
-            ).format(k)
+            html += ("          <th style='word-break: break-word;'>{}</th>\n").format(
+                k
+            )
     html += """
     </tr>
       </thead>
@@ -238,12 +224,10 @@ def main(_):
         vs = ["", ""]
         for i, root_dir in enumerate(dirs):
             mp4_f = root_dir + "/play-seed_{}{}.mp4".format(seed, gin_str)
-            log_file = root_dir + "/play-log-seed_{}{}.txt".format(
-                seed, gin_str
+            log_file = root_dir + "/play-log-seed_{}{}.txt".format(seed, gin_str)
+            command = _play_cmd(root_dir, seed) + " --record_file={} 2>> {}".format(
+                mp4_f, log_file
             )
-            command = _play_cmd(
-                root_dir, seed
-            ) + " --record_file={} 2>> {}".format(mp4_f, log_file)
             if not _file_exists(mp4_f):
                 f = open(log_file, "w")
                 assert f, "cannot write to " + log_file
@@ -258,12 +242,10 @@ def main(_):
             lines = f.read().replace("\n", " ")
             f.close()
             for metric in metrics:
-                value = _get_metric(
-                    r"\] " + metric + r": (\S+)", lines, log_file
-                )
+                value = _get_metric(r"\] " + metric + r": (\S+)", lines, log_file)
                 item["alg{}_{}".format(i + 1, metric)] = value
-            item["logfile{}".format(i + 1)] = (
-                '<a href="file://{}">log_file</a>'.format(log_file)
+            item["logfile{}".format(i + 1)] = '<a href="file://{}">log_file</a>'.format(
+                log_file
             )
         for metric in metrics:
             m1 = float(item["alg{}_{}".format(1, metric)])

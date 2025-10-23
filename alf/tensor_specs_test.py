@@ -128,9 +128,7 @@ class TensorSpecTest(parameterized.TestCase, alf.test.TestCase):
     def test_concat_specs2(self):
         """Concat BoundedTensorSpecs"""
         spec1 = TensorSpec(shape=(2, 3), dtype=torch.int64)
-        spec2 = BoundedTensorSpec(
-            shape=(2, 3), minimum=1, maximum=3, dtype=torch.int64
-        )
+        spec2 = BoundedTensorSpec(shape=(2, 3), minimum=1, maximum=3, dtype=torch.int64)
         spec3 = BoundedTensorSpec(
             shape=(4,),
             minimum=[1, 2, 3, 4],
@@ -141,12 +139,8 @@ class TensorSpecTest(parameterized.TestCase, alf.test.TestCase):
         spec = concat_specs([spec2, spec3])
         self.assertEqual(spec.shape, (10,))
         self.assertEqual(spec.dtype, torch.int64)
-        self.assertArrayEqual(
-            spec.minimum, np.array([1, 1, 1, 1, 1, 1, 1, 2, 3, 4])
-        )
-        self.assertArrayEqual(
-            spec.maximum, np.array([3, 3, 3, 3, 3, 3, 5, 6, 7, 8])
-        )
+        self.assertArrayEqual(spec.minimum, np.array([1, 1, 1, 1, 1, 1, 1, 2, 3, 4]))
+        self.assertArrayEqual(spec.maximum, np.array([3, 3, 3, 3, 3, 3, 5, 6, 7, 8]))
 
 
 if __name__ == "__main__":

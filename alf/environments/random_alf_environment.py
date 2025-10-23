@@ -196,18 +196,14 @@ class RandomAlfEnvironment(alf_environment.AlfEnvironment):
 
         if self._batch_size:
             action = nest.map_structure(
-                lambda t: np.concatenate(
-                    [np.expand_dims(t, 0)] * self._batch_size
-                ),
+                lambda t: np.concatenate([np.expand_dims(t, 0)] * self._batch_size),
                 action,
             )
 
         if self._done:
             reward = self._reward_fn(ds.StepType.LAST, action, observation)
             self._check_reward_shape(reward)
-            time_step = ds.termination(
-                observation, action, reward, env_id=self._env_id
-            )
+            time_step = ds.termination(observation, action, reward, env_id=self._env_id)
             self._num_steps = 0
         else:
             reward = self._reward_fn(ds.StepType.MID, action, observation)

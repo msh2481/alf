@@ -88,9 +88,7 @@ def _estimate_derivative_1(seq: np.ndarray, h: float = 0.1):
     return (seq[-1] - seq[-3]) / (2.0 * h)
 
 
-def _estimate_derivative_2(
-    seq: np.ndarray, h: float = 0.1, is_angle: bool = False
-):
+def _estimate_derivative_2(seq: np.ndarray, h: float = 0.1, is_angle: bool = False):
     """Estimate the second order derivative, with 1 delay
     .. math::
         f''(x) = \frac{f{x + h} - 2f(x) + f{x - h)}{h^2} + O(h^2)
@@ -101,9 +99,7 @@ def _estimate_derivative_2(
     return d / (h * h)
 
 
-def _estimate_derivative_3(
-    seq: np.ndarray, h: float = 0.1, is_angle: bool = False
-):
+def _estimate_derivative_3(seq: np.ndarray, h: float = 0.1, is_angle: bool = False):
     """Estimate the second order derivative, with 2 delay
     .. math::
         f'''(x) = \frac{f(x + 2h) - f(x - 2h) -2[f(x + h) - f(x - h)]}{2h^3} + O(h^2)
@@ -252,9 +248,7 @@ class EgoKinematicReward(ExtraReward):
         }
 
         info = {
-            "MetaDrive/harsh_brake": is_harsh_brake(
-                lon_acc=lon_acc, speed=speed
-            ),
+            "MetaDrive/harsh_brake": is_harsh_brake(lon_acc=lon_acc, speed=speed),
             "MetaDrive/lon_acc": lon_acc,
             "MetaDrive/lon_jerk": lon_jerk,
             "MetaDrive/lat_acc": lat_acc,
@@ -276,15 +270,9 @@ class EgoKinematicReward(ExtraReward):
             "MetaDrive/lon_jerk": TensorSpec(shape=(), dtype=torch.float32),
             "MetaDrive/lat_acc": TensorSpec(shape=(), dtype=torch.float32),
             "MetaDrive/lat_jerk": TensorSpec(shape=(), dtype=torch.float32),
-            "MetaDrive/costs/lon_acc": TensorSpec(
-                shape=(), dtype=torch.float32
-            ),
-            "MetaDrive/costs/lon_jerk": TensorSpec(
-                shape=(), dtype=torch.float32
-            ),
-            "MetaDrive/costs/lat_jerk": TensorSpec(
-                shape=(), dtype=torch.float32
-            ),
+            "MetaDrive/costs/lon_acc": TensorSpec(shape=(), dtype=torch.float32),
+            "MetaDrive/costs/lon_jerk": TensorSpec(shape=(), dtype=torch.float32),
+            "MetaDrive/costs/lat_jerk": TensorSpec(shape=(), dtype=torch.float32),
         }
 
 
@@ -313,9 +301,7 @@ class LaneKeepingReward(ExtraReward):
         ]
 
         rewards = {
-            "on_broken_line": (
-                -self._broken_line_cost if ego.on_broken_line else 0.0
-            )
+            "on_broken_line": (-self._broken_line_cost if ego.on_broken_line else 0.0)
         }
 
         info = {"MetaDrive/on_broken_line": float(ego.on_broken_line)}
@@ -323,11 +309,7 @@ class LaneKeepingReward(ExtraReward):
         return rewards, info
 
     def env_info_spec(self):
-        return {
-            "MetaDrive/on_broken_line": TensorSpec(
-                shape=(), dtype=torch.float32
-            )
-        }
+        return {"MetaDrive/on_broken_line": TensorSpec(shape=(), dtype=torch.float32)}
 
 
 @alf.configurable
@@ -363,6 +345,4 @@ class CrashVehicleReward(ExtraReward):
         return rewards, info
 
     def env_info_spec(self):
-        return {
-            "MetaDrive/crash_vehicle": TensorSpec(shape=(), dtype=torch.float32)
-        }
+        return {"MetaDrive/crash_vehicle": TensorSpec(shape=(), dtype=torch.float32)}

@@ -45,9 +45,7 @@ alf.config("OneStepTDLoss", gamma=gamma)
 alf.config("ReplayBuffer", gamma=gamma)
 
 hidden_layers = (256, 256, 256)
-actor_network_cls = functools.partial(
-    ActorNetwork, fc_layer_params=hidden_layers
-)
+actor_network_cls = functools.partial(ActorNetwork, fc_layer_params=hidden_layers)
 
 critic_network_cls = functools.partial(
     CriticNetwork, joint_fc_layer_params=hidden_layers

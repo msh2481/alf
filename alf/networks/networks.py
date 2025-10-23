@@ -273,15 +273,11 @@ class TemporalPool(Network):
 
     def _avg_pool(self, x, state, step):
         w = expand_dims_as(1.0 / step.to(torch.float32), x)
-        state = torch.where(
-            expand_dims_as(step == 1, x), x, torch.lerp(state, x, w)
-        )
+        state = torch.where(expand_dims_as(step == 1, x), x, torch.lerp(state, x, w))
         return state, state
 
     def _max_pool(self, x, state, step):
-        state = torch.where(
-            expand_dims_as(step == 1, x), x, torch.max(x, state)
-        )
+        state = torch.where(expand_dims_as(step == 1, x), x, torch.max(x, state))
         return state, state
 
 
@@ -475,16 +471,12 @@ class NoisyFC(Network):
             )
         else:
             self._kernel_initializer(self._weight.data)
-        self._weight_sigma.data.fill_(
-            self._std_init / math.sqrt(self._input_size)
-        )
+        self._weight_sigma.data.fill_(self._std_init / math.sqrt(self._input_size))
         if self._bias_initializer is not None:
             self._bias_initializer(self._bias.data)
         else:
             nn.init.constant_(self._bias.data, self._bias_init_value)
-        self._bias_sigma.data.fill_(
-            self._std_init / math.sqrt(self._output_size)
-        )
+        self._bias_sigma.data.fill_(self._std_init / math.sqrt(self._output_size))
         if self._use_ln:
             self._ln.reset_parameters()
         if self._use_bn:

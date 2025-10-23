@@ -68,9 +68,7 @@ class DecodingAlgorithm(Algorithm):
         assert pred.shape == target.shape
         loss = self._loss(pred, target)
 
-        assert (
-            loss.ndim > 0
-        ), "`loss` should return a tensor with batch dimension"
+        assert loss.ndim > 0, "`loss` should return a tensor with batch dimension"
         # reduce to (B,)
         loss = sum_to_leftmost(loss, 1)
         return AlgStep(

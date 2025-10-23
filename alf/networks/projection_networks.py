@@ -61,9 +61,7 @@ class CategoricalProjectionNetwork(Network):
             disable_amp (bool): If True, disable automatic mixed precision.
             name (str):
         """
-        unique_num_actions = np.unique(
-            action_spec.maximum - action_spec.minimum + 1
-        )
+        unique_num_actions = np.unique(action_spec.maximum - action_spec.minimum + 1)
         output_shape = action_spec.shape + (int(unique_num_actions),)
         projection_layer = fc_ctor(
             input_size,
@@ -153,9 +151,7 @@ class ParallelCategoricalProjectionNetwork(Network):
 
         assert isinstance(action_spec, TensorSpec)
 
-        unique_num_actions = np.unique(
-            action_spec.maximum - action_spec.minimum + 1
-        )
+        unique_num_actions = np.unique(action_spec.maximum - action_spec.minimum + 1)
         if len(unique_num_actions) > 1 or np.any(unique_num_actions <= 0):
             raise ValueError(
                 "Bounds on discrete actions must be the same for all "
@@ -314,9 +310,7 @@ class NormalProjectionNetwork(Network):
         else:
             outer_dims = None if parallelism is None else (parallelism,)
             self._std = nn.Parameter(
-                action_spec.constant(
-                    std_bias_initializer_value, outer_dims=outer_dims
-                ),
+                action_spec.constant(std_bias_initializer_value, outer_dims=outer_dims),
                 requires_grad=True,
             )
             self._std_projection_layer = lambda x: tensor_extend_new_dim(
@@ -361,9 +355,7 @@ class NormalProjectionNetwork(Network):
         assert (
             original_parallelism is None
         ), "Calling make_parallel on a network that is already parallelized"
-        parallel_proj_net_args.update(
-            parallelism=n, name="parallel_" + self.name
-        )
+        parallel_proj_net_args.update(parallelism=n, name="parallel_" + self.name)
         return type(self)(**parallel_proj_net_args)
 
 
@@ -481,9 +473,7 @@ class StableNormalProjectionNetwork(NormalProjectionNetwork):
         if self._min_std > 0:
             stds = stds + self._min_std
 
-        means = self._mean_transform(
-            self._means_projection_layer(inputs) * stds
-        )
+        means = self._mean_transform(self._means_projection_layer(inputs) * stds)
 
         return self._normal_dist(means, stds), state
 
@@ -651,17 +641,11 @@ class BetaProjectionNetwork(Network):
         if self._grad_clip is not None and inputs.requires_grad:
             concentration.register_hook(
                 lambda x: x
-                / (x.norm(dim=1, keepdim=True) * (1 / self._grad_clip)).clamp(
-                    1.0
-                )
+                / (x.norm(dim=1, keepdim=True) * (1 / self._grad_clip)).clamp(1.0)
             )
-        concentration10 = concentration.split(
-            concentration.shape[-1] // 2, dim=-1
-        )
+        concentration10 = concentration.split(concentration.shape[-1] // 2, dim=-1)
         return (
-            self._transformer(
-                dist_utils.DiagMultivariateBeta(*concentration10)
-            ),
+            self._transformer(dist_utils.DiagMultivariateBeta(*concentration10)),
             state,
         )
 
@@ -671,9 +655,7 @@ class BetaProjectionNetwork(Network):
         assert (
             original_parallelism is None
         ), "Calling make_parallel on a network that is already parallelized"
-        parallel_proj_net_args.update(
-            parallelism=n, name="parallel_" + self.name
-        )
+        parallel_proj_net_args.update(parallelism=n, name="parallel_" + self.name)
         return type(self)(**parallel_proj_net_args)
 
 
@@ -773,8 +755,7 @@ class TruncatedProjectionNetwork(Network):
         # the bound, we still make sure the loc parameter to be within the bound
         # for better numerical stability
         self._loc_transform = (
-            lambda inputs: action_means
-            + action_magnitudes * loc_transform(inputs)
+            lambda inputs: action_means + action_magnitudes * loc_transform(inputs)
         )
 
         self._min_scale = min_scale
@@ -837,9 +818,7 @@ class OnehotCategoricalProjectionNetwork(Network):
             input_tensor_spec=TensorSpec((input_size,)), name=name
         )
 
-        unique_num_actions = np.unique(
-            action_spec.maximum - action_spec.minimum + 1
-        )
+        unique_num_actions = np.unique(action_spec.maximum - action_spec.minimum + 1)
         if len(unique_num_actions) > 1 or np.any(unique_num_actions <= 0):
             raise ValueError(
                 "Bounds on discrete actions must be the same for all "

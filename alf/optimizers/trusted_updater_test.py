@@ -52,9 +52,7 @@ class TrustedUpdaterTest(alf.test.TestCase):
             return (torch.tensor(8.0), torch.tensor(8.0))
 
         # Test for detecting that change cannot be reduced
-        self.assertRaises(
-            AssertionError, updater.adjust_step, _change_f2, (1.0, 2.0)
-        )
+        self.assertRaises(AssertionError, updater.adjust_step, _change_f2, (1.0, 2.0))
 
 
 if __name__ == "__main__":

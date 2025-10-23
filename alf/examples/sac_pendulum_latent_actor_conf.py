@@ -21,9 +21,7 @@ from alf.networks import UnitNormalActorDistributionNetwork
 from alf.networks import LatentActorDistributionNetwork
 from alf.networks import RealNVPNetwork
 
-alf.config(
-    "create_environment", env_name="Pendulum-v0", num_parallel_environments=1
-)
+alf.config("create_environment", env_name="Pendulum-v0", num_parallel_environments=1)
 
 alf.config("CriticNetwork", joint_fc_layer_params=(100, 100))
 alf.config("RealNVPNetwork", fc_layer_params=(64, 64), num_layers=5)

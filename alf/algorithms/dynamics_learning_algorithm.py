@@ -32,9 +32,7 @@ from alf.networks import Network, EncodingNetwork, DynamicsNetwork
 from alf.tensor_specs import TensorSpec
 from alf.utils import dist_utils, losses, math_ops, spec_utils, tensor_utils
 
-DynamicsState = namedtuple(
-    "DynamicsState", ["feature", "network"], default_value=()
-)
+DynamicsState = namedtuple("DynamicsState", ["feature", "network"], default_value=())
 DynamicsInfo = namedtuple("DynamicsInfo", ["loss", "dist"], default_value=())
 
 
@@ -80,9 +78,7 @@ class DynamicsLearningAlgorithm(Algorithm):
         assert len(flat_action_spec) == 1, "doesn't support nested action_spec"
 
         flat_feature_spec = nest.flatten(feature_spec)
-        assert (
-            len(flat_feature_spec) == 1
-        ), "doesn't support nested feature_spec"
+        assert len(flat_feature_spec) == 1, "doesn't support nested feature_spec"
 
         action_spec = flat_action_spec[0]
 
@@ -99,9 +95,7 @@ class DynamicsLearningAlgorithm(Algorithm):
             hidden_size = (hidden_size,)
 
         if dynamics_network is None:
-            encoded_action_spec = TensorSpec(
-                (self._num_actions,), dtype=torch.float32
-            )
+            encoded_action_spec = TensorSpec((self._num_actions,), dtype=torch.float32)
             dynamics_network = DynamicsNetwork(
                 name="dynamics_net",
                 input_tensor_spec=(feature_spec, encoded_action_spec),
@@ -111,9 +105,7 @@ class DynamicsLearningAlgorithm(Algorithm):
             )
 
         if num_replicas > 1:
-            self._dynamics_network = dynamics_network.make_parallel(
-                num_replicas
-            )
+            self._dynamics_network = dynamics_network.make_parallel(num_replicas)
         else:
             self._dynamics_network = dynamics_network
 
@@ -123,9 +115,7 @@ class DynamicsLearningAlgorithm(Algorithm):
 
     def _encode_action(self, action):
         if self._action_spec.is_discrete:
-            return torch.nn.functional.one_hot(
-                action, num_classes=self._num_actions
-            )
+            return torch.nn.functional.one_hot(action, num_classes=self._num_actions)
         else:
             return action
 
@@ -196,9 +186,7 @@ class DeterministicDynamicsAlgorithm(DynamicsLearningAlgorithm):
         feature_spec,
         hidden_size=256,
         num_replicas=1,
-        dynamics_network_ctor: Optional[
-            Callable[[Any, Any], DynamicsNetwork]
-        ] = None,
+        dynamics_network_ctor: Optional[Callable[[Any, Any], DynamicsNetwork]] = None,
         name="DeterministicDynamicsAlgorithm",
     ):
         """Create a DeterministicDynamicsAlgorithm.
@@ -260,9 +248,7 @@ class DeterministicDynamicsAlgorithm(DynamicsLearningAlgorithm):
         """
         outer_rank = get_outer_rank(inputs, spec)
         if outer_rank == 1 and self._num_replicas > 1:
-            return inputs.unsqueeze(1).expand(
-                -1, self._num_replicas, *inputs.shape[1:]
-            )
+            return inputs.unsqueeze(1).expand(-1, self._num_replicas, *inputs.shape[1:])
         else:
             return inputs
 
@@ -378,18 +364,14 @@ class DeterministicDynamicsAlgorithm(DynamicsLearningAlgorithm):
             # [B, n, ...] -> [B, ...]
             forward_loss = forward_loss.sum(1)
         if forward_loss.ndim > 1:
-            forward_loss = 0.5 * forward_loss.mean(
-                list(range(1, forward_loss.ndim))
-            )
+            forward_loss = 0.5 * forward_loss.mean(list(range(1, forward_loss.ndim)))
 
         # we mask out FIRST as its state is invalid
         valid_masks = (time_step.step_type != StepType.FIRST).to(torch.float32)
         forward_loss = forward_loss * valid_masks
 
         info = DynamicsInfo(
-            loss=LossInfo(
-                loss=forward_loss, extra=dict(forward_loss=forward_loss)
-            )
+            loss=LossInfo(loss=forward_loss, extra=dict(forward_loss=forward_loss))
         )
 
         state = state._replace(feature=feature)
@@ -411,9 +393,7 @@ class StochasticDynamicsAlgorithm(DeterministicDynamicsAlgorithm):
         feature_spec,
         hidden_size=256,
         num_replicas=1,
-        dynamics_network_ctor: Optional[
-            Callable[[Any, Any], DynamicsNetwork]
-        ] = None,
+        dynamics_network_ctor: Optional[Callable[[Any, Any], DynamicsNetwork]] = None,
         name="StochasticDynamicsAlgorithm",
     ):
         """Create a StochasticDynamicsAlgorithm.
@@ -488,9 +468,7 @@ class StochasticDynamicsAlgorithm(DeterministicDynamicsAlgorithm):
 
         forward_preds = observations + forward_deltas
         state = state._replace(feature=forward_preds, network=network_states)
-        return AlgStep(
-            output=forward_preds, state=state, info=DynamicsInfo(dist=dist)
-        )
+        return AlgStep(output=forward_preds, state=state, info=DynamicsInfo(dist=dist))
 
     def train_step(self, time_step: TimeStep, state: DynamicsState):
         """
@@ -544,9 +522,7 @@ class StochasticDynamicsAlgorithm(DeterministicDynamicsAlgorithm):
         forward_loss = forward_loss * valid_masks
 
         info = DynamicsInfo(
-            loss=LossInfo(
-                loss=forward_loss, extra=dict(forward_loss=forward_loss)
-            ),
+            loss=LossInfo(loss=forward_loss, extra=dict(forward_loss=forward_loss)),
             dist=dist,
         )
         state = state._replace(feature=feature)

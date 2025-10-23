@@ -32,9 +32,7 @@ class NormalizersTest(parameterized.TestCase, alf.test.TestCase):
         self._window_size = 100
         self._tensors = torch.rand(self._window_size, self._batch_size)
 
-        def _verify_normalization(
-            weights, normalized_tensor, eps, use_var=True
-        ):
+        def _verify_normalization(weights, normalized_tensor, eps, use_var=True):
             tensors_mean = torch.sum(weights * self._tensors)
             if use_var:
                 tensors_var = torch.sum(
@@ -61,9 +59,7 @@ class NormalizersTest(parameterized.TestCase, alf.test.TestCase):
         )
         for i in range(self._window_size):
             normalized_tensor = normalizer.normalize(self._tensors[i])
-        weights = torch.ones(
-            (self._window_size, self._batch_size), dtype=torch.float32
-        )
+        weights = torch.ones((self._window_size, self._batch_size), dtype=torch.float32)
         weights /= torch.sum(weights)
 
         self._verify_normalization(
@@ -76,18 +72,13 @@ class NormalizersTest(parameterized.TestCase, alf.test.TestCase):
     @parameterized.parameters((True,), (False,))
     def test_em_normalizer(self, unit_std):
         update_rate = 0.1
-        normalizer = ScalarEMNormalizer(
-            update_rate=update_rate, unit_std=unit_std
-        )
+        normalizer = ScalarEMNormalizer(update_rate=update_rate, unit_std=unit_std)
         for i in range(self._window_size):
             normalized_tensor = normalizer.normalize(self._tensors[i])
 
         weights = torch.as_tensor(
             [
-                (
-                    math.pow(1 - update_rate, self._window_size - 1 - i)
-                    * update_rate
-                )
+                (math.pow(1 - update_rate, self._window_size - 1 - i) * update_rate)
                 for i in range(self._window_size)
             ],
             dtype=torch.float32,

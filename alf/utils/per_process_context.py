@@ -43,9 +43,7 @@ class PerProcessContext(object):
         """Lock the context so that it becomes read only."""
         self._read_only = True
 
-    def set_distributed(
-        self, rank: int, local_rank: int, num_processes: int
-    ) -> None:
+    def set_distributed(self, rank: int, local_rank: int, num_processes: int) -> None:
         """Set the distributed properties.
 
         Args:

@@ -192,9 +192,7 @@ class AgentPerception(object):
         """
 
         # Shift the buffer so that slot -1 is available for insertion.
-        self._history_position.point[:, :-1] = self._history_position.point[
-            :, 1:
-        ]
+        self._history_position.point[:, :-1] = self._history_position.point[:, 1:]
         self._history_heading[:, :-1] = self._history_heading[:, 1:]
         self._visible[:, :-1] = self._visible[:, 1:]
 
@@ -215,9 +213,7 @@ class AgentPerception(object):
             self._ego.position, self._ego.heading_theta
         )
         transformed_heading = self._history_heading - self._ego.heading_theta
-        self._visible[:, -1] = self._fov.within(
-            transformed_position.point[:, -1]
-        )
+        self._visible[:, -1] = self._fov.within(transformed_position.point[:, -1])
         self._visible[~alive, -1] = False
         sampled_visible = self._visible[:, self._sampled_index]
         sampled_position = transformed_position.point[:, self._sampled_index]
@@ -236,9 +232,7 @@ class AgentPerception(object):
         # agents exceeds the limit.
         if np.count_nonzero(picked) > self._agent_limit:
             distances = np.linalg.norm(picked_position[:, -1], axis=-1)
-            closest = np.argpartition(distances, self._agent_limit)[
-                : self._agent_limit
-            ]
+            closest = np.argpartition(distances, self._agent_limit)[: self._agent_limit]
             picked_position = picked_position[closest]
             picked_heading = picked_heading[closest]
             picked_dimension = picked_dimension[closest]

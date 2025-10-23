@@ -50,9 +50,7 @@ def create_sac_and_inputs():
 
     # Create dummy timestep and state
     obs = alf.utils.spec_utils.zeros_from_spec(observation_spec, batch_size=1)
-    dummy_timestep = restart(
-        observation=obs, action_spec=action_spec, batched=True
-    )
+    dummy_timestep = restart(observation=obs, action_spec=action_spec, batched=True)
     state = sac.get_initial_predict_state(batch_size=1)
 
     # randomize agent parameters
@@ -64,9 +62,7 @@ def create_sac_and_inputs():
 
 class TensorRTUtilsTest(parameterized.TestCase, alf.test.TestCase):
 
-    @unittest.skipIf(
-        not is_onnxruntime_available(), "onnxruntime not installed"
-    )
+    @unittest.skipIf(not is_onnxruntime_available(), "onnxruntime not installed")
     def test_onnxruntime_backends(self):
         import onnxruntime
 
@@ -87,9 +83,7 @@ class TensorRTUtilsTest(parameterized.TestCase, alf.test.TestCase):
             expected_providers.insert(0, "TensorrtExecutionProvider")
         self.assertEqual(providers, expected_providers)
 
-    @unittest.skipIf(
-        not is_onnxruntime_available(), "onnxruntime not installed"
-    )
+    @unittest.skipIf(not is_onnxruntime_available(), "onnxruntime not installed")
     def test_onnxruntime_engine(self):
         alg, timestep, state = create_sac_and_inputs()
         engine = OnnxRuntimeEngine(
@@ -103,22 +97,16 @@ class TensorRTUtilsTest(parameterized.TestCase, alf.test.TestCase):
         start_time = time.time()
         for _ in range(100):
             alg_step = alg.predict_step(timestep, state)
-        print(
-            "Eager-mode predict step time: ", (time.time() - start_time) / 100
-        )
+        print("Eager-mode predict step time: ", (time.time() - start_time) / 100)
 
         start_time = time.time()
         for _ in range(100):
             engine_alg_step = engine(timestep, state=state)
-        print(
-            f"Onnxruntime predict step time: ", (time.time() - start_time) / 100
-        )
+        print(f"Onnxruntime predict step time: ", (time.time() - start_time) / 100)
 
         self.assertTensorClose(engine_alg_step.output, alg_step.output)
 
-    @unittest.skipIf(
-        not is_onnxruntime_available(), "onnxruntime not installed"
-    )
+    @unittest.skipIf(not is_onnxruntime_available(), "onnxruntime not installed")
     @parameterized.parameters(True, False)
     def test_compile_method(self, tensorrt_backend):
         alg, timestep, state = create_sac_and_inputs()
@@ -127,9 +115,7 @@ class TensorRTUtilsTest(parameterized.TestCase, alf.test.TestCase):
         start_time = time.time()
         for _ in range(100):
             alg_step = alg.predict_step(timestep, state)
-        print(
-            "Eager-mode predict step time: ", (time.time() - start_time) / 100
-        )
+        print("Eager-mode predict step time: ", (time.time() - start_time) / 100)
 
         if not tensorrt_backend:
             # This will use CUDA or CPU backend to execute the onnx model
@@ -142,9 +128,7 @@ class TensorRTUtilsTest(parameterized.TestCase, alf.test.TestCase):
         start_time = time.time()
         for _ in range(100):
             engine_alg_step = alg.predict_step(timestep, state=state)
-        print(
-            f"Onnxruntime predict step time: ", (time.time() - start_time) / 100
-        )
+        print(f"Onnxruntime predict step time: ", (time.time() - start_time) / 100)
 
         self.assertTensorClose(engine_alg_step.output, alg_step.output)
 
@@ -156,9 +140,7 @@ class TensorRTUtilsTest(parameterized.TestCase, alf.test.TestCase):
         start_time = time.time()
         for _ in range(100):
             alg_step = alg.predict_step(timestep, state)
-        print(
-            "Eager-mode predict step time: ", (time.time() - start_time) / 100
-        )
+        print("Eager-mode predict step time: ", (time.time() - start_time) / 100)
 
         compile_method(
             alg, "predict_step", get_tensorrt_engine_class(validate_args=True)
@@ -178,15 +160,11 @@ class TensorRTUtilsTest(parameterized.TestCase, alf.test.TestCase):
         compile_method(
             alg,
             "predict_step",
-            get_tensorrt_engine_class(
-                validate_args=True, engine_file=engine_file
-            ),
+            get_tensorrt_engine_class(validate_args=True, engine_file=engine_file),
         )
         start_time = time.time()
         alg.predict_step(timestep, state=state)  # build engine
-        self.assertGreater(
-            time.time() - start_time, 1
-        )  # takes more than 1 second
+        self.assertGreater(time.time() - start_time, 1)  # takes more than 1 second
 
         alg, timestep, state = create_sac_and_inputs()
         # Now if we compile again with engine file, the engine should be directly
@@ -194,9 +172,7 @@ class TensorRTUtilsTest(parameterized.TestCase, alf.test.TestCase):
         compile_method(
             alg,
             "predict_step",
-            get_tensorrt_engine_class(
-                validate_args=True, engine_file=engine_file
-            ),
+            get_tensorrt_engine_class(validate_args=True, engine_file=engine_file),
         )
         start_time = time.time()
         alg.predict_step(timestep, state=state)  # load engine
@@ -237,9 +213,7 @@ class TensorRTUtilsTest(parameterized.TestCase, alf.test.TestCase):
         start_time = time.time()
         for _ in range(100):
             eager_output = model(dummy_img)
-        print(
-            "Eager-mode predict step time: ", (time.time() - start_time) / 100
-        )
+        print("Eager-mode predict step time: ", (time.time() - start_time) / 100)
 
         if is_tensorrt_available():
             for fp16 in [True, False]:
