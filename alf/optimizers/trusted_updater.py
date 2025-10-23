@@ -83,7 +83,7 @@ class TrustedUpdater(object):
         change = change0
         ratio = nest_map(lambda c, m: c.abs() / m, change, max_change)
         ratio = math_ops.max_n(alf.nest.flatten(ratio))
-        while ratio > 1. and steps < 100:
+        while ratio > 1.0 and steps < 100:
             _adjust_step(ratio)
             change = change_f()
             ratio = nest_map(lambda c, m: c.abs() / m, change, max_change)
@@ -91,8 +91,10 @@ class TrustedUpdater(object):
             steps += 1
         # This suggests something wrong. change cannot be reduced by making
         # the step smaller.
-        assert steps < 100, ("Something is wrong. change cannot be reduced by "
-                             "making the step smaller.")
+        assert steps < 100, (
+            "Something is wrong. change cannot be reduced by "
+            "making the step smaller."
+        )
 
         for var, prev_var in zip(self._variables, self._prev_variables):
             prev_var.data.copy_(var)

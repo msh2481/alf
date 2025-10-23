@@ -31,14 +31,16 @@ class HandcraftedAlgorithm(OffPolicyAlgorithm):
     an example.
     """
 
-    def __init__(self,
-                 observation_spec,
-                 action_spec: BoundedTensorSpec,
-                 reward_spec=TensorSpec(()),
-                 env=None,
-                 config: TrainerConfig = None,
-                 debug_summaries=False,
-                 name="Handcrafted"):
+    def __init__(
+        self,
+        observation_spec,
+        action_spec: BoundedTensorSpec,
+        reward_spec=TensorSpec(()),
+        env=None,
+        config: TrainerConfig = None,
+        debug_summaries=False,
+        name="Handcrafted",
+    ):
         """
         Args:
             observation_spec (nested TensorSpec): representing the observations.
@@ -56,14 +58,16 @@ class HandcraftedAlgorithm(OffPolicyAlgorithm):
             name (str): The name of this algorithm.
         """
 
-        super().__init__(observation_spec,
-                         action_spec,
-                         reward_spec=reward_spec,
-                         train_state_spec=(),
-                         env=env,
-                         config=config,
-                         debug_summaries=debug_summaries,
-                         name=name)
+        super().__init__(
+            observation_spec,
+            action_spec,
+            reward_spec=reward_spec,
+            train_state_spec=(),
+            env=env,
+            config=config,
+            debug_summaries=debug_summaries,
+            name=name,
+        )
 
     def _policy_func(self, observation):
         """A function calculating action based on the input observation.
@@ -75,12 +79,12 @@ class HandcraftedAlgorithm(OffPolicyAlgorithm):
         Returns:
             nested Tensor: action that is compatible with action spec
         """
-        raise NotImplementedError('Must define _policy_func member '
-                                  'function for the class')
+        raise NotImplementedError(
+            "Must define _policy_func member " "function for the class"
+        )
 
     def _predict_action(self, observation, state):
-        """Predict action based on observation
-        """
+        """Predict action based on observation"""
         return self._policy_func(observation)
 
     def predict_step(self, inputs: TimeStep, state):
@@ -100,19 +104,20 @@ class HandcraftedAlgorithm(OffPolicyAlgorithm):
 
 @alf.configurable
 class SimpleCarlaAlgorithm(HandcraftedAlgorithm):
-    """A simple controller for Carla environment.
-    """
+    """A simple controller for Carla environment."""
 
-    def __init__(self,
-                 observation_spec,
-                 action_spec: BoundedTensorSpec,
-                 reward_spec=TensorSpec(()),
-                 distance_to_decelerate=50.0,
-                 distance_to_stop=1.0,
-                 env=None,
-                 config: TrainerConfig = None,
-                 debug_summaries=False,
-                 name="SimpleCarlaAlgorithm"):
+    def __init__(
+        self,
+        observation_spec,
+        action_spec: BoundedTensorSpec,
+        reward_spec=TensorSpec(()),
+        distance_to_decelerate=50.0,
+        distance_to_stop=1.0,
+        env=None,
+        config: TrainerConfig = None,
+        debug_summaries=False,
+        name="SimpleCarlaAlgorithm",
+    ):
         """
         Args:
             observation_spec (nested TensorSpec): representing the observations.
@@ -134,13 +139,15 @@ class SimpleCarlaAlgorithm(HandcraftedAlgorithm):
             name (str): The name of this algorithm.
         """
 
-        super().__init__(observation_spec,
-                         action_spec,
-                         reward_spec=reward_spec,
-                         env=env,
-                         config=config,
-                         debug_summaries=debug_summaries,
-                         name=name)
+        super().__init__(
+            observation_spec,
+            action_spec,
+            reward_spec=reward_spec,
+            env=env,
+            config=config,
+            debug_summaries=debug_summaries,
+            name=name,
+        )
 
         self._distance_to_decelerate = distance_to_decelerate
         self._distance_to_stop = distance_to_stop
@@ -160,12 +167,12 @@ class SimpleCarlaAlgorithm(HandcraftedAlgorithm):
         # is the closest waypoint and waypoints[:, -1] is the farthest one.
         # Each waypoint has 3 elements corresponding to the x, y, z values
         # relative to the vehicle's coordinate system.
-        waypoints = alf.nest.get_field(observation, 'observation.navigation')
+        waypoints = alf.nest.get_field(observation, "observation.navigation")
 
         # goal is a [B, 3] shaped tensor, with each 3D vector contains the
         # x, y, z positions of the goal, relative to  to the vehicle's
         # coordinate system.
-        goal = alf.nest.get_field(observation, 'observation.goal')
+        goal = alf.nest.get_field(observation, "observation.goal")
 
         if waypoints.shape[1] > 1:
             wp_vector = waypoints[:, 1]
@@ -189,7 +196,8 @@ class SimpleCarlaAlgorithm(HandcraftedAlgorithm):
         # here we adjust the speed based on the distance to goal
         action[distance_to_goal > self._distance_to_decelerate, 0] = 1
         ind = (distance_to_goal > self._distance_to_stop) & (
-            distance_to_goal <= self._distance_to_decelerate)
+            distance_to_goal <= self._distance_to_decelerate
+        )
         action[ind, 0] = distance_to_goal[ind] / self._distance_to_decelerate
         action[distance_to_goal <= self._distance_to_stop, 0] = 0
 

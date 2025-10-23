@@ -43,10 +43,10 @@ def _rbf_func(x):
     diff = x.unsqueeze(1) - x.unsqueeze(0)  # [N, N, D]
     dist_sq = torch.sum(diff**2, -1)  # [N, N]
     h, _ = torch.median(dist_sq.view(-1), dim=0)
-    if h == 0.:
+    if h == 0.0:
         h = torch.ones_like(h)
     else:
-        h = h / max(np.log(N), 1.)
+        h = h / max(np.log(N), 1.0)
 
     kappa = torch.exp(-dist_sq / h)  # [N, N]
     kappa_grad = -2 * kappa.unsqueeze(-1) * diff / h  # [N, N, D]
@@ -73,10 +73,10 @@ def _score_func(x, alpha=1e-5):
     diff = x.unsqueeze(1) - x.unsqueeze(0)  # [N, N, D]
     dist_sq = torch.sum(diff**2, -1)  # [N, N]
     h, _ = torch.median(dist_sq.view(-1), dim=0)
-    if h == 0.:
+    if h == 0.0:
         h = torch.ones_like(h)
     else:
-        h = h / max(np.log(N), 1.)
+        h = h / max(np.log(N), 1.0)
 
     kappa = torch.exp(-dist_sq / h)  # [N, N]
     kappa_inv = torch.inverse(kappa + alpha * torch.eye(N))  # [N, N]
@@ -94,23 +94,25 @@ def wrap_optimizer(cls):
     This wrapper also clips gradients first before calling ``step()``.
     """
     NewClsName = cls.__name__
-    NewCls = type(NewClsName, (cls, ), {})
+    NewCls = type(NewClsName, (cls,), {})
     NewCls.counter = 0
 
     @common.add_method(NewCls)
-    def __init__(self,
-                 *,
-                 gradient_clipping=None,
-                 clip_by_global_norm=False,
-                 ignore_param_not_requiring_grad=False,
-                 grad_accumulation_steps=1,
-                 parvi=None,
-                 repulsive_weight=1.,
-                 capacity_ratio: Union[float, Scheduler] = 1.0,
-                 min_capacity: int = 8192,
-                 masked_out_value: Union[float, None] = None,
-                 name=None,
-                 **kwargs):
+    def __init__(
+        self,
+        *,
+        gradient_clipping=None,
+        clip_by_global_norm=False,
+        ignore_param_not_requiring_grad=False,
+        grad_accumulation_steps=1,
+        parvi=None,
+        repulsive_weight=1.0,
+        capacity_ratio: Union[float, Scheduler] = 1.0,
+        min_capacity: int = 8192,
+        masked_out_value: Union[float, None] = None,
+        name=None,
+        **kwargs
+    ):
         """
         Some parameter specific optimization arguments can be set using
         `opt_args' attributes of ``Parameter``. If it is set, it should be a
@@ -189,17 +191,14 @@ def wrap_optimizer(cls):
                 kwargs["lr"] = float(lr())
         self._lr_schedulers = []
 
-        self._capacity_ratio = alf.utils.schedulers.as_scheduler(
-            capacity_ratio)
-        self._random_number_generator = torch.Generator(
-            alf.get_default_device())
-        self._rng_state_device = self._random_number_generator.get_state(
-        ).device
+        self._capacity_ratio = alf.utils.schedulers.as_scheduler(capacity_ratio)
+        self._random_number_generator = torch.Generator(alf.get_default_device())
+        self._rng_state_device = self._random_number_generator.get_state().device
 
-        super(NewCls, self).__init__([{'params': []}], **kwargs)
+        super(NewCls, self).__init__([{"params": []}], **kwargs)
         if gradient_clipping is not None:
-            self.defaults['gradient_clipping'] = gradient_clipping
-            self.defaults['clip_by_global_norm'] = clip_by_global_norm
+            self.defaults["gradient_clipping"] = gradient_clipping
+            self.defaults["clip_by_global_norm"] = clip_by_global_norm
         self._gradient_clipping = gradient_clipping
         self._grad_accumulation_steps = grad_accumulation_steps
         self._grad_counter = 0
@@ -212,10 +211,11 @@ def wrap_optimizer(cls):
         self._masked_out_value = masked_out_value
         self._norms = {}  # norm of each parameter
         if parvi is not None:
-            assert parvi in ['svgd', 'gfsf'
-                             ], ("parvi method %s is not supported." % (parvi))
-            self.defaults['parvi'] = parvi
-            self.defaults['repulsive_weight'] = repulsive_weight
+            assert parvi in ["svgd", "gfsf"], "parvi method %s is not supported." % (
+                parvi
+            )
+            self.defaults["parvi"] = parvi
+            self.defaults["repulsive_weight"] = repulsive_weight
             self._repulsive_weight = repulsive_weight
         self.name = name
         if name is None:
@@ -248,7 +248,7 @@ def wrap_optimizer(cls):
         param_values = {}
         if capacity_ratio < 1 and self._masked_out_value is None:
             for param_group in self.param_groups:
-                for p in param_group['params']:
+                for p in param_group["params"]:
                     # only save previous param value if masked_out_value is unspecified
                     param_values[p] = p.data.clone()
         return param_values
@@ -269,9 +269,9 @@ def wrap_optimizer(cls):
         """
         if capacity_ratio < 1:
             common.warning_once(
-                'Capacity scheduling is used. If using DDP with world size larger than '
-                'one in training, suggest to explicitly set random_seed for training '
-                'in order to make sure the capacity scheduling work as expected \n'
+                "Capacity scheduling is used. If using DDP with world size larger than "
+                "one in training, suggest to explicitly set random_seed for training "
+                "in order to make sure the capacity scheduling work as expected \n"
             )
 
             # To achieve this, we assign a random number for each element of
@@ -279,38 +279,34 @@ def wrap_optimizer(cls):
             # is less than capacity_ratio. To save memory, we don't store the
             # random numbers. Instead, we save the random number generator state.
             for param_group in self.param_groups:
-                for p in param_group['params']:
+                for p in param_group["params"]:
                     state = self.state[p]
                     old_param_val = old_param_values.get(p, None)
                     # get, save and set random number generator state
-                    if 'rng_state' not in state:
+                    if "rng_state" not in state:
                         # record random number generator state in ``self.state``
-                        state[
-                            'rng_state'] = self._random_number_generator.get_state(
-                            )
+                        state["rng_state"] = self._random_number_generator.get_state()
                     else:
-                        self._random_number_generator.set_state(
-                            state['rng_state'])
+                        self._random_number_generator.set_state(state["rng_state"])
 
                     # generate capacity mask using the same random number generator state
                     n = p.numel()
                     ratio = max(self._min_capacity / n, capacity_ratio)
-                    mask = torch.rand(
-                        p.shape,
-                        generator=self._random_number_generator) >= ratio
+                    mask = (
+                        torch.rand(p.shape, generator=self._random_number_generator)
+                        >= ratio
+                    )
 
                     if self._masked_out_value is None:
                         if old_param_val is not None:
                             # The following is faster than p.data[mask] = old_param[mask]
-                            p.data.copy_(
-                                torch.where(mask, old_param_val, p.data))
+                            p.data.copy_(torch.where(mask, old_param_val, p.data))
                             del old_param_val
                     else:
                         p.data[mask] = self._masked_out_value
 
     @common.add_method(NewCls)
-    def _remove_customized_states(self,
-                                  customized_keys: List[str] = ['rng_state']):
+    def _remove_customized_states(self, customized_keys: List[str] = ["rng_state"]):
         """extract and remove the customized states (e.g. ``state['rng_state']``) from the
         optimizer's state attributes (``self.state``)
 
@@ -322,12 +318,9 @@ def wrap_optimizer(cls):
         """
         customized_state = {}
         for param_group in self.param_groups:
-            for p in param_group['params']:
+            for p in param_group["params"]:
                 state = self.state[p]
-                customized_state[p] = {
-                    key: state[key]
-                    for key in customized_keys
-                }
+                customized_state[p] = {key: state[key] for key in customized_keys}
                 [state.pop(key) for key in customized_keys]
         self._customized_state = customized_state
         return customized_state
@@ -340,7 +333,7 @@ def wrap_optimizer(cls):
             customized_state: a dictionary of customized state
         """
         for param_group in self.param_groups:
-            for p in param_group['params']:
+            for p in param_group["params"]:
                 state = self.state[p]
                 state.update(customized_state[p])
 
@@ -368,34 +361,34 @@ def wrap_optimizer(cls):
         if self._lr_scheduler is not None:
             lr = float(self._lr_scheduler())
             for i, (lr_scheduler, param_group) in enumerate(
-                    zip(self._lr_schedulers, self.param_groups)):
+                zip(self._lr_schedulers, self.param_groups)
+            ):
                 if lr_scheduler is not None:
-                    param_group['lr'] = lr_scheduler()
+                    param_group["lr"] = lr_scheduler()
                     if alf.summary.should_record_summaries():
                         alf.summary.scalar("lr/%s/%s" % (self.name, i), lr)
                 else:
-                    param_group['lr'] = lr
+                    param_group["lr"] = lr
             if alf.summary.should_record_summaries():
                 alf.summary.scalar("lr/%s" % self.name, lr)
 
         if not isinstance(self, NeroPlus):
             for param in params:
-                if (get_opt_arg(param, 'fixed_norm', False)
-                        and param not in self._norms):
+                if get_opt_arg(param, "fixed_norm", False) and param not in self._norms:
                     self._norms[param] = param.norm()
 
         if self._gradient_clipping is not None:
             grads = alf.nest.map_structure(lambda p: p.grad, params)
             if self._clip_by_global_norm:
                 _, global_norm = tensor_utils.clip_by_global_norm(
-                    grads, self._gradient_clipping, in_place=True)
+                    grads, self._gradient_clipping, in_place=True
+                )
                 if alf.summary.should_record_summaries():
-                    alf.summary.scalar("global_grad_norm/%s" % self.name,
-                                       global_norm)
+                    alf.summary.scalar("global_grad_norm/%s" % self.name, global_norm)
             else:
-                tensor_utils.clip_by_norms(grads,
-                                           self._gradient_clipping,
-                                           in_place=True)
+                tensor_utils.clip_by_norms(
+                    grads, self._gradient_clipping, in_place=True
+                )
 
         if self._parvi is not None:
             self._parvi_step()
@@ -419,10 +412,8 @@ def wrap_optimizer(cls):
 
         if not isinstance(self, NeroPlus):
             for param in params:
-                if param.grad is not None and get_opt_arg(
-                        param, 'fixed_norm', False):
-                    param.data.mul_(self._norms[param] /
-                                    (param.norm() + 1e-30))
+                if param.grad is not None and get_opt_arg(param, "fixed_norm", False):
+                    param.data.mul_(self._norms[param] / (param.norm() + 1e-30))
 
         self._adjust_capacity(capacity_ratio, param_values)
 
@@ -437,33 +428,31 @@ def wrap_optimizer(cls):
     def _parvi_step(self):
         for param_group in self.param_groups:
             if "parvi_grad" in param_group:
-                params = param_group['params']
+                params = param_group["params"]
                 batch_size = params[0].shape[0]
                 params_tensor = torch.cat(
-                    [p.view(batch_size, -1) for p in params],
-                    dim=-1)  # [N, D], D=dim(params)
-                if self._parvi == 'svgd':
+                    [p.view(batch_size, -1) for p in params], dim=-1
+                )  # [N, D], D=dim(params)
+                if self._parvi == "svgd":
                     # [N, N], [N, N, D]
                     kappa, kappa_grad = _rbf_func(params_tensor)
                     grads_tensor = torch.cat(
-                        [p.grad.view(batch_size, -1) for p in params],
-                        dim=-1).detach()  # [N, D]
-                    kernel_logp = torch.matmul(kappa,
-                                               grads_tensor) / batch_size
+                        [p.grad.view(batch_size, -1) for p in params], dim=-1
+                    ).detach()  # [N, D]
+                    kernel_logp = torch.matmul(kappa, grads_tensor) / batch_size
                     svgd_grad = torch.split(
-                        kernel_logp -
-                        self._repulsive_weight * kappa_grad.mean(0),
+                        kernel_logp - self._repulsive_weight * kappa_grad.mean(0),
                         [p.nelement() // batch_size for p in params],
-                        dim=-1)
+                        dim=-1,
+                    )
                     for i in range(len(params)):
                         grad = params[i].grad.view(batch_size, -1)
                         grad.copy_(svgd_grad[i])
                 else:
                     logq_grad = _score_func(params_tensor)  # [N, D]
                     gfsf_grad = torch.split(
-                        logq_grad,
-                        [p.nelement() // batch_size for p in params],
-                        dim=-1)
+                        logq_grad, [p.nelement() // batch_size for p in params], dim=-1
+                    )
                     for i in range(len(params)):
                         grad = params[i].grad.view(batch_size, -1)
                         grad.add_(self._repulsive_weight * gfsf_grad[i])
@@ -479,63 +468,63 @@ def wrap_optimizer(cls):
 
         params = param_group["params"]
         if isinstance(params, torch.Tensor):
-            param_group['params'] = [params]
+            param_group["params"] = [params]
         elif isinstance(params, set):
-            raise TypeError('Please use a list instead.')
+            raise TypeError("Please use a list instead.")
         else:
-            param_group['params'] = list(params)
+            param_group["params"] = list(params)
 
-        param_group['params'] = [
-            p for p in param_group['params']
+        param_group["params"] = [
+            p
+            for p in param_group["params"]
             if (not self._ignore_param_not_requiring_grad or p.requires_grad)
         ]
 
-        if len(param_group['params']) == 0:
+        if len(param_group["params"]) == 0:
             # If no params are in this group, ignore adding
             return
 
-        lr_scheduler = param_group.get('lr_scheduler', None)
+        lr_scheduler = param_group.get("lr_scheduler", None)
         if isinstance(lr_scheduler, Callable):
             self._lr_schedulers.append(lr_scheduler)
-            param_group['lr'] = lr_scheduler()
+            param_group["lr"] = lr_scheduler()
         else:
             self._lr_schedulers.append(None)
 
-        len_params = len(param_group['params'])
+        len_params = len(param_group["params"])
         std_param_group = []
         ensemble_param_groups = [[] for i in range(len_params)]
         group_batch_sizes = [0] * len_params
-        for param in param_group['params']:
+        for param in param_group["params"]:
             if not isinstance(param, torch.Tensor):
-                raise TypeError("optimizer can only optimize Tensors, "
-                                "but one of the params is " +
-                                torch.typename(param))
-            if hasattr(param, 'ensemble_group'):
+                raise TypeError(
+                    "optimizer can only optimize Tensors, "
+                    "but one of the params is " + torch.typename(param)
+                )
+            if hasattr(param, "ensemble_group"):
                 assert isinstance(
-                    param.ensemble_group,
-                    int), ("ensemble_group attribute mis-specified.")
+                    param.ensemble_group, int
+                ), "ensemble_group attribute mis-specified."
                 ensemble_group_id = param.ensemble_group
                 if group_batch_sizes[ensemble_group_id] == 0:
                     group_batch_sizes[ensemble_group_id] = param.shape[0]
                 else:
-                    assert param.shape[0] == group_batch_sizes[
-                        ensemble_group_id], (
-                            "batch_size of params does not match that of the "
-                            "ensemble param_group %d." % (ensemble_group_id))
+                    assert param.shape[0] == group_batch_sizes[ensemble_group_id], (
+                        "batch_size of params does not match that of the "
+                        "ensemble param_group %d." % (ensemble_group_id)
+                    )
                 ensemble_param_groups[ensemble_group_id].append(param)
             else:
                 std_param_group.append(param)
 
         if len(alf.nest.flatten(ensemble_param_groups)) > 0:
             if len(std_param_group) > 0:
-                super(NewCls,
-                      self).add_param_group({'params': std_param_group})
+                super(NewCls, self).add_param_group({"params": std_param_group})
             for ensemble_param_group in ensemble_param_groups:
                 if len(ensemble_param_group) > 0:
-                    super(NewCls, self).add_param_group({
-                        'params': ensemble_param_group,
-                        'parvi_grad': True
-                    })
+                    super(NewCls, self).add_param_group(
+                        {"params": ensemble_param_group, "parvi_grad": True}
+                    )
         else:
             super(NewCls, self).add_param_group(param_group)
 
@@ -550,40 +539,38 @@ def wrap_optimizer(cls):
         This function first call the parent's ``load_state_dict()`` function, and
         then make sure the ``rng_state`` is in correct data type.
         """
-        state = state_dict['state'].copy()
+        state = state_dict["state"].copy()
         for p in list(state.keys()):
-            if 'step' not in state[p]:
+            if "step" not in state[p]:
                 # Some of the optimizers such as Adam/AdamW/ASGD etc in higher
                 # version torch require 1) the presence of 'step' in state.
                 # Therefore we explicitly create it if it does not exist.
-                state[p] = {'step': 0, **state[p]}
+                state[p] = {"step": 0, **state[p]}
 
         state_dict = state_dict.copy()
-        state_dict['state'] = state
+        state_dict["state"] = state
         super(NewCls, self).load_state_dict(state_dict)
 
         for p_state in self.state.values():
-            if 'rng_state' in state:
-                state['rng_state'] = state['rng_state'].to(
-                    self._rng_state_device).byte()
+            if "rng_state" in state:
+                state["rng_state"] = (
+                    state["rng_state"].to(self._rng_state_device).byte()
+                )
 
     return NewCls
 
 
-Adam = alf.repr_wrapper(
-    alf.configurable('Adam')(wrap_optimizer(torch.optim.Adam)))
+Adam = alf.repr_wrapper(alf.configurable("Adam")(wrap_optimizer(torch.optim.Adam)))
 
-if torch.__version__ >= '1.8.1':
-    AdamW = alf.configurable('AdamW')(wrap_optimizer(torch.optim.AdamW))
+if torch.__version__ >= "1.8.1":
+    AdamW = alf.configurable("AdamW")(wrap_optimizer(torch.optim.AdamW))
 else:
-    AdamW = alf.repr_wrapper(
-        alf.configurable('AdamW')(wrap_optimizer(adamw.AdamW)))
+    AdamW = alf.repr_wrapper(alf.configurable("AdamW")(wrap_optimizer(adamw.AdamW)))
 
-SGD = alf.repr_wrapper(
-    alf.configurable('SGD')(wrap_optimizer(torch.optim.SGD)))
+SGD = alf.repr_wrapper(alf.configurable("SGD")(wrap_optimizer(torch.optim.SGD)))
 
-AdamTF = alf.repr_wrapper(
-    alf.configurable('AdamTF')(wrap_optimizer(adam_tf.AdamTF)))
+AdamTF = alf.repr_wrapper(alf.configurable("AdamTF")(wrap_optimizer(adam_tf.AdamTF)))
 
 NeroPlus = alf.repr_wrapper(
-    alf.configurable('NeroPlus')(wrap_optimizer(nero_plus.NeroPlus)))
+    alf.configurable("NeroPlus")(wrap_optimizer(nero_plus.NeroPlus))
+)

@@ -91,11 +91,13 @@ class _MethodPerformer(torch.nn.Module):
         return self._perform(*args, **kwargs)
 
 
-@alf.configurable(whitelist=['find_unused_parameters', 'bucket_cap_mb'])
-def make_ddp_performer(module: torch.nn.Module,
-                       method,
-                       find_unused_parameters: bool = False,
-                       bucket_cap_mb: int = 25):
+@alf.configurable(whitelist=["find_unused_parameters", "bucket_cap_mb"])
+def make_ddp_performer(
+    module: torch.nn.Module,
+    method,
+    find_unused_parameters: bool = False,
+    bucket_cap_mb: int = 25,
+):
     """Creates a DDP wrapped MethodPerformer.
 
     This function is an alf.configurable and used in the @data_distributed
@@ -111,11 +113,13 @@ def make_ddp_performer(module: torch.nn.Module,
     network output.
 
     """
-    print(f'find_unused_parameters={find_unused_parameters}')
-    return DDP(_MethodPerformer(module=module, perform=method),
-               device_ids=None,
-               find_unused_parameters=find_unused_parameters,
-               bucket_cap_mb=bucket_cap_mb)
+    print(f"find_unused_parameters={find_unused_parameters}")
+    return DDP(
+        _MethodPerformer(module=module, perform=method),
+        device_ids=None,
+        find_unused_parameters=find_unused_parameters,
+        bucket_cap_mb=bucket_cap_mb,
+    )
 
 
 def data_distributed(method):
@@ -162,8 +166,7 @@ def data_distributed(method):
     return data_distributed_when(None)(method)
 
 
-def data_distributed_when(cond: Optional[Callable[[torch.nn.Module],
-                                                  bool]] = None):
+def data_distributed_when(cond: Optional[Callable[[torch.nn.Module], bool]] = None):
     """This is @ data_distributed with an extra conditionon.
 
     The condition is a function that returns True or False given the wrapped
@@ -180,10 +183,11 @@ def data_distributed_when(cond: Optional[Callable[[torch.nn.Module],
             # instance that the method belongs to. By accessing it we get the
             # reference of the module to wrap.
             module_to_wrap = args[0]
-            assert isinstance(module_to_wrap, torch.nn.Module), (
-                f'Cannot apply @data_distributed on {type(module_to_wrap)}')
+            assert isinstance(
+                module_to_wrap, torch.nn.Module
+            ), f"Cannot apply @data_distributed on {type(module_to_wrap)}"
 
-            ddp_rank = getattr(module_to_wrap, '_ddp_activated_rank', -1)
+            ddp_rank = getattr(module_to_wrap, "_ddp_activated_rank", -1)
 
             # Evaluate the condition if it is provided.
             if (cond is not None) and (not cond(module_to_wrap)):
@@ -197,11 +201,10 @@ def data_distributed_when(cond: Optional[Callable[[torch.nn.Module],
             # Create a DDP wrapped _MethodPerformer instance if not yet. All the
             # _MethodPerformer instances are registered in a map called
             # _ddp_performer_map, which belongs to the module to wrap.
-            if not hasattr(module_to_wrap, '_ddp_performer_map'):
-                setattr(module_to_wrap, '_ddp_performer_map', {})
+            if not hasattr(module_to_wrap, "_ddp_performer_map"):
+                setattr(module_to_wrap, "_ddp_performer_map", {})
 
-            performer = module_to_wrap._ddp_performer_map.get(
-                method.__name__, None)
+            performer = module_to_wrap._ddp_performer_map.get(method.__name__, None)
             if performer is None:
                 performer = make_ddp_performer(module_to_wrap, method)
                 module_to_wrap._ddp_performer_map[method.__name__] = performer

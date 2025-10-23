@@ -46,7 +46,7 @@ class FuncParVIAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
         """
         x = data.detach().clone()
         if x.dim() > 2:
-            raise ValueError('data has more than 2 dimensions')
+            raise ValueError("data has more than 2 dimensions")
         if x.dim() < 2:
             x = x.view(1, -1)
         if not rowvar and x.size(0) != 1:
@@ -60,17 +60,15 @@ class FuncParVIAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
         self.assertGreater(float(torch.min(x - y)), eps)
 
     @parameterized.parameters(
-        ('svgd', False),
-        ('gfsf', False),
-        ('svgd', True),
-        ('gfsf', True),
-        ('minmax', False),
+        ("svgd", False),
+        ("gfsf", False),
+        ("svgd", True),
+        ("gfsf", True),
+        ("minmax", False),
     )
-    def test_functional_par_vi_algorithm(self,
-                                         par_vi='minmax',
-                                         function_vi=False,
-                                         num_particles=32,
-                                         batch_size=10):
+    def test_functional_par_vi_algorithm(
+        self, par_vi="minmax", function_vi=False, num_particles=32, batch_size=10
+    ):
         """
         The hypernetwork is trained to generate the parameter vector for a linear
         regressor. The target linear regressor is :math:`y = X\beta + e`, where
@@ -83,25 +81,23 @@ class FuncParVIAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
 
         """
         input_dim = 3
-        input_spec = TensorSpec((input_dim, ), torch.float32)
+        input_spec = TensorSpec((input_dim,), torch.float32)
         output_dim = 1
         size = 50
-        beta = torch.rand(input_dim, output_dim) + 5.
+        beta = torch.rand(input_dim, output_dim) + 5.0
         absl.logging.info("beta: {}".format(beta))
 
-        trainset = TestDataSet(input_dim=input_dim,
-                               output_dim=output_dim,
-                               size=size,
-                               weight=beta)
-        testset = TestDataSet(input_dim=input_dim,
-                              output_dim=output_dim,
-                              size=size,
-                              weight=beta)
+        trainset = TestDataSet(
+            input_dim=input_dim, output_dim=output_dim, size=size, weight=beta
+        )
+        testset = TestDataSet(
+            input_dim=input_dim, output_dim=output_dim, size=size, weight=beta
+        )
         inputs = trainset.get_features()
         targets = trainset.get_targets()
-        train_loader = torch.utils.data.DataLoader(trainset,
-                                                   batch_size=batch_size,
-                                                   shuffle=True)
+        train_loader = torch.utils.data.DataLoader(
+            trainset, batch_size=batch_size, shuffle=True
+        )
         test_loader = torch.utils.data.DataLoader(testset, batch_size=1)
         true_cov = torch.inverse(inputs.t() @ inputs)
         true_mean = true_cov @ inputs.t() @ targets
@@ -112,18 +108,21 @@ class FuncParVIAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
             last_use_bias=False,
             last_activation=math_ops.identity,
             num_particles=num_particles,
-            loss_type='regression',
+            loss_type="regression",
             par_vi=par_vi,
             function_vi=function_vi,
             function_bs=batch_size,
-            critic_hidden_layers=(10, ),
+            critic_hidden_layers=(10,),
             critic_optimizer=alf.optimizers.Adam(lr=1e-2),
             optimizer=alf.optimizers.Adam(lr=1e-2),
-            logging_evaluate=True)
+            logging_evaluate=True,
+        )
 
-        algorithm.set_data_loader(train_loader,
-                                  test_loader=test_loader,
-                                  entropy_regularization=batch_size / size)
+        algorithm.set_data_loader(
+            train_loader,
+            test_loader=test_loader,
+            entropy_regularization=batch_size / size,
+        )
         absl.logging.info("ground truth mean: {}".format(true_mean))
         absl.logging.info("ground truth cov: {}".format(true_cov))
         absl.logging.info("ground truth cov norm: {}".format(true_cov.norm()))
@@ -149,8 +148,7 @@ class FuncParVIAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
             absl.logging.info("train_iter {}: pred err {}".format(i, pred_err))
             absl.logging.info("train_iter {}: mean err {}".format(i, mean_err))
             absl.logging.info("train_iter {}: cov err {}".format(i, cov_err))
-            absl.logging.info("computed_cov norm: {}".format(
-                computed_cov.norm()))
+            absl.logging.info("computed_cov norm: {}".format(computed_cov.norm()))
 
         train_iter = 1000
         for i in range(train_iter):
@@ -168,30 +166,28 @@ class FuncParVIAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
         cov_err = torch.norm(computed_cov - true_cov)
         cov_err = cov_err / torch.norm(true_cov)
         absl.logging.info("-" * 68)
-        absl.logging.info("train_iter {}: mean err {}".format(
-            train_iter, mean_err))
-        absl.logging.info("train_iter {}: cov err {}".format(
-            train_iter, cov_err))
+        absl.logging.info("train_iter {}: mean err {}".format(train_iter, mean_err))
+        absl.logging.info("train_iter {}: cov err {}".format(train_iter, cov_err))
 
         self.assertLess(mean_err, 0.5)
         self.assertLess(cov_err, 0.5)
 
-    def test_functional_par_vi_uncertainty(self,
-                                           par_vi='svgd',
-                                           function_vi=False,
-                                           train_batch_size=10,
-                                           num_particles=10):
+    def test_functional_par_vi_uncertainty(
+        self, par_vi="svgd", function_vi=False, train_batch_size=10, num_particles=10
+    ):
 
         input_spec = TensorSpec((1, 28, 28), torch.float32)
 
-        trainset = TensorDataset(torch.randn(100, 1, 28, 28),
-                                 torch.randint(0, 9, (100, )))
-        testset = TensorDataset(torch.randn(50, 1, 28, 28),
-                                torch.randint(0, 9, (50, )))
-        outlier_trainset = TensorDataset(torch.randn(100, 1, 28, 28),
-                                         torch.randint(0, 9, (100, )))
-        outlier_testset = TensorDataset(torch.randn(50, 1, 28, 28),
-                                        torch.randint(0, 9, (50, )))
+        trainset = TensorDataset(
+            torch.randn(100, 1, 28, 28), torch.randint(0, 9, (100,))
+        )
+        testset = TensorDataset(torch.randn(50, 1, 28, 28), torch.randint(0, 9, (50,)))
+        outlier_trainset = TensorDataset(
+            torch.randn(100, 1, 28, 28), torch.randint(0, 9, (100,))
+        )
+        outlier_testset = TensorDataset(
+            torch.randn(50, 1, 28, 28), torch.randint(0, 9, (50,))
+        )
 
         trainset.classes = torch.arange(10)
         testset.classes = torch.arange(10)
@@ -204,25 +200,28 @@ class FuncParVIAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
         outlier_test_loader = DataLoader(trainset, train_batch_size)
 
         conv_layer_params = ((6, 5, 1, 2, 2), (16, 5, 1, 0, 2), (120, 5, 1))
-        fc_layer_params = (84, )
-        algorithm = FuncParVIAlgorithm(input_tensor_spec=input_spec,
-                                       output_dim=10,
-                                       conv_layer_params=conv_layer_params,
-                                       fc_layer_params=fc_layer_params,
-                                       use_fc_bias=True,
-                                       num_particles=num_particles,
-                                       last_activation=math_ops.identity,
-                                       loss_type='classification',
-                                       par_vi=par_vi,
-                                       function_vi=function_vi,
-                                       function_bs=train_batch_size,
-                                       optimizer=alf.optimizers.Adam(lr=1e-3))
+        fc_layer_params = (84,)
+        algorithm = FuncParVIAlgorithm(
+            input_tensor_spec=input_spec,
+            output_dim=10,
+            conv_layer_params=conv_layer_params,
+            fc_layer_params=fc_layer_params,
+            use_fc_bias=True,
+            num_particles=num_particles,
+            last_activation=math_ops.identity,
+            loss_type="classification",
+            par_vi=par_vi,
+            function_vi=function_vi,
+            function_bs=train_batch_size,
+            optimizer=alf.optimizers.Adam(lr=1e-3),
+        )
 
         algorithm.set_data_loader(
             train_loader,
             test_loader=test_loader,
             outlier_data_loaders=(outlier_train_loader, outlier_test_loader),
-            entropy_regularization=train_batch_size / 100)
+            entropy_regularization=train_batch_size / 100,
+        )
 
         def _test(sampled_predictive=False):
             print("-" * 68)

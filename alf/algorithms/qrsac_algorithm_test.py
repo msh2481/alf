@@ -28,7 +28,7 @@ from alf.algorithms.rl_algorithm import RLAlgorithm
 from alf.algorithms.rl_algorithm_test import MyEnv
 from alf.algorithms.sac_algorithm import SacState
 from alf.data_structures import TimeStep
-from alf.environments.suite_unittest import (PolicyUnittestEnv, ActionType)
+from alf.environments.suite_unittest import PolicyUnittestEnv, ActionType
 from alf.tensor_specs import TensorSpec
 from alf.utils import common
 from alf.utils.math_ops import clipped_exp
@@ -37,27 +37,38 @@ from alf.utils.math_ops import clipped_exp
 class QRSACAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
 
     @parameterized.parameters((True, 1, False, False), (False, 3, True, True))
-    def test_qrsac_algorithm(self, use_naive_parallel_network, reward_dim,
-                             use_n_step_td, min_critic_by_critic_mean):
+    def test_qrsac_algorithm(
+        self,
+        use_naive_parallel_network,
+        reward_dim,
+        use_n_step_td,
+        min_critic_by_critic_mean,
+    ):
         num_env = 1
-        config = TrainerConfig(root_dir="dummy",
-                               unroll_length=1,
-                               mini_batch_length=4,
-                               mini_batch_size=64,
-                               initial_collect_steps=500,
-                               whole_replay_buffer_training=False,
-                               clear_replay_buffer=False)
+        config = TrainerConfig(
+            root_dir="dummy",
+            unroll_length=1,
+            mini_batch_length=4,
+            mini_batch_size=64,
+            initial_collect_steps=500,
+            whole_replay_buffer_training=False,
+            clear_replay_buffer=False,
+        )
         env_class = PolicyUnittestEnv
         steps_per_episode = 13
-        env = env_class(num_env,
-                        steps_per_episode,
-                        action_type=ActionType.Continuous,
-                        reward_dim=reward_dim)
+        env = env_class(
+            num_env,
+            steps_per_episode,
+            action_type=ActionType.Continuous,
+            reward_dim=reward_dim,
+        )
 
-        eval_env = env_class(100,
-                             steps_per_episode,
-                             action_type=ActionType.Continuous,
-                             reward_dim=reward_dim)
+        eval_env = env_class(
+            100,
+            steps_per_episode,
+            action_type=ActionType.Continuous,
+            reward_dim=reward_dim,
+        )
 
         obs_spec = env._observation_spec
         action_spec = env._action_spec
@@ -69,19 +80,22 @@ class QRSACAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
             alf.nn.NormalProjectionNetwork,
             state_dependent_std=True,
             scale_distribution=True,
-            std_transform=clipped_exp)
+            std_transform=clipped_exp,
+        )
 
         actor_network = partial(
             alf.nn.ActorDistributionNetwork,
             fc_layer_params=fc_layer_params,
-            continuous_projection_net_ctor=continuous_projection_net_ctor)
+            continuous_projection_net_ctor=continuous_projection_net_ctor,
+        )
 
         num_quantiles = 50
         critic_network = partial(
             alf.nn.CriticNetwork,
-            output_tensor_spec=TensorSpec((num_quantiles, )),
+            output_tensor_spec=TensorSpec((num_quantiles,)),
             joint_fc_layer_params=fc_layer_params,
-            use_naive_parallel_network=use_naive_parallel_network)
+            use_naive_parallel_network=use_naive_parallel_network,
+        )
 
         if use_n_step_td:
             td_qr_loss_ctor = TDQRLoss
@@ -104,7 +118,8 @@ class QRSACAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
             critic_optimizer=alf.optimizers.Adam(lr=1e-2),
             alpha_optimizer=alf.optimizers.Adam(lr=1e-2),
             debug_summaries=False,
-            name="MyQRSAC")
+            name="MyQRSAC",
+        )
 
         eval_env.reset()
         for i in range(700):
@@ -116,11 +131,10 @@ class QRSACAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
             logging.log_every_n_seconds(
                 logging.INFO,
                 "%d reward=%f" % (i, float(eval_time_step.reward.mean())),
-                n_seconds=1)
+                n_seconds=1,
+            )
 
-        self.assertAlmostEqual(1.0,
-                               float(eval_time_step.reward.mean()),
-                               delta=0.3)
+        self.assertAlmostEqual(1.0, float(eval_time_step.reward.mean()), delta=0.3)
 
 
 def unroll(env, algorithm, steps, epsilon_greedy: float = 0.1):
@@ -130,19 +144,23 @@ def unroll(env, algorithm, steps, epsilon_greedy: float = 0.1):
     trans_state = algorithm.get_initial_transform_state(env.batch_size)
     for _ in range(steps):
         policy_state = common.reset_state_if_necessary(
-            policy_state, algorithm.get_initial_predict_state(env.batch_size),
-            time_step.is_first())
+            policy_state,
+            algorithm.get_initial_predict_state(env.batch_size),
+            time_step.is_first(),
+        )
         transformed_time_step, trans_state = algorithm.transform_timestep(
-            time_step, trans_state)
+            time_step, trans_state
+        )
         action_dist, action, _, action_state = algorithm._predict_action(
             transformed_time_step.observation,
             policy_state.action,
             epsilon_greedy=epsilon_greedy,
-            eps_greedy_sampling=True)
+            eps_greedy_sampling=True,
+        )
         time_step = env.step(action)
         policy_state = SacState(action=action_state)
     return time_step
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

@@ -37,8 +37,10 @@ def inoperative_config_str(max_line_length=80, continuation_indent=4):
         else:
             operative_module_config = operative_config[module]
             for key, value in module_config.items():
-                if key not in operative_module_config or \
-                        value != operative_module_config[key]:
+                if (
+                    key not in operative_module_config
+                    or value != operative_module_config[key]
+                ):
                     inoperative_module_config[key] = value
 
         if inoperative_module_config:
@@ -48,8 +50,7 @@ def inoperative_config_str(max_line_length=80, continuation_indent=4):
     # `gin.operative_config_str` only depends on `_OPERATIVE_CONFIG` and `_IMPORTED_MODULES`
     gin.config._OPERATIVE_CONFIG = inoperative_config
     gin.config._IMPORTED_MODULES = {}
-    inoperative_str = gin.operative_config_str(max_line_length,
-                                               continuation_indent)
+    inoperative_str = gin.operative_config_str(max_line_length, continuation_indent)
     gin.config._OPERATIVE_CONFIG = operative_config
     gin.config._IMPORTED_MODULES = imported_module
     return inoperative_str

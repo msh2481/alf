@@ -18,8 +18,11 @@ import gym
 import alf
 from alf.environments import suite_gym, alf_wrappers, process_environment
 from alf.environments.gym_wrappers import FrameSkip
-from alf.environments.mario_wrappers import MarioXReward, \
-    LimitedDiscreteActions, ProcessFrame84
+from alf.environments.mario_wrappers import (
+    MarioXReward,
+    LimitedDiscreteActions,
+    ProcessFrame84,
+)
 from alf.environments.utils import UnwrappedEnvChecker
 
 _unwrapped_env_checker_ = UnwrappedEnvChecker()
@@ -34,24 +37,26 @@ def is_available():
     if retro is None:
         return False
     try:
-        retro.data.get_romfile_path('SuperMarioBros-Nes')
+        retro.data.get_romfile_path("SuperMarioBros-Nes")
     except FileNotFoundError:
         return False
     return True
 
 
 @alf.configurable
-def load(game,
-         env_id=None,
-         state=None,
-         discount=1.0,
-         wrap_with_process=False,
-         frame_skip=4,
-         record=False,
-         crop=True,
-         gym_env_wrappers=(),
-         alf_env_wrappers=(),
-         max_episode_steps=4500):
+def load(
+    game,
+    env_id=None,
+    state=None,
+    discount=1.0,
+    wrap_with_process=False,
+    frame_skip=4,
+    record=False,
+    crop=True,
+    gym_env_wrappers=(),
+    alf_env_wrappers=(),
+    max_episode_steps=4500,
+):
     """Loads the selected mario game and wraps it .
     Args:
         game (str): Name for the environment to load.
@@ -87,19 +92,22 @@ def load(game,
             env = FrameSkip(env, frame_skip)
         env = ProcessFrame84(env, crop=crop)
         env = LimitedDiscreteActions(env, buttons)
-        return suite_gym.wrap_env(env,
-                                  env_id=env_id,
-                                  discount=discount,
-                                  max_episode_steps=max_episode_steps,
-                                  gym_env_wrappers=gym_env_wrappers,
-                                  alf_env_wrappers=alf_env_wrappers,
-                                  auto_reset=True)
+        return suite_gym.wrap_env(
+            env,
+            env_id=env_id,
+            discount=discount,
+            max_episode_steps=max_episode_steps,
+            gym_env_wrappers=gym_env_wrappers,
+            alf_env_wrappers=alf_env_wrappers,
+            auto_reset=True,
+        )
 
     # wrap each env in a new process when parallel envs are used
     # since it cannot create multiple emulator instances per process
     if wrap_with_process:
         process_env = process_environment.ProcessEnvironment(
-            functools.partial(env_ctor))
+            functools.partial(env_ctor)
+        )
         process_env.start()
         torch_env = alf_wrappers.AlfEnvironmentBaseWrapper(process_env)
     else:

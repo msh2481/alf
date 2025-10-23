@@ -34,8 +34,16 @@ class AlgorithmContainer(Algorithm):
     Algorithm.
     """
 
-    def __init__(self, algs, train_state_spec, rollout_state_spec,
-                 predict_state_spec, is_on_policy, debug_summaries, name):
+    def __init__(
+        self,
+        algs,
+        train_state_spec,
+        rollout_state_spec,
+        predict_state_spec,
+        is_on_policy,
+        debug_summaries,
+        name,
+    ):
         """
         Args:
             algs (dict[Algorithm]): a dictionary of algorithms.
@@ -57,33 +65,35 @@ class AlgorithmContainer(Algorithm):
         if is_on_policy is not None:
             for aname, alg in algs.items():
                 if alg.on_policy is not None:
-                    assert alg.on_policy == is_on_policy, (
-                        "is_on_policy=%s "
-                        "is different from algs[%s].on_policy=%s" %
-                        (is_on_policy, aname, alg.on_policy))
+                    assert (
+                        alg.on_policy == is_on_policy
+                    ), "is_on_policy=%s " "is different from algs[%s].on_policy=%s" % (
+                        is_on_policy,
+                        aname,
+                        alg.on_policy,
+                    )
         else:
-            on_policy_algs = [
-                alg for alg in algs.values() if alg.on_policy == True
-            ]
-            off_policy_algs = [
-                alg for alg in algs.values() if alg.on_policy == False
-            ]
+            on_policy_algs = [alg for alg in algs.values() if alg.on_policy == True]
+            off_policy_algs = [alg for alg in algs.values() if alg.on_policy == False]
             if on_policy_algs and off_policy_algs:
                 raise ValueError(
-                    "%s is on-policy, but %s is off-policy." %
-                    (on_policy_algs[0].name, off_policy_algs[0].name))
+                    "%s is on-policy, but %s is off-policy."
+                    % (on_policy_algs[0].name, off_policy_algs[0].name)
+                )
             if on_policy_algs or off_policy_algs:
                 is_on_policy = bool(on_policy_algs)
         if is_on_policy is not None:
             for alg in algs.values():
                 alg.set_on_policy(is_on_policy)
 
-        super().__init__(train_state_spec=train_state_spec,
-                         rollout_state_spec=rollout_state_spec,
-                         predict_state_spec=predict_state_spec,
-                         is_on_policy=is_on_policy,
-                         debug_summaries=debug_summaries,
-                         name=name)
+        super().__init__(
+            train_state_spec=train_state_spec,
+            rollout_state_spec=rollout_state_spec,
+            predict_state_spec=predict_state_spec,
+            is_on_policy=is_on_policy,
+            debug_summaries=debug_summaries,
+            name=name,
+        )
 
         self._algs = algs
 
@@ -98,7 +108,7 @@ class AlgorithmContainer(Algorithm):
         super().set_path(path)
         prefix = path
         if path:
-            prefix = prefix + '.'
+            prefix = prefix + "."
         for name, alg in self._algs.items():
             alg.set_path(path + name)
 
@@ -115,17 +125,17 @@ class AlgorithmContainer(Algorithm):
             scalar_loss = add_ignore_empty(loss_info.scalar_loss, scalar_loss)
             priority = add_ignore_empty(loss_info.priority, priority)
 
-        return LossInfo(loss=loss,
-                        scalar_loss=scalar_loss,
-                        extra=extra,
-                        priority=priority)
+        return LossInfo(
+            loss=loss, scalar_loss=scalar_loss, extra=extra, priority=priority
+        )
 
     def preprocess_experience(self, root_inputs, rollout_info, batch_info):
         """Call the preprocess_experience of each sub-algorithm."""
         new_infos = {}
         for name, alg in self._algs.items():
             root_inputs, info = alg.preprocess_experience(
-                root_inputs, rollout_info[name], batch_info)
+                root_inputs, rollout_info[name], batch_info
+            )
             new_infos[name] = info
 
         return root_inputs, new_infos
@@ -141,11 +151,9 @@ class AlgorithmContainer(Algorithm):
             alg.after_train_iter(root_inputs, rollout_info[name])
 
 
-def SequentialAlg(*modules,
-                  output='',
-                  is_on_policy=None,
-                  name="SequentialAlg",
-                  **named_modules):
+def SequentialAlg(
+    *modules, output="", is_on_policy=None, name="SequentialAlg", **named_modules
+):
     """Compose Algorithms Networks sequentially as a new Algorithm.
 
     All the modules provided through ``modules`` and ``named_modules`` are calculated
@@ -319,53 +327,56 @@ def SequentialAlg(*modules,
 
     """
 
-    return _SequentialAlg(elements=modules,
-                          element_dict=named_modules,
-                          output=output,
-                          is_on_policy=is_on_policy,
-                          name=name)
+    return _SequentialAlg(
+        elements=modules,
+        element_dict=named_modules,
+        output=output,
+        is_on_policy=is_on_policy,
+        name=name,
+    )
 
 
 class _SequentialAlg(AlgorithmContainer):
 
-    def __init__(self,
-                 elements=(),
-                 element_dict=None,
-                 output='',
-                 is_on_policy=None,
-                 name='SequentialAlg'):
+    def __init__(
+        self,
+        elements=(),
+        element_dict=None,
+        output="",
+        is_on_policy=None,
+        name="SequentialAlg",
+    ):
         train_state_spec = []
         rollout_state_spec = []
         predict_state_spec = []
         modules = []
         inputs = []
         outputs = []
-        named_elements = list(zip([''] * len(elements), elements))
+        named_elements = list(zip([""] * len(elements), elements))
         if element_dict:
             named_elements.extend(element_dict.items())
-        is_nested_str = lambda s: all(map(lambda x: type(x) == str, flatten(s))
-                                      )
+        is_nested_str = lambda s: all(map(lambda x: type(x) == str, flatten(s)))
 
         algs = {}
 
         for i, (out, element) in enumerate(named_elements):
-            input = ''
+            input = ""
             if isinstance(element, tuple) and len(element) == 2:
                 input, module = element
             else:
                 module = element
-            if not (isinstance(module, (Callable, Algorithm))
-                    and is_nested_str(input)):
+            if not (isinstance(module, (Callable, Algorithm)) and is_nested_str(input)):
                 raise ValueError(
                     "Argument %s is not in the form of Callable|Algorithm "
-                    "or (nested str, Callable|Algorithm): %s" %
-                    (out or str(i), element))
+                    "or (nested str, Callable|Algorithm): %s" % (out or str(i), element)
+                )
             if isinstance(module, Algorithm):
                 train_state_spec.append(module.train_state_spec)
                 rollout_state_spec.append(module.rollout_state_spec)
                 predict_state_spec.append(module.predict_state_spec)
                 assert module.name not in algs, (
-                    "Duplicated algorithm name %s" % module.name)
+                    "Duplicated algorithm name %s" % module.name
+                )
                 algs[module.name] = module
             elif isinstance(module, Network):
                 train_state_spec.append(module.state_spec)
@@ -381,20 +392,20 @@ class _SequentialAlg(AlgorithmContainer):
             outputs.append(out)
             modules.append(module)
 
-        assert is_nested_str(output), ("output should be a nested str: %s" %
-                                       output)
+        assert is_nested_str(output), "output should be a nested str: %s" % output
 
-        super().__init__(algs,
-                         train_state_spec=train_state_spec,
-                         rollout_state_spec=rollout_state_spec,
-                         predict_state_spec=predict_state_spec,
-                         is_on_policy=is_on_policy,
-                         debug_summaries=False,
-                         name=name)
+        super().__init__(
+            algs,
+            train_state_spec=train_state_spec,
+            rollout_state_spec=rollout_state_spec,
+            predict_state_spec=predict_state_spec,
+            is_on_policy=is_on_policy,
+            debug_summaries=False,
+            name=name,
+        )
 
         self._networks = modules
-        self._nets = nn.ModuleList(
-            filter(lambda m: isinstance(m, nn.Module), modules))
+        self._nets = nn.ModuleList(filter(lambda m: isinstance(m, nn.Module), modules))
         self._output = output
         self._inputs = inputs
         self._outputs = outputs
@@ -402,7 +413,7 @@ class _SequentialAlg(AlgorithmContainer):
     def _step(self, step_func, inputs, state):
         info_dict = {}
         state_dict = {}
-        var_dict = {'input': inputs, 'info': info_dict, 'state': state_dict}
+        var_dict = {"input": inputs, "info": info_dict, "state": state_dict}
         info = {}
         new_state = [()] * len(self._networks)
         x = inputs
@@ -428,15 +439,15 @@ class _SequentialAlg(AlgorithmContainer):
         return AlgStep(output=x, state=new_state, info=info)
 
     def predict_step(self, inputs, state):
-        return self._step('predict_step', inputs, state)
+        return self._step("predict_step", inputs, state)
 
     def rollout_step(self, inputs, state):
-        return self._step('rollout_step', inputs, state)
+        return self._step("rollout_step", inputs, state)
 
     def train_step(self, inputs, state, rollout_info):
         info_dict = {}
         state_dict = {}
-        var_dict = {'input': inputs, 'info': info_dict, 'state': state_dict}
+        var_dict = {"input": inputs, "info": info_dict, "state": state_dict}
         info = {}
         new_state = [()] * len(self._networks)
         x = inputs
@@ -474,25 +485,25 @@ class EchoAlg(Algorithm):
     ``EchoAlg``.
     """
 
-    def __init__(self, alg, echo_spec, name='EchoAlg'):
+    def __init__(self, alg, echo_spec, name="EchoAlg"):
         """
         Args:
             alg (Algorithm): the module for performing the actual computation
             echo_spec (nested TensorSpec): describe the data format of echo.
             name (str):
         """
-        assert isinstance(
-            alg, Algorithm), ("block must be an instance of "
-                              "alf.algorithms.algorithm.Algorithm. Got %s" %
-                              type(alg))
+        assert isinstance(alg, Algorithm), (
+            "block must be an instance of "
+            "alf.algorithms.algorithm.Algorithm. Got %s" % type(alg)
+        )
 
-        super().__init__(train_state_spec=(alg.train_state_spec, echo_spec),
-                         rollout_state_spec=(alg.rollout_state_spec,
-                                             echo_spec),
-                         predict_state_spec=(alg.predict_state_spec,
-                                             echo_spec),
-                         is_on_policy=alg.on_policy,
-                         name=name)
+        super().__init__(
+            train_state_spec=(alg.train_state_spec, echo_spec),
+            rollout_state_spec=(alg.rollout_state_spec, echo_spec),
+            predict_state_spec=(alg.predict_state_spec, echo_spec),
+            is_on_policy=alg.on_policy,
+            name=name,
+        )
 
         self._alg = alg
 
@@ -508,38 +519,37 @@ class EchoAlg(Algorithm):
         block_state, echo_state = state
         block_input = dict(input=inputs, echo=echo_state)
         alg_step = self._alg.predict_step(block_input, block_state)
-        real_output = alg_step.output['output']
-        echo_output = alg_step.output['echo']
-        return AlgStep(output=real_output,
-                       state=(alg_step.state, echo_output),
-                       info=alg_step.info)
+        real_output = alg_step.output["output"]
+        echo_output = alg_step.output["echo"]
+        return AlgStep(
+            output=real_output, state=(alg_step.state, echo_output), info=alg_step.info
+        )
 
     def rollout_step(self, inputs, state):
         block_state, echo_state = state
         block_input = dict(input=inputs, echo=echo_state)
         alg_step = self._alg.rollout_step(block_input, block_state)
-        real_output = alg_step.output['output']
-        echo_output = alg_step.output['echo']
-        return AlgStep(output=real_output,
-                       state=(alg_step.state, echo_output),
-                       info=alg_step.info)
+        real_output = alg_step.output["output"]
+        echo_output = alg_step.output["echo"]
+        return AlgStep(
+            output=real_output, state=(alg_step.state, echo_output), info=alg_step.info
+        )
 
     def train_step(self, inputs, state, rollout_info):
         block_state, echo_state = state
         block_input = dict(input=inputs, echo=echo_state)
         alg_step = self._alg.train_step(block_input, block_state, rollout_info)
-        real_output = alg_step.output['output']
-        echo_output = alg_step.output['echo']
-        return AlgStep(output=real_output,
-                       state=(alg_step.state, echo_output),
-                       info=alg_step.info)
+        real_output = alg_step.output["output"]
+        echo_output = alg_step.output["echo"]
+        return AlgStep(
+            output=real_output, state=(alg_step.state, echo_output), info=alg_step.info
+        )
 
     def calc_loss(self, info):
         return self._alg.calc_loss(info)
 
     def preprocess_experience(self, root_inputs, rollout_info, batch_info):
-        return self._alg.preprocess_experience(root_inputs, rollout_info,
-                                               batch_info)
+        return self._alg.preprocess_experience(root_inputs, rollout_info, batch_info)
 
     def after_update(self, root_inputs, info):
         self._alg.after_update(root_inputs, info)
@@ -551,19 +561,21 @@ class EchoAlg(Algorithm):
 @alf.configurable
 class RLAlgWrapper(RLAlgorithm):
     """Wrap an ``Algorithm`` instance as an ``RLAlgorithm`` instance
-       so that it can be used for RLTrainer.
+    so that it can be used for RLTrainer.
     """
 
-    def __init__(self,
-                 observation_spec,
-                 action_spec,
-                 algorithm,
-                 env=None,
-                 reward_spec=alf.TensorSpec(()),
-                 config: TrainerConfig = None,
-                 optimizer=None,
-                 debug_summaries=False,
-                 name="RLAlgWrapper"):
+    def __init__(
+        self,
+        observation_spec,
+        action_spec,
+        algorithm,
+        env=None,
+        reward_spec=alf.TensorSpec(()),
+        config: TrainerConfig = None,
+        optimizer=None,
+        debug_summaries=False,
+        name="RLAlgWrapper",
+    ):
         """
         Args:
             observation_spec (nested TensorSpec): representing the observations.
@@ -586,18 +598,20 @@ class RLAlgWrapper(RLAlgorithm):
             name (str): Name of this algorithm.
 
         """
-        super().__init__(observation_spec=observation_spec,
-                         action_spec=action_spec,
-                         train_state_spec=algorithm.train_state_spec,
-                         reward_spec=reward_spec,
-                         predict_state_spec=algorithm.predict_state_spec,
-                         rollout_state_spec=algorithm.rollout_state_spec,
-                         is_on_policy=algorithm.on_policy,
-                         env=env,
-                         config=config,
-                         optimizer=optimizer,
-                         debug_summaries=debug_summaries,
-                         name=name)
+        super().__init__(
+            observation_spec=observation_spec,
+            action_spec=action_spec,
+            train_state_spec=algorithm.train_state_spec,
+            reward_spec=reward_spec,
+            predict_state_spec=algorithm.predict_state_spec,
+            rollout_state_spec=algorithm.rollout_state_spec,
+            is_on_policy=algorithm.on_policy,
+            env=env,
+            config=config,
+            optimizer=optimizer,
+            debug_summaries=debug_summaries,
+            name=name,
+        )
 
         self._algorithm = algorithm
 
@@ -622,8 +636,9 @@ class RLAlgWrapper(RLAlgorithm):
         return self._algorithm.calc_loss(info)
 
     def preprocess_experience(self, root_inputs, rollout_info, batch_info):
-        return self._algorithm.preprocess_experience(root_inputs, rollout_info,
-                                                     batch_info)
+        return self._algorithm.preprocess_experience(
+            root_inputs, rollout_info, batch_info
+        )
 
     def after_update(self, root_inputs, info):
         self._algorithm.after_update(root_inputs, info)

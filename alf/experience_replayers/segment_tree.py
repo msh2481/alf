@@ -34,18 +34,14 @@ class SegmentTree(nn.Module):
     tree are initialized to be zeros.
     """
 
-    def __init__(self,
-                 capacity,
-                 op,
-                 dtype=torch.float32,
-                 device="cpu",
-                 name="SegmentTree"):
+    def __init__(
+        self, capacity, op, dtype=torch.float32, device="cpu", name="SegmentTree"
+    ):
         super().__init__()
         self._name = name
         self._device = device
         with alf.device(self._device):
-            self.register_buffer("_values",
-                                 torch.zeros((2 * capacity, ), dtype=dtype))
+            self.register_buffer("_values", torch.zeros((2 * capacity,), dtype=dtype))
         self._op = op
         self._capacity = capacity
         self._leftmost_leaf = 1
@@ -82,7 +78,8 @@ class SegmentTree(nn.Module):
             assert values.ndim == 1
             assert indices.shape == values.shape, (
                 "indices and values should be 1-D tensor with the same length. "
-                "Got %s and %s." % (indices.shape, values.shape))
+                "Got %s and %s." % (indices.shape, values.shape)
+            )
             op = self._op
             indices, order = torch.sort(indices)
             values = values[order]
@@ -145,16 +142,10 @@ class SegmentTree(nn.Module):
 class SumSegmentTree(SegmentTree):
     """SegmentTree with sum operation."""
 
-    def __init__(self,
-                 capacity,
-                 dtype=torch.float32,
-                 device="cpu",
-                 name="SumSegmentTree"):
-        super().__init__(capacity,
-                         torch.add,
-                         dtype=dtype,
-                         device=device,
-                         name=name)
+    def __init__(
+        self, capacity, dtype=torch.float32, device="cpu", name="SumSegmentTree"
+    ):
+        super().__init__(capacity, torch.add, dtype=dtype, device=device, name=name)
         self._nnz = 0
 
     def __setitem__(self, indices, values):
@@ -209,9 +200,11 @@ class SumSegmentTree(SegmentTree):
 
         with alf.device(self._device):
             if not torch.all(thresholds <= self.summary()):
-                raise ValueError("thresholds cannot "
-                                 "be greater than summary(): got %s vs. %s" %
-                                 (thresholds.max(), self.summary()))
+                raise ValueError(
+                    "thresholds cannot "
+                    "be greater than summary(): got %s vs. %s"
+                    % (thresholds.max(), self.summary())
+                )
             thresholds = convert_device(thresholds)
             indices = torch.ones_like(thresholds, dtype=torch.int64)
             for _ in range(self._depth):
@@ -232,20 +225,16 @@ class SumSegmentTree(SegmentTree):
 class MinSegmentTree(SegmentTree):
     """SegmentTree with min operation."""
 
-    def __init__(self,
-                 capacity,
-                 dtype=torch.float32,
-                 device="cpu",
-                 name="MinSegmentTree"):
+    def __init__(
+        self, capacity, dtype=torch.float32, device="cpu", name="MinSegmentTree"
+    ):
         super().__init__(capacity, torch.min, dtype, device=device, name=name)
 
 
 class MaxSegmentTree(SegmentTree):
     """SegmentTree with max operation."""
 
-    def __init__(self,
-                 capacity,
-                 dtype=torch.float32,
-                 device="cpu",
-                 name="MaxSegmentTree"):
+    def __init__(
+        self, capacity, dtype=torch.float32, device="cpu", name="MaxSegmentTree"
+    ):
         super().__init__(capacity, torch.max, dtype, device=device, name=name)

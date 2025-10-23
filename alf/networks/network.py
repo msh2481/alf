@@ -27,9 +27,12 @@ import typing
 import alf
 from alf.tensor_specs import TensorSpec
 from alf.nest.utils import get_outer_rank
-from alf.utils.dist_utils import (DistributionSpec, extract_spec,
-                                  distributions_to_params,
-                                  params_to_distributions)
+from alf.utils.dist_utils import (
+    DistributionSpec,
+    extract_spec,
+    distributions_to_params,
+    params_to_distributions,
+)
 import alf.utils.math_ops as math_ops
 from alf.utils import common
 
@@ -73,8 +76,8 @@ class _NetworkMeta(abc.ABCMeta):
         arg_spec = inspect.getfullargspec(init)
         if arg_spec.varargs is not None:
             raise RuntimeError(
-                "%s.__init__ function accepts *args. This is not allowed." %
-                classname)
+                "%s.__init__ function accepts *args. This is not allowed." % classname
+            )
 
         def _capture_init(self, *args, **kwargs):
             """Captures init args and kwargs and stores them into `_saved_kwargs`."""
@@ -124,16 +127,16 @@ class Network(nn.Module):
         """Generate a dummy input according to `nested_input_tensor_spec` and
         forward. Can be used to calculate output spec or testing the network.
         """
-        inputs = common.zero_tensor_from_nested_spec(self._input_tensor_spec,
-                                                     batch_size=2)
+        inputs = common.zero_tensor_from_nested_spec(
+            self._input_tensor_spec, batch_size=2
+        )
         # Sometime the input is fp16. But to run it, the code need to be under
         # autocast context. So here we just to change all the floating value to
         # float32
         inputs = alf.nest.map_structure(
-            lambda x: x.to(torch.float32)
-            if x.dtype.is_floating_point else x, inputs)
-        states = common.zero_tensor_from_nested_spec(self.state_spec,
-                                                     batch_size=2)
+            lambda x: x.to(torch.float32) if x.dtype.is_floating_point else x, inputs
+        )
+        states = common.zero_tensor_from_nested_spec(self.state_spec, batch_size=2)
         return self.forward(inputs, states)
 
     def singleton(self, singleton_instance=True):
@@ -188,8 +191,7 @@ class Network(nn.Module):
                 elif isinstance(a, dict):
                     return type(a)((k, _copy(v)) for k, v in a.items())
                 else:  # namedtuple
-                    return type(a)(**dict(
-                        (f, _copy(getattr(a, f))) for f in a._fields))
+                    return type(a)(**dict((f, _copy(getattr(a, f))) for f in a._fields))
 
             # we cannot use map_structure to do the copy because map_structure
             # will change the order of the keys in dict. Some Network (e.g. _Sequential)
@@ -204,8 +206,7 @@ class Network(nn.Module):
 
     @property
     def input_tensor_spec(self):
-        """Return the input tensor spec BEFORE preprocessings have been applied.
-        """
+        """Return the input tensor spec BEFORE preprocessings have been applied."""
         return self._input_tensor_spec
 
     @property
@@ -223,8 +224,7 @@ class Network(nn.Module):
         if self._output_spec is None:
             training = self.training
             self.eval()
-            self._output_spec = extract_spec(self._test_forward()[0],
-                                             from_dim=1)
+            self._output_spec = extract_spec(self._test_forward()[0], from_dim=1)
             self.train(training)
         return self._output_spec
 
@@ -246,8 +246,11 @@ class Network(nn.Module):
         """Whether the output is Distribution."""
         if self._is_distribution is None:
             self._is_distribution = all(
-                map(lambda spec: isinstance(spec, DistributionSpec),
-                    alf.nest.flatten(self.output_spec)))
+                map(
+                    lambda spec: isinstance(spec, DistributionSpec),
+                    alf.nest.flatten(self.output_spec),
+                )
+            )
         return self._is_distribution
 
     def make_parallel(self, n):
@@ -290,14 +293,14 @@ class NaiveParallelNetwork(Network):
                 followed by the ``network.name`` will be used by default.
         """
         state_spec = alf.nest.map_structure(
-            lambda spec: alf.TensorSpec((n, ) + spec.shape, spec.dtype),
-            network.state_spec)
-        name = name if name else 'naive_parallel_%s' % network.name
-        super().__init__(network.input_tensor_spec,
-                         state_spec=state_spec,
-                         name=name)
+            lambda spec: alf.TensorSpec((n,) + spec.shape, spec.dtype),
+            network.state_spec,
+        )
+        name = name if name else "naive_parallel_%s" % network.name
+        super().__init__(network.input_tensor_spec, state_spec=state_spec, name=name)
         self._networks = nn.ModuleList(
-            [network.copy(name=self.name + '_%d' % i) for i in range(n)])
+            [network.copy(name=self.name + "_%d" % i) for i in range(n)]
+        )
         self._n = n
 
     def forward(self, inputs, state=()):
@@ -311,16 +314,16 @@ class NaiveParallelNetwork(Network):
             output (nested torch.Tensor): its shape is ``[B, n, ...]``
             next_state (nested torch.Tensor): its shape is ``[B, n, ...]``
         """
-        outer_rank = alf.nest.utils.get_outer_rank(inputs,
-                                                   self._input_tensor_spec)
-        assert 1 <= outer_rank <= 2, ("inputs should have shape [B, %d, ...] "
-                                      " or [B, ...]" % self._n)
+        outer_rank = alf.nest.utils.get_outer_rank(inputs, self._input_tensor_spec)
+        assert 1 <= outer_rank <= 2, (
+            "inputs should have shape [B, %d, ...] " " or [B, ...]" % self._n
+        )
 
         if state != ():
-            state_outer_rank = alf.nest.utils.get_outer_rank(
-                state, self.state_spec)
+            state_outer_rank = alf.nest.utils.get_outer_rank(state, self.state_spec)
             assert state_outer_rank == 1, (
-                "state should have shape [B, %d, ...] " % self._n)
+                "state should have shape [B, %d, ...] " % self._n
+            )
 
         output_states = []
         output_state_spec = None
@@ -337,25 +340,28 @@ class NaiveParallelNetwork(Network):
 
         output_states = distributions_to_params(output_states)
         if self._n > 1:
-            output, new_state = alf.nest.utils.stack_nests(output_states,
-                                                           dim=1)
+            output, new_state = alf.nest.utils.stack_nests(output_states, dim=1)
         else:
             output, new_state = alf.nest.map_structure(
-                lambda x: x.unsqueeze(1), output_states[0])
+                lambda x: x.unsqueeze(1), output_states[0]
+            )
 
-        output, new_state = params_to_distributions((output, new_state),
-                                                    output_state_spec)
+        output, new_state = params_to_distributions(
+            (output, new_state), output_state_spec
+        )
         return output, new_state
 
 
 class NetworkWrapper(Network):
     """Wrap module or function as a Network."""
 
-    def __init__(self,
-                 module: typing.Callable,
-                 input_tensor_spec: alf.NestedTensorSpec,
-                 state_spec: alf.NestedTensorSpec = (),
-                 name: str = "NetworkWrapper"):
+    def __init__(
+        self,
+        module: typing.Callable,
+        input_tensor_spec: alf.NestedTensorSpec,
+        state_spec: alf.NestedTensorSpec = (),
+        name: str = "NetworkWrapper",
+    ):
         """
         Args:
             module: can be called as ``module(input)`` to calculate the output.
@@ -366,9 +372,9 @@ class NetworkWrapper(Network):
             name: name of the wrapped network
         """
         super().__init__(input_tensor_spec, state_spec, name)
-        assert isinstance(module,
-                          typing.Callable), ("module is not Callable: %s" %
-                                             type(module))
+        assert isinstance(module, typing.Callable), "module is not Callable: %s" % type(
+            module
+        )
         self._module = module
 
     def forward(self, x, state=()):
@@ -382,7 +388,8 @@ class NetworkWrapper(Network):
             alf.layers.make_parallel_net(self._module, n),
             alf.layers.make_parallel_spec(self.input_tensor_spec, n),
             alf.layers.make_parallel_spec(self.state_spec, n),
-            "parallel_" + self.name)
+            "parallel_" + self.name,
+        )
 
 
 def get_input_tensor_spec(net):
@@ -397,7 +404,7 @@ def get_input_tensor_spec(net):
     if isinstance(net, Network):
         return net.input_tensor_spec
     if isinstance(net, alf.layers.FC):
-        return alf.TensorSpec((net.input_size, ))
+        return alf.TensorSpec((net.input_size,))
     elif isinstance(net, torch.nn.Sequential):
         return get_input_tensor_spec(net[0])
     else:
@@ -422,8 +429,9 @@ def wrap_as_network(net, input_tensor_spec):
     if input_tensor_spec is None:
         input_tensor_spec = get_input_tensor_spec(net)
     if input_tensor_spec is None:
-        raise ValueError("input_tensor_spec is undefined for net of "
-                         "type: %s" % type(net))
+        raise ValueError(
+            "input_tensor_spec is undefined for net of " "type: %s" % type(net)
+        )
     return NetworkWrapper(net, input_tensor_spec)
 
 
@@ -437,10 +445,9 @@ class BatchSquashNetwork(Network):
         batch_dims: how many batch dims to squash before forward
     """
 
-    def __init__(self,
-                 network: Network,
-                 batch_dims: int = 2,
-                 name: str = "BatchSquashNetwork"):
+    def __init__(
+        self, network: Network, batch_dims: int = 2, name: str = "BatchSquashNetwork"
+    ):
         super().__init__(network.input_tensor_spec, network.state_spec, name)
         assert isinstance(network, Network)
         self._network = network

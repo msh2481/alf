@@ -26,14 +26,16 @@ from alf.utils.common import warning_once
 class _NormBase(nn.Module):
     """Base of BatchNorm supporting RNN."""
 
-    def __init__(self,
-                 num_features: int,
-                 eps: float = 1e-5,
-                 momentum: float = 0.1,
-                 affine: bool = True,
-                 fixed_weight_norm=False,
-                 use_bias: bool = True,
-                 track_running_stats: bool = True):
+    def __init__(
+        self,
+        num_features: int,
+        eps: float = 1e-5,
+        momentum: float = 0.1,
+        affine: bool = True,
+        fixed_weight_norm=False,
+        use_bias: bool = True,
+        track_running_stats: bool = True,
+    ):
         super().__init__()
         self._num_features = num_features
         self._eps = eps
@@ -44,16 +46,18 @@ class _NormBase(nn.Module):
             self._weight = nn.Parameter(torch.empty(num_features))
             use_bias = True
             if fixed_weight_norm:
-                self._weight.opt_args = dict(max_norm=math.sqrt(num_features),
-                                             fixed_norm=fixed_weight_norm)
+                self._weight.opt_args = dict(
+                    max_norm=math.sqrt(num_features), fixed_norm=fixed_weight_norm
+                )
         else:
             self._weight = None
         if use_bias:
             if self._weight is None:
                 # pytorch has a bug which cannot handle the case that weight is
                 # None but bias is not. So we have to provide a fixed weight.
-                self._weight = nn.Parameter(torch.empty(num_features),
-                                            requires_grad=False)
+                self._weight = nn.Parameter(
+                    torch.empty(num_features), requires_grad=False
+                )
             self._bias = nn.Parameter(torch.empty(num_features))
         else:
             self._bias = None
@@ -78,13 +82,13 @@ class _NormBase(nn.Module):
             return
         for i in range(len(self._running_means), max_steps):
             self._running_means.append(torch.zeros(self._num_features))
-            self.register_buffer('_running_means%s' % i,
-                                 self._running_means[i])
+            self.register_buffer("_running_means%s" % i, self._running_means[i])
             self._running_vars.append(torch.ones(self._num_features))
-            self.register_buffer('_running_vars%s' % i, self._running_vars[i])
+            self.register_buffer("_running_vars%s" % i, self._running_vars[i])
             self._num_batches_tracked.append(torch.zeros((), dtype=torch.long))
-            self.register_buffer('_num_batches_tracked%s' % i,
-                                 self._num_batches_tracked[i])
+            self.register_buffer(
+                "_num_batches_tracked%s" % i, self._num_batches_tracked[i]
+            )
 
     def set_current_step(self, current_step: Union[torch.Tensor, int]):
         """Use and/or update the running statistics at current_step for normalization.
@@ -99,17 +103,21 @@ class _NormBase(nn.Module):
         self._clamped = False
         if type(current_step) == int:
             if current_step >= self._max_steps:
-                warning_once("current_step should be smaller than "
-                             "max_steps. Got %s. Will be clamped to %s" %
-                             (current_step, self._max_steps - 1))
+                warning_once(
+                    "current_step should be smaller than "
+                    "max_steps. Got %s. Will be clamped to %s"
+                    % (current_step, self._max_steps - 1)
+                )
                 current_step = min(current_step, self._max_steps - 1)
                 self._clamped = True
         elif isinstance(current_step, torch.Tensor):
             assert 0 <= current_step.ndim <= 1
             if torch.any(current_step >= self._max_steps):
-                warning_once("current_step should be smaller than "
-                             "max_steps. Got %s. Will be clamped to %s" %
-                             (current_step.max(), self._max_steps - 1))
+                warning_once(
+                    "current_step should be smaller than "
+                    "max_steps. Got %s. Will be clamped to %s"
+                    % (current_step.max(), self._max_steps - 1)
+                )
                 current_step = current_step.clamp(max=self._max_steps - 1)
                 self._clamped = True
         self._current_step = current_step
@@ -132,21 +140,19 @@ class _NormBase(nn.Module):
         if self.training or not self._track_running_stats:
             if self._track_running_stats:
                 current_step = self._current_step
-                if isinstance(current_step,
-                              torch.Tensor) and current_step.ndim != 0:
-                    assert torch.all(current_step == current_step[0]), (
-                        "all current_steps must be same for training.")
+                if isinstance(current_step, torch.Tensor) and current_step.ndim != 0:
+                    assert torch.all(
+                        current_step == current_step[0]
+                    ), "all current_steps must be same for training."
                     current_step = current_step[0]
                 current_step = int(current_step)
                 running_mean = self._running_means[current_step]
                 running_var = self._running_vars[current_step]
                 if not self._clamped:
-                    num_batches_tracked = self._num_batches_tracked[
-                        current_step]
+                    num_batches_tracked = self._num_batches_tracked[current_step]
                     num_batches_tracked.add_(1)
                     if self._momentum is None:  # use cumulative moving average
-                        exponential_average_factor = 1.0 / float(
-                            num_batches_tracked)
+                        exponential_average_factor = 1.0 / float(num_batches_tracked)
                     else:  # use exponential moving average
                         exponential_average_factor = self._momentum
                 else:
@@ -168,12 +174,11 @@ class _NormBase(nn.Module):
                 # training and eval consistent.
                 not self._clamped,
                 exponential_average_factor,
-                self._eps)
+                self._eps,
+            )
         else:  # not training and tracking running stats
-            running_means = torch.stack(self._running_means,
-                                        dim=0)[self._current_step]
-            running_vars = torch.stack(self._running_vars,
-                                       dim=0)[self._current_step]
+            running_means = torch.stack(self._running_means, dim=0)[self._current_step]
+            running_vars = torch.stack(self._running_vars, dim=0)[self._current_step]
             if running_means.ndim == 1:
                 running_means = running_means[None, :].expand(input.shape[:2])
                 running_vars = running_vars[None, :].expand(input.shape[:2])
@@ -197,7 +202,8 @@ class _NormBase(nn.Module):
                 # rather than the running stats.
                 False,
                 0.0,  # exponential_average_factor
-                self._eps)
+                self._eps,
+            )
             y = y.reshape(batch_size, -1, *y.shape[2:])
             return y
 
@@ -257,8 +263,9 @@ class BatchNorm1d(_NormBase):
 
     def _check_input_dim(self, input):
         if input.dim() != 2 and input.dim() != 3:
-            raise ValueError('expected 2D or 3D input (got {}D input)'.format(
-                input.dim()))
+            raise ValueError(
+                "expected 2D or 3D input (got {}D input)".format(input.dim())
+            )
 
 
 @alf.configurable
@@ -313,8 +320,7 @@ class BatchNorm2d(_NormBase):
 
     def _check_input_dim(self, input):
         if input.dim() != 4:
-            raise ValueError('expected 4D input (got {}D input)'.format(
-                input.dim()))
+            raise ValueError("expected 4D input (got {}D input)".format(input.dim()))
 
 
 def set_batch_norm_max_steps(module, max_steps: int):
@@ -328,8 +334,9 @@ def set_batch_norm_max_steps(module, max_steps: int):
         bn.set_max_steps(max_steps)
 
 
-def set_batch_norm_current_step(module: nn.Module,
-                                current_step: Union[torch.Tensor, int]):
+def set_batch_norm_current_step(
+    module: nn.Module, current_step: Union[torch.Tensor, int]
+):
     """Set current_step for all batch norm layers in ``module``.
 
     Args:
@@ -360,25 +367,25 @@ def prepare_rnn_batch_norm(module: nn.Module) -> bool:
         elif isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)):
             warning_once(
                 "RNN may not perform well with torch.nn.BatchNorm layer "
-                "(at %s). Consider using alf.layers.BatchNorm instead." % path)
+                "(at %s). Consider using alf.layers.BatchNorm instead." % path
+            )
         elif isinstance(m, nn.Module):
             for name, submodule in m.named_children():
                 if submodule not in visited:
-                    todo.append((path + '.' + name, submodule))
+                    todo.append((path + "." + name, submodule))
                     visited.add(submodule)
 
     module._all_bns = bns
-    module.set_batch_norm_max_steps = types.MethodType(
-        set_batch_norm_max_steps, module)
+    module.set_batch_norm_max_steps = types.MethodType(set_batch_norm_max_steps, module)
     module.set_batch_norm_current_step = types.MethodType(
-        set_batch_norm_current_step, module)
+        set_batch_norm_current_step, module
+    )
 
     return len(bns) > 0
 
 
 class ParamLayerNorm(nn.Module):
-    """ParamLayerNorm, adapted from ``torch.nn.modules.LayerNorm``
-    """
+    """ParamLayerNorm, adapted from ``torch.nn.modules.LayerNorm``"""
 
     def __init__(self, n_groups: int, output_channels: int, eps: float = 1e-5):
         """A general Layer Normalization layer that does not maintain learnable
@@ -411,22 +418,22 @@ class ParamLayerNorm(nn.Module):
 
     @property
     def output_channels(self):
-        """Get the n_element of a single weight tensor. """
+        """Get the n_element of a single weight tensor."""
         return self._output_channels
 
     @property
     def weight_length(self):
-        """Get the n_element of a single weight tensor. """
+        """Get the n_element of a single weight tensor."""
         return self._output_channels
 
     @property
     def bias_length(self):
-        """Get the n_element of a single bias tensor. """
+        """Get the n_element of a single bias tensor."""
         return self._output_channels
 
     @property
     def param_length(self):
-        """Get total number of parameters for all layers. """
+        """Get total number of parameters for all layers."""
         if self._param_length is None:
             self._param_length = self.weight_length + self.bias_length
         return self._param_length
@@ -446,14 +453,18 @@ class ParamLayerNorm(nn.Module):
         if theta.ndim == 1:
             theta = theta.unsqueeze(0)
         assert (
-            theta.ndim == 2 and theta.shape[0] == self._n_groups
-            and (theta.shape[1] == self.param_length)), (
-                "Input theta has wrong shape %s. Expecting shape (%d, %d)" %
-                (theta.shape, self._n_groups, self.param_length))
+            theta.ndim == 2
+            and theta.shape[0] == self._n_groups
+            and (theta.shape[1] == self.param_length)
+        ), "Input theta has wrong shape %s. Expecting shape (%d, %d)" % (
+            theta.shape,
+            self._n_groups,
+            self.param_length,
+        )
 
-        weight = theta[:, :self.weight_length]
+        weight = theta[:, : self.weight_length]
         self._set_weight(weight, reinitialize=reinitialize)
-        bias = theta[:, self.weight_length:]
+        bias = theta[:, self.weight_length :]
         self._set_bias(bias, reinitialize=reinitialize)
 
     def _set_weight(self, weight: torch.Tensor, reinitialize: bool = False):
@@ -465,10 +476,14 @@ class ParamLayerNorm(nn.Module):
             reinitialize: whether to reinitialize self._weight
         """
         assert (
-            weight.ndim == 2 and weight.shape[0] == self._n_groups
-            and (weight.shape[1] == self.weight_length)), (
-                "Input weight has wrong shape %s. Expecting shape (%d, %d)" %
-                (weight.shape, self._n_groups, self.weight_length))
+            weight.ndim == 2
+            and weight.shape[0] == self._n_groups
+            and (weight.shape[1] == self.weight_length)
+        ), "Input weight has wrong shape %s. Expecting shape (%d, %d)" % (
+            weight.shape,
+            self._n_groups,
+            self.weight_length,
+        )
         if reinitialize:
             weight = torch.ones(self._n_groups, self.weight_length)
 
@@ -482,10 +497,15 @@ class ParamLayerNorm(nn.Module):
                 - ``D``: length of bias vector, should be self.bias_length
             reinitialize: whether to reinitialize self._bias
         """
-        assert (bias.ndim == 2 and bias.shape[0] == self._n_groups
-                and (bias.shape[1] == self.bias_length)), (
-                    "Input bias has wrong shape %s. Expecting shape (%d, %d)" %
-                    (bias.shape, self._n_groups, self.bias_length))
+        assert (
+            bias.ndim == 2
+            and bias.shape[0] == self._n_groups
+            and (bias.shape[1] == self.bias_length)
+        ), "Input bias has wrong shape %s. Expecting shape (%d, %d)" % (
+            bias.shape,
+            self._n_groups,
+            self.bias_length,
+        )
         if reinitialize:
             bias = torch.zeros(self._n_groups, self.bias_length)
 
@@ -505,12 +525,12 @@ class ParamLayerNorm(nn.Module):
         """
         inputs = self._preprocess_input(inputs)
 
-        res = F.group_norm(inputs, self._n_groups, self.weight, self.bias,
-                           self._eps)
+        res = F.group_norm(inputs, self._n_groups, self.weight, self.bias, self._eps)
 
         if self._n_groups > 1 and keep_group_dim:
-            res = res.reshape(inputs.shape[0], self._n_groups, -1,
-                              *inputs.shape[2:])  # [B, n, ...]
+            res = res.reshape(
+                inputs.shape[0], self._n_groups, -1, *inputs.shape[2:]
+            )  # [B, n, ...]
 
         return res
 
@@ -534,18 +554,24 @@ class ParamLayerNorm1d(ParamLayerNorm):
         """
         if inputs.ndim == 2:
             # case 1: non-parallel inputs
-            assert inputs.shape[1] == self.output_channels, (
-                "Input inputs has wrong shape %s. Expecting (B, %d)" %
-                (inputs.shape, self.output_channels))
+            assert (
+                inputs.shape[1] == self.output_channels
+            ), "Input inputs has wrong shape %s. Expecting (B, %d)" % (
+                inputs.shape,
+                self.output_channels,
+            )
             inputs = inputs.repeat(1, self._n_groups)  # [B, n*D]
             # inputs = inputs.unsqueeze(0).expand(self._n_groups, *inputs.shape)
         elif inputs.ndim == 3:
             # case 2: parallel inputs
             assert (
                 inputs.shape[1] == self._n_groups
-                and inputs.shape[2] == self.output_channels), (
-                    "Input inputs has wrong shape %s. Expecting (B, %d, %d)" %
-                    (inputs.shape, self._n_groups, self.output_channels))
+                and inputs.shape[2] == self.output_channels
+            ), "Input inputs has wrong shape %s. Expecting (B, %d, %d)" % (
+                inputs.shape,
+                self._n_groups,
+                self.output_channels,
+            )
             # [B, n*D]
             inputs = inputs.reshape(-1, self._n_groups * self.output_channels)
         else:
@@ -577,10 +603,11 @@ class ParamLayerNorm2d(ParamLayerNorm):
         if self._n_groups == 1:
             # non-parallel layer
             assert (
-                inputs.ndim == 4
-                and inputs.shape[1] == self.output_channels), (
-                    "Input img has wrong shape %s. Expecting (B, %d, H, W)" %
-                    (inputs.shape, self.output_channels))
+                inputs.ndim == 4 and inputs.shape[1] == self.output_channels
+            ), "Input img has wrong shape %s. Expecting (B, %d, H, W)" % (
+                inputs.shape,
+                self.output_channels,
+            )
         else:
             # parallel layer
             if inputs.ndim == 4:
@@ -589,22 +616,30 @@ class ParamLayerNorm2d(ParamLayerNorm):
                     inputs = inputs.repeat(1, self._n_groups, 1, 1)
                 else:
                     # case 2: parallel input
-                    assert inputs.shape[
-                        1] == self._n_groups * self.output_channels, (
-                            "Input img has wrong shape %s. Expecting (B, %d, H, W) or (B, %d, H, W)"
-                            % (inputs.shape, self.output_channels,
-                               self._n_groups * self.output_channels))
+                    assert inputs.shape[1] == self._n_groups * self.output_channels, (
+                        "Input img has wrong shape %s. Expecting (B, %d, H, W) or (B, %d, H, W)"
+                        % (
+                            inputs.shape,
+                            self.output_channels,
+                            self._n_groups * self.output_channels,
+                        )
+                    )
             elif inputs.ndim == 5:
                 # case 3: parallel input with unmerged group dim
                 assert (
                     inputs.shape[1] == self._n_groups
                     and inputs.shape[2] == self.output_channels
-                ), ("Input img has wrong shape %s. Expecting (B, %d, %d, H, W)"
-                    % (inputs.shape, self._n_groups, self.output_channels))
+                ), "Input img has wrong shape %s. Expecting (B, %d, %d, H, W)" % (
+                    inputs.shape,
+                    self._n_groups,
+                    self.output_channels,
+                )
                 # merge group and channel dim
-                inputs = inputs.reshape(inputs.shape[0],
-                                        inputs.shape[1] * inputs.shape[2],
-                                        *inputs.shape[3:])
+                inputs = inputs.reshape(
+                    inputs.shape[0],
+                    inputs.shape[1] * inputs.shape[2],
+                    *inputs.shape[3:]
+                )
             else:
                 raise ValueError("Wrong img.ndim=%d" % inputs.ndim)
 

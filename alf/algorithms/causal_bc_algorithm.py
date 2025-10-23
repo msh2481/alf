@@ -25,11 +25,9 @@ from alf.utils import dist_utils, tensor_utils
 
 BcState = namedtuple("BcState", ["actor"], default_value=())
 
-BcInfo = namedtuple("BcInfo", ["actor", "discriminator", "target"],
-                    default_value=())
+BcInfo = namedtuple("BcInfo", ["actor", "discriminator", "target"], default_value=())
 
-BcLossInfo = namedtuple("LossInfo", ["actor", "discriminator"],
-                        default_value=())
+BcLossInfo = namedtuple("LossInfo", ["actor", "discriminator"], default_value=())
 
 
 @alf.configurable
@@ -42,22 +40,24 @@ class CausalBcAlgorithm(OffPolicyAlgorithm):
         ICML 2022
     """
 
-    def __init__(self,
-                 observation_spec,
-                 action_spec: BoundedTensorSpec,
-                 reward_spec=TensorSpec(()),
-                 actor_network_cls=ActorNetwork,
-                 discriminator_network_cls=EncodingNetwork,
-                 actor_optimizer=None,
-                 discriminator_optimizer=None,
-                 f_norm_penalty_weight=1e-3,
-                 bc_regulatization_weight=5e-2,
-                 env=None,
-                 config: TrainerConfig = None,
-                 checkpoint=None,
-                 debug_summaries=False,
-                 epsilon_greedy=None,
-                 name="CausalBcAlgorithm"):
+    def __init__(
+        self,
+        observation_spec,
+        action_spec: BoundedTensorSpec,
+        reward_spec=TensorSpec(()),
+        actor_network_cls=ActorNetwork,
+        discriminator_network_cls=EncodingNetwork,
+        actor_optimizer=None,
+        discriminator_optimizer=None,
+        f_norm_penalty_weight=1e-3,
+        bc_regulatization_weight=5e-2,
+        env=None,
+        config: TrainerConfig = None,
+        checkpoint=None,
+        debug_summaries=False,
+        epsilon_greedy=None,
+        name="CausalBcAlgorithm",
+    ):
         """
         Args:
             observation_spec (nested TensorSpec): representing the observations.
@@ -110,24 +110,28 @@ class CausalBcAlgorithm(OffPolicyAlgorithm):
             epsilon_greedy = alf.utils.common.get_epsilon_greedy(config)
         self._epsilon_greedy = epsilon_greedy
 
-        actor_network = actor_network_cls(input_tensor_spec=observation_spec,
-                                          action_spec=action_spec)
+        actor_network = actor_network_cls(
+            input_tensor_spec=observation_spec, action_spec=action_spec
+        )
 
         discriminator_network = discriminator_network_cls(
-            input_tensor_spec=observation_spec)
+            input_tensor_spec=observation_spec
+        )
 
         action_state_spec = actor_network.state_spec
-        super().__init__(observation_spec=observation_spec,
-                         action_spec=action_spec,
-                         reward_spec=reward_spec,
-                         train_state_spec=BcState(actor=action_state_spec),
-                         predict_state_spec=BcState(actor=action_state_spec),
-                         reward_weights=None,
-                         env=env,
-                         config=config,
-                         checkpoint=checkpoint,
-                         debug_summaries=debug_summaries,
-                         name=name)
+        super().__init__(
+            observation_spec=observation_spec,
+            action_spec=action_spec,
+            reward_spec=reward_spec,
+            train_state_spec=BcState(actor=action_state_spec),
+            predict_state_spec=BcState(actor=action_state_spec),
+            reward_weights=None,
+            env=env,
+            config=config,
+            checkpoint=checkpoint,
+            debug_summaries=debug_summaries,
+            name=name,
+        )
 
         self._actor_network = actor_network
         self._discriminator_network = discriminator_network
@@ -137,24 +141,22 @@ class CausalBcAlgorithm(OffPolicyAlgorithm):
         self._actor_optimizer = actor_optimizer
 
         if discriminator_optimizer is not None and discriminator_network is not None:
-            self.add_optimizer(discriminator_optimizer,
-                               [discriminator_network])
+            self.add_optimizer(discriminator_optimizer, [discriminator_network])
         self._discriminator_optimizer = discriminator_optimizer
 
         self._bc_regulatization_weight = bc_regulatization_weight
         self._f_norm_penalty_weight = f_norm_penalty_weight
 
     def _predict_action(self, observation, state):
-        action_dist, actor_network_state = self._actor_network(observation,
-                                                               state=state)
+        action_dist, actor_network_state = self._actor_network(observation, state=state)
 
         return action_dist, actor_network_state
 
     def predict_step(self, inputs: TimeStep, state: BcState):
-        action_dist, new_state = self._predict_action(inputs.observation,
-                                                      state=state.actor)
-        action = dist_utils.epsilon_greedy_sample(action_dist,
-                                                  self._epsilon_greedy)
+        action_dist, new_state = self._predict_action(
+            inputs.observation, state=state.actor
+        )
+        action = dist_utils.epsilon_greedy_sample(action_dist, self._epsilon_greedy)
 
         return AlgStep(output=action, state=BcState(actor=new_state))
 
@@ -168,59 +170,63 @@ class CausalBcAlgorithm(OffPolicyAlgorithm):
         policy_loss = (
             2 * (target_prediction_differences) * pred_residuals.detach()
         ).mean(-1) + self._bc_regulatization_weight * (
-            torch.square(target_prediction_differences)).mean(-1)
+            torch.square(target_prediction_differences)
+        ).mean(
+            -1
+        )
 
         # train discriminator (detach policy)
         discriminator_loss = -(
-            2 * (target_prediction_differences).detach() * pred_residuals -
-            pred_residuals * pred_residuals).mean(-1)
+            2 * (target_prediction_differences).detach() * pred_residuals
+            - pred_residuals * pred_residuals
+        ).mean(-1)
 
         # f_norm_penalty is used according to Appendix of the paper (Table 4 and 5)
         discriminator_loss = (
-            discriminator_loss +
-            self._f_norm_penalty_weight * torch.linalg.norm(pred_residuals))
+            discriminator_loss
+            + self._f_norm_penalty_weight * torch.linalg.norm(pred_residuals)
+        )
 
         return policy_loss, discriminator_loss
 
-    def train_step_offline(self,
-                           inputs: TimeStep,
-                           state,
-                           rollout_info,
-                           pre_train=False):
+    def train_step_offline(
+        self, inputs: TimeStep, state, rollout_info, pre_train=False
+    ):
 
-        action_dist, new_state = self._predict_action(inputs.observation,
-                                                      state=state.actor)
+        action_dist, new_state = self._predict_action(
+            inputs.observation, state=state.actor
+        )
 
         predictions = dist_utils.get_rmode(action_dist)
         pred_residuals, _ = self._discriminator_network(inputs.observation)
 
-        info = BcInfo(actor=predictions,
-                      discriminator=pred_residuals,
-                      target=rollout_info.action)
-        return AlgStep(rollout_info.action,
-                       state=BcState(actor=new_state),
-                       info=info)
+        info = BcInfo(
+            actor=predictions, discriminator=pred_residuals, target=rollout_info.action
+        )
+        return AlgStep(rollout_info.action, state=BcState(actor=new_state), info=info)
 
     def calc_loss_offline(self, info, pre_train=False):
 
-        #[T, B, action_dim]
+        # [T, B, action_dim]
         predictions = info.actor
         pred_residuals = info.discriminator
         targets = info.target
 
         actor_loss, discriminator_loss = self.residuIL_loss(
-            targets[1:], predictions[1:], pred_residuals[:-1])
+            targets[1:], predictions[1:], pred_residuals[:-1]
+        )
 
         if self._debug_summaries and alf.summary.should_record_summaries():
             with alf.summary.scope(self._name):
                 alf.summary.scalar("actor_loss", actor_loss.mean())
-                alf.summary.scalar("discriminator_loss",
-                                   discriminator_loss.mean())
+                alf.summary.scalar("discriminator_loss", discriminator_loss.mean())
 
         loss = actor_loss + discriminator_loss
         loss = tensor_utils.tensor_extend_zero(loss)
-        return LossInfo(loss=loss,
-                        extra=BcLossInfo(
-                            actor=tensor_utils.tensor_extend_zero(actor_loss),
-                            discriminator=tensor_utils.tensor_extend_zero(
-                                discriminator_loss)))
+        return LossInfo(
+            loss=loss,
+            extra=BcLossInfo(
+                actor=tensor_utils.tensor_extend_zero(actor_loss),
+                discriminator=tensor_utils.tensor_extend_zero(discriminator_loss),
+            ),
+        )

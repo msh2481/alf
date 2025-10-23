@@ -28,10 +28,9 @@ def _norm(x):
         return x.norm()
 
 
-def _normalize(p,
-               max_norm: Optional[float] = 1,
-               fixed_norm: bool = True,
-               zero_mean: bool = True):
+def _normalize(
+    p, max_norm: Optional[float] = 1, fixed_norm: bool = True, zero_mean: bool = True
+):
     if zero_mean:
         if p.ndim > 1:
             p.data -= p.mean(dim=tuple(range(1, p.ndim)), keepdim=True)
@@ -44,18 +43,17 @@ def _normalize(p,
         p.data *= scale
 
 
-def _get_opt_args(p,
-                  max_norm: float = 1,
-                  fixed_norm: bool = True,
-                  zero_mean: bool = True):
+def _get_opt_args(
+    p, max_norm: float = 1, fixed_norm: bool = True, zero_mean: bool = True
+):
     if p.ndim > 1:
-        max_norm = get_opt_arg(p, 'max_norm', max_norm)
-        fixed_norm = get_opt_arg(p, 'fixed_norm', fixed_norm)
-        zero_mean = get_opt_arg(p, 'zero_mean', zero_mean)
+        max_norm = get_opt_arg(p, "max_norm", max_norm)
+        fixed_norm = get_opt_arg(p, "fixed_norm", fixed_norm)
+        zero_mean = get_opt_arg(p, "zero_mean", zero_mean)
     elif p.ndim == 1:
-        zero_mean = get_opt_arg(p, 'zero_mean', False)
-        fixed_norm = get_opt_arg(p, 'fixed_norm', False)
-        max_norm = get_opt_arg(p, 'max_norm', math.inf)
+        zero_mean = get_opt_arg(p, "zero_mean", False)
+        fixed_norm = get_opt_arg(p, "fixed_norm", False)
+        max_norm = get_opt_arg(p, "max_norm", math.inf)
     return max_norm, fixed_norm, zero_mean
 
 
@@ -132,42 +130,45 @@ class NeroPlus(Optimizer):
 
     """
 
-    def __init__(self,
-                 params=[{
-                     'params': []
-                 }],
-                 lr: float = 0.01,
-                 betas: Tuple[float] = (0.9, 0.999),
-                 eps: float = 1e-7,
-                 normalizing_grad_by_norm=False,
-                 max_norm: float = 1,
-                 weight_decay: float = 0,
-                 l2_regularization: float = 0,
-                 fixed_norm: bool = True,
-                 zero_mean: bool = True):
-        defaults = dict(lr=lr,
-                        betas=betas,
-                        eps=eps,
-                        normalizing_grad_by_norm=normalizing_grad_by_norm,
-                        weight_decay=weight_decay,
-                        l2_regularization=l2_regularization,
-                        max_norm=max_norm,
-                        fixed_norm=fixed_norm,
-                        zero_mean=zero_mean)
+    def __init__(
+        self,
+        params=[{"params": []}],
+        lr: float = 0.01,
+        betas: Tuple[float] = (0.9, 0.999),
+        eps: float = 1e-7,
+        normalizing_grad_by_norm=False,
+        max_norm: float = 1,
+        weight_decay: float = 0,
+        l2_regularization: float = 0,
+        fixed_norm: bool = True,
+        zero_mean: bool = True,
+    ):
+        defaults = dict(
+            lr=lr,
+            betas=betas,
+            eps=eps,
+            normalizing_grad_by_norm=normalizing_grad_by_norm,
+            weight_decay=weight_decay,
+            l2_regularization=l2_regularization,
+            max_norm=max_norm,
+            fixed_norm=fixed_norm,
+            zero_mean=zero_mean,
+        )
         super().__init__(params, defaults)
-        assert 0 <= betas[0] < 1, ("Invalid value for betas[0]=%s" % betas[0])
-        assert 0 < betas[1] < 1, ("Invalid value for betas[1]=%s" % betas[1])
+        assert 0 <= betas[0] < 1, "Invalid value for betas[0]=%s" % betas[0]
+        assert 0 < betas[1] < 1, "Invalid value for betas[1]=%s" % betas[1]
 
     def add_param_group(self, param_group):
         super().add_param_group(param_group)
-        max_norm = param_group['max_norm']
-        fixed_norm = param_group['fixed_norm']
-        zero_mean = param_group['zero_mean']
-        beta1, beta2 = param_group['betas']
-        normalizing_grad_by_norm = param_group['normalizing_grad_by_norm']
-        for p in param_group['params']:
+        max_norm = param_group["max_norm"]
+        fixed_norm = param_group["fixed_norm"]
+        zero_mean = param_group["zero_mean"]
+        beta1, beta2 = param_group["betas"]
+        normalizing_grad_by_norm = param_group["normalizing_grad_by_norm"]
+        for p in param_group["params"]:
             pmax_norm, pfixed_norm, pzero_mean = _get_opt_args(
-                p, max_norm, fixed_norm, zero_mean)
+                p, max_norm, fixed_norm, zero_mean
+            )
             norm = _norm(p)
             if p.ndim > 1:
                 if pzero_mean:
@@ -176,7 +177,8 @@ class NeroPlus(Optimizer):
                     assert mean[i].abs() < 0.01, (
                         "Unnormalized parameter: mean()=%s"
                         "Model should be initialized using NeroPlus.initialize()"
-                        % mean[i].item())
+                        % mean[i].item()
+                    )
                 if pmax_norm != math.inf:
                     diff = norm / pmax_norm - 1
                     if pfixed_norm:
@@ -185,24 +187,28 @@ class NeroPlus(Optimizer):
                     assert diff[i] < 0.01, (
                         "Unnormalized parameter: norm=%s. "
                         "Model should be initialized using NeroPlus.initialize()"
-                        % norm[i].item())
+                        % norm[i].item()
+                    )
             state = self.state[p]
-            state['step'] = 0
+            state["step"] = 0
             if normalizing_grad_by_norm:
-                state['exp_avg_sq'] = torch.zeros_like(norm)
+                state["exp_avg_sq"] = torch.zeros_like(norm)
             else:
-                state['exp_avg_sq'] = torch.zeros_like(p)
+                state["exp_avg_sq"] = torch.zeros_like(p)
             if beta1 > 0:
-                state['exp_avg'] = torch.zeros_like(p)
+                state["exp_avg"] = torch.zeros_like(p)
 
     @staticmethod
-    def initialize(model: torch.nn.Module,
-                   max_norm: float = 1,
-                   fixed_norm: bool = True,
-                   zero_mean: bool = True):
+    def initialize(
+        model: torch.nn.Module,
+        max_norm: float = 1,
+        fixed_norm: bool = True,
+        zero_mean: bool = True,
+    ):
         for p in model.parameters():
             pmax_norm, pfixed_norm, pzero_mean = _get_opt_args(
-                p, max_norm, fixed_norm, zero_mean)
+                p, max_norm, fixed_norm, zero_mean
+            )
             _normalize(p, pmax_norm, pfixed_norm, pzero_mean)
 
     @torch.no_grad()
@@ -219,51 +225,54 @@ class NeroPlus(Optimizer):
                 loss = closure()
 
         for group in self.param_groups:
-            beta1, beta2 = group['betas']
-            base_lr = group['lr']
-            max_norm = group['max_norm']
-            fixed_norm = group['fixed_norm']
-            zero_mean = group['zero_mean']
-            normalizing_grad_by_norm = group['normalizing_grad_by_norm']
-            eps = group['eps']
-            weight_decay = group['weight_decay']
-            l2_regularization = group['l2_regularization']
+            beta1, beta2 = group["betas"]
+            base_lr = group["lr"]
+            max_norm = group["max_norm"]
+            fixed_norm = group["fixed_norm"]
+            zero_mean = group["zero_mean"]
+            normalizing_grad_by_norm = group["normalizing_grad_by_norm"]
+            eps = group["eps"]
+            weight_decay = group["weight_decay"]
+            l2_regularization = group["l2_regularization"]
             bias_correction1 = 1
-            for p in group['params']:
+            for p in group["params"]:
                 if p.grad is None:
                     continue
                 pmax_norm, pfixed_norm, pzero_mean = _get_opt_args(
-                    p, max_norm, fixed_norm, zero_mean)
-                lr = get_opt_arg(p, 'lr', base_lr)
-                lr_scale = get_opt_arg(p, 'lr_scale', 1)
+                    p, max_norm, fixed_norm, zero_mean
+                )
+                lr = get_opt_arg(p, "lr", base_lr)
+                lr_scale = get_opt_arg(p, "lr_scale", 1)
                 state = self.state[p]
-                state['step'] += 1
-                bias_correction2 = 1 - beta2**state['step']
+                state["step"] += 1
+                bias_correction2 = 1 - beta2 ** state["step"]
                 grad = p.grad
-                pweight_decay = get_opt_arg(p, 'weight_decay', weight_decay)
-                pl2_regularization = get_opt_arg(p, 'l2_regularization',
-                                                 l2_regularization)
+                pweight_decay = get_opt_arg(p, "weight_decay", weight_decay)
+                pl2_regularization = get_opt_arg(
+                    p, "l2_regularization", l2_regularization
+                )
                 if pl2_regularization != 0:
                     grad = grad.add(p, alpha=pl2_regularization)
                 if beta1 > 0:
-                    bias_correction1 = 1 - beta1**state['step']
-                    exp_avg = state['exp_avg']
+                    bias_correction1 = 1 - beta1 ** state["step"]
+                    exp_avg = state["exp_avg"]
                     exp_avg.lerp_(grad, 1 - beta1)
                 else:
                     exp_avg = grad
                 if normalizing_grad_by_norm:
-                    sq = _norm(grad)**2
+                    sq = _norm(grad) ** 2
                 else:
                     sq = grad**2
-                state['exp_avg_sq'].lerp_(sq, 1 - beta2)
-                denom = state['exp_avg_sq'].sqrt().add_(eps)
+                state["exp_avg_sq"].lerp_(sq, 1 - beta2)
+                denom = state["exp_avg_sq"].sqrt().add_(eps)
                 if pweight_decay > 0:
                     p.mul_(1 - lr_scale * lr * pweight_decay)
                 # the exponential moving average of exp_avg and exp_avg_sq are not
                 # unbiased estimate of the mean. Correct them using bas_correction1
                 # and bias_correct2 as suggest by the original Adam paper.
-                step_size = lr_scale * lr * math.sqrt(
-                    bias_correction2) / bias_correction1
+                step_size = (
+                    lr_scale * lr * math.sqrt(bias_correction2) / bias_correction1
+                )
                 # p <- p  - step_size * exp_avg / denom
                 p.addcdiv_(exp_avg, denom, value=-step_size)
                 _normalize(p, pmax_norm, pfixed_norm, pzero_mean)

@@ -28,11 +28,14 @@ from collections import namedtuple
 
 UnrollResult = namedtuple(
     "UnrollResult",
-    ["time_step", "policy_step", "policy_state", "env_step_time", "step_time"])
+    ["time_step", "policy_step", "policy_state", "env_step_time", "step_time"],
+)
 
 UnrollJob = namedtuple(
-    "UnrollJob", ["type", "step_metrics", "global_counter", "state_dict"],
-    defaults=[None] * 4)
+    "UnrollJob",
+    ["type", "step_metrics", "global_counter", "state_dict"],
+    defaults=[None] * 4,
+)
 
 
 class AsyncUnroller(object):
@@ -67,18 +70,25 @@ class AsyncUnroller(object):
         # The following line is needed for avoiding
         # "RuntimeError: unable to open shared memory object"
         # See https://github.com/facebookresearch/maskrcnn-benchmark/issues/103#issuecomment-785815218
-        mp.set_sharing_strategy('file_system')
-        if config.conf_file.endswith('.gin'):
+        mp.set_sharing_strategy("file_system")
+        if config.conf_file.endswith(".gin"):
             assert not self._async, "async_unroll is not supported for gin_file"
-        ctx = mp.get_context('spawn')
+        ctx = mp.get_context("spawn")
         self._job_queue = ctx.Queue()
         self._done_queue = ctx.Queue()
         self._result_queue = ctx.Queue(config.unroll_queue_size)
         pre_configs = dict(alf.get_handled_pre_configs())
-        self._worker = ctx.Process(target=_worker,
-                                   args=(self._job_queue, self._done_queue,
-                                         self._result_queue, config.conf_file,
-                                         pre_configs, config.root_dir))
+        self._worker = ctx.Process(
+            target=_worker,
+            args=(
+                self._job_queue,
+                self._done_queue,
+                self._result_queue,
+                config.conf_file,
+                pre_configs,
+                config.root_dir,
+            ),
+        )
         self._worker.start()
         self.update_parameter(algorithm)
         self._closed = False
@@ -86,8 +96,9 @@ class AsyncUnroller(object):
     def get_queue_size(self) -> int:
         return self._result_queue.qsize()
 
-    def gather_unroll_results(self, unroll_length: int,
-                              max_unroll_length: int) -> List[UnrollResult]:
+    def gather_unroll_results(
+        self, unroll_length: int, max_unroll_length: int
+    ) -> List[UnrollResult]:
         """Gather the unroll results:
 
         Args:
@@ -104,8 +115,10 @@ class AsyncUnroller(object):
             for i in range(unroll_length):
                 unroll_results.append(self._result_queue.get())
         else:
-            while not self._result_queue.empty() and len(
-                    unroll_results) < max_unroll_length:
+            while (
+                not self._result_queue.empty()
+                and len(unroll_results) < max_unroll_length
+            ):
                 unroll_results.append(self._result_queue.get())
         return unroll_results
 
@@ -117,10 +130,12 @@ class AsyncUnroller(object):
         """
         step_metrics = algorithm.get_step_metrics()
         step_metrics = dict((m.name, int(m.result())) for m in step_metrics)
-        job = UnrollJob(type="update_parameter",
-                        step_metrics=step_metrics,
-                        global_counter=int(alf.summary.get_global_counter()),
-                        state_dict=algorithm.state_dict())
+        job = UnrollJob(
+            type="update_parameter",
+            step_metrics=step_metrics,
+            global_counter=int(alf.summary.get_global_counter()),
+            state_dict=algorithm.state_dict(),
+        )
         self._job_queue.put(job)
         self._done_queue.get()
 
@@ -138,8 +153,14 @@ class AsyncUnroller(object):
 FLAGS = flags.FLAGS
 
 
-def _worker(job_queue: mp.Queue, done_queue: mp.Queue, result_queue: mp.Queue,
-            conf_file: str, pre_configs: Dict, root_dir: str):
+def _worker(
+    job_queue: mp.Queue,
+    done_queue: mp.Queue,
+    result_queue: mp.Queue,
+    conf_file: str,
+    pre_configs: Dict,
+    root_dir: str,
+):
     from alf.trainers import policy_trainer
 
     def _update_parameter(algorithm, job):
@@ -149,7 +170,8 @@ def _worker(job_queue: mp.Queue, done_queue: mp.Queue, result_queue: mp.Queue,
         alf.summary.set_global_counter(job.global_counter)
         env_steps = job.step_metrics["EnvironmentSteps"]
         policy_trainer.Trainer.get_trainer_progress().update(
-            job.global_counter, env_steps)
+            job.global_counter, env_steps
+        )
         algorithm.load_state_dict(job.state_dict)
         done_queue.put(None)
 
@@ -161,8 +183,7 @@ def _worker(job_queue: mp.Queue, done_queue: mp.Queue, result_queue: mp.Queue,
         elif job.type == "stop":
             return True
         else:
-            raise KeyError('Received message of unknown type {}'.format(
-                job.type))
+            raise KeyError("Received message of unknown type {}".format(job.type))
 
     try:
         logging.set_verbosity(logging.INFO)
@@ -182,19 +203,22 @@ def _worker(job_queue: mp.Queue, done_queue: mp.Queue, result_queue: mp.Queue,
         env = alf.get_env()
         env.reset()
         data_transformer = create_data_transformer(
-            config.data_transformer_ctor, env.observation_spec())
+            config.data_transformer_ctor, env.observation_spec()
+        )
         config.data_transformer = data_transformer
         observation_spec = data_transformer.transformed_observation_spec
 
         algorithm_ctor = config.algorithm_ctor
-        algorithm = algorithm_ctor(observation_spec=observation_spec,
-                                   action_spec=env.action_spec(),
-                                   reward_spec=env.reward_spec(),
-                                   config=config)
-        algorithm.set_path('')
-        policy_trainer.Trainer.get_trainer_progress(
-        ).set_termination_criterion(config.num_iterations,
-                                    config.num_env_steps)
+        algorithm = algorithm_ctor(
+            observation_spec=observation_spec,
+            action_spec=env.action_spec(),
+            reward_spec=env.reward_spec(),
+            config=config,
+        )
+        algorithm.set_path("")
+        policy_trainer.Trainer.get_trainer_progress().set_termination_criterion(
+            config.num_iterations, config.num_env_steps
+        )
 
         algorithm.eval()
         policy_state = algorithm.get_initial_rollout_state(env.batch_size)
@@ -211,11 +235,12 @@ def _worker(job_queue: mp.Queue, done_queue: mp.Queue, result_queue: mp.Queue,
         t = time.time()
         while True:
             policy_state = common.reset_state_if_necessary(
-                policy_state, initial_state, time_step.is_first())
+                policy_state, initial_state, time_step.is_first()
+            )
             transformed_time_step, trans_state = algorithm.transform_timestep(
-                time_step, trans_state)
-            policy_step = algorithm.rollout_step(transformed_time_step,
-                                                 policy_state)
+                time_step, trans_state
+            )
+            policy_step = algorithm.rollout_step(transformed_time_step, policy_state)
 
             policy_step = common.detach(policy_step)
             action = policy_step.output
@@ -228,11 +253,13 @@ def _worker(job_queue: mp.Queue, done_queue: mp.Queue, result_queue: mp.Queue,
             # step. It is used for informational purpose. When unroll_step_interval
             # is specified, it is important to monitor the actual step_time to
             # make sure it is around unroll_step_interval.
-            unroll_result = UnrollResult(time_step=time_step,
-                                         policy_step=policy_step,
-                                         policy_state=policy_state,
-                                         env_step_time=env_step_time,
-                                         step_time=step_time)
+            unroll_result = UnrollResult(
+                time_step=time_step,
+                policy_step=policy_step,
+                policy_state=policy_state,
+                env_step_time=env_step_time,
+                step_time=step_time,
+            )
 
             stopped = False
             # If result_queue is full, result_queue.put() will block, which can
@@ -284,4 +311,4 @@ def _worker(job_queue: mp.Queue, done_queue: mp.Queue, result_queue: mp.Queue,
         result_queue.cancel_join_thread()
 
     except Exception as e:
-        logging.exception(f'{mp.current_process().name} - {e}')
+        logging.exception(f"{mp.current_process().name} - {e}")

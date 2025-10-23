@@ -41,8 +41,7 @@ class WarningOnceTest(alf.test.TestCase):
                 common.warning_once(warning_messages[1])
             generated_warning_messages = log_stream.getvalue()
 
-        generated_warning_messages = generated_warning_messages.rstrip().split(
-            '\n')
+        generated_warning_messages = generated_warning_messages.rstrip().split("\n")
 
         # previously we only get one warning message here, although
         # warning once has been called multiple times at difference places
@@ -68,10 +67,17 @@ class GetAllParametersTest(alf.test.TestCase):
 
     def test_get_all_parameters(self):
         obj = MyObject()
-        names = set([
-            '_a', '_dict.a', '_dict.4', '_list.0._weight', '_list.0._bias',
-            '_list.1._weight', '_list.1._bias'
-        ])
+        names = set(
+            [
+                "_a",
+                "_dict.a",
+                "_dict.4",
+                "_list.0._weight",
+                "_list.0._bias",
+                "_list.1._weight",
+                "_list.1._bias",
+            ]
+        )
         params = common.get_all_parameters(obj)
         for name, p in params:
             self.assertTrue(name in names)
@@ -83,22 +89,22 @@ class _TestModule(torch.nn.Module):
     def __init__(self):
         super().__init__()
         # create a CPU tensor
-        self.x = torch.zeros([2]).to('cpu')
+        self.x = torch.zeros([2]).to("cpu")
         self.y = np.zeros([2])
         if torch.cuda.is_available():
             self.z = torch.zeros([2]).cuda()
 
 
 def _test_worker(m_):
-    m_.x[:] = 1.
-    m_.y[:] = 1.
+    m_.x[:] = 1.0
+    m_.y[:] = 1.0
     if torch.cuda.is_available():
-        m_.z[:] = 1.
+        m_.z[:] = 1.0
 
 
 def _launch_worker_with_ctx(ctx, module):
     """Launch a child process to mutate ``module`` using the provided context."""
-    process = ctx.Process(target=_test_worker, args=(module, ))
+    process = ctx.Process(target=_test_worker, args=(module,))
     process.start()
     common.allow_child_to_ptrace(process.pid)
     process.join()
@@ -121,7 +127,7 @@ def _test_tensor_sharing():
         # CUDA tensor is always shared
         assert m.z.is_shared()
 
-    ctx = mp.get_context('spawn')
+    ctx = mp.get_context("spawn")
     # Change ``m`` in the child process
     _launch_worker_with_ctx(ctx, m)
 
@@ -137,7 +143,8 @@ def _test_tensor_sharing():
 
     logging.fatal(
         "CPU tensors are not automatically shared between processes on this "
-        "PyTorch build. Need to fall back to explicit share_memory checks.")
+        "PyTorch build. Need to fall back to explicit share_memory checks."
+    )
 
     # Explicitly share the module and verify the behaviour still works.
     m_explicit = _TestModule()
@@ -145,7 +152,8 @@ def _test_tensor_sharing():
     _launch_worker_with_ctx(ctx, m_explicit)
     assert torch.all(m_explicit.x == torch.ones([2]).cpu()), (
         "Explicit share_memory() failed to propagate tensor updates between "
-        "processes.")
+        "processes."
+    )
     return False
 
 
@@ -156,8 +164,9 @@ class TensorSharingTest(alf.test.TestCase):
         if not auto_shared:
             self.skipTest(
                 "Automatic CPU tensor sharing is disabled on this PyTorch "
-                f"version ({torch.__version__}).")
+                f"version ({torch.__version__})."
+            )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

@@ -55,7 +55,7 @@ def _calculate_relative_position(self_transform, location):
 
     self_loc = np.array([self_loc.x, self_loc.y, self_loc.z])
     cos, sin = np.cos(yaw), np.sin(yaw)
-    rot = np.array([[cos, -sin, 0.], [sin, cos, 0.], [0., 0., 1.]])
+    rot = np.array([[cos, -sin, 0.0], [sin, cos, 0.0], [0.0, 0.0, 1.0]])
     return np.matmul(location - self_loc, rot).astype(np.float32)
 
 
@@ -71,7 +71,7 @@ def _calculate_relative_velocity(self_transform, velocity):
     yaw = math.radians(trans.rotation.yaw)
 
     cos, sin = np.cos(yaw), np.sin(yaw)
-    rot = np.array([[cos, -sin, 0.], [sin, cos, 0.], [0., 0., 1.]])
+    rot = np.array([[cos, -sin, 0.0], [sin, cos, 0.0], [0.0, 0.0, 1.0]])
     return np.matmul(velocity, rot).astype(np.float32)
 
 
@@ -89,8 +89,7 @@ def _get_self_pose(self_transform):
 
     yaw = math.radians(trans.rotation.yaw)
 
-    pose = np.concatenate((self_loc, np.array([yaw])),
-                          axis=0).astype(np.float32)
+    pose = np.concatenate((self_loc, np.array([yaw])), axis=0).astype(np.float32)
     return pose
 
 
@@ -111,8 +110,7 @@ def geo_distance(loc1, loc2):
     dlon = d[1] * d2r
     lat1 = loc1[0] * d2r
     lat2 = loc2[0] * d2r
-    a = np.sin(
-        0.5 * dlat)**2 + np.sin(0.5 * dlon)**2 * np.cos(lat1) * np.cos(lat2)
+    a = np.sin(0.5 * dlat) ** 2 + np.sin(0.5 * dlon) ** 2 * np.cos(lat1) * np.cos(lat2)
     c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
     c = earth_radius * c
     return np.sqrt(c * c + d[2] * d[2])
@@ -154,9 +152,10 @@ class TrafficLightHandler(object):
         # get all actors including traffic lights
         all_actors = alf_world._world.get_actors()
         for _actor in all_actors:
-            if 'traffic_light' in _actor.type_id:
-                tv_loc, stopline_wps, stopline_vtx = \
+            if "traffic_light" in _actor.type_id:
+                tv_loc, stopline_wps, stopline_vtx = (
                     alf_world._get_traffic_light_waypoints(_actor)
+                )
 
                 TrafficLightHandler.list_tl_actor.append(_actor)
                 TrafficLightHandler.list_tv_loc.append(tv_loc)
@@ -179,8 +178,9 @@ class TrafficLightHandler(object):
             lights respectively.
         """
         TRAFFIC_LIGHT_STATES = [
-            carla.TrafficLightState.Green, carla.TrafficLightState.Yellow,
-            carla.TrafficLightState.Red
+            carla.TrafficLightState.Green,
+            carla.TrafficLightState.Yellow,
+            carla.TrafficLightState.Red,
         ]
 
         stopline_vtx = [[] for _ in range(3)]
@@ -189,9 +189,9 @@ class TrafficLightHandler(object):
             tv_loc = TrafficLightHandler.list_tv_loc[i]
             if tv_loc.distance(query_location) > dist_threshold:
                 continue
-            stopline_vtx[TRAFFIC_LIGHT_STATES.index(
-                traffic_light.state)].extend(
-                    TrafficLightHandler.list_stopline_vtx[i])
+            stopline_vtx[TRAFFIC_LIGHT_STATES.index(traffic_light.state)].extend(
+                TrafficLightHandler.list_stopline_vtx[i]
+            )
 
         return stopline_vtx[0], stopline_vtx[1], stopline_vtx[2]
 
@@ -206,6 +206,7 @@ MAP_BOUNDARY_MARGIN = 100
 
 class MapBoundaries(NamedTuple):
     """Distances in carla.World coordinates (unit: meter)"""
+
     min_x: float
     min_y: float
     max_x: float
@@ -223,11 +224,13 @@ class MapHandler(object):
     Adapted from https://github.com/deepsense-ai/carla-birdeye-view/blob/master/carla_birdeye_view/mask.py
     """
 
-    def __init__(self,
-                 world,
-                 pixels_per_meter,
-                 render_lanes_on_junctions=False,
-                 fill_road_mask=True):
+    def __init__(
+        self,
+        world,
+        pixels_per_meter,
+        render_lanes_on_junctions=False,
+        fill_road_mask=True,
+    ):
         """
         Args:
             world (carla.World): an instance of carla.World which provides interface
@@ -254,15 +257,15 @@ class MapHandler(object):
 
         self._waypoints_by_road = self._generate_road_waypoints()
         # mask size in pixels
-        self._mask_height_in_pixels, self._mask_width_in_pixels = \
-                self._calculate_mask_size()
+        self._mask_height_in_pixels, self._mask_width_in_pixels = (
+            self._calculate_mask_size()
+        )
 
     def get_masks(self):
-        """Return the masks for all map elements.
-        """
+        """Return the masks for all map elements."""
         mask_dict = {
             "road": self.get_road_mask(self._fill_road_mask),
-            "lane": self.get_lanes_mask()
+            "lane": self.get_lanes_mask(),
         }
         return mask_dict
 
@@ -313,21 +316,21 @@ class MapHandler(object):
         """
         return MapBoundaries(
             min_x=min(
-                self._waypoints,
-                key=lambda x: x.transform.location.x).transform.location.x -
-            MAP_BOUNDARY_MARGIN,
+                self._waypoints, key=lambda x: x.transform.location.x
+            ).transform.location.x
+            - MAP_BOUNDARY_MARGIN,
             min_y=min(
-                self._waypoints,
-                key=lambda x: x.transform.location.y).transform.location.y -
-            MAP_BOUNDARY_MARGIN,
+                self._waypoints, key=lambda x: x.transform.location.y
+            ).transform.location.y
+            - MAP_BOUNDARY_MARGIN,
             max_x=max(
-                self._waypoints,
-                key=lambda x: x.transform.location.x).transform.location.x +
-            MAP_BOUNDARY_MARGIN,
+                self._waypoints, key=lambda x: x.transform.location.x
+            ).transform.location.x
+            + MAP_BOUNDARY_MARGIN,
             max_y=max(
-                self._waypoints,
-                key=lambda x: x.transform.location.y).transform.location.y +
-            MAP_BOUNDARY_MARGIN,
+                self._waypoints, key=lambda x: x.transform.location.y
+            ).transform.location.y
+            + MAP_BOUNDARY_MARGIN,
         )
 
     def _calculate_mask_size(self):
@@ -359,8 +362,8 @@ class MapHandler(object):
 
     def location_to_array(self, locations):
         """Convert the format of input positions from carla.Location to
-            np.array of the shape [L, 2], with L the number of elements
-            in `locations`.
+        np.array of the shape [L, 2], with L the number of elements
+        in `locations`.
         """
         locs = []
         for loc in locations:
@@ -376,7 +379,8 @@ class MapHandler(object):
         min_x = self._map_boundaries.min_x
         min_y = self._map_boundaries.min_y
         loc = self._pixels_per_meter * (
-            location - np.array([[min_x, min_y]], dtype=np.float32))
+            location - np.array([[min_x, min_y]], dtype=np.float32)
+        )
         return loc
 
     def get_road_mask(self, fill_road_mask=False):
@@ -390,12 +394,10 @@ class MapHandler(object):
         mask = self.make_empty_mask()
         for road_waypoints in self._waypoints_by_road:
             road_left_side = [
-                lateral_shift(w.transform, -w.lane_width * 0.5)
-                for w in road_waypoints
+                lateral_shift(w.transform, -w.lane_width * 0.5) for w in road_waypoints
             ]
             road_right_side = [
-                lateral_shift(w.transform, w.lane_width * 0.5)
-                for w in road_waypoints
+                lateral_shift(w.transform, w.lane_width * 0.5) for w in road_waypoints
             ]
 
             polygon_in_world = [*road_left_side, *reversed(road_right_side)]
@@ -403,11 +405,9 @@ class MapHandler(object):
             polygon = [self.world_to_pixel(x) for x in polygon_in_world]
             if len(polygon) > 2:
                 polygon = np.array([polygon], dtype=np.int32)
-                cv2.polylines(img=mask,
-                              pts=polygon,
-                              isClosed=True,
-                              color=1,
-                              thickness=5)
+                cv2.polylines(
+                    img=mask, pts=polygon, isClosed=True, color=1, thickness=5
+                )
                 if fill_road_mask:
                     cv2.fillPoly(img=mask, pts=polygon, color=1)
 
@@ -416,8 +416,7 @@ class MapHandler(object):
     def get_lanes_mask(self):
         mask = self.make_empty_mask()
         for road_waypoints in self._waypoints_by_road:
-            if self._render_lanes_on_junctions or not road_waypoints[
-                    0].is_junction:
+            if self._render_lanes_on_junctions or not road_waypoints[0].is_junction:
                 # Left Side
                 draw_lane_marking_single_side(
                     mask,
@@ -498,9 +497,7 @@ def draw_broken_line(canvas, color, closed, points, thickness):
     """
 
     # Select which lines are going to be rendered from the set of lines
-    broken_lines = [
-        x for n, x in enumerate(zip(*(iter(points), ) * 20)) if n % 3 == 0
-    ]
+    broken_lines = [x for n, x in enumerate(zip(*(iter(points),) * 20)) if n % 3 == 0]
 
     # Draw selected lines
     for line in broken_lines:
@@ -539,18 +536,18 @@ def get_lane_markings(
     margin = 0.25
     sign = side.value
     marking_1 = [
-        location_to_pixel_func(
-            lateral_shift(wp.transform, sign * wp.lane_width * 0.5))
+        location_to_pixel_func(lateral_shift(wp.transform, sign * wp.lane_width * 0.5))
         for wp in waypoints
     ]
     if lane_marking_type == carla.LaneMarkingType.Broken or (
-            lane_marking_type == carla.LaneMarkingType.Solid):
+        lane_marking_type == carla.LaneMarkingType.Solid
+    ):
         return [(lane_marking_type, lane_marking_color, marking_1)]
     else:
         marking_2 = [
             location_to_pixel_func(
-                lateral_shift(wp.transform,
-                              sign * (wp.lane_width * 0.5 + margin * 2)))
+                lateral_shift(wp.transform, sign * (wp.lane_width * 0.5 + margin * 2))
+            )
             for wp in waypoints
         ]
         if lane_marking_type == carla.LaneMarkingType.SolidBroken:
@@ -576,8 +573,9 @@ def get_lane_markings(
     return [(carla.LaneMarkingType.NONE, carla.LaneMarkingColor.Other, [])]
 
 
-def draw_lane_marking_single_side(canvas, waypoints, side: LaneSide,
-                                  location_to_pixel_func, lane_marking_color):
+def draw_lane_marking_single_side(
+    canvas, waypoints, side: LaneSide, location_to_pixel_func, lane_marking_color
+):
     """Draw the lane marking given a set of waypoints and decides
         whether drawing the right or left side of the waypoint based
         on the sign parameter
@@ -595,8 +593,11 @@ def draw_lane_marking_single_side(canvas, waypoints, side: LaneSide,
     temp_waypoints = []
     current_lane_marking = carla.LaneMarkingType.NONE
     for sample in waypoints:
-        lane_marking = (sample.left_lane_marking if side is LaneSide.LEFT else
-                        sample.right_lane_marking)
+        lane_marking = (
+            sample.left_lane_marking
+            if side is LaneSide.LEFT
+            else sample.right_lane_marking
+        )
 
         if lane_marking is None:
             continue
@@ -661,10 +662,12 @@ class CarlaActionWrapper(AlfEnvironmentBaseWrapper):
         self._action_spec = alf.BoundedTensorSpec(
             shape=env.action_spec().shape,
             dtype=env.action_spec().dtype,
-            minimum=-1.,
-            maximum=1.)
+            minimum=-1.0,
+            maximum=1.0,
+        )
         self._time_step_spec = env.time_step_spec()._replace(
-            prev_action=self._action_spec)
+            prev_action=self._action_spec
+        )
 
     def action_spec(self):
         return self._action_spec
@@ -694,11 +697,9 @@ class CarlaMergedActionWrapper(AlfEnvironmentBaseWrapper):
     The reverse dimension can be further removed setting exclude_reverse as True.
     """
 
-    def __init__(self,
-                 env,
-                 throttle_damping=0.1,
-                 brake_damping=0.05,
-                 exclude_reverse=True):
+    def __init__(
+        self, env, throttle_damping=0.1, brake_damping=0.05, exclude_reverse=True
+    ):
         """
         env (AlfEnvironment): environment to be wrapped. It needs to be batched.
         throttle_damping (float): the value for damping the throttle. A throttle
@@ -713,8 +714,8 @@ class CarlaMergedActionWrapper(AlfEnvironmentBaseWrapper):
         super().__init__(env)
 
         assert throttle_damping >= 0 and throttle_damping < 1, (
-            "value should"
-            " be in [0, 1)")
+            "value should" " be in [0, 1)"
+        )
         assert brake_damping >= 0 and brake_damping < 1, "value should be in [0, 1)"
 
         self._throttle_damping = throttle_damping
@@ -727,16 +728,18 @@ class CarlaMergedActionWrapper(AlfEnvironmentBaseWrapper):
             self._merged_action_dim = self._full_action_dim - 2
 
         self._action_spec = alf.BoundedTensorSpec(
-            shape=(self._merged_action_dim, ),
+            shape=(self._merged_action_dim,),
             dtype=env.action_spec().dtype,
-            minimum=-1.,
-            maximum=1.)
+            minimum=-1.0,
+            maximum=1.0,
+        )
         self._time_step_spec = env.time_step_spec()._replace(
-            prev_action=self._action_spec)
+            prev_action=self._action_spec
+        )
 
         self._prev_action_merged = torch.zeros(
-            (self.batch_size, *self._action_spec.shape),
-            dtype=self._action_spec.dtype)
+            (self.batch_size, *self._action_spec.shape), dtype=self._action_spec.dtype
+        )
 
         # precompute conversion ratio
         self._conversion_ratio_throttle = 1 - throttle_damping
@@ -750,21 +753,23 @@ class CarlaMergedActionWrapper(AlfEnvironmentBaseWrapper):
 
     def _step(self, action):
 
-        unmerged_action = torch.zeros(*action.shape[0:-1],
-                                      self._full_action_dim)
+        unmerged_action = torch.zeros(*action.shape[0:-1], self._full_action_dim)
         # throttle
-        valid_mask_throttle = (action[..., 0]
-                               >= self._throttle_damping).float()
-        unmerged_action[..., 0] = valid_mask_throttle * (
-            action[..., 0] -
-            self._throttle_dammping) / self._conversion_ratio_throttle
+        valid_mask_throttle = (action[..., 0] >= self._throttle_damping).float()
+        unmerged_action[..., 0] = (
+            valid_mask_throttle
+            * (action[..., 0] - self._throttle_dammping)
+            / self._conversion_ratio_throttle
+        )
         # steer
         unmerged_action[..., 1] = action[..., 1]
         # brake
         valid_mask_brake = (action[..., 0] <= -self._brake_damping).float()
-        unmerged_action[..., 2] = -valid_mask_brake * (
-            action[..., 0] +
-            self._brake_damping) / self._conversion_ratio_brake
+        unmerged_action[..., 2] = (
+            -valid_mask_brake
+            * (action[..., 0] + self._brake_damping)
+            / self._conversion_ratio_brake
+        )
         # reverse
         if not self._exclude_reverse:
             unmerged_action[..., 3] = torch.clamp(action[..., 2])
@@ -777,11 +782,9 @@ class CarlaMergedActionWrapper(AlfEnvironmentBaseWrapper):
         # since the returned time_step is the next time_step, we need to
         # use the updated prev_action, which is the input action.
         if torch.is_tensor(time_step.prev_action):
-            time_step = time_step._replace(
-                prev_action=self._prev_action_merged)
+            time_step = time_step._replace(prev_action=self._prev_action_merged)
         else:
-            time_step = time_step._replace(
-                prev_action=self._prev_action_merged)
+            time_step = time_step._replace(prev_action=self._prev_action_merged)
 
         return time_step
 
@@ -789,9 +792,11 @@ class CarlaMergedActionWrapper(AlfEnvironmentBaseWrapper):
         time_step = self._env.reset()
         if torch.is_tensor(time_step.prev_action):
             time_step = time_step._replace(
-                prev_action=torch.zeros_like(self._prev_action_merged))
+                prev_action=torch.zeros_like(self._prev_action_merged)
+            )
         else:
             time_step = time_step._replace(
-                prev_action=np.zeros_like(self._prev_action_merged))
+                prev_action=np.zeros_like(self._prev_action_merged)
+            )
 
         return time_step

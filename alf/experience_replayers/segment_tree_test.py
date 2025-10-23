@@ -27,7 +27,7 @@ class SegmentTreeTest(alf.test.TestCase):
             vals = torch.zeros(size, dtype=torch.float32)
             for _ in range(100):
                 n = random.randint(1, size)
-                i = torch.randint(size, size=(n, ), dtype=torch.int64)
+                i = torch.randint(size, size=(n,), dtype=torch.int64)
                 i, _ = torch.sort(i)
                 i = torch.unique(i)
                 i = alf.math.shuffle(i)
@@ -44,7 +44,7 @@ class SegmentTreeTest(alf.test.TestCase):
             vals = torch.zeros(size, dtype=torch.float32)
             for _ in range(100):
                 n = random.randint(1, size)
-                i = torch.randint(size, size=(n, ), dtype=torch.int64)
+                i = torch.randint(size, size=(n,), dtype=torch.int64)
                 i, _ = torch.sort(i)
                 i = torch.unique(i)
                 i = alf.math.shuffle(i)
@@ -54,10 +54,10 @@ class SegmentTreeTest(alf.test.TestCase):
                 self.assertEqual(tree.summary(), vals.sum())
 
             s = torch.cumsum(vals, 0)
-            s = torch.cat([torch.tensor([0.]), s[:-1]])
+            s = torch.cat([torch.tensor([0.0]), s[:-1]])
             for _ in range(100):
                 n = random.randint(1, size)
-                i = torch.randint(size, size=(n, ), dtype=torch.int64)
+                i = torch.randint(size, size=(n,), dtype=torch.int64)
                 i, _ = torch.sort(i)
                 i = torch.unique(i)
                 i = alf.math.shuffle(i)
@@ -77,5 +77,5 @@ class SegmentTreeTest(alf.test.TestCase):
         self.assertEqual(tree.find_sum_bound(thresh), 8)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

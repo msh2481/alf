@@ -22,6 +22,7 @@ class PerProcessContext(object):
     where properties such as the rank of the process and the total
     number of processes can be accessed via this interface.
     """
+
     _instance = None
 
     def __new__(cls):
@@ -39,12 +40,10 @@ class PerProcessContext(object):
         return cls._instance
 
     def finalize(self) -> None:
-        """Lock the context so that it becomes read only.
-        """
+        """Lock the context so that it becomes read only."""
         self._read_only = True
 
-    def set_distributed(self, rank: int, local_rank: int,
-                        num_processes: int) -> None:
+    def set_distributed(self, rank: int, local_rank: int, num_processes: int) -> None:
         """Set the distributed properties.
 
         Args:
@@ -54,7 +53,8 @@ class PerProcessContext(object):
         """
         if self._read_only:
             raise AttributeError(
-                'Cannot mutate PerProcessContext after it is finalized')
+                "Cannot mutate PerProcessContext after it is finalized"
+            )
         self._ddp_rank = rank
         self._local_rank = local_rank
         self._num_processes = num_processes
@@ -67,7 +67,8 @@ class PerProcessContext(object):
         """
         if self._read_only:
             raise AttributeError(
-                'Cannot mutate PerProcessContext after it is finalized')
+                "Cannot mutate PerProcessContext after it is finalized"
+            )
         self._paras_queue = paras_queue
 
     @property

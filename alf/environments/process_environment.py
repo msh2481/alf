@@ -33,8 +33,16 @@ import alf
 import alf.nest as nest
 from alf.utils import common
 from alf.utils.per_process_context import PerProcessContext
-from alf.utils.schedulers import update_all_progresses, get_all_progresses, disallow_scheduler
-from alf.utils.spawned_process_utils import SpawnedProcessContext, get_spawned_process_context, set_spawned_process_context
+from alf.utils.schedulers import (
+    update_all_progresses,
+    get_all_progresses,
+    disallow_scheduler,
+)
+from alf.utils.spawned_process_utils import (
+    SpawnedProcessContext,
+    get_spawned_process_context,
+    set_spawned_process_context,
+)
 from alf.utils.common import lazy_load_extension
 import pathlib
 
@@ -43,9 +51,15 @@ _penv = lazy_load_extension(
     name="penv",
     sources=[os.path.join(DIR, "parallel_environment.cpp")],
     extra_cflags=[
-        '-O3', '-Wall', '-shared', '-std=c++17', '-fPIC', '-fvisibility=hidden'
+        "-O3",
+        "-Wall",
+        "-shared",
+        "-std=c++17",
+        "-fPIC",
+        "-fvisibility=hidden",
     ],
-    verbose=True)
+    verbose=True,
+)
 
 FLAGS = flags.FLAGS
 
@@ -64,8 +78,7 @@ def _init_after_spawn(context: SpawnedProcessContext):
 
     """
     if context.ddp_rank >= 0:
-        PerProcessContext().set_distributed(context.ddp_rank,
-                                            context.ddp_num_procs)
+        PerProcessContext().set_distributed(context.ddp_rank, context.ddp_num_procs)
 
     # 0. Update the global context for this spawned process. This will
     #    alter the behavior of ``get_env()``.
@@ -75,8 +88,8 @@ def _init_after_spawn(context: SpawnedProcessContext):
     #    relevant flags are defined below. Note that the command line arguments
     #    and options are inherited from the parent process via ``sys.argv``.
     flags.DEFINE_string(
-        "root_dir", None,
-        'Root directory for writing logs/summaries/checkpoints.')
+        "root_dir", None, "Root directory for writing logs/summaries/checkpoints."
+    )
     flags.DEFINE_string("conf", None, "Path to the alf config file.")
     flags.DEFINE_multi_string("conf_param", None, "Config binding parameters.")
     FLAGS(sys.argv, known_only=True)
@@ -98,6 +111,7 @@ class _MessageType(Enum):
     The ProcessEnvironment uses pipe to perform IPC, where each of the message
     has a message type. This Enum provides all the available message types.
     """
+
     READY = 1
     ACCESS = 2
     CALL = 3
@@ -107,19 +121,21 @@ class _MessageType(Enum):
     SYNC_PROGRESS = 7
 
 
-def _worker(conn: multiprocessing.connection,
-            env_constructor: Callable,
-            start_method: str,
-            pre_configs: List[Tuple[str, Any]],
-            env_id: int = None,
-            flatten: bool = False,
-            fast: bool = False,
-            num_envs: int = 0,
-            torch_num_threads_per_env: int = 1,
-            ddp_num_procs: int = 1,
-            ddp_rank: int = -1,
-            local_rank: int = -1,
-            name: str = ''):
+def _worker(
+    conn: multiprocessing.connection,
+    env_constructor: Callable,
+    start_method: str,
+    pre_configs: List[Tuple[str, Any]],
+    env_id: int = None,
+    flatten: bool = False,
+    fast: bool = False,
+    num_envs: int = 0,
+    torch_num_threads_per_env: int = 1,
+    ddp_num_procs: int = 1,
+    ddp_rank: int = -1,
+    local_rank: int = -1,
+    name: str = "",
+):
     """The process waits for actions and sends back environment results.
 
     Args:
@@ -151,12 +167,15 @@ def _worker(conn: multiprocessing.connection,
             threadpoolctl.threadpool_limits(torch_num_threads_per_env)
         if start_method == "spawn":
             _init_after_spawn(
-                SpawnedProcessContext(ddp_num_procs=ddp_num_procs,
-                                      ddp_rank=ddp_rank,
-                                      local_rank=local_rank,
-                                      env_id=env_id,
-                                      env_ctor=env_constructor,
-                                      pre_configs=pre_configs))
+                SpawnedProcessContext(
+                    ddp_num_procs=ddp_num_procs,
+                    ddp_rank=ddp_rank,
+                    local_rank=local_rank,
+                    env_id=env_id,
+                    env_ctor=env_constructor,
+                    pre_configs=pre_configs,
+                )
+            )
             # env may have been created during parse_conf_file called by _init_after_spawn
             # so we should not create it again using env_constructor
             env = alf.get_env()
@@ -167,11 +186,16 @@ def _worker(conn: multiprocessing.connection,
         action_spec = env.action_spec()
         if fast:
             penv = _penv.ProcessEnvironment(
-                env, partial(process_call, conn, env, flatten,
-                             action_spec), env_id, num_envs, env.batch_size,
-                env.batched, env.action_spec(),
+                env,
+                partial(process_call, conn, env, flatten, action_spec),
+                env_id,
+                num_envs,
+                env.batch_size,
+                env.batched,
+                env.action_spec(),
                 env.time_step_spec()._replace(env_info=env.env_info_spec()),
-                name)
+                name,
+            )
             conn.send(_MessageType.READY)  # Ready.
             try:
                 penv.worker()
@@ -194,8 +218,8 @@ def _worker(conn: multiprocessing.connection,
         conn.send((_MessageType.CLOSE, None))
     except Exception:  # pylint: disable=broad-except
         etype, evalue, tb = sys.exc_info()
-        stacktrace = ''.join(traceback.format_exception(etype, evalue, tb))
-        message = 'Error in environment process: {}'.format(stacktrace)
+        stacktrace = "".join(traceback.format_exception(etype, evalue, tb))
+        message = "Error in environment process: {}".format(stacktrace)
         logging.error(message)
         conn.send((_MessageType.EXCEPTION, stacktrace))
     finally:
@@ -222,13 +246,14 @@ def process_call(conn, env, flatten, action_spec):
         conn.send((_MessageType.RESULT, result))
     elif message == _MessageType.CALL:
         name, args, kwargs = payload
-        if flatten and name == 'step':
+        if flatten and name == "step":
             args = [nest.pack_sequence_as(action_spec, args[0])]
         result = getattr(env, name)(*args, **kwargs)
-        if flatten and name in ['step', 'reset']:
+        if flatten and name in ["step", "reset"]:
             result = nest.flatten(result)
-            assert all([not isinstance(x, torch.Tensor) for x in result
-                        ]), ("Tensor result is not allowed: %s" % name)
+            assert all([not isinstance(x, torch.Tensor) for x in result]), (
+                "Tensor result is not allowed: %s" % name
+            )
         conn.send((_MessageType.RESULT, result))
     elif message == _MessageType.SYNC_PROGRESS:
         update_all_progresses(payload)
@@ -237,21 +262,23 @@ def process_call(conn, env, flatten, action_spec):
         env.close()
         return False
     else:
-        raise KeyError('Received message of unknown type {}'.format(message))
+        raise KeyError("Received message of unknown type {}".format(message))
     return True
 
 
 class ProcessEnvironment(object):
 
-    def __init__(self,
-                 env_constructor: Callable,
-                 env_id: int = None,
-                 flatten: bool = False,
-                 fast: bool = False,
-                 num_envs: int = 0,
-                 torch_num_threads_per_env: int = 1,
-                 start_method: str = "fork",
-                 name: str = ""):
+    def __init__(
+        self,
+        env_constructor: Callable,
+        env_id: int = None,
+        flatten: bool = False,
+        fast: bool = False,
+        num_envs: int = 0,
+        torch_num_threads_per_env: int = 1,
+        start_method: str = "fork",
+        name: str = "",
+    ):
         """Step environment in a separate process for lock free parallelism.
 
         The environment is created in an external process by calling the provided
@@ -291,10 +318,10 @@ class ProcessEnvironment(object):
         self._fast = fast
         self._num_envs = num_envs
         self._torch_num_threads = torch_num_threads_per_env
-        assert start_method in [
-            "fork", "spawn"
-        ], (f"Unrecognized start method '{start_method}' specified for "
-            "ProcessEnvironment. It should be either 'fork' or 'spawn'.")
+        assert start_method in ["fork", "spawn"], (
+            f"Unrecognized start method '{start_method}' specified for "
+            "ProcessEnvironment. It should be either 'fork' or 'spawn'."
+        )
         self._start_method = start_method
         self._name = name
         if fast:
@@ -316,11 +343,23 @@ class ProcessEnvironment(object):
 
         self._process = mp_ctx.Process(
             target=_worker,
-            args=(conn, self._env_constructor, self._start_method,
-                  alf.get_handled_pre_configs(), self._env_id, self._flatten,
-                  self._fast, self._num_envs, self._torch_num_threads,
-                  ddp_num_procs, ddp_rank, local_rank, self._name),
-            name=f"ProcessEnvironment-{self._env_id}")
+            args=(
+                conn,
+                self._env_constructor,
+                self._start_method,
+                alf.get_handled_pre_configs(),
+                self._env_id,
+                self._flatten,
+                self._fast,
+                self._num_envs,
+                self._torch_num_threads,
+                ddp_num_procs,
+                ddp_rank,
+                local_rank,
+                self._name,
+            ),
+            name=f"ProcessEnvironment-{self._env_id}",
+        )
         atexit.register(self.close)
         self._process.start()
         if wait_to_start:
@@ -338,27 +377,27 @@ class ProcessEnvironment(object):
 
     def env_info_spec(self):
         if not self._env_info_spec:
-            self._env_info_spec = self.call('env_info_spec')()
+            self._env_info_spec = self.call("env_info_spec")()
         return self._env_info_spec
 
     def observation_spec(self):
         if not self._observation_spec:
-            self._observation_spec = self.call('observation_spec')()
+            self._observation_spec = self.call("observation_spec")()
         return self._observation_spec
 
     def action_spec(self):
         if not self._action_spec:
-            self._action_spec = self.call('action_spec')()
+            self._action_spec = self.call("action_spec")()
         return self._action_spec
 
     def reward_spec(self):
         if not self._reward_spec:
-            self._reward_spec = self.call('reward_spec')()
+            self._reward_spec = self.call("reward_spec")()
         return self._reward_spec
 
     def time_step_spec(self):
         if not self._time_step_spec:
-            self._time_step_spec = self.call('time_step_spec')()
+            self._time_step_spec = self.call("time_step_spec")()
         return self._time_step_spec
 
     def __getattr__(self, name):
@@ -420,7 +459,7 @@ class ProcessEnvironment(object):
         Returns:
             time step when blocking, otherwise callable that returns the time step.
         """
-        promise = self.call('step', action)
+        promise = self.call("step", action)
         if blocking:
             return promise()
         else:
@@ -436,15 +475,14 @@ class ProcessEnvironment(object):
             New observation when blocking, otherwise callable that returns the new
             observation.
         """
-        promise = self.call('reset')
+        promise = self.call("reset")
         if blocking:
             return promise()
         else:
             return promise
 
     def sync_progress(self):
-        """Sync the progress of the environment.
-        """
+        """Sync the progress of the environment."""
         if self._fast:
             self._penv.call()
         self._conn.send((_MessageType.SYNC_PROGRESS, get_all_progresses()))
@@ -473,10 +511,9 @@ class ProcessEnvironment(object):
             # panic and handle it quietly.
             return None
         self.close()
-        raise KeyError(
-            'Received message of unexpected type {}'.format(message))
+        raise KeyError("Received message of unexpected type {}".format(message))
 
-    def render(self, mode='human'):
+    def render(self, mode="human"):
         """Render the environment.
 
         Args:
@@ -489,4 +526,4 @@ class ProcessEnvironment(object):
         Raises:
             NotImplementedError: If the environment does not support rendering.
         """
-        return self.call('render', mode)()
+        return self.call("render", mode)()

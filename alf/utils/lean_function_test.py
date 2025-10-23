@@ -72,7 +72,8 @@ class TestLeanFunction(alf.test.TestCase):
     def test_lean_function_network(self):
         func1 = alf.nn.Sequential(
             alf.layers.FC(3, 5, activation=torch.relu_),
-            alf.layers.FC(5, 1, activation=torch.sigmoid))
+            alf.layers.FC(5, 1, activation=torch.sigmoid),
+        )
         func2 = func1.copy()
         for p1, p2 in zip(func1.parameters(), func2.parameters()):
             p2.data.copy_(p1)
@@ -96,7 +97,8 @@ class TestLeanFunction(alf.test.TestCase):
     def test_lean_fucntion_autocast(self):
         func1 = alf.nn.Sequential(
             alf.layers.FC(3, 5, activation=torch.relu_),
-            alf.layers.FC(5, 1, activation=torch.sigmoid))
+            alf.layers.FC(5, 1, activation=torch.sigmoid),
+        )
         func2 = func1.copy()
         for p1, p2 in zip(func1.parameters(), func2.parameters()):
             p2.data.copy_(p1)
@@ -143,5 +145,5 @@ class TestLeanFunction(alf.test.TestCase):
             self.assertTensorEqual(p1.grad, p2.grad)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

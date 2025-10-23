@@ -23,7 +23,7 @@ from alf.utils import math_ops
 # default params
 lr = 1e-4
 encoding_dim = 256
-fc_layers_params = (encoding_dim, ) * 2
+fc_layers_params = (encoding_dim,) * 2
 activation = torch.relu_
 
 offline_buffer_length = None
@@ -33,44 +33,52 @@ offline_buffer_dir = [
 
 env_name = "Pendulum-v0"
 
-alf.config("create_environment",
-           env_name=env_name,
-           num_parallel_environments=1)
+alf.config("create_environment", env_name=env_name, num_parallel_environments=1)
 
 alf.config(
-    'Agent',
+    "Agent",
     rl_algorithm_cls=CausalBcAlgorithm,
     optimizer=alf.optimizers.Adam(lr=lr),
 )
 
-alf.config('TrainerConfig',
-           algorithm_ctor=Agent,
-           whole_replay_buffer_training=False,
-           clear_replay_buffer=False)
+alf.config(
+    "TrainerConfig",
+    algorithm_ctor=Agent,
+    whole_replay_buffer_training=False,
+    clear_replay_buffer=False,
+)
 
-proj_net = partial(alf.networks.StableNormalProjectionNetwork,
-                   state_dependent_std=True,
-                   squash_mean=False,
-                   scale_distribution=True,
-                   min_std=1e-3,
-                   max_std=10)
+proj_net = partial(
+    alf.networks.StableNormalProjectionNetwork,
+    state_dependent_std=True,
+    squash_mean=False,
+    scale_distribution=True,
+    min_std=1e-3,
+    max_std=10,
+)
 
-actor_network_cls = partial(alf.networks.ActorDistributionNetwork,
-                            fc_layer_params=fc_layers_params,
-                            activation=activation,
-                            continuous_projection_net_ctor=proj_net)
+actor_network_cls = partial(
+    alf.networks.ActorDistributionNetwork,
+    fc_layer_params=fc_layers_params,
+    activation=activation,
+    continuous_projection_net_ctor=proj_net,
+)
 
 action_spec = alf.get_action_spec()
-discriminator_network_cls = partial(alf.networks.EncodingNetwork,
-                                    fc_layer_params=fc_layers_params,
-                                    activation=activation,
-                                    last_layer_size=action_spec.numel,
-                                    last_activation=math_ops.identity)
-alf.config('CausalBcAlgorithm',
-           bc_regulatization_weight=1e-1,
-           f_norm_penalty_weight=1e-1,
-           actor_network_cls=actor_network_cls,
-           discriminator_network_cls=discriminator_network_cls)
+discriminator_network_cls = partial(
+    alf.networks.EncodingNetwork,
+    fc_layer_params=fc_layers_params,
+    activation=activation,
+    last_layer_size=action_spec.numel,
+    last_activation=math_ops.identity,
+)
+alf.config(
+    "CausalBcAlgorithm",
+    bc_regulatization_weight=1e-1,
+    f_norm_penalty_weight=1e-1,
+    actor_network_cls=actor_network_cls,
+    discriminator_network_cls=discriminator_network_cls,
+)
 
 num_iterations = 1000000
 

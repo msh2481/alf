@@ -42,9 +42,10 @@ SEditorInfo = namedtuple(
         "discount",
         "actor",
         "critic",
-        "alpha"
+        "alpha",
     ],
-    default_value=())
+    default_value=(),
+)
 
 SEditorActorInfo = namedtuple(
     "SEditorActorInfo",
@@ -54,16 +55,18 @@ SEditorActorInfo = namedtuple(
         "a_entropy",  # entropy of UM policy
         "da_entropy",  # entropy of SE policy
         "change_a_loss",  # action editing loss :math:`-d(a,\hat{a})`
-        "a_l2"  # :math:`|a-\hat{a}|^2`
+        "a_l2",  # :math:`|a-\hat{a}|^2`
     ],
-    default_value=())
+    default_value=(),
+)
 
-SEditorCriticInfo = namedtuple("SEditorCriticInfo",
-                               ["critics", "target_critic"],
-                               default_value=())
+SEditorCriticInfo = namedtuple(
+    "SEditorCriticInfo", ["critics", "target_critic"], default_value=()
+)
 
-SEditorLossInfo = namedtuple("SEditorLossInfo", ["actor", "critic", "alpha"],
-                             default_value=())
+SEditorLossInfo = namedtuple(
+    "SEditorLossInfo", ["actor", "critic", "alpha"], default_value=()
+)
 
 ActPredOutput = namedtuple(
     "ActPredOutput",
@@ -72,15 +75,18 @@ ActPredOutput = namedtuple(
         "da",  # :math:`\delta a` by SE
         "a_dist",  # action proposal distribution
         "da_dist",  # delta distribution
-        "output"  # final output after action editing
+        "output",  # final output after action editing
     ],
-    default_value=())
+    default_value=(),
+)
 
 Actions = namedtuple(
-    "Actions", ["out_a_UM_detached", "out_a_SE_detached", "a_UM_detached"],
-    default_value=())
+    "Actions",
+    ["out_a_UM_detached", "out_a_SE_detached", "a_UM_detached"],
+    default_value=(),
+)
 
-Mode = Enum('AlgorithmMode', ('predict', 'rollout', 'train'))
+Mode = Enum("AlgorithmMode", ("predict", "rollout", "train"))
 
 
 @alf.configurable
@@ -99,29 +105,31 @@ class SEditorAlgorithm(OffPolicyAlgorithm):
     ``ActPredOutput.output``.
     """
 
-    def __init__(self,
-                 observation_spec: TensorSpec,
-                 action_spec: BoundedTensorSpec,
-                 reward_spec: TensorSpec,
-                 actor_network_ctor: Callable = ActorDistributionNetwork,
-                 critic_network_ctor: Callable = CriticNetwork,
-                 reward_weights: List[float] = None,
-                 num_critic_replicas: int = 2,
-                 initial_alpha: Union[float, Tuple[float, float]] = 1.,
-                 train_alpha: bool = True,
-                 epsilon_greedy: float = None,
-                 soft_clipping: bool = False,
-                 hinge_softness: float = 0.1,
-                 regularize_action_diff: bool = False,
-                 env=None,
-                 config: TrainerConfig = None,
-                 target_update_tau: float = 0.05,
-                 target_update_period: float = 1,
-                 critic_loss_ctor: Callable = None,
-                 optimizer: torch.optim.Optimizer = None,
-                 debug_summaries: bool = False,
-                 target_entropy: Callable = None,
-                 name="SEditorAlgorithm"):
+    def __init__(
+        self,
+        observation_spec: TensorSpec,
+        action_spec: BoundedTensorSpec,
+        reward_spec: TensorSpec,
+        actor_network_ctor: Callable = ActorDistributionNetwork,
+        critic_network_ctor: Callable = CriticNetwork,
+        reward_weights: List[float] = None,
+        num_critic_replicas: int = 2,
+        initial_alpha: Union[float, Tuple[float, float]] = 1.0,
+        train_alpha: bool = True,
+        epsilon_greedy: float = None,
+        soft_clipping: bool = False,
+        hinge_softness: float = 0.1,
+        regularize_action_diff: bool = False,
+        env=None,
+        config: TrainerConfig = None,
+        target_update_tau: float = 0.05,
+        target_update_period: float = 1,
+        critic_loss_ctor: Callable = None,
+        optimizer: torch.optim.Optimizer = None,
+        debug_summaries: bool = False,
+        target_entropy: Callable = None,
+        name="SEditorAlgorithm",
+    ):
         """
         Args:
             reward_spec: a two-dim reward spec. The first dim should be the utility
@@ -156,45 +164,53 @@ class SEditorAlgorithm(OffPolicyAlgorithm):
                 entropies for UM and SE.
         """
 
-        assert len(
-            nest.flatten(action_spec)) == 1 and action_spec.is_continuous, (
-                "Only support a single continuous action!")
+        assert (
+            len(nest.flatten(action_spec)) == 1 and action_spec.is_continuous
+        ), "Only support a single continuous action!"
         # d0 is utility and d1 is constraint
         assert reward_spec.numel == 2
 
         self._num_critic_replicas = num_critic_replicas
         if epsilon_greedy is None:
-            epsilon_greedy = alf.get_config_value(
-                'TrainerConfig.epsilon_greedy')
+            epsilon_greedy = alf.get_config_value("TrainerConfig.epsilon_greedy")
         self._epsilon_greedy = epsilon_greedy
 
-        (critic_networks, actor_network,
-         d_actor_network) = self._make_networks(observation_spec, action_spec,
-                                                reward_spec,
-                                                actor_network_ctor,
-                                                critic_network_ctor)
+        (critic_networks, actor_network, d_actor_network) = self._make_networks(
+            observation_spec,
+            action_spec,
+            reward_spec,
+            actor_network_ctor,
+            critic_network_ctor,
+        )
 
         if not isinstance(initial_alpha, (tuple, list)):
-            initial_alpha = (initial_alpha, ) * 2
+            initial_alpha = (initial_alpha,) * 2
         log_alpha = nest.map_structure(
-            lambda ia: nn.Parameter(torch.tensor(ia).log()), initial_alpha)
+            lambda ia: nn.Parameter(torch.tensor(ia).log()), initial_alpha
+        )
 
-        super().__init__(observation_spec,
-                         action_spec,
-                         train_state_spec=(),
-                         reward_spec=reward_spec,
-                         reward_weights=reward_weights,
-                         env=env,
-                         config=config,
-                         debug_summaries=debug_summaries,
-                         name=name)
+        super().__init__(
+            observation_spec,
+            action_spec,
+            train_state_spec=(),
+            reward_spec=reward_spec,
+            reward_weights=reward_weights,
+            env=env,
+            config=config,
+            debug_summaries=debug_summaries,
+            name=name,
+        )
 
         if optimizer is not None:
-            self.add_optimizer(optimizer, [
-                actor_network,
-                d_actor_network,
-                critic_networks,
-            ] + log_alpha)
+            self.add_optimizer(
+                optimizer,
+                [
+                    actor_network,
+                    d_actor_network,
+                    critic_networks,
+                ]
+                + log_alpha,
+            )
 
         self._log_alpha = log_alpha
         self._log_alpha_paralist = nn.ParameterList(log_alpha)
@@ -211,87 +227,104 @@ class SEditorAlgorithm(OffPolicyAlgorithm):
         # the other network (Blue and orange paths in Figure 2).
         # After each gradient update, these two copies will get updated.
         self._actor_network_opt_ignored = actor_network.copy(
-            name='actor_network_opt_ignored')
+            name="actor_network_opt_ignored"
+        )
         self._d_actor_network_opt_ignored = d_actor_network.copy(
-            name='d_actor_network_opt_ignored')
+            name="d_actor_network_opt_ignored"
+        )
 
         self._critic_networks = critic_networks
         self._target_critic_networks = self._critic_networks.copy(
-            name='target_critic_networks')
+            name="target_critic_networks"
+        )
 
         self._hinge_softness = hinge_softness
         self._regularize_action_diff = regularize_action_diff
 
         if critic_loss_ctor is None:
             critic_loss_ctor = TDLoss
-        critic_loss_ctor = functools.partial(critic_loss_ctor,
-                                             debug_summaries=debug_summaries)
+        critic_loss_ctor = functools.partial(
+            critic_loss_ctor, debug_summaries=debug_summaries
+        )
 
         # Have different names to separate their summary curves
         self._critic_losses = []
         for i in range(num_critic_replicas):
-            self._critic_losses.append(
-                critic_loss_ctor(name="critic_loss%d" % (i + 1)))
+            self._critic_losses.append(critic_loss_ctor(name="critic_loss%d" % (i + 1)))
         self._gamma = self._critic_losses[0]._gamma
 
         if not isinstance(target_entropy, tuple):
-            target_entropy = (target_entropy, ) * 2
+            target_entropy = (target_entropy,) * 2
         self._target_entropy = nest.map_structure(
             lambda spec, t: _set_target_entropy(self.name, t, [spec]),
-            (action_spec, action_spec), target_entropy)
+            (action_spec, action_spec),
+            target_entropy,
+        )
 
         self._update_target = common.TargetUpdater(
             models=[self._critic_networks],
             target_models=[self._target_critic_networks],
             tau=target_update_tau,
-            period=target_update_period)
+            period=target_update_period,
+        )
 
         self._actor_networks_copy = common.TargetUpdater(
             models=[self._actor_network, self._d_actor_network],
             target_models=[
                 self._actor_network_opt_ignored,
-                self._d_actor_network_opt_ignored
+                self._d_actor_network_opt_ignored,
             ],
             tau=1,
-            period=1)
+            period=1,
+        )
 
     def _trainable_attributes_to_ignore(self):
         return [
-            '_target_critic_networks', '_actor_network_opt_ignored',
-            '_d_actor_network_opt_ignored'
+            "_target_critic_networks",
+            "_actor_network_opt_ignored",
+            "_d_actor_network_opt_ignored",
         ]
 
     def after_update(self, root_inputs, info: SEditorInfo):
         self._update_target()
         self._actor_networks_copy()
 
-    def _make_networks(self, observation_spec, action_spec, reward_spec,
-                       actor_network_ctor, critic_network_ctor):
+    def _make_networks(
+        self,
+        observation_spec,
+        action_spec,
+        reward_spec,
+        actor_network_ctor,
+        critic_network_ctor,
+    ):
 
         def _make_parallel(net):
-            return net.make_parallel(self._num_critic_replicas *
-                                     reward_spec.numel)
+            return net.make_parallel(self._num_critic_replicas * reward_spec.numel)
 
         obs_action_spec = (observation_spec, action_spec)
         actor_network = actor_network_ctor(
             input_tensor_spec=observation_spec,
             input_preprocessors=alf.layers.Detach(),
-            action_spec=action_spec)
+            action_spec=action_spec,
+        )
         d_actor_network = actor_network_ctor(
             input_tensor_spec=obs_action_spec,
             input_preprocessors=(alf.layers.Detach(), None),
             preprocessing_combiner=nest_utils.NestConcat(),
-            action_spec=action_spec)
+            action_spec=action_spec,
+        )
         critic_network = critic_network_ctor(input_tensor_spec=obs_action_spec)
         critic_networks = _make_parallel(critic_network)
 
         return critic_networks, actor_network, d_actor_network
 
-    def _forward(self,
-                 time_step: TimeStep,
-                 epsilon_greedy: float,
-                 mode: Mode,
-                 opt_ignore: str = 'none') -> ActPredOutput:
+    def _forward(
+        self,
+        time_step: TimeStep,
+        epsilon_greedy: float,
+        mode: Mode,
+        opt_ignore: str = "none",
+    ) -> ActPredOutput:
         r"""
         Doing one inference of SEditor. We first compute :math:`\hat{a}` using UM and
         then compute :math:`\delta a` using SE. Finally we using the action editing
@@ -326,38 +359,38 @@ class SEditorAlgorithm(OffPolicyAlgorithm):
                 a = dist_utils.rsample_action_distribution(dist)
             return a, dist
 
-        a_net = (self._actor_network_opt_ignored
-                 if opt_ignore == 'a' else self._actor_network)
-        da_net = (self._d_actor_network_opt_ignored
-                  if opt_ignore == 'da' else self._d_actor_network)
+        a_net = (
+            self._actor_network_opt_ignored
+            if opt_ignore == "a"
+            else self._actor_network
+        )
+        da_net = (
+            self._d_actor_network_opt_ignored
+            if opt_ignore == "da"
+            else self._d_actor_network
+        )
 
         # sample `a` according to current actor network
         a, a_dist = _actor(a_net)
 
         da, da_dist = _actor(da_net, a)
 
-        return ActPredOutput(a=a,
-                             a_dist=a_dist,
-                             da=da,
-                             da_dist=da_dist,
-                             output=self._safe_action(a, da))
+        return ActPredOutput(
+            a=a, a_dist=a_dist, da=da, da_dist=da_dist, output=self._safe_action(a, da)
+        )
 
-    def _predict_action(self,
-                        time_step,
-                        state,
-                        epsilon_greedy=None,
-                        mode=Mode.rollout,
-                        rollout_info=None):
+    def _predict_action(
+        self,
+        time_step,
+        state,
+        epsilon_greedy=None,
+        mode=Mode.rollout,
+        rollout_info=None,
+    ):
 
         if mode == Mode.train:
-            ap_out0 = self._forward(time_step,
-                                    epsilon_greedy,
-                                    mode,
-                                    opt_ignore='a')
-            ap_out1 = self._forward(time_step,
-                                    epsilon_greedy,
-                                    mode,
-                                    opt_ignore='da')
+            ap_out0 = self._forward(time_step, epsilon_greedy, mode, opt_ignore="a")
+            ap_out1 = self._forward(time_step, epsilon_greedy, mode, opt_ignore="da")
             return ActPredOutput(
                 a=ap_out1.a,
                 a_dist=ap_out1.a_dist,
@@ -367,12 +400,11 @@ class SEditorAlgorithm(OffPolicyAlgorithm):
                     out_a_SE_detached=ap_out1.output,
                     out_a_UM_detached=ap_out0.output,
                     # for computing how much the safety policy changes the action
-                    a_UM_detached=ap_out0.a))
+                    a_UM_detached=ap_out0.a,
+                ),
+            )
         else:
-            return self._forward(time_step,
-                                 epsilon_greedy,
-                                 mode,
-                                 opt_ignore='none')
+            return self._forward(time_step, epsilon_greedy, mode, opt_ignore="none")
 
     def _safe_action(self, a, da):
         r"""Perform action editing.
@@ -388,43 +420,41 @@ class SEditorAlgorithm(OffPolicyAlgorithm):
             torch.Tensor: the edited action to the env
         """
         if self._soft_clipping:
-            return math_ops.softclip(a + 2 * da,
-                                     low=float(self._action_spec.minimum),
-                                     high=float(self._action_spec.maximum),
-                                     hinge_softness=self._hinge_softness)
+            return math_ops.softclip(
+                a + 2 * da,
+                low=float(self._action_spec.minimum),
+                high=float(self._action_spec.maximum),
+                hinge_softness=self._hinge_softness,
+            )
         else:
             return spec_utils.clip_to_spec(a + 2 * da, self._action_spec)
 
     def predict_step(self, inputs: TimeStep, state):
-        ap_out = self._predict_action(inputs, state, self._epsilon_greedy,
-                                      Mode.predict)
+        ap_out = self._predict_action(inputs, state, self._epsilon_greedy, Mode.predict)
 
         imgs = {}
         if render.is_rendering_enabled():
-            q_a = self._compute_critics(self._critic_networks,
-                                        inputs.observation, ap_out.a)[:, 0]
-            q_out_a = self._compute_critics(self._critic_networks,
-                                            inputs.observation,
-                                            ap_out.output)[:, 0]
+            q_a = self._compute_critics(
+                self._critic_networks, inputs.observation, ap_out.a
+            )[:, 0]
+            q_out_a = self._compute_critics(
+                self._critic_networks, inputs.observation, ap_out.output
+            )[:, 0]
             hinge_loss = torch.relu(q_a - q_out_a)
-            l2 = ((ap_out.a - ap_out.output)**2).mean(dim=-1)
+            l2 = ((ap_out.a - ap_out.output) ** 2).mean(dim=-1)
 
-            imgs['hinge_loss'] = render.render_bar(name="hinge_loss",
-                                                   data=hinge_loss)
-            imgs['l2'] = render.render_bar(name="action_l2", data=l2)
-            imgs['a'] = render.render_action(name="a",
-                                             action=ap_out.a,
-                                             action_spec=self._action_spec)
-            imgs['out_a'] = render.render_action(name="out_a",
-                                                 action=ap_out.output,
-                                                 action_spec=self._action_spec)
+            imgs["hinge_loss"] = render.render_bar(name="hinge_loss", data=hinge_loss)
+            imgs["l2"] = render.render_bar(name="action_l2", data=l2)
+            imgs["a"] = render.render_action(
+                name="a", action=ap_out.a, action_spec=self._action_spec
+            )
+            imgs["out_a"] = render.render_action(
+                name="out_a", action=ap_out.output, action_spec=self._action_spec
+            )
 
-        return AlgStep(output=ap_out.output,
-                       state=state,
-                       info={
-                           'ap_out': ap_out,
-                           **imgs
-                       })
+        return AlgStep(
+            output=ap_out.output, state=state, info={"ap_out": ap_out, **imgs}
+        )
 
     def rollout_step(self, inputs: TimeStep, state):
         ap_out = self._predict_action(inputs, state, mode=Mode.rollout)
@@ -435,49 +465,48 @@ class SEditorAlgorithm(OffPolicyAlgorithm):
         def _calc_entropy(dist, a):
             return -dist_utils.compute_log_probability(dist, a)
 
-        ap_out = self._predict_action(inputs,
-                                      state,
-                                      mode=Mode.train,
-                                      rollout_info=rollout_info)
+        ap_out = self._predict_action(
+            inputs, state, mode=Mode.train, rollout_info=rollout_info
+        )
 
         a_entropy = _calc_entropy(ap_out.a_dist, ap_out.a)
         da_entropy = _calc_entropy(ap_out.da_dist, ap_out.da)
 
         actor_loss = self._actor_train_step(inputs, ap_out, a_entropy)
         da_loss, change_a_loss, a_l2 = self._d_actor_train_step(
-            inputs, ap_out, da_entropy)
-        actor_info = SEditorActorInfo(a_loss=actor_loss,
-                                      da_loss=da_loss,
-                                      a_entropy=a_entropy,
-                                      da_entropy=da_entropy,
-                                      change_a_loss=change_a_loss,
-                                      a_l2=a_l2)
+            inputs, ap_out, da_entropy
+        )
+        actor_info = SEditorActorInfo(
+            a_loss=actor_loss,
+            da_loss=da_loss,
+            a_entropy=a_entropy,
+            da_entropy=da_entropy,
+            change_a_loss=change_a_loss,
+            a_l2=a_l2,
+        )
 
         critic_info = self._critic_train_step(inputs, ap_out, rollout_info)
 
         alpha_loss = self._alpha_train_step(a_entropy, da_entropy)
 
-        info = SEditorInfo(reward=inputs.reward,
-                           step_type=inputs.step_type,
-                           discount=inputs.discount,
-                           actor=actor_info,
-                           critic=critic_info,
-                           alpha=alpha_loss)
+        info = SEditorInfo(
+            reward=inputs.reward,
+            step_type=inputs.step_type,
+            discount=inputs.discount,
+            actor=actor_info,
+            critic=critic_info,
+            alpha=alpha_loss,
+        )
 
-        return AlgStep(output=ap_out.output.out_a_SE_detached,
-                       state=state,
-                       info=info)
+        return AlgStep(output=ap_out.output.out_a_SE_detached, state=state, info=info)
 
-    def _compute_critics(self,
-                         critic_net,
-                         observation,
-                         action,
-                         replica_min=True):
+    def _compute_critics(self, critic_net, observation, action, replica_min=True):
         """Compute Q(s,a)"""
         observation = (observation, action)
         critics, _ = critic_net(observation)  # [B, replicas * reward_dim]
         critics = critics.reshape(  # [B, replicas, reward_dim]
-            -1, self._num_critic_replicas, *self._reward_spec.shape)
+            -1, self._num_critic_replicas, *self._reward_spec.shape
+        )
         if replica_min:
             if self.has_multidim_reward():
                 sign = self.reward_weights.sign()
@@ -488,18 +517,16 @@ class SEditorAlgorithm(OffPolicyAlgorithm):
         return critics
 
     def _actor_loss_fn(self, dqda, action):
-        loss = 0.5 * losses.element_wise_squared_loss(
-            (dqda + action).detach(), action)
+        loss = 0.5 * losses.element_wise_squared_loss((dqda + action).detach(), action)
         return loss.sum(list(range(1, loss.ndim)))
 
     def _actor_train_step(self, inputs, ap_out, a_entropy):
-        """Train UM policy according to Eq 7a, to maximize the utility Q.
-        """
+        """Train UM policy according to Eq 7a, to maximize the utility Q."""
         alpha = self._log_alpha[0].exp().detach()
 
-        critics = self._compute_critics(self._critic_networks,
-                                        inputs.observation,
-                                        ap_out.output.out_a_SE_detached)
+        critics = self._compute_critics(
+            self._critic_networks, inputs.observation, ap_out.output.out_a_SE_detached
+        )
         # only maximize the utility Q value
         q = critics[..., 0].sum()
 
@@ -514,24 +541,27 @@ class SEditorAlgorithm(OffPolicyAlgorithm):
         """
         alpha = self._log_alpha[1].exp().detach()
 
-        critics = self._compute_critics(self._critic_networks,
-                                        inputs.observation,
-                                        ap_out.output.out_a_UM_detached)
+        critics = self._compute_critics(
+            self._critic_networks, inputs.observation, ap_out.output.out_a_UM_detached
+        )
 
         # only maximize the constraint Q value
         q = critics[..., 1]
 
-        a_l2 = ((ap_out.output.out_a_UM_detached -
-                 ap_out.output.a_UM_detached)**2).mean(dim=-1)
+        a_l2 = (
+            (ap_out.output.out_a_UM_detached - ap_out.output.a_UM_detached) ** 2
+        ).mean(dim=-1)
 
         if self._regularize_action_diff:
             # Take mean so that the loss magnitude is invariant to action dimension
             change_a_loss = a_l2
         else:
             with torch.no_grad():
-                a_critics = self._compute_critics(self._critic_networks,
-                                                  inputs.observation,
-                                                  ap_out.output.a_UM_detached)
+                a_critics = self._compute_critics(
+                    self._critic_networks,
+                    inputs.observation,
+                    ap_out.output.a_UM_detached,
+                )
             change_a_loss = torch.relu(a_critics[..., 0] - critics[..., 0])
 
         q2 = torch.stack((-change_a_loss, q), dim=-1)
@@ -542,30 +572,34 @@ class SEditorAlgorithm(OffPolicyAlgorithm):
         actor_loss -= alpha * da_entropy
         return actor_loss, change_a_loss, a_l2
 
-    def _critic_train_step(self, inputs: TimeStep, ap_out,
-                           rollout_info: ActPredOutput):
+    def _critic_train_step(self, inputs: TimeStep, ap_out, rollout_info: ActPredOutput):
         """Typical TD learning as seen in SAC. The utility Q and constraint Q
         are learned in parallel.
         """
 
         with torch.no_grad():
             target_critics = self._compute_critics(
-                self._target_critic_networks, inputs.observation,
-                ap_out.output.out_a_SE_detached)
+                self._target_critic_networks,
+                inputs.observation,
+                ap_out.output.out_a_SE_detached,
+            )
 
-        critics = self._compute_critics(self._critic_networks,
-                                        inputs.observation,
-                                        rollout_info.output,
-                                        replica_min=False)
+        critics = self._compute_critics(
+            self._critic_networks,
+            inputs.observation,
+            rollout_info.output,
+            replica_min=False,
+        )
         return SEditorCriticInfo(critics=critics, target_critic=target_critics)
 
     def _alpha_train_step(self, a_entropy, da_entropy):
         if self._train_alpha:
-            alpha_loss = (self._log_alpha[0] *
-                          (a_entropy - self._target_entropy[0]).detach())
+            alpha_loss = (
+                self._log_alpha[0] * (a_entropy - self._target_entropy[0]).detach()
+            )
             alpha_loss = alpha_loss + (
-                self._log_alpha[1] *
-                (da_entropy - self._target_entropy[1]).detach())
+                self._log_alpha[1] * (da_entropy - self._target_entropy[1]).detach()
+            )
         else:
             alpha_loss = torch.zeros_like(a_entropy)
         return alpha_loss
@@ -574,14 +608,17 @@ class SEditorAlgorithm(OffPolicyAlgorithm):
         critic_info = info.critic
         critic_losses = []
         for i, l in enumerate(self._critic_losses):
-            kwargs = dict(info=info,
-                          value=critic_info.critics[:, :, i, ...],
-                          target_value=critic_info.target_critic)
+            kwargs = dict(
+                info=info,
+                value=critic_info.critics[:, :, i, ...],
+                target_value=critic_info.target_critic,
+            )
             critic_losses.append(l(**kwargs).loss)
 
         critic_loss = math_ops.add_n(critic_losses)
-        return LossInfo(loss=critic_loss,
-                        extra=critic_loss / float(self._num_critic_replicas))
+        return LossInfo(
+            loss=critic_loss, extra=critic_loss / float(self._num_critic_replicas)
+        )
 
     def calc_loss(self, info: SEditorInfo):
         critic_loss = self._calc_critic_loss(info)
@@ -592,8 +629,11 @@ class SEditorAlgorithm(OffPolicyAlgorithm):
                 alf.summary.scalar("alpha/a", self._log_alpha[0].exp())
                 alf.summary.scalar("alpha/da", self._log_alpha[1].exp())
 
-        return LossInfo(loss=(actor_info.a_loss + actor_info.da_loss +
-                              alpha_loss + critic_loss.loss),
-                        extra=SEditorLossInfo(actor=actor_info,
-                                              critic=critic_loss.extra,
-                                              alpha=alpha_loss))
+        return LossInfo(
+            loss=(
+                actor_info.a_loss + actor_info.da_loss + alpha_loss + critic_loss.loss
+            ),
+            extra=SEditorLossInfo(
+                actor=actor_info, critic=critic_loss.extra, alpha=alpha_loss
+            ),
+        )

@@ -26,7 +26,12 @@ from typing import Union
 import alf
 import alf.nest as nest
 from alf.tensor_specs import TensorSpec, BoundedTensorSpec
-from .distributions import TruncatedDistribution, TruncatedNormal, TruncatedCauchy, TruncatedT2
+from .distributions import (
+    TruncatedDistribution,
+    TruncatedNormal,
+    TruncatedCauchy,
+    TruncatedT2,
+)
 
 
 def get_invertible(cls):
@@ -71,9 +76,7 @@ class AffineTransform(get_invertible(td.AffineTransform)):
     """
 
     def get_builder(self):
-        return functools.partial(AffineTransform,
-                                 loc=self.loc,
-                                 scale=self.scale)
+        return functools.partial(AffineTransform, loc=self.loc, scale=self.scale)
 
 
 @alf.configurable
@@ -83,12 +86,13 @@ class Softplus(td.Transform):
     Code adapted from `pyro <https://docs.pyro.ai/en/latest/_modules/pyro/distributions/transforms/softplus.html>`_
     and `tensorflow <https://github.com/tensorflow/probability/blob/v0.12.2/tensorflow_probability/python/bijectors/softplus.py#L61-L189>`_.
     """
+
     domain = constraints.real
     codomain = constraints.positive
     bijective = True
     sign = +1
 
-    def __init__(self, hinge_softness=1., cache_size=1):
+    def __init__(self, hinge_softness=1.0, cache_size=1):
         """
         Args:
             hinge_softness (float): this positive parameter changes the transition
@@ -100,11 +104,13 @@ class Softplus(td.Transform):
         assert self._hinge_softness > 0, "Must be a positive softness number!"
 
     def __eq__(self, other):
-        return (isinstance(other, Softplus)
-                and self._hinge_softness == other._hinge_softness)
+        return (
+            isinstance(other, Softplus)
+            and self._hinge_softness == other._hinge_softness
+        )
 
     def _call(self, x):
-        return nn.functional.softplus(x, beta=1. / self._hinge_softness)
+        return nn.functional.softplus(x, beta=1.0 / self._hinge_softness)
 
     def _inverse(self, y):
         return (y / self._hinge_softness).expm1().log() * self._hinge_softness
@@ -119,7 +125,7 @@ class Softplus(td.Transform):
 
 
 @alf.configurable
-def Softlower(low, hinge_softness=1.):
+def Softlower(low, hinge_softness=1.0):
     """Create a Softlower transform by composing the Softplus and Affine
     transforms. Mathematically, ``softlower(x, low) = softplus(x - low) + low``.
 
@@ -129,15 +135,17 @@ def Softlower(low, hinge_softness=1.):
                 slope. A higher softness results in a smoother transition from
                 ``low`` to identity.
     """
-    return td.transforms.ComposeTransform([
-        AffineTransform(loc=-low, scale=1.),
-        Softplus(hinge_softness=hinge_softness),
-        AffineTransform(loc=low, scale=1.)
-    ])
+    return td.transforms.ComposeTransform(
+        [
+            AffineTransform(loc=-low, scale=1.0),
+            Softplus(hinge_softness=hinge_softness),
+            AffineTransform(loc=low, scale=1.0),
+        ]
+    )
 
 
 @alf.configurable
-def Softupper(high, hinge_softness=1.):
+def Softupper(high, hinge_softness=1.0):
     """Create a Softupper transform by composing the Softplus and Affine
     transforms. Mathematically, ``softupper(x, high) = -softplus(high - x) + high``.
 
@@ -147,15 +155,17 @@ def Softupper(high, hinge_softness=1.):
                 slope. A higher softness results in a smoother transition from
                 identity to ``high``.
     """
-    return td.transforms.ComposeTransform([
-        AffineTransform(loc=high, scale=-1.),
-        Softplus(hinge_softness=hinge_softness),
-        AffineTransform(loc=high, scale=-1.)
-    ])
+    return td.transforms.ComposeTransform(
+        [
+            AffineTransform(loc=high, scale=-1.0),
+            Softplus(hinge_softness=hinge_softness),
+            AffineTransform(loc=high, scale=-1.0),
+        ]
+    )
 
 
 @alf.configurable
-def SoftclipTF(low, high, hinge_softness=1.):
+def SoftclipTF(low, high, hinge_softness=1.0):
     """Create a Softclip transform by composing Softlower, Softupper, and Affine
     transforms, adapted from `tensorflow <https://www.tensorflow.org/probability/api_docs/python/tfp/bijectors/SoftClip>`_.
     Mathematically,
@@ -184,13 +194,16 @@ def SoftclipTF(low, high, hinge_softness=1.):
 
     # Compute the clipped value of ``low`` upper bounded by ``high``
     softupper_high_at_low = Softupper(high, hinge_softness=hinge_softness)(low)
-    return td.transforms.ComposeTransform([
-        Softlower(low=low, hinge_softness=hinge_softness),
-        Softupper(high=high, hinge_softness=hinge_softness),  # clipped
-        AffineTransform(loc=-high, scale=1.),
-        AffineTransform(loc=high,
-                        scale=(high - low) / (high - softupper_high_at_low))
-    ])
+    return td.transforms.ComposeTransform(
+        [
+            Softlower(low=low, hinge_softness=hinge_softness),
+            Softupper(high=high, hinge_softness=hinge_softness),  # clipped
+            AffineTransform(loc=-high, scale=1.0),
+            AffineTransform(
+                loc=high, scale=(high - low) / (high - softupper_high_at_low)
+            ),
+        ]
+    )
 
 
 @alf.configurable
@@ -199,12 +212,13 @@ class Softclip(td.Transform):
     Unlike ``SoftclipTF``, this transform is symmetric regarding the lower and
     upper bound when squashing.
     """
+
     domain = constraints.real
     codomain = constraints.real
     bijective = True
     sign = +1
 
-    def __init__(self, low, high, hinge_softness=1., cache_size=1):
+    def __init__(self, low, high, hinge_softness=1.0, cache_size=1):
         """
         Args:
             low (float): the lower bound
@@ -221,9 +235,12 @@ class Softclip(td.Transform):
         self.codomain = constraints.interval(self._l, self._h)
 
     def __eq__(self, other):
-        return (isinstance(other, Softclip)
-                and self._hinge_softness == other._hinge_softness
-                and self._l == other._l and self._h == other._h)
+        return (
+            isinstance(other, Softclip)
+            and self._hinge_softness == other._hinge_softness
+            and self._l == other._l
+            and self._h == other._h
+        )
 
     def get_builder(self):
         return functools.partial(Softclip, low=self._l, high=self._h)
@@ -238,15 +255,16 @@ class Softclip(td.Transform):
         ``y``.
         """
         s = self._hinge_softness
-        return (y + s * (((self._l - y) / s).expm1() /
-                         ((y - self._h) / s).expm1()).log())
+        return y + s * (((self._l - y) / s).expm1() / ((y - self._h) / s).expm1()).log()
 
     def log_abs_det_jacobian(self, x, y):
-        r"""Compute ``log|dy/dx|``.
-        """
+        r"""Compute ``log|dy/dx|``."""
         s = self._hinge_softness
-        return (1 - 1 / (1 + ((x - self._l) / s).exp()) - 1 /
-                (1 + ((self._h - x) / s).exp())).log()
+        return (
+            1
+            - 1 / (1 + ((x - self._l) / s).exp())
+            - 1 / (1 + ((self._h - x) / s).exp())
+        ).log()
 
     def with_cache(self, cache_size=1):
         if self._cache_size == cache_size:
@@ -290,7 +308,7 @@ class Softsign(td.Transform):
                 y = \frac{x}{1-x} \rightarrow \frac{dy}{dx} = \frac{1}{(1-x)^2}, &\text{else}&\\
             \end{array}
         """
-        return -2. * torch.log(1 + x.abs())
+        return -2.0 * torch.log(1 + x.abs())
 
     def with_cache(self, cache_size=1):
         if self._cache_size == cache_size:
@@ -317,6 +335,7 @@ class StableTanh(td.Transform):
     However, using the ``StableTanh`` transformation directly is more numerically
     stable.
     """
+
     domain = constraints.real
     codomain = constraints.interval(-1.0, 1.0)
     bijective = True
@@ -340,14 +359,15 @@ class StableTanh(td.Transform):
         def _atanh(x):
             return 0.5 * torch.log((1 + x) / (1 - x))
 
-        y = torch.where(
-            torch.abs(y) <= 1.0, torch.clamp(y, -0.99999997, 0.99999997), y)
+        y = torch.where(torch.abs(y) <= 1.0, torch.clamp(y, -0.99999997, 0.99999997), y)
         return _atanh(y)
 
     def log_abs_det_jacobian(self, x, y):
         return 2.0 * (
-            torch.log(torch.tensor(2.0, dtype=x.dtype, requires_grad=False)) -
-            x - nn.functional.softplus(-2.0 * x))
+            torch.log(torch.tensor(2.0, dtype=x.dtype, requires_grad=False))
+            - x
+            - nn.functional.softplus(-2.0 * x)
+        )
 
     def with_cache(self, cache_size=1):
         if self._cache_size == cache_size:
@@ -366,15 +386,16 @@ class DiagMultivariateNormal(td.Independent):
         """
         # set validate_args to False here to enable the construction of Normal
         # distribution with zero scale.
-        super().__init__(td.Normal(loc, scale, validate_args=False),
-                         reinterpreted_batch_ndims=1)
+        super().__init__(
+            td.Normal(loc, scale, validate_args=False), reinterpreted_batch_ndims=1
+        )
 
     @property
     def stddev(self):
         return self.base_dist.stddev
 
 
-@alf.configurable(whitelist=['eps'])
+@alf.configurable(whitelist=["eps"])
 class Beta(td.Beta):
     r"""Beta distribution parameterized by ``concentration1`` and ``concentration0``.
 
@@ -390,11 +411,7 @@ class Beta(td.Beta):
 
     """
 
-    def __init__(self,
-                 concentration1,
-                 concentration0,
-                 eps=None,
-                 validate_args=None):
+    def __init__(self, concentration1, concentration0, eps=None, validate_args=None):
         """
         Args:
             concentration1 (float or Tensor): 1st concentration parameter of the distribution
@@ -426,10 +443,11 @@ class Beta(td.Beta):
     def mode(self):
         alpha = self.concentration1
         beta = self.concentration0
-        mode = torch.where((alpha > 1) & (beta > 1),
-                           (alpha - 1) / (alpha + beta - 2),
-                           torch.where(alpha < beta, torch.zeros(()),
-                                       torch.ones(())))
+        mode = torch.where(
+            (alpha > 1) & (beta > 1),
+            (alpha - 1) / (alpha + beta - 2),
+            torch.where(alpha < beta, torch.zeros(()), torch.ones(())),
+        )
         return mode
 
     def rsample(self, sample_shape=()):
@@ -453,8 +471,9 @@ class DiagMultivariateBeta(td.Independent):
             concentration0 (float or Tensor): 2nd concentration parameter of the
                 distribution (often referred to as beta)
         """
-        super().__init__(Beta(concentration1, concentration0),
-                         reinterpreted_batch_ndims=1)
+        super().__init__(
+            Beta(concentration1, concentration0), reinterpreted_batch_ndims=1
+        )
 
 
 class AffineTransformedDistribution(td.TransformedDistribution):
@@ -470,8 +489,9 @@ class AffineTransformedDistribution(td.TransformedDistribution):
             loc (Tensor or float): Location parameter.
             scale (Tensor or float): Scale parameter.
         """
-        super().__init__(base_distribution=base_dist,
-                         transforms=AffineTransform(loc, scale))
+        super().__init__(
+            base_distribution=base_dist, transforms=AffineTransform(loc, scale)
+        )
         self.loc = loc
         self.scale = scale
 
@@ -551,13 +571,13 @@ class DiagMultivariateCauchy(td.Independent):
 
 
 class OneHotCategoricalStraightThrough(td.OneHotCategoricalStraightThrough):
-    """Provide an additional property ``mode`` with gradient enabled.
-    """
+    """Provide an additional property ``mode`` with gradient enabled."""
 
     @property
     def mode(self):
-        mode = torch.nn.functional.one_hot(torch.argmax(self.logits, -1),
-                                           num_classes=self.logits.shape[-1])
+        mode = torch.nn.functional.one_hot(
+            torch.argmax(self.logits, -1), num_classes=self.logits.shape[-1]
+        )
         return mode.to(self.logits) + self.probs - self.probs.detach()
 
 
@@ -570,9 +590,10 @@ class OneHotCategoricalGumbelSoftmax(td.OneHotCategorical):
 
         Jang et al., "CATEGORICAL REPARAMETERIZATION WITH GUMBEL-SOFTMAX", 2017.
     """
+
     has_rsample = True
 
-    def __init__(self, hard_sample: bool = True, tau: float = 1., **kwargs):
+    def __init__(self, hard_sample: bool = True, tau: float = 1.0, **kwargs):
         """
         Args:
             hard_sample: If False, the rsampled result will be a "soft" vector
@@ -589,17 +610,17 @@ class OneHotCategoricalGumbelSoftmax(td.OneHotCategorical):
     def rsample(self, sample_shape=torch.Size()):
         sample_shape = torch.Size(sample_shape)
         # expand additional first dims according to ``sample_shape``
-        shape = sample_shape + (1, ) * len(self.param_shape)
+        shape = sample_shape + (1,) * len(self.param_shape)
         logits = self.logits.repeat(*shape)
-        return torch.nn.functional.gumbel_softmax(logits=logits,
-                                                  tau=self._tau,
-                                                  hard=self._hard_sample,
-                                                  dim=-1)
+        return torch.nn.functional.gumbel_softmax(
+            logits=logits, tau=self._tau, hard=self._hard_sample, dim=-1
+        )
 
     @property
     def mode(self):
-        mode = torch.nn.functional.one_hot(torch.argmax(self.logits, -1),
-                                           num_classes=self.logits.shape[-1])
+        mode = torch.nn.functional.one_hot(
+            torch.argmax(self.logits, -1), num_classes=self.logits.shape[-1]
+        )
         return mode.to(self.logits) + self.probs - self.probs.detach()
 
 
@@ -607,43 +628,45 @@ def _builder_independent(base_builder, reinterpreted_batch_ndims_, **kwargs):
     return td.Independent(base_builder(**kwargs), reinterpreted_batch_ndims_)
 
 
-def _builder_transformed(base_builder, transform_builders, params_,
-                         transforms_params_):
-    transforms = [
-        b(**p) for b, p in zip(transform_builders, transforms_params_)
-    ]
+def _builder_transformed(base_builder, transform_builders, params_, transforms_params_):
+    transforms = [b(**p) for b, p in zip(transform_builders, transforms_params_)]
     return td.TransformedDistribution(base_builder(**params_), transforms)
 
 
-def _get_categorical_builder(obj: Union[td.Categorical, td.OneHotCategorical,
-                                        td.OneHotCategoricalStraightThrough,
-                                        OneHotCategoricalStraightThrough]):
+def _get_categorical_builder(
+    obj: Union[
+        td.Categorical,
+        td.OneHotCategorical,
+        td.OneHotCategoricalStraightThrough,
+        OneHotCategoricalStraightThrough,
+    ]
+):
 
     dist_cls = type(obj)
 
-    if 'probs' in obj.__dict__ and id(obj.probs) == id(obj._param):
+    if "probs" in obj.__dict__ and id(obj.probs) == id(obj._param):
         # This means that obj is constructed using probs
-        return dist_cls, {'probs': obj.probs}
+        return dist_cls, {"probs": obj.probs}
     else:
-        return dist_cls, {'logits': obj.logits}
+        return dist_cls, {"logits": obj.logits}
 
 
-def _get_gumbelsoftmax_categorical_builder(
-        obj: OneHotCategoricalGumbelSoftmax):
-    builder = functools.partial(OneHotCategoricalGumbelSoftmax,
-                                hard_sample=obj._hard_sample,
-                                tau=obj._tau)
-    if 'probs' in obj.__dict__ and id(obj.probs) == id(obj._param):
+def _get_gumbelsoftmax_categorical_builder(obj: OneHotCategoricalGumbelSoftmax):
+    builder = functools.partial(
+        OneHotCategoricalGumbelSoftmax, hard_sample=obj._hard_sample, tau=obj._tau
+    )
+    if "probs" in obj.__dict__ and id(obj.probs) == id(obj._param):
         # This means that obj is constructed using probs
-        return builder, {'probs': obj.probs}
+        return builder, {"probs": obj.probs}
     else:
-        return builder, {'logits': obj.logits}
+        return builder, {"logits": obj.logits}
 
 
 def _get_independent_builder(obj: td.Independent):
     builder, params = _get_builder(obj.base_dist)
-    new_builder = functools.partial(_builder_independent, builder,
-                                    obj.reinterpreted_batch_ndims)
+    new_builder = functools.partial(
+        _builder_independent, builder, obj.reinterpreted_batch_ndims
+    )
     return new_builder, params
 
 
@@ -658,13 +681,13 @@ def _get_transform_builders_params(transforms):
         return transform.__class__
 
     def _get_transform_params(transform):
-        if hasattr(transform, 'params') and transform.params is not None:
+        if hasattr(transform, "params") and transform.params is not None:
             # We assume that if a td.Transform has attribute 'params', then they are the
             # parameters we'll extract and store.
-            assert isinstance(
-                transform.params,
-                dict), ("Transform params must be provided as a dict! "
-                        f"Got {transform.params}")
+            assert isinstance(transform.params, dict), (
+                "Transform params must be provided as a dict! "
+                f"Got {transform.params}"
+            )
             return transform.params
         return {}  # the transform doesn't have any parameter
 
@@ -672,17 +695,16 @@ def _get_transform_builders_params(transforms):
         if isinstance(transforms, td.ComposeTransform):
             builders, params = _get_transform_builders_params(transforms.parts)
             compose_transform_builder = lambda parts_params: td.ComposeTransform(
-                [b(**p) for b, p in zip(builders, parts_params)])
-            return compose_transform_builder, {'parts_params': params}
+                [b(**p) for b, p in zip(builders, parts_params)]
+            )
+            return compose_transform_builder, {"parts_params": params}
         else:
             builder = _get_transform_builder(transforms)
             params = _get_transform_params(transforms)
             return builder, params
 
     assert isinstance(transforms, list), f"Incorrect transforms {transforms}!"
-    builders_and_params = [
-        _get_transform_builders_params(t) for t in transforms
-    ]
+    builders_and_params = [_get_transform_builders_params(t) for t in transforms]
     builders, params = zip(*builders_and_params)
     return list(builders), list(params)
 
@@ -692,10 +714,10 @@ def _get_transformed_builder(obj: td.TransformedDistribution):
     # 'obj.base_dist' downwards
     builder, params = _get_builder(obj.base_dist)
     transform_builders, transform_params = _get_transform_builders_params(
-        obj.transforms)
-    new_builder = functools.partial(_builder_transformed, builder,
-                                    transform_builders)
-    new_params = {"params_": params, 'transforms_params_': transform_params}
+        obj.transforms
+    )
+    new_builder = functools.partial(_builder_transformed, builder, transform_builders)
+    new_params = {"params_": params, "transforms_params_": transform_params}
     return new_builder, new_params
 
 
@@ -706,96 +728,76 @@ def _builder_affine_transformed(base_builder, loc_, scale_, **kwargs):
 
 def _get_affine_transformed_builder(obj: AffineTransformedDistribution):
     builder, params = _get_builder(obj.base_dist)
-    new_builder = functools.partial(_builder_affine_transformed, builder,
-                                    obj.loc, obj.scale)
+    new_builder = functools.partial(
+        _builder_affine_transformed, builder, obj.loc, obj.scale
+    )
     return new_builder, params
 
 
 def _get_mixture_same_family_builder(obj: td.MixtureSameFamily):
     mixture_builder, mixture_params = _get_builder(obj.mixture_distribution)
-    components_builder, components_params = _get_builder(
-        obj.component_distribution)
+    components_builder, components_params = _get_builder(obj.component_distribution)
 
     def _mixture_builder(mixture, components):
-        return td.MixtureSameFamily(mixture_builder(**mixture),
-                                    components_builder(**components))
+        return td.MixtureSameFamily(
+            mixture_builder(**mixture), components_builder(**components)
+        )
 
     return _mixture_builder, {
         "mixture": mixture_params,
-        "components": components_params
+        "components": components_params,
     }
 
 
 _get_builder_map = {
-    td.Categorical:
-        _get_categorical_builder,
-    td.OneHotCategorical:
-        _get_categorical_builder,
-    td.OneHotCategoricalStraightThrough:
-        _get_categorical_builder,
-    OneHotCategoricalStraightThrough:
-        _get_categorical_builder,
-    OneHotCategoricalGumbelSoftmax:
-        _get_gumbelsoftmax_categorical_builder,
-    td.Normal:
-        lambda obj: (td.Normal, {
-            'loc': obj.mean,
-            'scale': obj.stddev
-        }),
-    StableCauchy:
-        lambda obj: (StableCauchy, {
-            'loc': obj.loc,
-            'scale': obj.scale
-        }),
-    td.Independent:
-        _get_independent_builder,
-    DiagMultivariateNormal:
-        lambda obj: (DiagMultivariateNormal, {
-            'loc': obj.mean,
-            'scale': obj.stddev
-        }),
-    DiagMultivariateCauchy:
-        lambda obj: (DiagMultivariateCauchy, {
-            'loc': obj.loc,
-            'scale': obj.scale
-        }),
-    td.TransformedDistribution:
-        _get_transformed_builder,
-    AffineTransformedDistribution:
-        _get_affine_transformed_builder,
-    Beta:
-        lambda obj: (Beta, {
-            'concentration1': obj.concentration1,
-            'concentration0': obj.concentration0
-        }),
-    DiagMultivariateBeta:
-        lambda obj: (DiagMultivariateBeta, {
-            'concentration1': obj.base_dist.concentration1,
-            'concentration0': obj.base_dist.concentration0
-        }),
-    TruncatedNormal:
-        lambda obj: (functools.partial(TruncatedNormal,
-                                       lower_bound=obj.lower_bound,
-                                       upper_bound=obj.upper_bound), {
-                                           'loc': obj.loc,
-                                           'scale': obj.scale
-                                       }),
-    TruncatedCauchy:
-        lambda obj: (functools.partial(TruncatedCauchy,
-                                       lower_bound=obj.lower_bound,
-                                       upper_bound=obj.upper_bound), {
-                                           'loc': obj.loc,
-                                           'scale': obj.scale
-                                       }),
-    TruncatedT2:
-        lambda obj: (functools.partial(TruncatedT2,
-                                       lower_bound=obj.lower_bound,
-                                       upper_bound=obj.upper_bound), {
-                                           'loc': obj.loc,
-                                           'scale': obj.scale
-                                       }),
-    td.MixtureSameFamily:
-        _get_mixture_same_family_builder,
+    td.Categorical: _get_categorical_builder,
+    td.OneHotCategorical: _get_categorical_builder,
+    td.OneHotCategoricalStraightThrough: _get_categorical_builder,
+    OneHotCategoricalStraightThrough: _get_categorical_builder,
+    OneHotCategoricalGumbelSoftmax: _get_gumbelsoftmax_categorical_builder,
+    td.Normal: lambda obj: (td.Normal, {"loc": obj.mean, "scale": obj.stddev}),
+    StableCauchy: lambda obj: (StableCauchy, {"loc": obj.loc, "scale": obj.scale}),
+    td.Independent: _get_independent_builder,
+    DiagMultivariateNormal: lambda obj: (
+        DiagMultivariateNormal,
+        {"loc": obj.mean, "scale": obj.stddev},
+    ),
+    DiagMultivariateCauchy: lambda obj: (
+        DiagMultivariateCauchy,
+        {"loc": obj.loc, "scale": obj.scale},
+    ),
+    td.TransformedDistribution: _get_transformed_builder,
+    AffineTransformedDistribution: _get_affine_transformed_builder,
+    Beta: lambda obj: (
+        Beta,
+        {"concentration1": obj.concentration1, "concentration0": obj.concentration0},
+    ),
+    DiagMultivariateBeta: lambda obj: (
+        DiagMultivariateBeta,
+        {
+            "concentration1": obj.base_dist.concentration1,
+            "concentration0": obj.base_dist.concentration0,
+        },
+    ),
+    TruncatedNormal: lambda obj: (
+        functools.partial(
+            TruncatedNormal, lower_bound=obj.lower_bound, upper_bound=obj.upper_bound
+        ),
+        {"loc": obj.loc, "scale": obj.scale},
+    ),
+    TruncatedCauchy: lambda obj: (
+        functools.partial(
+            TruncatedCauchy, lower_bound=obj.lower_bound, upper_bound=obj.upper_bound
+        ),
+        {"loc": obj.loc, "scale": obj.scale},
+    ),
+    TruncatedT2: lambda obj: (
+        functools.partial(
+            TruncatedT2, lower_bound=obj.lower_bound, upper_bound=obj.upper_bound
+        ),
+        {"loc": obj.loc, "scale": obj.scale},
+    ),
+    td.MixtureSameFamily: _get_mixture_same_family_builder,
 }
 
 
@@ -904,8 +906,10 @@ def to_distribution_param_spec(nests):
         elif isinstance(spec, TensorSpec):
             return spec
         else:
-            raise ValueError("Only TensorSpec or DistributionSpec is allowed "
-                             "in nest, got %s. nest is %s" % (spec, nests))
+            raise ValueError(
+                "Only TensorSpec or DistributionSpec is allowed "
+                "in nest, got %s. nest is %s" % (spec, nests)
+            )
 
     return nest.map_structure(_to_param_spec, nests)
 
@@ -929,9 +933,10 @@ def params_to_distributions(nests, nest_spec):
         elif isinstance(spec, TensorSpec):
             return params
         else:
-            raise ValueError("Only DistributionSpec or TensorSpec is allowed "
-                             "in nest_spec, got %s. nest_spec is %s" %
-                             (spec, nest_spec))
+            raise ValueError(
+                "Only DistributionSpec or TensorSpec is allowed "
+                "in nest_spec, got %s. nest_spec is %s" % (spec, nest_spec)
+            )
 
     return nest.map_structure_up_to(nest_spec, _to_dist, nest_spec, nests)
 
@@ -957,7 +962,8 @@ def distributions_to_params(nests):
         else:
             raise ValueError(
                 "Only Tensor or Distribution is allowed in nest, ",
-                "got %s. nest is %s" % (dist_or_tensor, nests))
+                "got %s. nest is %s" % (dist_or_tensor, nests),
+            )
 
     return nest.map_structure(_to_params, nests)
 
@@ -1026,10 +1032,12 @@ def rsample_action_distribution(nested_distributions, return_log_prob=False):
         - rsampled actions if return_log_prob is False
         - rsampled actions and log_prob if return_log_prob is True
     """
-    assert all(nest.flatten(nest.map_structure(lambda d: d.has_rsample,
-                nested_distributions))), \
-            ("all the distributions need to support rsample in order to enable "
-            "backpropagation")
+    assert all(
+        nest.flatten(nest.map_structure(lambda d: d.has_rsample, nested_distributions))
+    ), (
+        "all the distributions need to support rsample in order to enable "
+        "backpropagation"
+    )
     sample = nest.map_structure(lambda d: d.rsample(), nested_distributions)
     if return_log_prob:
         log_prob = compute_log_probability(nested_distributions, sample)
@@ -1115,14 +1123,14 @@ def get_mode(dist):
     if isinstance(dist, td.categorical.Categorical):
         mode = torch.argmax(dist.logits, -1)
     elif isinstance(
-            dist,
-        (OneHotCategoricalStraightThrough, OneHotCategoricalGumbelSoftmax)):
+        dist, (OneHotCategoricalStraightThrough, OneHotCategoricalGumbelSoftmax)
+    ):
         # Our version of one-hot st supports mode with grad
         mode = dist.mode
-    elif isinstance(
-            dist, (td.OneHotCategorical, td.OneHotCategoricalStraightThrough)):
-        mode = torch.nn.functional.one_hot(torch.argmax(dist.logits, -1),
-                                           num_classes=dist.logits.shape[-1])
+    elif isinstance(dist, (td.OneHotCategorical, td.OneHotCategoricalStraightThrough)):
+        mode = torch.nn.functional.one_hot(
+            torch.argmax(dist.logits, -1), num_classes=dist.logits.shape[-1]
+        )
     elif isinstance(dist, td.normal.Normal):
         mode = dist.mean
     elif isinstance(dist, td.MixtureSameFamily):
@@ -1138,11 +1146,9 @@ def get_mode(dist):
             mode = component_mode[torch.arange(batch_shape[0]), ind]
         elif len(batch_shape) == 2:
             d0, d1 = batch_shape
-            mode = component_mode[torch.arange(d0).unsqueeze(-1),
-                                  torch.arange(d1), ind]
+            mode = component_mode[torch.arange(d0).unsqueeze(-1), torch.arange(d1), ind]
         else:
-            raise NotImplementedError("Batch shape %s is not supported" %
-                                      batch_shape)
+            raise NotImplementedError("Batch shape %s is not supported" % batch_shape)
     elif isinstance(dist, StableCauchy):
         mode = dist.loc
     elif isinstance(dist, td.Independent):
@@ -1156,8 +1162,7 @@ def get_mode(dist):
     elif isinstance(dist, (Beta, TruncatedDistribution)):
         return dist.mode
     else:
-        raise NotImplementedError("Distribution type %s is not supported" %
-                                  type(dist))
+        raise NotImplementedError("Distribution type %s is not supported" % type(dist))
 
     return mode
 
@@ -1199,8 +1204,7 @@ def get_rmode(dist):
         for transform in dist.transforms:
             mode = transform(mode)
     else:
-        raise NotImplementedError("Distribution type %s is not supported" %
-                                  type(dist))
+        raise NotImplementedError("Distribution type %s is not supported" % type(dist))
 
     return mode
 
@@ -1217,14 +1221,14 @@ def get_base_dist(dist):
         NotImplementedError: if ``dist`` or its based distribution is not
             ``td.Normal``, ``td.Independent`` or ``td.TransformedDistribution``.
     """
-    if isinstance(dist, (td.Normal, td.Categorical, StableCauchy, Beta,
-                         TruncatedDistribution)):
+    if isinstance(
+        dist, (td.Normal, td.Categorical, StableCauchy, Beta, TruncatedDistribution)
+    ):
         return dist
     elif isinstance(dist, (td.Independent, td.TransformedDistribution)):
         return get_base_dist(dist.base_dist)
     else:
-        raise NotImplementedError("Distribution type %s is not supported" %
-                                  type(dist))
+        raise NotImplementedError("Distribution type %s is not supported" % type(dist))
 
 
 @alf.configurable
@@ -1247,7 +1251,7 @@ def estimated_entropy(dist, num_samples=1, check_numerics=False):
         - entropy
         - entropy_for_gradient: for calculating gradient.
     """
-    sample_shape = (num_samples, )
+    sample_shape = (num_samples,)
     if dist.has_rsample:
         single_action = dist.rsample(sample_shape=sample_shape)
     else:
@@ -1321,8 +1325,10 @@ def entropy_with_fallback(distributions, return_sum=True):
             entropy, entropy_for_gradient = _compute_entropy(dist.base_dist)
             entropy = entropy + dist._log_abs_scale
             entropy_for_gradient = entropy_for_gradient + dist._log_abs_scale
-        elif isinstance(dist, (td.TransformedDistribution,
-                               TruncatedDistribution, td.MixtureSameFamily)):
+        elif isinstance(
+            dist,
+            (td.TransformedDistribution, TruncatedDistribution, td.MixtureSameFamily),
+        ):
             # TransformedDistribution is used by NormalProjectionNetwork with
             # scale_distribution=True, in which case we estimate with sampling.
             entropy, entropy_for_gradient = estimated_entropy(dist)
@@ -1337,8 +1343,10 @@ def entropy_with_fallback(distributions, return_sum=True):
     if return_sum:
         return sum(entropies), sum(entropies_for_gradient)
     else:
-        return (nest.pack_sequence_as(distributions, entropies),
-                nest.pack_sequence_as(distributions, entropies_for_gradient))
+        return (
+            nest.pack_sequence_as(distributions, entropies),
+            nest.pack_sequence_as(distributions, entropies_for_gradient),
+        )
 
 
 @alf.configurable
@@ -1359,23 +1367,25 @@ def calc_default_target_entropy(spec, min_prob=0.1):
         N = M - m + 1
         if N == 1:
             return 0
-        return (min_prob * (np.log(N - 1) - log_mp) -
-                (1 - min_prob) * np.log(1 - min_prob))
+        return min_prob * (np.log(N - 1) - log_mp) - (1 - min_prob) * np.log(
+            1 - min_prob
+        )
 
     zeros = np.zeros(spec.shape)
     min_max = np.broadcast(spec.minimum, spec.maximum, zeros)
     cont = spec.is_continuous
     log_mp = np.log(min_prob + 1e-30)
-    e = np.sum([(np.log(M - m) +
-                 log_mp if cont else _calc_discrete_entropy(m, M, log_mp))
-                for m, M, _ in min_max])
+    e = np.sum(
+        [
+            (np.log(M - m) + log_mp if cont else _calc_discrete_entropy(m, M, log_mp))
+            for m, M, _ in min_max
+        ]
+    )
     return e
 
 
 @alf.configurable
-def calc_default_target_entropy_quantized(spec,
-                                          num_bins,
-                                          ent_per_action_dim=-1.0):
+def calc_default_target_entropy_quantized(spec, num_bins, ent_per_action_dim=-1.0):
     """Calc default target entropy for quantized continuous action.
     Args:
         spec (BoundedTensorSpec): action spec
@@ -1415,9 +1425,16 @@ def calc_default_max_entropy(spec, fraction=0.8):
     min_max = np.broadcast(spec.minimum, spec.maximum, zeros)
     cont = spec.is_continuous
     # use uniform distributions to compute upper bounds
-    e = np.sum([(np.log(M - m) * (fraction if M - m > 1 else 1.0 / fraction)
-                 if cont else np.log(M - m + 1) * fraction)
-                for m, M, _ in min_max])
+    e = np.sum(
+        [
+            (
+                np.log(M - m) * (fraction if M - m > 1 else 1.0 / fraction)
+                if cont
+                else np.log(M - m + 1) * fraction
+            )
+            for m, M, _ in min_max
+        ]
+    )
     return e
 
 

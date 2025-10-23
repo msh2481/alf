@@ -35,30 +35,29 @@ def is_available():
 
 
 class FlattenObservation(gym_wrappers.BaseObservationWrapper):
-    """Flatten the 2D observations into a 1D vector
-    """
+    """Flatten the 2D observations into a 1D vector"""
 
     def transform_space(self, observation_space):
-        return gym.spaces.Box(low=-observation_space.low.ravel(),
-                              high=observation_space.high.ravel())
+        return gym.spaces.Box(
+            low=-observation_space.low.ravel(), high=observation_space.high.ravel()
+        )
 
     def transform_observation(self, observation):
         return observation.ravel()
 
 
 class RemoveActionEnvInfo(gym.Wrapper):
-    """Remove action from EnvInfo if exist
-    """
+    """Remove action from EnvInfo if exist"""
 
     def step(self, action):
         obs, reward, done, env_info = self.env.step(action)
-        env_info.pop('action', None)
+        env_info.pop("action", None)
         return obs, reward, done, env_info
 
 
 class ActionScalarization(gym.Wrapper):
     """Convert action to scalar if the current action space is MetaDiscreteAction
-        and type of the input action is ``np.ndarray``
+    and type of the input action is ``np.ndarray``
     """
 
     def __init__(self, env):
@@ -72,13 +71,15 @@ class ActionScalarization(gym.Wrapper):
 
 
 @alf.configurable
-def load(environment_name,
-         env_id=None,
-         discount=1.0,
-         max_episode_steps=None,
-         gym_env_wrappers=(),
-         alf_env_wrappers=(),
-         env_config=None):
+def load(
+    environment_name,
+    env_id=None,
+    discount=1.0,
+    max_episode_steps=None,
+    gym_env_wrappers=(),
+    alf_env_wrappers=(),
+    env_config=None,
+):
     """Loads the selected environment and wraps it with the specified wrappers.
 
     Note that by default a TimeLimit wrapper is used to limit episode lengths
@@ -105,8 +106,11 @@ def load(environment_name,
         An AlfEnvironment instance.
     """
     assert environment_name in {
-        "highway-v0", "merge-v0", "roundabout-v0", "intersection-v0",
-        "parking-v0"
+        "highway-v0",
+        "merge-v0",
+        "roundabout-v0",
+        "intersection-v0",
+        "parking-v0",
     }, "wrong highway environment name"
 
     gym_spec = gym.spec(environment_name)
@@ -117,21 +121,17 @@ def load(environment_name,
             "observation": {
                 "type": "Kinematics",
                 "vehicles_count": 5,
-                "features": [
-                    "presence", "x", "y", "vx", "vy", "cos_h", "sin_h"
-                ],
+                "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
                 "features_range": {
                     "x": [-100, 100],
                     "y": [-100, 100],
                     "vx": [-20, 20],
-                    "vy": [-20, 20]
+                    "vy": [-20, 20],
                 },
                 "absolute": False,
-                "order": "sorted"
+                "order": "sorted",
             },
-            "action": {
-                "type": "ContinuousAction"
-            }
+            "action": {"type": "ContinuousAction"},
         }
         env_config = default_env_config
 
@@ -153,9 +153,11 @@ def load(environment_name,
 
     max_episode_steps = min(gym_env.config["duration"] - 1, max_episode_steps)
 
-    return suite_gym.wrap_env(gym_env,
-                              env_id=env_id,
-                              discount=discount,
-                              max_episode_steps=max_episode_steps,
-                              gym_env_wrappers=gym_env_wrappers,
-                              alf_env_wrappers=alf_env_wrappers)
+    return suite_gym.wrap_env(
+        gym_env,
+        env_id=env_id,
+        discount=discount,
+        max_episode_steps=max_episode_steps,
+        gym_env_wrappers=gym_env_wrappers,
+        alf_env_wrappers=alf_env_wrappers,
+    )

@@ -17,19 +17,20 @@ import io
 import numpy as np
 import matplotlib
 
-matplotlib.use('Agg')  # 'Agg' no need for xserver!
+matplotlib.use("Agg")  # 'Agg' no need for xserver!
 import matplotlib.pyplot as plt
 from typing import Optional
 from absl import logging
+
 # Style gallery: https://tonysyu.github.io/raw_content/matplotlib-style-gallery/gallery.html
 # The seaborn styles shipped by Matplotlib are deprecated since 3.6,
 # as they no longer correspond to the styles shipped by seaborn.
 # However, they will remain available as 'seaborn-v0_8-<style>'.
 try:
-    plt.style.use('seaborn-v0_8-dark')
+    plt.style.use("seaborn-v0_8-dark")
 except Exception:
     # Fallback if the matplotlib version is too low
-    plt.style.use('seaborn-dark')
+    plt.style.use("seaborn-dark")
 try:
     import rpack
 except ImportError:
@@ -43,6 +44,7 @@ import torch.distributions as td
 import alf
 import alf.nest as nest
 from alf.utils import dist_utils
+
 """To use the rendering functions in this file, when playing a model, specify the
 flags '--alg_render' and '--record_file'.
 
@@ -85,8 +87,9 @@ class Image(object):
         """
         assert isinstance(img, np.ndarray), "Image must be a numpy array!"
         shape = img.shape
-        assert (len(shape) == 2) or (len(shape) == 3 and shape[-1] == 3), (
-            "Image shape should be [H,W] or [H,W,3]!")
+        assert (len(shape) == 2) or (
+            len(shape) == 3 and shape[-1] == 3
+        ), "Image shape should be [H,W] or [H,W,3]!"
         if len(shape) == 2:
             self._img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
         else:
@@ -124,12 +127,10 @@ class Image(object):
         elif height is not None:
             scale = float(height) / self._img.shape[0]
         else:
-            raise ValueError('At least width or height should be provided.')
-        self._img = cv2.resize(self._img,
-                               dsize=(0, 0),
-                               fx=scale,
-                               fy=scale,
-                               interpolation=interpolation)
+            raise ValueError("At least width or height should be provided.")
+        self._img = cv2.resize(
+            self._img, dsize=(0, 0), fx=scale, fy=scale, interpolation=interpolation
+        )
         return self
 
     @classmethod
@@ -153,10 +154,9 @@ class Image(object):
         return cls(img)
 
     @classmethod
-    def pack_image_nest(cls,
-                        imgs,
-                        max_width: Optional[int] = None,
-                        max_height: Optional[int] = None):
+    def pack_image_nest(
+        cls, imgs, max_width: Optional[int] = None, max_height: Optional[int] = None
+    ):
         """Given a nest of images, pack them into a larger image so that it has
         an area as small as possible. This problem is generally known as
         "rectangle packing" and its optimal solution is
@@ -187,15 +187,14 @@ class Image(object):
         sizes = [(i.shape[1], i.shape[0]) for i in imgs]
         # call rpack for an approximate solution: [(x,y),...] positions
         try:
-            positions = rpack.pack(sizes,
-                                   max_width=max_width,
-                                   max_height=max_height)
+            positions = rpack.pack(sizes, max_width=max_width, max_height=max_height)
         except rpack.PackingImpossibleError:
             # If a solution cannot be found with the given constraints, rerun with constraints dropped.
             positions = rpack.pack(sizes)
             logging.warning(
                 f"pack_image_nest couldn't find a solution for a constraint size of (w:{max_width}, h:{max_height}). "
-                f"Solution returned with all constraints dropped.")
+                f"Solution returned with all constraints dropped."
+            )
 
         # compute the height and width of the enclosing rectangle
         H, W = 0, 0
@@ -205,8 +204,9 @@ class Image(object):
 
         packed_img = np.full((H, W, 3), 255, dtype=np.uint8)
         for pos, img in zip(positions, imgs):
-            packed_img[pos[1]:pos[1] + img.shape[0],
-                       pos[0]:pos[0] + img.shape[1], :] = img.data
+            packed_img[
+                pos[1] : pos[1] + img.shape[0], pos[0] : pos[0] + img.shape[1], :
+            ] = img.data
         return cls(packed_img)
 
     @classmethod
@@ -229,8 +229,7 @@ class Image(object):
             stacked_img = np.full((H, W, 3), 255, dtype=np.uint8)
             offset_w = 0
             for i in imgs:
-                stacked_img[:i.shape[0],
-                            offset_w:offset_w + i.shape[1], :] = i.data
+                stacked_img[: i.shape[0], offset_w : offset_w + i.shape[1], :] = i.data
                 offset_w += i.shape[1]
         else:
             H = sum([i.shape[0] for i in imgs])
@@ -238,8 +237,7 @@ class Image(object):
             stacked_img = np.full((H, W, 3), 255, dtype=np.uint8)
             offset_h = 0
             for i in imgs:
-                stacked_img[offset_h:offset_h +
-                            i.shape[0], :i.shape[1], :] = i.data
+                stacked_img[offset_h : offset_h + i.shape[0], : i.shape[1], :] = i.data
                 offset_h += i.shape[0]
 
         return cls(stacked_img)
@@ -298,15 +296,17 @@ def _convert_to_image(name, fig, dpi, height=None, width=None):
     return img
 
 
-def _heatmap(data,
-             row_ticks=None,
-             col_ticks=None,
-             row_labels=None,
-             col_labels=None,
-             ax=None,
-             cbar_kw={},
-             cbarlabel="",
-             **kwargs):
+def _heatmap(
+    data,
+    row_ticks=None,
+    col_ticks=None,
+    row_labels=None,
+    col_labels=None,
+    ax=None,
+    cbar_kw={},
+    cbarlabel="",
+    **kwargs,
+):
     """Create a heatmap from a numpy array and two lists of labels.
 
     (Code from `matplotlib documentation <https://matplotlib.org/stable/gallery/images_contours_and_fields/image_annotated_heatmap.html>`_)
@@ -345,52 +345,47 @@ def _heatmap(data,
 
     if col_ticks is None:
         # show all the ticks by default
-        col_ticks = np.arange(data.shape[1] + 1) - .5
+        col_ticks = np.arange(data.shape[1] + 1) - 0.5
 
     ax.set_xticks(col_ticks, minor=True)
 
     if row_ticks is None:
         # show all the ticks by default
-        row_ticks = np.arange(data.shape[0] + 1) - .5
+        row_ticks = np.arange(data.shape[0] + 1) - 0.5
 
     ax.set_yticks(row_ticks, minor=True)
 
     # ... and label them with the respective list entries.
     if col_labels is not None:
         assert len(col_ticks) == len(col_labels), (
-            "'col_ticks' should have the "
-            "same length as 'col_labels'")
+            "'col_ticks' should have the " "same length as 'col_labels'"
+        )
         ax.set_xticklabels(col_labels)
 
     if row_labels is not None:
         assert len(row_ticks) == len(row_labels), (
-            "'row_ticks' should have the "
-            "same length as 'row_labels'")
+            "'row_ticks' should have the " "same length as 'row_labels'"
+        )
         ax.set_yticklabels(row_labels)
 
     # Let the horizontal axes labeling appear on top.
     ax.tick_params(top=True, bottom=False, labeltop=True, labelbottom=False)
 
     # Rotate the tick labels and set their alignment.
-    plt.setp(ax.get_xticklabels(),
-             rotation=-30,
-             ha="right",
-             rotation_mode="anchor")
+    plt.setp(ax.get_xticklabels(), rotation=-30, ha="right", rotation_mode="anchor")
 
     # Turn spines off and create white grid.
     ax.spines[:].set_visible(False)
 
-    ax.grid(which="minor", color="w", linestyle='-', linewidth=3)
+    ax.grid(which="minor", color="w", linestyle="-", linewidth=3)
     ax.tick_params(which="minor", bottom=False, left=False)
 
     return im, cbar
 
 
-def _annotate_heatmap(im,
-                      valfmt="%.2f",
-                      textcolors=("black", "white"),
-                      threshold=None,
-                      **textkw):
+def _annotate_heatmap(
+    im, valfmt="%.2f", textcolors=("black", "white"), threshold=None, **textkw
+):
     """A function to annotate a heatmap.
 
     (Code from `matplotlib documentation <https://matplotlib.org/stable/gallery/images_contours_and_fields/image_annotated_heatmap.html>`_)
@@ -414,7 +409,7 @@ def _annotate_heatmap(im,
     if threshold is not None:
         threshold = im.norm(threshold)
     else:
-        threshold = im.norm(data.max()) / 2.
+        threshold = im.norm(data.max()) / 2.0
 
     # Set default alignment to center, but allow it to be
     # overwritten by textkw.
@@ -430,21 +425,23 @@ def _annotate_heatmap(im,
 
 
 @_rendering_wrapper
-def render_heatmap(name,
-                   data,
-                   val_label="",
-                   row_ticks=None,
-                   col_ticks=None,
-                   row_labels=None,
-                   col_labels=None,
-                   cbar_kw={},
-                   annotate_format="%.2f",
-                   font_size=7,
-                   img_height=None,
-                   img_width=None,
-                   dpi=300,
-                   figsize=(2, 2),
-                   **kwargs):
+def render_heatmap(
+    name,
+    data,
+    val_label="",
+    row_ticks=None,
+    col_ticks=None,
+    row_labels=None,
+    col_labels=None,
+    cbar_kw={},
+    annotate_format="%.2f",
+    font_size=7,
+    img_height=None,
+    img_width=None,
+    dpi=300,
+    figsize=(2, 2),
+    **kwargs,
+):
     """Render a 2D tensor as a heatmap.
 
     Args:
@@ -484,34 +481,38 @@ def render_heatmap(name,
     else:
         array = data
     fig, ax = plt.subplots(figsize=figsize)
-    im, _ = _heatmap(array,
-                     row_ticks,
-                     col_ticks,
-                     row_labels,
-                     col_labels,
-                     ax,
-                     cbar_kw=cbar_kw,
-                     cbarlabel=val_label,
-                     **kwargs)
-    if annotate_format != '':
+    im, _ = _heatmap(
+        array,
+        row_ticks,
+        col_ticks,
+        row_labels,
+        col_labels,
+        ax,
+        cbar_kw=cbar_kw,
+        cbarlabel=val_label,
+        **kwargs,
+    )
+    if annotate_format != "":
         _annotate_heatmap(im, valfmt=annotate_format, size=font_size)
     return _convert_to_image(name, fig, dpi, img_height, img_width)
 
 
 @_rendering_wrapper
-def render_contour(name,
-                   data,
-                   x_ticks=None,
-                   y_ticks=None,
-                   x_label=None,
-                   y_label=None,
-                   font_size=7,
-                   img_height=None,
-                   img_width=None,
-                   dpi=300,
-                   figsize=(2, 2),
-                   flip_y_axis=True,
-                   **kwargs):
+def render_contour(
+    name,
+    data,
+    x_ticks=None,
+    y_ticks=None,
+    x_label=None,
+    y_label=None,
+    font_size=7,
+    img_height=None,
+    img_width=None,
+    dpi=300,
+    figsize=(2, 2),
+    flip_y_axis=True,
+    **kwargs,
+):
     """Render a 2D tensor as a contour.
 
     Args:
@@ -565,19 +566,21 @@ def render_contour(name,
 
 
 @_rendering_wrapper
-def render_curve(name,
-                 data,
-                 x_range=None,
-                 y_range=None,
-                 x_label=None,
-                 y_label=None,
-                 legends=None,
-                 legend_kwargs={},
-                 img_height=None,
-                 img_width=None,
-                 dpi=300,
-                 figsize=(2, 2),
-                 **kwargs):
+def render_curve(
+    name,
+    data,
+    x_range=None,
+    y_range=None,
+    x_label=None,
+    y_label=None,
+    legends=None,
+    legend_kwargs={},
+    img_height=None,
+    img_width=None,
+    dpi=300,
+    figsize=(2, 2),
+    **kwargs,
+):
     """Plot 1D curves.
 
     Args:
@@ -637,21 +640,23 @@ def render_curve(name,
 
 
 @_rendering_wrapper
-def render_3d_curve(name,
-                    data,
-                    x_range=None,
-                    y_range=None,
-                    z_range=None,
-                    x_label=None,
-                    y_label=None,
-                    z_label=None,
-                    legends=None,
-                    legend_kwargs={},
-                    img_height=None,
-                    img_width=None,
-                    dpi=300,
-                    figsize=(2, 2),
-                    **kwargs):
+def render_3d_curve(
+    name,
+    data,
+    x_range=None,
+    y_range=None,
+    z_range=None,
+    x_label=None,
+    y_label=None,
+    z_label=None,
+    legends=None,
+    legend_kwargs={},
+    img_height=None,
+    img_width=None,
+    dpi=300,
+    figsize=(2, 2),
+    **kwargs,
+):
     """Plot 3D curves.
 
     Args:
@@ -682,8 +687,7 @@ def render_3d_curve(name,
     """
 
     assert len(data.shape) == 2, "must be rank-2"
-    assert data.shape[
-        1] == 3, "expecting 3 rows in data for x, y, z respectively"
+    assert data.shape[1] == 3, "expecting 3 rows in data for x, y, z respectively"
     x_data = data[..., 0]
     y_data = data[..., 1]
     z_data = data[..., 2]
@@ -707,7 +711,7 @@ def render_3d_curve(name,
     z_array = np.expand_dims(z_array, 0)
 
     fig = plt.figure(figsize=figsize)
-    ax = fig.add_subplot(111, projection='3d')
+    ax = fig.add_subplot(111, projection="3d")
     M, N = x_array.shape
 
     for i in range(M):
@@ -732,21 +736,23 @@ def render_3d_curve(name,
 
 
 @_rendering_wrapper
-def render_bar(name,
-               data,
-               width=0.8,
-               y_range=None,
-               x_ticks=None,
-               x_label=None,
-               y_label=None,
-               legends=None,
-               legend_kwargs={},
-               annotate_format="%.2f",
-               img_height=None,
-               img_width=None,
-               dpi=300,
-               figsize=(2, 2),
-               **kwargs):
+def render_bar(
+    name,
+    data,
+    width=0.8,
+    y_range=None,
+    x_ticks=None,
+    x_label=None,
+    y_label=None,
+    legends=None,
+    legend_kwargs={},
+    annotate_format="%.2f",
+    img_height=None,
+    img_width=None,
+    dpi=300,
+    figsize=(2, 2),
+    **kwargs,
+):
     """Render bar plots.
 
     Args:
@@ -798,7 +804,7 @@ def render_bar(name,
             p = ax.bar(x, array[i], width, **kwargs)
         ax.bar_label(p, label_type="center", fmt=annotate_format)
 
-    ax.axhline(0, color='grey', linewidth=1)
+    ax.axhline(0, color="grey", linewidth=1)
 
     if legends:
         ax.legend(legends, loc="best", **legend_kwargs)
@@ -816,15 +822,17 @@ def render_bar(name,
 
 
 @_rendering_wrapper
-def render_text(name: str,
-                data: str,
-                font_size: int = 10,
-                fig_width_per_char: float = 0.1,
-                fig_height: float = 0.4,
-                img_height: int = None,
-                img_width: int = None,
-                dpi=200,
-                **kwargs):
+def render_text(
+    name: str,
+    data: str,
+    font_size: int = 10,
+    fig_width_per_char: float = 0.1,
+    fig_height: float = 0.4,
+    img_height: int = None,
+    img_width: int = None,
+    dpi=200,
+    **kwargs,
+):
     """Render a text string.
 
     Args:
@@ -839,11 +847,10 @@ def render_text(name: str,
         img_width (int): width of the output image
         **kwargs: extra arguments forwarded to ``ax.text``.
     """
-    fig, ax = plt.subplots(figsize=(len(data) * fig_width_per_char,
-                                    fig_height))
-    kwargs['fontsize'] = font_size
+    fig, ax = plt.subplots(figsize=(len(data) * fig_width_per_char, fig_height))
+    kwargs["fontsize"] = font_size
     ax.text(0, 0, data, **kwargs)
-    ax.axis('off')
+    ax.axis("off")
     return _convert_to_image(name, fig, dpi, img_height, img_width)
 
 
@@ -875,23 +882,17 @@ def render_action(name, action, action_spec, **kwargs):
         else:
             fmt = "%.2f"
         x_ticks = range(act.shape[-1])
-        name_ = name if path == '' else name + '/' + path
-        return render_bar(name_,
-                          act,
-                          y_range=y_range,
-                          annotate_format=fmt,
-                          x_ticks=x_ticks,
-                          **kwargs)
+        name_ = name if path == "" else name + "/" + path
+        return render_bar(
+            name_, act, y_range=y_range, annotate_format=fmt, x_ticks=x_ticks, **kwargs
+        )
 
     return nest.py_map_structure_with_path(_render_action, action, action_spec)
 
 
-def render_action_distribution(name,
-                               act_dist,
-                               action_spec,
-                               n_samples=500,
-                               n_bins=20,
-                               **kwargs):
+def render_action_distribution(
+    name, act_dist, action_spec, n_samples=500, n_bins=20, **kwargs
+):
     """An action distribution renderer that plots agent's action distribution
     at one time step in a curve plot. Assuming action dims are independent, each
     action dim's 1D distribution corresponds to a separate curve in the plot.
@@ -921,17 +922,15 @@ def render_action_distribution(name,
             np.array: a 2D matrix where each row is a prob hist for a dim
         """
         mode = dist_utils.get_mode(dist)
-        assert len(
-            mode.shape) == 2, "Currently only support rank-2 distributions!"
+        assert len(mode.shape) == 2, "Currently only support rank-2 distributions!"
         dim = mode.shape[-1]
-        points = dist.sample(sample_shape=(n_samples, )).cpu().numpy()
+        points = dist.sample(sample_shape=(n_samples,)).cpu().numpy()
         points = np.reshape(points, (-1, dim))
         probs = []
         for d in range(dim):
-            hist, _ = np.histogram(points[:, d],
-                                   bins=n_bins,
-                                   density=True,
-                                   range=x_range)
+            hist, _ = np.histogram(
+                points[:, d], bins=n_bins, density=True, range=x_range
+            )
             probs.append(hist)
         return np.stack(probs)
 
@@ -945,22 +944,15 @@ def render_action_distribution(name,
             probs = _approximate_probs(dist, x_range)
             legends = ["d%s" % i for i in range(probs.shape[0])]
 
-        name_ = name if path == '' else name + '/' + path
-        return render_curve(name=name_,
-                            data=probs,
-                            legends=legends,
-                            x_range=x_range,
-                            **kwargs)
+        name_ = name if path == "" else name + "/" + path
+        return render_curve(
+            name=name_, data=probs, legends=legends, x_range=x_range, **kwargs
+        )
 
-    return nest.py_map_structure_with_path(_render_act_dist, act_dist,
-                                           action_spec)
+    return nest.py_map_structure_with_path(_render_act_dist, act_dist, action_spec)
 
 
-def render_heatmap_fast(imgs,
-                        min_value,
-                        max_value,
-                        pixel_size=10,
-                        bar_size=20):
+def render_heatmap_fast(imgs, min_value, max_value, pixel_size=10, bar_size=20):
     """Render a heatmap for each image in ``imgs``
 
     Different from render_heatmap(), this function does not use matplotlib and
@@ -989,10 +981,12 @@ def render_heatmap_fast(imgs,
     mid = (low + high) / 2
     # high - mid should be at least 0.05 * (max_value - min_value)
     high = torch.minimum(
-        torch.maximum(high, mid + 0.01 * (max_value - min_value)), max_value)
+        torch.maximum(high, mid + 0.01 * (max_value - min_value)), max_value
+    )
     # mid - low should be at least 0.05 * (max_value - min_value)
     low = torch.maximum(
-        torch.minimum(low, mid - 0.01 * (max_value - min_value)), min_value)
+        torch.minimum(low, mid - 0.01 * (max_value - min_value)), min_value
+    )
     low = low[:, None, None]
     high = high[:, None, None]
     imgs = (imgs - low) / (high - low)
@@ -1000,12 +994,18 @@ def render_heatmap_fast(imgs,
     imgs = (imgs * 255).to(torch.uint8)
     imgs = torch.repeat_interleave(imgs, pixel_size, dim=-2)
     imgs = torch.repeat_interleave(imgs, pixel_size, dim=-1)
-    bars = torch.linspace(1.0, 0.0, imgs.shape[-2])[None, :] * (
-        max_value - min_value)[:, None] + min_value[:, None]
+    bars = (
+        torch.linspace(1.0, 0.0, imgs.shape[-2])[None, :]
+        * (max_value - min_value)[:, None]
+        + min_value[:, None]
+    )
     bars = torch.repeat_interleave(bars[..., None], bar_size, dim=-1)
     bars = (bars - low) / (high - low)
     bars = torch.clamp(bars, 0, 1)
     bars = (bars * 255).to(torch.uint8)
-    imgs = torch.cat(sum([[bar, img] for bar, img in zip(bars, imgs)], []),
-                     dim=-1).cpu().numpy()
+    imgs = (
+        torch.cat(sum([[bar, img] for bar, img in zip(bars, imgs)], []), dim=-1)
+        .cpu()
+        .numpy()
+    )
     return Image(imgs)

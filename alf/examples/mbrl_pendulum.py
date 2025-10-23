@@ -22,10 +22,10 @@ import alf
 @alf.configurable
 def reward_function_for_pendulum(obs, action):
     """Function for computing reward for gym Pendulum environment. It takes
-        as input:
-        (1) observation (Tensor of shape [batch_size, observation_dim])
-        (2) action (Tensor of shape [batch_size, num_actions])
-        and returns a reward Tensor of shape [batch_size].
+    as input:
+    (1) observation (Tensor of shape [batch_size, observation_dim])
+    (2) action (Tensor of shape [batch_size, num_actions])
+    and returns a reward Tensor of shape [batch_size].
     """
 
     def _observation_cost(obs):
@@ -33,8 +33,7 @@ def reward_function_for_pendulum(obs, action):
         theta = torch.atan2(s_theta, c_theta)
         cost = theta**2 + 0.1 * d_theta**2
         cost = torch.sum(cost, dim=1)
-        cost = torch.where(torch.isnan(cost), 1e6 * torch.ones_like(cost),
-                           cost)
+        cost = torch.where(torch.isnan(cost), 1e6 * torch.ones_like(cost), cost)
         return cost
 
     def _action_cost(action):

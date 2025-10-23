@@ -101,14 +101,16 @@ class MemoryWithUsage(Memory):
     This implementation follows the one described in arXiv:1803.10760.
     """
 
-    def __init__(self,
-                 dim,
-                 size,
-                 snapshot_only=False,
-                 normalize=True,
-                 scale=None,
-                 usage_decay=None,
-                 name='MemoryWithUsage'):
+    def __init__(
+        self,
+        dim,
+        size,
+        snapshot_only=False,
+        normalize=True,
+        scale=None,
+        usage_decay=None,
+        name="MemoryWithUsage",
+    ):
         """
 
         See Methods 2.3 of `Unsupervised Predictive Memory in a Goal-Directed
@@ -134,19 +136,20 @@ class MemoryWithUsage(Memory):
             if normalize:
                 scale = 5.0
             else:
-                scale = 1. / math.sqrt(dim)
+                scale = 1.0 / math.sqrt(dim)
         self._scale = scale
         self._built = False
         self._snapshot_only = snapshot_only
         if usage_decay is None:
-            usage_decay = 1. - 1. / size
+            usage_decay = 1.0 - 1.0 / size
         self._usage_decay = usage_decay
-        state_spec = (alf.TensorSpec((size, dim), dtype=torch.float32),
-                      alf.TensorSpec((size, ), dtype=torch.float32))
-        super(MemoryWithUsage, self).__init__(dim,
-                                              size,
-                                              state_spec=state_spec,
-                                              name=name)
+        state_spec = (
+            alf.TensorSpec((size, dim), dtype=torch.float32),
+            alf.TensorSpec((size,), dtype=torch.float32),
+        )
+        super(MemoryWithUsage, self).__init__(
+            dim, size, state_spec=state_spec, name=name
+        )
 
     def build(self, batch_size):
         """Build the memory for batch_size.
@@ -174,11 +177,12 @@ class MemoryWithUsage(Memory):
         Returns:
             Callable: a function which calculates ``num_keys`` keys given query.
         """
-        assert isinstance(query_spec, alf.TensorSpec), ("Wrong type for "
-                                                        "query_spec: %s" %
-                                                        type(query_spec))
+        assert isinstance(
+            query_spec, alf.TensorSpec
+        ), "Wrong type for " "query_spec: %s" % type(query_spec)
         assert query_spec.ndim == 1, (
-            "Query mush be a rank-1 tensor. Got: %s" % query_spec.ndim)
+            "Query mush be a rank-1 tensor. Got: %s" % query_spec.ndim
+        )
         return alf.layers.FC(query_spec.shape[0], num_keys * (self.dim + 1))
 
     def genkey_and_read(self, keynet: Callable, query, flatten_result=True):
@@ -201,8 +205,8 @@ class MemoryWithUsage(Memory):
         keys_and_scales = keynet(query)
         num_keys = keys_and_scales.shape[-1] // (self.dim + 1)
         assert num_keys * (self.dim + 1) == keys_and_scales.shape[-1]
-        keys = keys_and_scales[:, :num_keys * self.dim]
-        scales = keys_and_scales[:, num_keys * self.dim:]
+        keys = keys_and_scales[:, : num_keys * self.dim]
+        scales = keys_and_scales[:, num_keys * self.dim :]
         keys = keys.reshape(batch_size, num_keys, self.dim)
         scales = F.softplus(scales)
 
@@ -303,8 +307,9 @@ class MemoryWithUsage(Memory):
 
         # update content at the new location
         loc_weight = loc_weight.unsqueeze(2)  # [B, N, 1]
-        memory = (self._usage_decay * (1 - loc_weight) * self._memory +
-                  loc_weight * content.unsqueeze(1))
+        memory = self._usage_decay * (
+            1 - loc_weight
+        ) * self._memory + loc_weight * content.unsqueeze(1)
         if self._snapshot_only:
             self._usage = usage.detach()
             self._memory = memory.detach()
@@ -339,8 +344,9 @@ class MemoryWithUsage(Memory):
             memory states: tuple of memory content and usage tensor.
 
         """
-        assert not self._snapshot_only, (
-            "states() is not supported for snapshot_only memory")
+        assert (
+            not self._snapshot_only
+        ), "states() is not supported for snapshot_only memory"
         return (self._memory, self._usage)
 
     def from_states(self, states):
@@ -349,8 +355,9 @@ class MemoryWithUsage(Memory):
         Args:
             states (tuple of Tensor): It is should be obtained from states().
         """
-        assert not self._snapshot_only, (
-            "from_states() is not supported for snapshot_only memory")
+        assert (
+            not self._snapshot_only
+        ), "from_states() is not supported for snapshot_only memory"
         if states is None:
             self._memory = None
             self._usage = None
@@ -375,8 +382,10 @@ class FIFOMemory(Memory):
             size (int): number of memory slots
         """
         self._built = False
-        state_spec = (alf.TensorSpec((size, dim), dtype=torch.float32),
-                      alf.TensorSpec((), dtype=torch.int64))
+        state_spec = (
+            alf.TensorSpec((size, dim), dtype=torch.float32),
+            alf.TensorSpec((), dtype=torch.int64),
+        )
         self._range = torch.arange(size).unsqueeze(0)
         super().__init__(dim, size, state_spec=state_spec, name=name)
 

@@ -21,9 +21,11 @@ import alf
 from alf.optimizers import AdamTF
 
 from alf.pretrained_models.pretrained_model import PretrainedModel
-from alf.pretrained_models.model_adapters.lora import (LinearAdapter,
-                                                       Conv2dAdapter,
-                                                       EmbeddingAdapter)
+from alf.pretrained_models.model_adapters.lora import (
+    LinearAdapter,
+    Conv2dAdapter,
+    EmbeddingAdapter,
+)
 
 
 class LoRATest(alf.test.TestCase, parameterized.TestCase):
@@ -52,12 +54,10 @@ class LoRATest(alf.test.TestCase, parameterized.TestCase):
     def _test_train(self, x, pretrained):
         model = pretrained._model
         opt = AdamTF(lr=0.1)
-        opt.add_param_group({'params': pretrained.parameters()})
+        opt.add_param_group({"params": pretrained.parameters()})
 
         paras = [copy.deepcopy(p) for p in model.parameters()]
-        adapter_paras = [
-            copy.deepcopy(p) for p in pretrained._adapters.parameters()
-        ]
+        adapter_paras = [copy.deepcopy(p) for p in pretrained._adapters.parameters()]
 
         for i in range(2):
             y = pretrained(x).sum()
@@ -73,42 +73,42 @@ class LoRATest(alf.test.TestCase, parameterized.TestCase):
         for ap, ap1 in zip(adapter_paras, adapter_paras1):
             self.assertTrue(torch.all(ap != ap1))
 
-    @parameterized.parameters((2, ), (16, ))
+    @parameterized.parameters((2,), (16,))
     def test_linear_adapter(self, rank):
         alf.reset_configs()
-        alf.config('LinearAdapter', rank=rank)
+        alf.config("LinearAdapter", rank=rank)
 
         x = torch.tensor([0.1, 0.2, 0.3, 0.4])
 
-        fc = torch.nn.Sequential(torch.nn.Linear(4, 8), torch.nn.Tanh(),
-                                 torch.nn.Linear(8, 4))
+        fc = torch.nn.Sequential(
+            torch.nn.Linear(4, 8), torch.nn.Tanh(), torch.nn.Linear(8, 4)
+        )
         pretrained = PretrainedModel(fc, [LinearAdapter])
 
         self._test(x, pretrained)
 
-    @parameterized.parameters((2, ), (16, ))
+    @parameterized.parameters((2,), (16,))
     def test_conv_adapter(self, rank):
         alf.reset_configs()
-        alf.config('Conv2dAdapter', rank=rank)
+        alf.config("Conv2dAdapter", rank=rank)
 
         x = torch.rand([8, 10, 10])
         conv = torch.nn.Sequential(
-            torch.nn.Conv2d(8,
-                            8,
-                            kernel_size=(3, 5),
-                            padding=(1, 2),
-                            dilation=2,
-                            stride=(2, 4)), torch.nn.Tanh(),
-            torch.nn.Conv2d(8, 16, kernel_size=1, groups=2))
+            torch.nn.Conv2d(
+                8, 8, kernel_size=(3, 5), padding=(1, 2), dilation=2, stride=(2, 4)
+            ),
+            torch.nn.Tanh(),
+            torch.nn.Conv2d(8, 16, kernel_size=1, groups=2),
+        )
 
         pretrained = PretrainedModel(conv, [Conv2dAdapter])
 
         self._test(x, pretrained)
 
-    @parameterized.parameters((2, ), (16, ))
+    @parameterized.parameters((2,), (16,))
     def test_embedding_adapter(self, rank):
         alf.reset_configs()
-        alf.config('EmbeddingAdapter', rank=rank)
+        alf.config("EmbeddingAdapter", rank=rank)
 
         x = torch.tensor([0, 1, 2, 3]).to(torch.int64)
         embedding = torch.nn.Embedding(4, 10)
@@ -117,7 +117,7 @@ class LoRATest(alf.test.TestCase, parameterized.TestCase):
 
         self._test(x, pretrained)
 
-    @parameterized.parameters((2, ), (16, ))
+    @parameterized.parameters((2,), (16,))
     def test_multiple_adaptation(self, rank):
         alf.reset_configs()
         alf.config("LinearAdapter", rank=rank)
@@ -125,9 +125,12 @@ class LoRATest(alf.test.TestCase, parameterized.TestCase):
 
         x = torch.rand([1, 4, 10, 10])
         model = torch.nn.Sequential(
-            torch.nn.Conv2d(4, 8, kernel_size=3, padding=1), torch.nn.Tanh(),
-            torch.nn.Conv2d(8, 4, kernel_size=1), alf.layers.Reshape(-1),
-            torch.nn.Linear(4 * 10 * 10, 10))
+            torch.nn.Conv2d(4, 8, kernel_size=3, padding=1),
+            torch.nn.Tanh(),
+            torch.nn.Conv2d(8, 4, kernel_size=1),
+            alf.layers.Reshape(-1),
+            torch.nn.Linear(4 * 10 * 10, 10),
+        )
         pretrained = PretrainedModel(model, [LinearAdapter, Conv2dAdapter])
         self.assertEqual(len(pretrained._adapters), 3)  # 2 conv + 1 linear
 

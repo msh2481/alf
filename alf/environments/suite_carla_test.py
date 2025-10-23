@@ -21,7 +21,7 @@ import torch
 import alf
 from alf.environments import suite_carla
 
-flags.DEFINE_bool('manual', False, "Manual control")
+flags.DEFINE_bool("manual", False, "Manual control")
 FLAGS = flags.FLAGS
 
 
@@ -30,16 +30,14 @@ class SuiteCarlaTest(alf.test.TestCase):
     def setUp(self):
         super().setUp()
         if not suite_carla.is_available():
-            self.skipTest('suite_carla is not available.')
+            self.skipTest("suite_carla is not available.")
 
     def test_carla(self):
-        alf.config('suite_carla.Player', with_bev_sensor=True)
+        alf.config("suite_carla.Player", with_bev_sensor=True)
 
-        env = suite_carla.CarlaEnvironment(4, 'Town01')
-        logging.info("observation_spec: %s" %
-                     pprint.pformat(env.observation_spec()))
-        logging.info("observation_desc: %s" %
-                     pprint.pformat(env.observation_desc()))
+        env = suite_carla.CarlaEnvironment(4, "Town01")
+        logging.info("observation_spec: %s" % pprint.pformat(env.observation_spec()))
+        logging.info("observation_desc: %s" % pprint.pformat(env.observation_desc()))
         logging.info("action_spec: %s" % pprint.pformat(env.action_spec()))
         logging.info("action_desc: %s" % pprint.pformat(env.action_desc()))
         action_spec = env.action_spec()
@@ -51,22 +49,26 @@ class SuiteCarlaTest(alf.test.TestCase):
                 action[:, 2] = 0
                 for _ in range(10):
                     time_step = env.step(action)
-                    logging.debug("goal: %s, gnss: %s reward=%s" %
-                                  (time_step.observation['goal'][0],
-                                   time_step.observation['gnss'][0],
-                                   float(time_step.reward[0][0])))
+                    logging.debug(
+                        "goal: %s, gnss: %s reward=%s"
+                        % (
+                            time_step.observation["goal"][0],
+                            time_step.observation["gnss"][0],
+                            float(time_step.reward[0][0]),
+                        )
+                    )
         finally:
             env.close()
 
 
 def play(env):
-    logging.info("observation_spec: %s" %
-                 pprint.pformat(env.observation_spec()))
-    logging.info("observation_desc: %s" %
-                 pprint.pformat(env.observation_desc()))
+    logging.info("observation_spec: %s" % pprint.pformat(env.observation_spec()))
+    logging.info("observation_desc: %s" % pprint.pformat(env.observation_desc()))
     logging.info("action_spec: %s" % pprint.pformat(env.action_spec()))
     logging.info("action_desc: %s" % pprint.pformat(env.action_desc()))
-    logging.info("Keyboard control:" + """
+    logging.info(
+        "Keyboard control:"
+        + """
     W/UP         : throttle
     S/DOWN       : brake
     A/LEFT       : steer left
@@ -74,7 +76,8 @@ def play(env):
     SPACE        : steer ahead
     Q            : toggle reverse
     ESC          : quit
-    """)
+    """
+    )
 
     action = env.action_spec().zeros([env.batch_size])
     THROTTLE = 0
@@ -84,10 +87,11 @@ def play(env):
 
     import pygame
     import pygame.locals as K
+
     pygame.init()
     pygame.font.init()
     clock = pygame.time.Clock()
-    steer = 0.
+    steer = 0.0
 
     stopping = False
     while not stopping:
@@ -104,18 +108,18 @@ def play(env):
             if event.key == K.K_q:
                 action[:, REVERSE] = 1 - action[:, REVERSE]
             if event.key == K.K_SPACE:
-                steer = 0.
+                steer = 0.0
 
         keys = pygame.key.get_pressed()
         if keys[K.K_UP] or keys[K.K_w]:
-            action[:, THROTTLE] = torch.min(action[:, THROTTLE] + 0.01,
-                                            torch.tensor(1.))
+            action[:, THROTTLE] = torch.min(
+                action[:, THROTTLE] + 0.01, torch.tensor(1.0)
+            )
         else:
             action[:, THROTTLE] = 0
 
         if keys[K.K_DOWN] or keys[K.K_s]:
-            action[:, BRAKE] = torch.min(action[:, BRAKE] + 0.2,
-                                         torch.tensor(1.))
+            action[:, BRAKE] = torch.min(action[:, BRAKE] + 0.2, torch.tensor(1.0))
         else:
             action[:, BRAKE] = 0
 
@@ -136,7 +140,7 @@ def play(env):
         time_step = env.step(action)
         if time_step.step_type[0] == alf.data_structures.StepType.LAST:
             action = env.action_spec().zeros([env.batch_size])
-            steer = 0.
+            steer = 0.0
 
         env.render("human")
 
@@ -149,12 +153,14 @@ def main():
     logging.use_absl_handler()
     logging.set_verbosity(logging.INFO)
 
-    alf.config('suite_carla.Player', with_bev_sensor=True)
-    env = suite_carla.CarlaEnvironment(batch_size=1,
-                                       map_name='Town01',
-                                       num_other_vehicles=20,
-                                       num_walkers=20,
-                                       day_length=100)
+    alf.config("suite_carla.Player", with_bev_sensor=True)
+    env = suite_carla.CarlaEnvironment(
+        batch_size=1,
+        map_name="Town01",
+        num_other_vehicles=20,
+        num_walkers=20,
+        day_length=100,
+    )
     try:
         play(env)
     finally:
@@ -162,6 +168,6 @@ def main():
     return True
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     if not main():
         alf.test.main()

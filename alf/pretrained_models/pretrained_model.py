@@ -30,12 +30,14 @@ class PretrainedModel(nn.Module):
     `<https://docs.adapterhub.ml/methods.html>`_.
     """
 
-    def __init__(self,
-                 model: nn.Module,
-                 adapter_cls: List[Callable] = [],
-                 module_blacklist: List[str] = None,
-                 module_whitelist: List[str] = None,
-                 name: str = 'PretrainedModel'):
+    def __init__(
+        self,
+        model: nn.Module,
+        adapter_cls: List[Callable] = [],
+        module_blacklist: List[str] = None,
+        module_whitelist: List[str] = None,
+        name: str = "PretrainedModel",
+    ):
         """
         Args:
             model: the base pretrained model whose weights will be used as frozen
@@ -53,8 +55,9 @@ class PretrainedModel(nn.Module):
             name: name of the pretrained model
         """
         super().__init__()
-        assert not (module_blacklist and module_whitelist), (
-            "Blacklist and whitelist cannot be provided at the same time!")
+        assert not (
+            module_blacklist and module_whitelist
+        ), "Blacklist and whitelist cannot be provided at the same time!"
         self._name = name
         # Freeze all parameters
         for para in model.parameters():
@@ -92,8 +95,7 @@ class PretrainedModel(nn.Module):
 
     @property
     def adapted_module_names(self) -> List[str]:
-        """Return a list of adapted module names, in the adapter adding order.
-        """
+        """Return a list of adapted module names, in the adapter adding order."""
         return self._adapted_module_names
 
     def remove_adapter(self) -> nn.ModuleList:
@@ -112,8 +114,7 @@ class PretrainedModel(nn.Module):
         return adapters
 
     def unmerge_adapter(self):
-        """Unmerge adapter weights to enable training.
-        """
+        """Unmerge adapter weights to enable training."""
         for a in self._adapters:
             a.unmerge()
 
@@ -128,8 +129,7 @@ class PretrainedModel(nn.Module):
             a.merge()
 
     def reset_adapter(self):
-        """Reset the adapter weights.
-        """
+        """Reset the adapter weights."""
         for a in self._adapters:
             a.reset_parameters()
 

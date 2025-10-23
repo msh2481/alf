@@ -29,14 +29,13 @@ class ActionSamplersTest(alf.test.TestCase):
         l = _CategoricalSeedSamplerBase(n_classes, new_noise_prob=1)
         probs = torch.rand((n_probs, n_classes))
         probs = probs / probs.sum(dim=-1, keepdim=True)
-        x = probs.unsqueeze(0).expand(repeat, n_probs,
-                                      n_classes).reshape(-1, n_classes)
+        x = probs.unsqueeze(0).expand(repeat, n_probs, n_classes).reshape(-1, n_classes)
         state = zero_tensor_from_nested_spec(l.state_spec, x.shape[0])
         new_probs, state = l(x, state)
         new_probs = new_probs.reshape(repeat, n_probs, n_classes)
         mean_probs = new_probs.mean(dim=0)
-        print('probs', probs)
-        print('mean_probs', mean_probs)
+        print("probs", probs)
+        print("mean_probs", mean_probs)
         self.assertTensorClose(mean_probs, probs.cpu(), epsilon=0.01)
         self.assertTrue((state != 0).all())
 
@@ -53,5 +52,5 @@ class ActionSamplersTest(alf.test.TestCase):
         self.assertAlmostEqual(diff2 / batch_size, 0.1, delta=0.01)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

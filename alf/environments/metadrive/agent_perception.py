@@ -27,6 +27,7 @@ try:
     from metadrive.engine.base_engine import BaseEngine
 except ImportError:
     from unittest.mock import Mock
+
     # create 'metadrive' as a mock to not break python argument type hints
     metadrive = Mock()
 
@@ -56,11 +57,13 @@ class AgentPerception(object):
 
     """
 
-    def __init__(self,
-                 fov: FieldOfView,
-                 history_window_size: int,
-                 history_frame_skip: int = 4,
-                 agent_limit: int = 16):
+    def __init__(
+        self,
+        fov: FieldOfView,
+        history_window_size: int,
+        history_frame_skip: int = 4,
+        agent_limit: int = 16,
+    ):
         """Construct an AgentPerception instance.
 
         Args:
@@ -99,12 +102,17 @@ class AgentPerception(object):
 
         # Handle Frame Skip
         H = self._history_window_size
-        self._sampled_index = np.arange((H - 1) % self._history_frame_skip, H,
-                                        self._history_frame_skip)
-        self._spec = TensorSpec(shape=(self._agent_limit,
-                                       self._sampled_index.shape[0],
-                                       self._unit_feature_size),
-                                dtype=torch.float32)
+        self._sampled_index = np.arange(
+            (H - 1) % self._history_frame_skip, H, self._history_frame_skip
+        )
+        self._spec = TensorSpec(
+            shape=(
+                self._agent_limit,
+                self._sampled_index.shape[0],
+                self._unit_feature_size,
+            ),
+            dtype=torch.float32,
+        )
 
     @property
     def observation_spec(self):
@@ -150,17 +158,21 @@ class AgentPerception(object):
         # Shape is [A, H]. Stores whether the agent is visible (True for
         # visible) for each agent, at each historical step (including the
         # current step).
-        self._visible = np.zeros((self._num_agents, self._history_window_size),
-                                 dtype=bool)
+        self._visible = np.zeros(
+            (self._num_agents, self._history_window_size), dtype=bool
+        )
         # Shape is [A, H, 2]. Stores the WORLD FRAME position of each agent, at
         # each historical step (including the current step).
         self._history_position = Polyline(
-            point=np.zeros((self._num_agents, self._history_window_size, 2),
-                           dtype=np.float32))
+            point=np.zeros(
+                (self._num_agents, self._history_window_size, 2), dtype=np.float32
+            )
+        )
         # Shape is [A, H]. Stores the WORLD FRAME heading orientation of each
         # agent, at each historical step (including the current step).
         self._history_heading = np.zeros(
-            (self._num_agents, self._history_window_size), dtype=np.float32)
+            (self._num_agents, self._history_window_size), dtype=np.float32
+        )
 
     def observe(self) -> Tuple[np.ndarray, int]:
         """Called upon every observation to produce the feature vectors describing the
@@ -179,8 +191,7 @@ class AgentPerception(object):
         """
 
         # Shift the buffer so that slot -1 is available for insertion.
-        self._history_position.point[:, :-1] = self._history_position.point[:,
-                                                                            1:]
+        self._history_position.point[:, :-1] = self._history_position.point[:, 1:]
         self._history_heading[:, :-1] = self._history_heading[:, 1:]
         self._visible[:, :-1] = self._visible[:, 1:]
 
@@ -198,10 +209,10 @@ class AgentPerception(object):
         # Transform the position so that we can test whether it is in the field
         # of view of the ego car. The test result is stored in self._visible.
         transformed_position = self._history_position.transformed(
-            self._ego.position, self._ego.heading_theta)
+            self._ego.position, self._ego.heading_theta
+        )
         transformed_heading = self._history_heading - self._ego.heading_theta
-        self._visible[:, -1] = self._fov.within(transformed_position.point[:,
-                                                                           -1])
+        self._visible[:, -1] = self._fov.within(transformed_position.point[:, -1])
         self._visible[~alive, -1] = False
         sampled_visible = self._visible[:, self._sampled_index]
         sampled_position = transformed_position.point[:, self._sampled_index]
@@ -220,8 +231,7 @@ class AgentPerception(object):
         # agents exceeds the limit.
         if np.count_nonzero(picked) > self._agent_limit:
             distances = np.linalg.norm(picked_position[:, -1], axis=-1)
-            closest = np.argpartition(distances,
-                                      self._agent_limit)[:self._agent_limit]
+            closest = np.argpartition(distances, self._agent_limit)[: self._agent_limit]
             picked_position = picked_position[closest]
             picked_heading = picked_heading[closest]
             picked_dimension = picked_dimension[closest]

@@ -4,11 +4,11 @@ repos:
     hooks:
       - id: remove-crlf
         files: (?!.*third_party)^.*$ | (?!.*book)^.*$
-  - repo: https://github.com/google/yapf.git
-    rev: v0.43.0
+  - repo: https://github.com/psf/black
+    rev: 24.8.0
     hooks:
-      - id: yapf
-        files: (.*\.(py|bzl)|BUILD|.*\.BUILD|WORKSPACE)$
+      - id: black
+        files: \.py$
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
@@ -35,14 +35,6 @@ repos:
         entry: bash ./tools/codestyle/cpplint_pre_commit.hook
         language: system
         files: \.(c|cc|cxx|cpp|cu|h|hpp|hxx)$
-  - repo: local
-    hooks:
-      - id: pylint-doc-string
-        name: pylint
-        description: Check python docstring style using docstring_checker.
-        entry: bash ./tools/codestyle/pylint_pre_commit.hook
-        language: system
-        files: \.(py)$
   - repo: local
     hooks:
       - id: copyright_checker

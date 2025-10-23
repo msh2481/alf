@@ -29,34 +29,34 @@ class SuiteGymTest(alf.test.TestCase):
         super(SuiteGymTest, self).tearDown()
 
     def test_load_adds_time_limit_steps(self):
-        env = suite_gym.load('CartPole-v1')
+        env = suite_gym.load("CartPole-v1")
         self.assertIsInstance(env, AlfEnvironment)
         self.assertIsInstance(env, alf_wrappers.TimeLimit)
 
     def test_load_disable_step_limit(self):
-        env = suite_gym.load('CartPole-v1', max_episode_steps=0)
+        env = suite_gym.load("CartPole-v1", max_episode_steps=0)
         self.assertIsInstance(env, AlfEnvironment)
         self.assertNotIsInstance(env, alf_wrappers.TimeLimit)
 
     def test_load_disable_alf_wrappers_applied(self):
-        duration_wrapper = functools.partial(alf_wrappers.TimeLimit,
-                                             duration=10)
-        env = suite_gym.load('CartPole-v1',
-                             max_episode_steps=0,
-                             alf_env_wrappers=(duration_wrapper, ))
+        duration_wrapper = functools.partial(alf_wrappers.TimeLimit, duration=10)
+        env = suite_gym.load(
+            "CartPole-v1", max_episode_steps=0, alf_env_wrappers=(duration_wrapper,)
+        )
         self.assertIsInstance(env, AlfEnvironment)
         self.assertIsInstance(env, alf_wrappers.TimeLimit)
 
     def test_custom_max_steps(self):
-        env = suite_gym.load('CartPole-v1', max_episode_steps=5)
+        env = suite_gym.load("CartPole-v1", max_episode_steps=5)
         self.assertIsInstance(env, AlfEnvironment)
         self.assertIsInstance(env, alf_wrappers.TimeLimit)
         self.assertEqual(5, env._duration)
 
     def test_load_atari(self):
-        env = suite_gym.load('BreakoutNoFrameskip-v4',
-                             gym_env_wrappers=(DMAtariPreprocessing,
-                                               FrameStack))
+        env = suite_gym.load(
+            "BreakoutNoFrameskip-v4",
+            gym_env_wrappers=(DMAtariPreprocessing, FrameStack),
+        )
         self.assertIsInstance(env, AlfEnvironment)
 
     # # TODO: unittest does not have test_src_dir_path
@@ -69,5 +69,5 @@ class SuiteGymTest(alf.test.TestCase):
     #     self.assertIsInstance(env, alf_wrappers.TimeLimit)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

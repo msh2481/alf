@@ -39,13 +39,15 @@ class ParallelAlfEnvironment(alf_environment.AlfEnvironment):
     The returned environment should not access global variables.
     """
 
-    def __init__(self,
-                 env_constructors,
-                 start_serially=True,
-                 blocking=False,
-                 flatten=True,
-                 num_spare_envs_for_reload=0,
-                 torch_num_threads_per_env=1):
+    def __init__(
+        self,
+        env_constructors,
+        start_serially=True,
+        blocking=False,
+        flatten=True,
+        num_spare_envs_for_reload=0,
+        torch_num_threads_per_env=1,
+    ):
         """
         Args:
             env_constructors (list[Callable]): a list of callable environment creators.
@@ -76,7 +78,8 @@ class ParallelAlfEnvironment(alf_environment.AlfEnvironment):
                 ctor,
                 env_id=env_id,
                 flatten=flatten,
-                torch_num_threads_per_env=torch_num_threads_per_env)
+                torch_num_threads_per_env=torch_num_threads_per_env,
+            )
             if env_id < self._num_envs:
                 self._envs.append(env)
                 self._env_ids.append(env_id)
@@ -96,17 +99,14 @@ class ParallelAlfEnvironment(alf_environment.AlfEnvironment):
         self._num_tasks = self._envs[0].num_tasks
         self._task_names = self._envs[0].task_names
         self._time_step_with_env_info_spec = self._time_step_spec._replace(
-            env_info=self._env_info_spec)
+            env_info=self._env_info_spec
+        )
         if any(env.is_tensor_based for env in self._envs):
-            raise ValueError(
-                'All environments must be array-based environments.')
+            raise ValueError("All environments must be array-based environments.")
         if any(env.action_spec() != self._action_spec for env in self._envs):
-            raise ValueError(
-                'All environments must have the same action spec.')
-        if any(env.time_step_spec() != self._time_step_spec
-               for env in self._envs):
-            raise ValueError(
-                'All environments must have the same time_step_spec.')
+            raise ValueError("All environments must have the same action spec.")
+        if any(env.time_step_spec() != self._time_step_spec for env in self._envs):
+            raise ValueError("All environments must have the same time_step_spec.")
         self._flatten = flatten
         self._closed = False
 
@@ -120,18 +120,18 @@ class ParallelAlfEnvironment(alf_environment.AlfEnvironment):
         return self._num_spare_envs_for_reload
 
     def start(self):
-        logging.info('Spawning all processes.')
+        logging.info("Spawning all processes.")
         for env in self._envs:
             env.start(wait_to_start=self._start_serially)
         for env in self._spare_queue:
             env.start(wait_to_start=self._start_serially)
         if not self._start_serially:
-            logging.info('Waiting for all processes to start.')
+            logging.info("Waiting for all processes to start.")
             for env in self._envs:
                 env.wait_start()
             for env in self._spare_queue:
                 env.wait_start()
-        logging.info('All processes started.')
+        logging.info("All processes started.")
 
     @property
     def is_tensor_based(self):
@@ -226,12 +226,11 @@ class ParallelAlfEnvironment(alf_environment.AlfEnvironment):
             Batch of observations, rewards, and done flags.
         """
         if not self._blocking:
-            time_steps = self._step_or_handle_last_done(
-                self._unstack_actions(actions))
+            time_steps = self._step_or_handle_last_done(self._unstack_actions(actions))
         else:
             time_steps = [
-                env.step(action, self._blocking) for env, action in zip(
-                    self._envs, self._unstack_actions(actions))
+                env.step(action, self._blocking)
+                for env, action in zip(self._envs, self._unstack_actions(actions))
             ]
 
         # When blocking is False we get promises that need to be called.
@@ -300,7 +299,7 @@ class ParallelAlfEnvironment(alf_environment.AlfEnvironment):
         """Close all external process."""
         if self._closed:
             return
-        logging.info('Closing all processes.')
+        logging.info("Closing all processes.")
         [p() for p in self._reset_ts if p is not None]
         [p() for p in self._spare_promises]
         self._reset_ts = []
@@ -310,22 +309,26 @@ class ParallelAlfEnvironment(alf_environment.AlfEnvironment):
         for env in self._spare_queue:
             env.close()
         self._closed = True
-        logging.info('All processes closed.')
+        logging.info("All processes closed.")
 
     def _stack_time_steps(self, time_steps):
         """Given a list of TimeStep, combine to one with a batch dimension."""
         if self._flatten:
             stacked = nest.fast_map_structure_flatten(
                 lambda *arrays: numpy.stack(arrays),
-                self._time_step_with_env_info_spec, *time_steps)
+                self._time_step_with_env_info_spec,
+                *time_steps
+            )
         else:
             stacked = nest.fast_map_structure(
-                lambda *arrays: numpy.stack(arrays), *time_steps)
+                lambda *arrays: numpy.stack(arrays), *time_steps
+            )
         if self._spare_queue:
             env_ids = numpy.array([e._env_id for e in self._envs])
             stacked = stacked._replace(env_id=env_ids)
         stacked = nest.map_structure(
-            lambda x: torch.as_tensor(x, device='cpu'), stacked)
+            lambda x: torch.as_tensor(x, device="cpu"), stacked
+        )
         if alf.get_default_device() == "cuda":
             cpu = stacked
             stacked = nest.map_structure(lambda x: x.cuda(), cpu)
@@ -334,8 +337,7 @@ class ParallelAlfEnvironment(alf_environment.AlfEnvironment):
 
     def _unstack_actions(self, batched_actions):
         """Returns a list of actions from potentially nested batch of actions."""
-        batched_actions = nest.map_structure(lambda x: x.cpu().numpy(),
-                                             batched_actions)
+        batched_actions = nest.map_structure(lambda x: x.cpu().numpy(), batched_actions)
         flattened_actions = nest.flatten(batched_actions)
         if self._flatten:
             unstacked_actions = zip(*flattened_actions)
@@ -351,7 +353,8 @@ class ParallelAlfEnvironment(alf_environment.AlfEnvironment):
         envs = self._envs + self._spare_queue
         if len(seeds) != len(envs):
             raise ValueError(
-                'Number of seeds should match the number of parallel_envs.')
-        promises = [env.call('seed', seed) for seed, env in zip(seeds, envs)]
+                "Number of seeds should match the number of parallel_envs."
+            )
+        promises = [env.call("seed", seed) for seed, env in zip(seeds, envs)]
         # Block until all envs are seeded.
         return [promise() for promise in promises]

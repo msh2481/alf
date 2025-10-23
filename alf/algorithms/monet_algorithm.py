@@ -46,13 +46,15 @@ class MoNetUNet(alf.networks.Network):
                                   MLP
     """
 
-    def __init__(self,
-                 input_tensor_spec: alf.NestedTensorSpec,
-                 filters: Tuple[int],
-                 nonskip_fc_layers: Tuple[int],
-                 output_channels: int,
-                 use_instance_norm: bool = True,
-                 name: str = "MoNetUNet"):
+    def __init__(
+        self,
+        input_tensor_spec: alf.NestedTensorSpec,
+        filters: Tuple[int],
+        nonskip_fc_layers: Tuple[int],
+        output_channels: int,
+        use_instance_norm: bool = True,
+        name: str = "MoNetUNet",
+    ):
         """
         Args:
             input_tensor_spec: spec of the input image
@@ -73,16 +75,21 @@ class MoNetUNet(alf.networks.Network):
         channels = input_tensor_spec.shape[0]
         for i in range(len(filters)):
             block = [
-                alf.layers.Conv2D(channels,
-                                  filters[i],
-                                  3,
-                                  strides=1,
-                                  padding=1,
-                                  use_bias=not use_instance_norm,
-                                  activation=alf.math.identity),
-                *([torch.nn.InstanceNorm2d(filters[i], affine=True)]
-                  if use_instance_norm else []),
-                torch.nn.ReLU()
+                alf.layers.Conv2D(
+                    channels,
+                    filters[i],
+                    3,
+                    strides=1,
+                    padding=1,
+                    use_bias=not use_instance_norm,
+                    activation=alf.math.identity,
+                ),
+                *(
+                    [torch.nn.InstanceNorm2d(filters[i], affine=True)]
+                    if use_instance_norm
+                    else []
+                ),
+                torch.nn.ReLU(),
             ]
             if i > 0:
                 block.append(torch.nn.MaxPool2d(2))
@@ -92,46 +99,56 @@ class MoNetUNet(alf.networks.Network):
 
         self._downsampling_path = torch.nn.ModuleList(conv_blocks)
         last_skip_tensor_spec = alf.nn.Sequential(
-            *self._downsampling_path,
-            input_tensor_spec=input_tensor_spec).output_spec
+            *self._downsampling_path, input_tensor_spec=input_tensor_spec
+        ).output_spec
 
         self._nonskip_mlp = alf.networks.EncodingNetwork(
-            input_tensor_spec=alf.TensorSpec((last_skip_tensor_spec.numel, )),
-            fc_layer_params=nonskip_fc_layers)
+            input_tensor_spec=alf.TensorSpec((last_skip_tensor_spec.numel,)),
+            fc_layer_params=nonskip_fc_layers,
+        )
 
         self._reshape = torch.nn.Sequential(
-            alf.layers.FC(nonskip_fc_layers[-1], last_skip_tensor_spec.numel,
-                          torch.relu_),
-            alf.layers.Reshape(*last_skip_tensor_spec.shape))
+            alf.layers.FC(
+                nonskip_fc_layers[-1], last_skip_tensor_spec.numel, torch.relu_
+            ),
+            alf.layers.Reshape(*last_skip_tensor_spec.shape),
+        )
 
         self._encoding_dim = self._nonskip_mlp.output_spec.numel
 
         deconv_blocks = []
         filters = filters[::-1]
         for i in range(len(filters)):
-            out_channels = filters[i +
-                                   1] if i < len(filters) - 1 else filters[-1]
+            out_channels = filters[i + 1] if i < len(filters) - 1 else filters[-1]
             block = [
-                alf.layers.Conv2D(channels * 2,
-                                  out_channels,
-                                  3,
-                                  strides=1,
-                                  padding=1,
-                                  use_bias=not use_instance_norm,
-                                  activation=alf.math.identity),
-                *([torch.nn.InstanceNorm2d(out_channels, affine=True)]
-                  if use_instance_norm else []),
-                torch.nn.ReLU()
+                alf.layers.Conv2D(
+                    channels * 2,
+                    out_channels,
+                    3,
+                    strides=1,
+                    padding=1,
+                    use_bias=not use_instance_norm,
+                    activation=alf.math.identity,
+                ),
+                *(
+                    [torch.nn.InstanceNorm2d(out_channels, affine=True)]
+                    if use_instance_norm
+                    else []
+                ),
+                torch.nn.ReLU(),
             ]
             if i < len(filters) - 1:
                 block.append(torch.nn.UpsamplingNearest2d(scale_factor=2))
             else:
                 block.append(
-                    alf.layers.Conv2D(out_channels,
-                                      output_channels,
-                                      1,
-                                      strides=1,
-                                      activation=alf.math.identity))
+                    alf.layers.Conv2D(
+                        out_channels,
+                        output_channels,
+                        1,
+                        strides=1,
+                        activation=alf.math.identity,
+                    )
+                )
             deconv_blocks.append(torch.nn.Sequential(*block))
             channels = out_channels
 
@@ -139,8 +156,7 @@ class MoNetUNet(alf.networks.Network):
 
     @property
     def encoding_dim(self):
-        """Return the output dim of the non-skip MLP.
-        """
+        """Return the output dim of the non-skip MLP."""
         return self._encoding_dim
 
     def forward(self, inputs: torch.Tensor, state=()):
@@ -196,8 +212,9 @@ class MoNetUNet(alf.networks.Network):
 
 MoNetInfo = namedtuple(
     "MoNetInfo",
-    ['kld', 'rec_loss', 'mask_rec_loss', 'full_rec', 'mask', 'z_dist'],
-    default_value=())
+    ["kld", "rec_loss", "mask_rec_loss", "full_rec", "mask", "z_dist"],
+    default_value=(),
+)
 
 
 @alf.configurable
@@ -225,18 +242,19 @@ class MoNetAlgorithm(Algorithm):
        breaking symmetry when generating attention masks for the slots.
     """
 
-    def __init__(self,
-                 n_slots: int,
-                 slot_size: int,
-                 input_tensor_spec: alf.NestedTensorSpec,
-                 attention_unet_cls: Callable = MoNetUNet,
-                 encoder_cls: Callable = alf.networks.EncodingNetwork,
-                 decoder_cls: Callable = alf.networks.
-                 SpatialBroadcastDecodingNetwork,
-                 recurrent_attention: bool = True,
-                 beta: float = 0.,
-                 gamma: float = 0.,
-                 name: str = "MoNetAlgorithm"):
+    def __init__(
+        self,
+        n_slots: int,
+        slot_size: int,
+        input_tensor_spec: alf.NestedTensorSpec,
+        attention_unet_cls: Callable = MoNetUNet,
+        encoder_cls: Callable = alf.networks.EncodingNetwork,
+        decoder_cls: Callable = alf.networks.SpatialBroadcastDecodingNetwork,
+        recurrent_attention: bool = True,
+        beta: float = 0.0,
+        gamma: float = 0.0,
+        name: str = "MoNetAlgorithm",
+    ):
         """
         Args:
             n_slots: number of slots (or objects) pre-defined. Note that background
@@ -297,30 +315,37 @@ class MoNetAlgorithm(Algorithm):
         # In the case of recurrent mask, the trick is to set output channels as 2,
         # because we can use ``log_softmax`` to get ``log(1-a)`` without actually
         # doing minus in the log space.
-        in_channels = (C + 1 if recurrent_attention else C)
+        in_channels = C + 1 if recurrent_attention else C
         self._attention_net = attention_unet_cls(
             input_tensor_spec=alf.TensorSpec((in_channels, H, W)),
-            output_channels=(2 if recurrent_attention else n_slots))
+            output_channels=(2 if recurrent_attention else n_slots),
+        )
 
         self._encoder = alf.networks.BatchSquashNetwork(
             encoder_cls(
                 input_tensor_spec=alf.TensorSpec((C + 1, H, W)),
                 last_layer_size=slot_size * 2,  # mean and var
-                last_activation=alf.math.identity))
+                last_activation=alf.math.identity,
+            )
+        )
 
         self._decoder = alf.networks.BatchSquashNetwork(
-            decoder_cls(input_size=slot_size,
-                        output_height=H,
-                        output_width=W,
-                        output_activation=alf.math.identity))
-        assert self._decoder.output_spec.shape[0] == C + 1, (
-            "The decoder's output channels should be RGBA")
+            decoder_cls(
+                input_size=slot_size,
+                output_height=H,
+                output_width=W,
+                output_activation=alf.math.identity,
+            )
+        )
+        assert (
+            self._decoder.output_spec.shape[0] == C + 1
+        ), "The decoder's output channels should be RGBA"
 
         self._n_slots = n_slots
         self._beta = beta
         self._gamma = gamma
         # Inverse variance of slot reconstruction Gaussians in [1,1.5]
-        inv_var = torch.arange(n_slots) * (0.5 / n_slots) + 1.
+        inv_var = torch.arange(n_slots) * (0.5 / n_slots) + 1.0
         self._inv_var = inv_var.reshape(1, -1, 1, 1, 1)
 
     @staticmethod
@@ -329,8 +354,9 @@ class MoNetAlgorithm(Algorithm):
         z_mean = z_mean_and_log_var[..., :D]
         z_log_var = z_mean_and_log_var[..., D:]
         # [B,G,D]
-        return td.Independent(td.Normal(loc=z_mean, scale=z_log_var.exp()),
-                              reinterpreted_batch_ndims=2)
+        return td.Independent(
+            td.Normal(loc=z_mean, scale=z_log_var.exp()), reinterpreted_batch_ndims=2
+        )
 
     def _compute_mask_logprobs(self, img):
         if self._recurrent_attention:
@@ -340,8 +366,7 @@ class MoNetAlgorithm(Algorithm):
             mask_logits = []
             for i in range(self._n_slots - 1):
                 # [B,2,H,W]
-                m = self._attention_net(torch.cat([img, scope.exp()],
-                                                  dim=1))[0]
+                m = self._attention_net(torch.cat([img, scope.exp()], dim=1))[0]
                 m = torch.nn.functional.log_softmax(m, dim=1)
                 mask_logits.append(scope + m[:, :1, ...])
                 scope = scope + m[:, 1:, ...]
@@ -358,9 +383,7 @@ class MoNetAlgorithm(Algorithm):
         # [B,G,H,W]
         mask_logprobs = self._compute_mask_logprobs(inputs)
         # [B,G,C,H,W]
-        inputs = tensor_utils.tensor_extend_new_dim(inputs,
-                                                    dim=1,
-                                                    n=self._n_slots)
+        inputs = tensor_utils.tensor_extend_new_dim(inputs, dim=1, n=self._n_slots)
         # Even though the MoNet paper appends the mask in the log space,
         # a linear space is actually more numerically stable.
         # [B,G,C+1,H,W]
@@ -385,8 +408,9 @@ class MoNetAlgorithm(Algorithm):
             return l.sum(list(range(1, l.ndim)))
 
         def _compute_rec_loss(rec, target):
-            rec_log_prob = (self._inv_var.log() -
-                            self._inv_var * alf.math.square(rec - target))
+            rec_log_prob = self._inv_var.log() - self._inv_var * alf.math.square(
+                rec - target
+            )
             return _reduce_loss(-torch.logsumexp(rec_log_prob + mask, dim=1))
 
         rec_loss = _compute_rec_loss(rec, inputs.unsqueeze(1))
@@ -398,10 +422,10 @@ class MoNetAlgorithm(Algorithm):
 
         mask_rec = torch.nn.functional.log_softmax(mask_rec, dim=1)
         mask_rec_loss = _reduce_loss(
-            torch.nn.functional.kl_div(input=mask_rec,
-                                       target=mask,
-                                       reduction='none',
-                                       log_target=True).sum(dim=1))
+            torch.nn.functional.kl_div(
+                input=mask_rec, target=mask, reduction="none", log_target=True
+            ).sum(dim=1)
+        )
         return rec_loss, mask_rec_loss  # [B]
 
     def train_step(self, inputs: torch.Tensor, state=()):
@@ -427,8 +451,9 @@ class MoNetAlgorithm(Algorithm):
         """
         z_mean_log_var, mask_logprobs = self._encoder_step(inputs)
         z_dist = self.make_gaussian(z_mean_log_var)
-        output = VAEOutput(z=z_dist.rsample(),
-                           z_mode=alf.utils.dist_utils.get_mode(z_dist))
+        output = VAEOutput(
+            z=z_dist.rsample(), z_mode=alf.utils.dist_utils.get_mode(z_dist)
+        )
 
         if self._beta == 0:
             kld = ()
@@ -442,8 +467,7 @@ class MoNetAlgorithm(Algorithm):
         # [B,G,1,H,W]
         mask = mask_logprobs.unsqueeze(2)
 
-        rec_loss, mask_rec_loss = self._rec_loss_step(inputs, rec, mask,
-                                                      mask_rec)
+        rec_loss, mask_rec_loss = self._rec_loss_step(inputs, rec, mask, mask_rec)
 
         info = MoNetInfo(
             kld=kld,
@@ -451,7 +475,8 @@ class MoNetAlgorithm(Algorithm):
             mask_rec_loss=mask_rec_loss,
             full_rec=(rec * mask.exp()).sum(dim=1),  # [B,C,H,W]
             mask=mask_logprobs.exp(),  # [B,G,H,W]
-            z_dist=z_dist)
+            z_dist=z_dist,
+        )
 
         return AlgStep(output=output, info=info)
 
@@ -459,7 +484,9 @@ class MoNetAlgorithm(Algorithm):
         loss = info.rec_loss + self._gamma * info.mask_rec_loss
         if info.kld != ():
             loss = loss + self._beta * info.kld
-        return LossInfo(loss=loss,
-                        extra=MoNetInfo(kld=info.kld,
-                                        rec_loss=info.rec_loss,
-                                        mask_rec_loss=info.mask_rec_loss))
+        return LossInfo(
+            loss=loss,
+            extra=MoNetInfo(
+                kld=info.kld, rec_loss=info.rec_loss, mask_rec_loss=info.mask_rec_loss
+            ),
+        )

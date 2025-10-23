@@ -26,17 +26,19 @@ def is_available():
 
 
 @alf.configurable
-def load(environment_name='cheetah:run',
-         env_id=None,
-         from_pixels=True,
-         image_size=100,
-         discount=1.0,
-         visualize_reward=False,
-         max_episode_steps=1000,
-         control_timestep=None,
-         gym_env_wrappers=(),
-         alf_env_wrappers=()):
-    """ Load a MuJoCo environment.
+def load(
+    environment_name="cheetah:run",
+    env_id=None,
+    from_pixels=True,
+    image_size=100,
+    discount=1.0,
+    visualize_reward=False,
+    max_episode_steps=1000,
+    control_timestep=None,
+    gym_env_wrappers=(),
+    alf_env_wrappers=(),
+):
+    """Load a MuJoCo environment.
 
     For installation of DMControl, see https://github.com/deepmind/dm_control.
     For installation of MuJoCo210, see https://mujoco.org.
@@ -79,20 +81,25 @@ def load(environment_name='cheetah:run',
     names = environment_name.split(":")
     assert len(names) == 2, (
         "environment_name must be in the format 'domain_name:task_name'!"
-        f" Provided environment_name: {environment_name}")
+        f" Provided environment_name: {environment_name}"
+    )
 
     domain_name, task_name = names
-    gym_env = DMCGYMWrapper(domain_name=domain_name,
-                            task_name=task_name,
-                            visualize_reward=visualize_reward,
-                            from_pixels=from_pixels,
-                            control_timestep=control_timestep,
-                            height=image_size,
-                            width=image_size)
-    return wrap_env(gym_env,
-                    env_id=env_id,
-                    discount=discount,
-                    max_episode_steps=max_episode_steps,
-                    gym_env_wrappers=gym_env_wrappers,
-                    alf_env_wrappers=alf_env_wrappers,
-                    image_channel_first=False)
+    gym_env = DMCGYMWrapper(
+        domain_name=domain_name,
+        task_name=task_name,
+        visualize_reward=visualize_reward,
+        from_pixels=from_pixels,
+        control_timestep=control_timestep,
+        height=image_size,
+        width=image_size,
+    )
+    return wrap_env(
+        gym_env,
+        env_id=env_id,
+        discount=discount,
+        max_episode_steps=max_episode_steps,
+        gym_env_wrappers=gym_env_wrappers,
+        alf_env_wrappers=alf_env_wrappers,
+        image_channel_first=False,
+    )

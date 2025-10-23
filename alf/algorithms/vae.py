@@ -31,8 +31,9 @@ from alf.utils import math_ops, dist_utils
 from alf.utils.tensor_utils import tensor_extend_new_dim
 from alf.utils.schedulers import ConstantScheduler, Scheduler
 
-VAEInfo = namedtuple("VAEInfo", ["kld", "z_std", "loss", "beta_loss", 'beta'],
-                     default_value=())
+VAEInfo = namedtuple(
+    "VAEInfo", ["kld", "z_std", "loss", "beta_loss", "beta"], default_value=()
+)
 VAEOutput = namedtuple("VAEOutput", ["z", "z_mode", "z_std"], default_value=())
 
 
@@ -54,16 +55,18 @@ class VariationalAutoEncoder(Algorithm):
     vae with prior network on mnist dataset.
     """
 
-    def __init__(self,
-                 z_dim: int,
-                 input_tensor_spec: alf.NestedTensorSpec = None,
-                 preprocess_network: EncodingNetwork = None,
-                 z_prior_network: EncodingNetwork = None,
-                 beta: float = 1.0,
-                 target_kld_per_dim: float = None,
-                 beta_optimizer: torch.optim.Optimizer = None,
-                 checkpoint=None,
-                 name: str = "VariationalAutoEncoder"):
+    def __init__(
+        self,
+        z_dim: int,
+        input_tensor_spec: alf.NestedTensorSpec = None,
+        preprocess_network: EncodingNetwork = None,
+        z_prior_network: EncodingNetwork = None,
+        beta: float = 1.0,
+        target_kld_per_dim: float = None,
+        beta_optimizer: torch.optim.Optimizer = None,
+        checkpoint=None,
+        name: str = "VariationalAutoEncoder",
+    ):
         """
 
         Args:
@@ -92,8 +95,7 @@ class VariationalAutoEncoder(Algorithm):
                 file saved by ALF. Refer to ``Algorithm`` for more details.
             name (str):
         """
-        super(VariationalAutoEncoder, self).__init__(checkpoint=checkpoint,
-                                                     name=name)
+        super(VariationalAutoEncoder, self).__init__(checkpoint=checkpoint, name=name)
 
         self._preprocess_network = preprocess_network
         if preprocess_network is None:
@@ -101,9 +103,11 @@ class VariationalAutoEncoder(Algorithm):
             if z_prior_network is None:
                 preproc_input_spec = input_tensor_spec
             else:
-                preproc_input_spec = (z_prior_network.input_tensor_spec,
-                                      input_tensor_spec,
-                                      z_prior_network.output_spec)
+                preproc_input_spec = (
+                    z_prior_network.input_tensor_spec,
+                    input_tensor_spec,
+                    z_prior_network.output_spec,
+                )
             self._preprocess_network = EncodingNetwork(
                 input_tensor_spec=preproc_input_spec,
                 preprocessing_combiner=alf.nest.utils.NestConcat(),
@@ -139,8 +143,8 @@ class VariationalAutoEncoder(Algorithm):
         if self._z_prior_network:
             prior_input, new_obs = inputs
             prior_z_mean_and_log_var, _ = self._z_prior_network(prior_input)
-            prior_z_mean = prior_z_mean_and_log_var[..., :self._z_dim]
-            prior_z_log_var = prior_z_mean_and_log_var[..., self._z_dim:]
+            prior_z_mean = prior_z_mean_and_log_var[..., : self._z_dim]
+            prior_z_log_var = prior_z_mean_and_log_var[..., self._z_dim :]
             inputs = (prior_input, new_obs, prior_z_mean_and_log_var)
 
         latents, _ = self._preprocess_network(inputs)
@@ -148,13 +152,18 @@ class VariationalAutoEncoder(Algorithm):
         z_log_var = self._z_log_var(latents)
 
         if self._z_prior_network:
-            kl_div_loss = math_ops.square(z_mean) / torch.exp(prior_z_log_var) + \
-                          torch.exp(z_log_var) - z_log_var - 1.0
+            kl_div_loss = (
+                math_ops.square(z_mean) / torch.exp(prior_z_log_var)
+                + torch.exp(z_log_var)
+                - z_log_var
+                - 1.0
+            )
             z_mean = z_mean + prior_z_mean
             z_log_var = z_log_var + prior_z_log_var
         else:
-            kl_div_loss = math_ops.square(z_mean) + torch.exp(
-                z_log_var) - 1.0 - z_log_var
+            kl_div_loss = (
+                math_ops.square(z_mean) + torch.exp(z_log_var) - 1.0 - z_log_var
+            )
 
         kl_div_loss = 0.5 * torch.sum(kl_div_loss, dim=-1)
         # reparameterization sampling: z = u + var ** 0.5 * eps
@@ -182,10 +191,11 @@ class VariationalAutoEncoder(Algorithm):
         info = VAEInfo(loss=beta * kld_loss, kld=kld_loss, z_std=output.z_std)
         if self._target_kld is not None:
             beta_loss = self._beta_train_step(kld_loss)
-            info = info._replace(beta_loss=beta_loss,
-                                 loss=info.loss + beta_loss,
-                                 beta=tensor_extend_new_dim(
-                                     beta, 0, beta_loss.shape[0]))
+            info = info._replace(
+                beta_loss=beta_loss,
+                loss=info.loss + beta_loss,
+                beta=tensor_extend_new_dim(beta, 0, beta_loss.shape[0]),
+            )
         return AlgStep(output=output, state=state, info=info)
 
     def _beta_train_step(self, kld_loss):
@@ -231,18 +241,20 @@ class DiscreteVAE(VariationalAutoEncoder):
     plain ST estimator.
     """
 
-    def __init__(self,
-                 z_spec: BoundedTensorSpec,
-                 input_tensor_spec: alf.NestedTensorSpec = None,
-                 z_network_cls: Callable = EncodingNetwork,
-                 prior_input_tensor_spec: alf.NestedTensorSpec = None,
-                 prior_z_network_cls: Callable = None,
-                 mode: str = "st",
-                 gumbel_temp_scheduler: Scheduler = ConstantScheduler(1.),
-                 beta: float = 1.,
-                 target_kld_per_categorical: float = None,
-                 beta_optimizer: torch.optim.Optimizer = None,
-                 name: str = "DiscreteVAE"):
+    def __init__(
+        self,
+        z_spec: BoundedTensorSpec,
+        input_tensor_spec: alf.NestedTensorSpec = None,
+        z_network_cls: Callable = EncodingNetwork,
+        prior_input_tensor_spec: alf.NestedTensorSpec = None,
+        prior_z_network_cls: Callable = None,
+        mode: str = "st",
+        gumbel_temp_scheduler: Scheduler = ConstantScheduler(1.0),
+        beta: float = 1.0,
+        target_kld_per_categorical: float = None,
+        beta_optimizer: torch.optim.Optimizer = None,
+        name: str = "DiscreteVAE",
+    ):
         """
         Args:
             z_spec: a tensor spec for the discrete posterior. It has to be
@@ -269,8 +281,7 @@ class DiscreteVAE(VariationalAutoEncoder):
         """
         Algorithm.__init__(self, name=name)
 
-        assert (z_spec.is_discrete and z_spec.ndim == 1
-                and z_spec.minimum == 0)
+        assert z_spec.is_discrete and z_spec.ndim == 1 and z_spec.minimum == 0
         self._n_categories = int(z_spec.maximum + 1)
 
         prior_z_network = None
@@ -278,18 +289,23 @@ class DiscreteVAE(VariationalAutoEncoder):
             prior_z_network = prior_z_network_cls(
                 input_tensor_spec=prior_input_tensor_spec,
                 last_layer_size=z_spec.numel * self._n_categories,
-                last_activation=alf.math.identity)
-            input_tensor_spec = (prior_input_tensor_spec, input_tensor_spec,
-                                 prior_z_network.output_spec)
+                last_activation=alf.math.identity,
+            )
+            input_tensor_spec = (
+                prior_input_tensor_spec,
+                input_tensor_spec,
+                prior_z_network.output_spec,
+            )
         self._prior_z_network = prior_z_network
 
-        self._z_network = z_network_cls(input_tensor_spec=input_tensor_spec,
-                                        last_layer_size=z_spec.numel *
-                                        self._n_categories,
-                                        last_activation=alf.math.identity)
+        self._z_network = z_network_cls(
+            input_tensor_spec=input_tensor_spec,
+            last_layer_size=z_spec.numel * self._n_categories,
+            last_activation=alf.math.identity,
+        )
 
         self._z_spec = z_spec
-        assert mode in ['st', 'st-gumbel'], f"Wrong mode {mode}"
+        assert mode in ["st", "st-gumbel"], f"Wrong mode {mode}"
         self._mode = mode
         self._gumbel_temp_scheduler = gumbel_temp_scheduler
         self._log_beta = nn.Parameter(torch.tensor(beta).log())
@@ -302,13 +318,13 @@ class DiscreteVAE(VariationalAutoEncoder):
 
     @property
     def output_spec(self):
-        """Because the output is a floating one-hot vector, the shape is rank-two.
-        """
-        return BoundedTensorSpec(shape=self._z_spec.shape +
-                                 (self._n_categories, ),
-                                 minimum=0.,
-                                 maximum=1.,
-                                 dtype=torch.float32)
+        """Because the output is a floating one-hot vector, the shape is rank-two."""
+        return BoundedTensorSpec(
+            shape=self._z_spec.shape + (self._n_categories,),
+            minimum=0.0,
+            maximum=1.0,
+            dtype=torch.float32,
+        )
 
     def _kl_divergence(self, logits1, logits2=None):
         if logits2 is None:
@@ -316,10 +332,9 @@ class DiscreteVAE(VariationalAutoEncoder):
         logits1 = torch.nn.functional.log_softmax(logits1, dim=-1)
         logits2 = torch.nn.functional.log_softmax(logits2, dim=-1)
         # The expectation is over the target distribution
-        kld = torch.nn.functional.kl_div(input=logits2,
-                                         target=logits1,
-                                         reduction='none',
-                                         log_target=True)
+        kld = torch.nn.functional.kl_div(
+            input=logits2, target=logits1, reduction="none", log_target=True
+        )
         return kld.sum(dim=(1, 2))  # [B,L,K] -> [B]
 
     def _sampling_forward(self, inputs):
@@ -329,7 +344,7 @@ class DiscreteVAE(VariationalAutoEncoder):
             inputs: if a prior network is provided, this is a tuple of
                 ``(prior_input, new_observation)``.
         """
-        logits_shape = (-1, ) + self._z_spec.shape + (self._n_categories, )
+        logits_shape = (-1,) + self._z_spec.shape + (self._n_categories,)
 
         if self._prior_z_network is not None:
             prior_input, new_obs = inputs
@@ -346,14 +361,12 @@ class DiscreteVAE(VariationalAutoEncoder):
         else:
             kl_div_loss = self._kl_divergence(z_logits)
 
-        if self._mode == 'st':
-            z_dist = dist_utils.OneHotCategoricalStraightThrough(
-                logits=z_logits)
+        if self._mode == "st":
+            z_dist = dist_utils.OneHotCategoricalStraightThrough(logits=z_logits)
         else:
             z_dist = dist_utils.OneHotCategoricalGumbelSoftmax(
-                hard_sample=True,
-                tau=self._gumbel_temp_scheduler(),
-                logits=z_logits)
+                hard_sample=True, tau=self._gumbel_temp_scheduler(), logits=z_logits
+            )
 
         output = VAEOutput(z=z_dist.rsample(), z_mode=z_dist.mode)
         return output, kl_div_loss

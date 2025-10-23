@@ -27,23 +27,29 @@ class AsyncUnrollerTest(alf.test.TestCase):
 
     def test_async_unroller(self):
         with tempfile.TemporaryDirectory() as root_dir:
-            alf.pre_config({
-                "TrainerConfig.unroll_length": 100,
-                "TrainerConfig.async_unroll": True,
-                "TrainerConfig.max_unroll_length": 100,
-                "TrainerConfig.unroll_queue_size": 200,
-                #"TrainerConfig.unroll_step_interval": 0.25,
-                "create_environment.num_parallel_environments": 1,
-            })
+            alf.pre_config(
+                {
+                    "TrainerConfig.unroll_length": 100,
+                    "TrainerConfig.async_unroll": True,
+                    "TrainerConfig.max_unroll_length": 100,
+                    "TrainerConfig.unroll_queue_size": 200,
+                    # "TrainerConfig.unroll_step_interval": 0.25,
+                    "create_environment.num_parallel_environments": 1,
+                }
+            )
             conf_file = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)), '..', 'examples',
-                'sac_cart_pole_conf.py')
+                os.path.dirname(os.path.abspath(__file__)),
+                "..",
+                "examples",
+                "sac_cart_pole_conf.py",
+            )
             common.parse_conf_file(conf_file)
             config = TrainerConfig(root_dir=root_dir, conf_file=conf_file)
             env = alf.get_env()
             env.reset()
             data_transformer = create_data_transformer(
-                config.data_transformer_ctor, env.observation_spec())
+                config.data_transformer_ctor, env.observation_spec()
+            )
             config.data_transformer = data_transformer
             observation_spec = data_transformer.transformed_observation_spec
             algorithm = config.algorithm_ctor(
@@ -51,8 +57,9 @@ class AsyncUnrollerTest(alf.test.TestCase):
                 action_spec=env.action_spec(),
                 reward_spec=env.reward_spec(),
                 env=env,
-                config=config)
-            algorithm.set_path('')
+                config=config,
+            )
+            algorithm.set_path("")
             t0 = time.time()
             for i in range(5):
                 exp = algorithm.unroll(config.unroll_length)
@@ -65,8 +72,7 @@ class AsyncUnrollerTest(alf.test.TestCase):
                     print("length:", exp.step_type.shape[0])
                 self.assertEqual(exp.step_type.shape[0], config.unroll_length)
             step_metrics = algorithm.get_step_metrics()
-            step_metrics = dict(
-                (m.name, int(m.result())) for m in step_metrics)
+            step_metrics = dict((m.name, int(m.result())) for m in step_metrics)
             t = time.time()
             algorithm._async_unroller.update_parameter(algorithm)
             print("time: ", t - t0)

@@ -27,7 +27,7 @@ from torch import nn
 class StepMetric(nn.Module):
     """Defines the interface for metrics."""
 
-    def __init__(self, name, dtype, prefix='Metrics'):
+    def __init__(self, name, dtype, prefix="Metrics"):
         super().__init__()
         self.name = name
         self._dtype = dtype
@@ -43,21 +43,18 @@ class StepMetric(nn.Module):
             *args:
             **kwargs: A mini-batch of inputs to the Metric.
         """
-        raise NotImplementedError(
-            'Metrics must define a call() member function')
+        raise NotImplementedError("Metrics must define a call() member function")
 
     def forward(self, *args, **kwargs):
         pass
 
     def reset(self):
         """Resets the values being tracked by the metric."""
-        raise NotImplementedError(
-            'Metrics must define a reset() member function')
+        raise NotImplementedError("Metrics must define a reset() member function")
 
     def result(self):
         """Computes and returns a final value for the metric."""
-        raise NotImplementedError(
-            'Metrics must define a result() member function')
+        raise NotImplementedError("Metrics must define a result() member function")
 
     def std(self):
         """Computes the standard deviation of the metric.
@@ -67,10 +64,9 @@ class StepMetric(nn.Module):
         """
         return torch.zeros(())
 
-    def gen_summaries(self,
-                      train_step=None,
-                      step_metrics=(),
-                      other_steps: Dict[str, int] = dict()):
+    def gen_summaries(
+        self, train_step=None, step_metrics=(), other_steps: Dict[str, int] = dict()
+    ):
         """Generates summaries against train_step and all step_metrics.
 
         Args:
@@ -94,12 +90,12 @@ class StepMetric(nn.Module):
                 # Skip plotting the metrics against itself.
                 if self.name == step_metric.name:
                     continue
-                step_tag = '{}_vs_{}/{}'.format(prefix, step_metric.name, name)
+                step_tag = "{}_vs_{}/{}".format(prefix, step_metric.name, name)
                 # Summaries expect the step value to be an int64.
                 step = step_metric.result().to(torch.int64)
                 alf.summary.scalar(name=step_tag, data=res, step=step)
             for other_name, step in other_steps.items():
-                step_tag = '{}_vs_{}/{}'.format(prefix, other_name, name)
+                step_tag = "{}_vs_{}/{}".format(prefix, other_name, name)
                 alf.summary.scalar(name=step_tag, data=res, step=step)
 
         alf.nest.py_map_structure_with_path(_gen_summary, result)

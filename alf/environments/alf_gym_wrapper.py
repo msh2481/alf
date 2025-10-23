@@ -29,9 +29,7 @@ import alf.nest as nest
 from alf.tensor_specs import TensorSpec, BoundedTensorSpec, torch_dtype_to_str
 
 
-def tensor_spec_from_gym_space(space,
-                               simplify_box_bounds=True,
-                               float_dtype=np.float32):
+def tensor_spec_from_gym_space(space, simplify_box_bounds=True, float_dtype=np.float32):
     """
     Construct tensor spec from gym space.
 
@@ -57,23 +55,21 @@ def tensor_spec_from_gym_space(space,
         # Discrete spaces span the set {0, 1, ... , n-1} while Bounded Array specs
         # are inclusive on their bounds.
         maximum = space.n - 1
-        return BoundedTensorSpec(shape=(),
-                                 dtype=space.dtype.name,
-                                 minimum=0,
-                                 maximum=maximum)
+        return BoundedTensorSpec(
+            shape=(), dtype=space.dtype.name, minimum=0, maximum=maximum
+        )
     elif isinstance(space, gym.spaces.MultiDiscrete):
         maximum = try_simplify_array_to_value(
-            np.asarray(space.nvec - 1, dtype=space.dtype))
-        return BoundedTensorSpec(shape=space.shape,
-                                 dtype=space.dtype.name,
-                                 minimum=0,
-                                 maximum=maximum)
+            np.asarray(space.nvec - 1, dtype=space.dtype)
+        )
+        return BoundedTensorSpec(
+            shape=space.shape, dtype=space.dtype.name, minimum=0, maximum=maximum
+        )
     elif isinstance(space, gym.spaces.MultiBinary):
-        shape = (space.n, )
-        return BoundedTensorSpec(shape=shape,
-                                 dtype=space.dtype.name,
-                                 minimum=0,
-                                 maximum=1)
+        shape = (space.n,)
+        return BoundedTensorSpec(
+            shape=shape, dtype=space.dtype.name, minimum=0, maximum=1
+        )
     elif isinstance(space, gym.spaces.Box):
 
         if float_dtype is not None and "float" in space.dtype.name:
@@ -86,18 +82,17 @@ def tensor_spec_from_gym_space(space,
         if simplify_box_bounds:
             minimum = try_simplify_array_to_value(minimum)
             maximum = try_simplify_array_to_value(maximum)
-        return BoundedTensorSpec(shape=space.shape,
-                                 dtype=dtype.name,
-                                 minimum=minimum,
-                                 maximum=maximum)
+        return BoundedTensorSpec(
+            shape=space.shape, dtype=dtype.name, minimum=minimum, maximum=maximum
+        )
     elif isinstance(space, gym.spaces.Tuple):
         return tuple([tensor_spec_from_gym_space(s) for s in space.spaces])
     elif isinstance(space, gym.spaces.Dict):
-        return collections.OrderedDict([(key, tensor_spec_from_gym_space(s))
-                                        for key, s in space.spaces.items()])
+        return collections.OrderedDict(
+            [(key, tensor_spec_from_gym_space(s)) for key, s in space.spaces.items()]
+        )
     else:
-        raise ValueError(
-            'The gym space {} is currently not supported.'.format(space))
+        raise ValueError("The gym space {} is currently not supported.".format(space))
 
 
 def _as_array(nested):
@@ -118,12 +113,14 @@ class AlfGymWrapper(AlfEnvironment):
     observation spaces. See base class for ``AlfEnvironment`` details.
     """
 
-    def __init__(self,
-                 gym_env,
-                 env_id=None,
-                 discount=1.0,
-                 auto_reset=True,
-                 simplify_box_bounds=True):
+    def __init__(
+        self,
+        gym_env,
+        env_id=None,
+        discount=1.0,
+        auto_reset=True,
+        simplify_box_bounds=True,
+    ):
         """
 
         Args:
@@ -142,32 +139,35 @@ class AlfGymWrapper(AlfEnvironment):
         if env_id is None:
             env_id = 0
         self._env_id = np.int32(env_id)
-        self._action_is_discrete = isinstance(self._gym_env.action_space,
-                                              gym.spaces.Discrete)
+        self._action_is_discrete = isinstance(
+            self._gym_env.action_space, gym.spaces.Discrete
+        )
         # TODO: Add test for auto_reset param.
         self._auto_reset = auto_reset
         self._observation_spec = tensor_spec_from_gym_space(
-            self._gym_env.observation_space, simplify_box_bounds)
+            self._gym_env.observation_space, simplify_box_bounds
+        )
         self._action_spec = tensor_spec_from_gym_space(
-            self._gym_env.action_space, simplify_box_bounds)
+            self._gym_env.action_space, simplify_box_bounds
+        )
         if hasattr(self._gym_env, "reward_space"):
             self._reward_spec = tensor_spec_from_gym_space(
-                self._gym_env.reward_space, simplify_box_bounds)
+                self._gym_env.reward_space, simplify_box_bounds
+            )
         else:
             self._reward_spec = TensorSpec(())
-        self._time_step_spec = ds.time_step_spec(self._observation_spec,
-                                                 self._action_spec,
-                                                 self._reward_spec)
+        self._time_step_spec = ds.time_step_spec(
+            self._observation_spec, self._action_spec, self._reward_spec
+        )
         self._info = None
         self._done = True
         self._zero_info = self._obtain_zero_info()
 
-        self._env_info_spec = nest.map_structure(TensorSpec.from_array,
-                                                 self._zero_info)
+        self._env_info_spec = nest.map_structure(TensorSpec.from_array, self._zero_info)
 
     @property
     def gym(self):
-        """Return the gym environment. """
+        """Return the gym environment."""
         return self._gym_env
 
     @property
@@ -179,8 +179,7 @@ class AlfGymWrapper(AlfEnvironment):
         This info will be filled in each ``FIRST`` time step as a placeholder.
         """
         self._gym_env.reset()
-        action = nest.map_structure(lambda spec: spec.numpy_zeros(),
-                                    self._action_spec)
+        action = nest.map_structure(lambda spec: spec.numpy_zeros(), self._action_spec)
         _, _, _, info = self._gym_env.step(action)
         self._gym_env.reset()
         info = _as_array(info)
@@ -202,11 +201,13 @@ class AlfGymWrapper(AlfEnvironment):
         self._done = False
 
         observation = self._to_spec_dtype_observation(observation)
-        return ds.restart(observation=observation,
-                          action_spec=self._action_spec,
-                          reward_spec=self._reward_spec,
-                          env_id=self._env_id,
-                          env_info=self._zero_info)
+        return ds.restart(
+            observation=observation,
+            action_spec=self._action_spec,
+            reward_spec=self._reward_spec,
+            env_id=self._env_id,
+            env_info=self._zero_info,
+        )
 
     @property
     def done(self):
@@ -217,8 +218,7 @@ class AlfGymWrapper(AlfEnvironment):
         if self._auto_reset and self._done:
             return self.reset()
 
-        observation, reward, self._done, self._info = self._gym_env.step(
-            action)
+        observation, reward, self._done, self._info = self._gym_env.step(action)
         # NOTE: In recent version of gym, the environment info may have
         # "TimeLimit.truncated" to indicate that the env has run beyond the time
         # limit. If so, it will removed to avoid having conflict with our env
@@ -228,20 +228,24 @@ class AlfGymWrapper(AlfEnvironment):
         self._info = _as_array(self._info)
 
         if self._done:
-            return ds.termination(observation,
-                                  action,
-                                  reward,
-                                  self._reward_spec,
-                                  self._env_id,
-                                  env_info=self._info)
+            return ds.termination(
+                observation,
+                action,
+                reward,
+                self._reward_spec,
+                self._env_id,
+                env_info=self._info,
+            )
         else:
-            return ds.transition(observation,
-                                 action,
-                                 reward,
-                                 self._reward_spec,
-                                 self._discount,
-                                 self._env_id,
-                                 env_info=self._info)
+            return ds.transition(
+                observation,
+                action,
+                reward,
+                self._reward_spec,
+                self._discount,
+                self._env_id,
+                env_info=self._info,
+            )
 
     def _to_spec_dtype_observation(self, observation):
         """Make sure observation from env is converted to the correct dtype.
@@ -260,8 +264,7 @@ class AlfGymWrapper(AlfEnvironment):
             else:
                 return arr.astype(dtype)
 
-        return nest.map_structure(_as_spec_dtype, observation,
-                                  self._observation_spec)
+        return nest.map_structure(_as_spec_dtype, observation, self._observation_spec)
 
     def env_info_spec(self):
         return self._env_info_spec
@@ -284,5 +287,5 @@ class AlfGymWrapper(AlfEnvironment):
     def seed(self, seed):
         return self._gym_env.seed(seed)
 
-    def render(self, mode='rgb_array'):
+    def render(self, mode="rgb_array"):
         return self._gym_env.render(mode)

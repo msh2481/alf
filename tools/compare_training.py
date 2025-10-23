@@ -39,68 +39,61 @@ from alf.utils.common import alf_root
 from alf.utils.git_utils import get_revision, get_diff, _exec
 from alf.bin.train_play_test import run_cmd
 
-flags.DEFINE_string("conf",
-                    None,
-                    help="The config file for training",
-                    required=True)
+flags.DEFINE_string("conf", None, help="The config file for training", required=True)
 flags.DEFINE_string("rev1", None, help="The first revision.", required=True)
 flags.DEFINE_string(
     "rev2",
     None,
-    help=
-    "The second revision. If not provided, the current revision will be used",
-    required=False)
-flags.DEFINE_integer("iterations",
-                     5,
-                     help="The number of iterations to run",
-                     required=False)
-flags.DEFINE_integer("num_envs",
-                     10,
-                     help="The number of environments to run",
-                     required=False)
-flags.DEFINE_integer("mini_batch_size",
-                     256,
-                     help="Minibatch size",
-                     required=False)
-flags.DEFINE_integer("initial_collect_steps",
-                     10,
-                     help="The number of steps to collect before training",
-                     required=False)
+    help="The second revision. If not provided, the current revision will be used",
+    required=False,
+)
+flags.DEFINE_integer(
+    "iterations", 5, help="The number of iterations to run", required=False
+)
+flags.DEFINE_integer(
+    "num_envs", 10, help="The number of environments to run", required=False
+)
+flags.DEFINE_integer("mini_batch_size", 256, help="Minibatch size", required=False)
+flags.DEFINE_integer(
+    "initial_collect_steps",
+    10,
+    help="The number of steps to collect before training",
+    required=False,
+)
 flags.DEFINE_integer(
     "unroll_length",
     10,
     help=" number of time steps each environment proceeds per iteration.",
-    required=False)
+    required=False,
+)
 
 FLAGS = flags.FLAGS
 
 
 def run_train(conf, root_dir, rev1):
     cmd = ["git", "checkout", rev1]
-    run_cmd(cmd=cmd, cwd='.')
+    run_cmd(cmd=cmd, cwd=".")
 
     cmd = [
-        'python3',
-        '-m',
-        'alf.bin.train',
-        '--nostore_snapshot',
-        '--root_dir=%s' % root_dir,
-        '--conf=%s' % conf,
-        '--conf_param=TrainerConfig.confirm_checkpoint_upon_crash=0',
-        '--conf_param=TrainerConfig.random_seed=1',
-        '--conf_param=TrainerConfig.num_checkpoints=1',
-        '--conf_param=TrainerConfig.unroll_length=%s' % FLAGS.unroll_length,
-        '--conf_param=TrainerConfig.num_iterations=%s' % FLAGS.iterations,
-        '--conf_param=TrainerConfig.mini_batch_size=%s' %
-        FLAGS.mini_batch_size,
-        '--conf_param=TrainerConfig.initial_collect_steps=%s' %
-        FLAGS.initial_collect_steps,
-        '--conf_param=create_environment.num_parallel_environments=%s' %
-        FLAGS.num_envs,
-        '--conf_param=create_environment.batch_size_per_env=2',
-        '--conf_param=TrainerConfig.num_env_steps=0',
+        "python3",
+        "-m",
+        "alf.bin.train",
+        "--nostore_snapshot",
+        "--root_dir=%s" % root_dir,
+        "--conf=%s" % conf,
+        "--conf_param=TrainerConfig.confirm_checkpoint_upon_crash=0",
+        "--conf_param=TrainerConfig.random_seed=1",
+        "--conf_param=TrainerConfig.num_checkpoints=1",
+        "--conf_param=TrainerConfig.unroll_length=%s" % FLAGS.unroll_length,
+        "--conf_param=TrainerConfig.num_iterations=%s" % FLAGS.iterations,
+        "--conf_param=TrainerConfig.mini_batch_size=%s" % FLAGS.mini_batch_size,
+        "--conf_param=TrainerConfig.initial_collect_steps=%s"
+        % FLAGS.initial_collect_steps,
+        "--conf_param=create_environment.num_parallel_environments=%s" % FLAGS.num_envs,
+        "--conf_param=create_environment.batch_size_per_env=2",
+        "--conf_param=TrainerConfig.num_env_steps=0",
     ]
-    run_cmd(cmd=cmd, cwd='.')
+    run_cmd(cmd=cmd, cwd=".")
 
 
 def get_current_branch(module_root):
@@ -112,8 +105,10 @@ def switch_branch(module_root, branch):
 
 
 def main(_):
-    if FLAGS.initial_collect_steps > (
-            FLAGS.iterations - 1) * FLAGS.unroll_length * FLAGS.num_envs:
+    if (
+        FLAGS.initial_collect_steps
+        > (FLAGS.iterations - 1) * FLAGS.unroll_length * FLAGS.num_envs
+    ):
         logging.error(
             "initial_collect_steps should be <= (num_iterations - 1) * unroll_length * num_parallel_environments"
         )
@@ -121,8 +116,7 @@ def main(_):
 
     repo_root = Path(alf_root())
     if get_diff(repo_root):
-        logging.error(
-            "You need to commit all changes before running this script")
+        logging.error("You need to commit all changes before running this script")
         exit(1)
     current_branch = get_current_branch(repo_root)
     if FLAGS.rev2 is None:
@@ -138,10 +132,9 @@ def main(_):
     finally:
         switch_branch(repo_root, current_branch)
 
-    cmd = ' '.join([
-        "diff", "-r", root_dir1 + "/train/algorithm",
-        root_dir2 + "/train/algorithm"
-    ])
+    cmd = " ".join(
+        ["diff", "-r", root_dir1 + "/train/algorithm", root_dir2 + "/train/algorithm"]
+    )
     diff = _exec(cmd, ".")
     if diff:
         logging.error("The checkpoints from the two runs are different.")
@@ -151,6 +144,6 @@ def main(_):
         logging.info("The checkpoints from the two runs are same.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.set_verbosity(logging.INFO)
     app.run(main)

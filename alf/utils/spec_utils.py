@@ -38,8 +38,9 @@ def spec_means_and_magnitudes(spec: BoundedTensorSpec):
 
     spec_means = (spec.maximum + spec.minimum) / 2.0
     spec_magnitudes = (spec.maximum - spec.minimum) / 2.0
-    return torch.as_tensor(spec_means).to(
-        spec.dtype), torch.as_tensor(spec_magnitudes).to(spec.dtype)
+    return torch.as_tensor(spec_means).to(spec.dtype), torch.as_tensor(
+        spec_magnitudes
+    ).to(spec.dtype)
 
 
 def scale_to_spec(tensor, spec: BoundedTensorSpec):
@@ -68,8 +69,9 @@ def clip_to_spec(value, spec: BoundedTensorSpec):
     Returns:
         clipped_value: (tensor) `value` clipped to be compatible with `spec`.
     """
-    return torch.max(torch.min(value, torch.as_tensor(spec.maximum)),
-                     torch.as_tensor(spec.minimum))
+    return torch.max(
+        torch.min(value, torch.as_tensor(spec.maximum)), torch.as_tensor(spec.minimum)
+    )
 
 
 def zeros_from_spec(nested_spec, batch_size):
@@ -129,9 +131,11 @@ def consistent_with_spec(nested, spec, from_dim=0):
         bool: True if the nested structure is consistent with the spec
     """
     nested_paths = nest.flatten(
-        nest.py_map_structure_with_path(lambda path, x: path, nested))
+        nest.py_map_structure_with_path(lambda path, x: path, nested)
+    )
     spec_paths = nest.flatten(
-        nest.py_map_structure_with_path(lambda path, x: path, spec))
+        nest.py_map_structure_with_path(lambda path, x: path, spec)
+    )
     if set(nested_paths) != set(spec_paths):
         print("The nest does not match the spec!", file=sys.stderr)
         not_in_spec = set(nested_paths) - set(spec_paths)
@@ -143,13 +147,17 @@ def consistent_with_spec(nested, spec, from_dim=0):
         return False
 
     def _check_spec(path, x, s):
-        if not (len(x.shape) - from_dim == len(s.shape) and x.shape[from_dim:]
-                == s.shape and dtype_to_str(x.dtype) == s.dtype_str):
+        if not (
+            len(x.shape) - from_dim == len(s.shape)
+            and x.shape[from_dim:] == s.shape
+            and dtype_to_str(x.dtype) == s.dtype_str
+        ):
             print(
                 f"Spec mismatch at path: {path}, "
                 f"tensor shape={x.shape} tensor dtype={x.dtype} "
                 f"spec shape={s.shape} spec dtype={s.dtype}",
-                file=sys.stderr)
+                file=sys.stderr,
+            )
             return False
         else:
             return True

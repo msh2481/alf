@@ -26,7 +26,7 @@ from alf.algorithms.oac_algorithm import OacAlgorithm, NormalProjectionNetwork
 from alf.algorithms.sac_algorithm import SacState
 from alf.algorithms.rl_algorithm_test import MyEnv
 from alf.data_structures import TimeStep
-from alf.environments.suite_unittest import (PolicyUnittestEnv, ActionType)
+from alf.environments.suite_unittest import PolicyUnittestEnv, ActionType
 from alf.networks import ActorDistributionNetwork, CriticNetwork
 from alf.utils import common
 from alf.utils.math_ops import clipped_exp
@@ -37,24 +37,30 @@ class OACAlgorithmTest(alf.test.TestCase):
     def test_oac_algorithm(self):
         reward_dim = 3
         num_env = 4
-        config = TrainerConfig(root_dir="dummy",
-                               unroll_length=1,
-                               mini_batch_length=2,
-                               mini_batch_size=64,
-                               initial_collect_steps=500,
-                               whole_replay_buffer_training=False,
-                               clear_replay_buffer=False)
+        config = TrainerConfig(
+            root_dir="dummy",
+            unroll_length=1,
+            mini_batch_length=2,
+            mini_batch_size=64,
+            initial_collect_steps=500,
+            whole_replay_buffer_training=False,
+            clear_replay_buffer=False,
+        )
         env_class = PolicyUnittestEnv
         steps_per_episode = 13
-        env = env_class(num_env,
-                        steps_per_episode,
-                        action_type=ActionType.Continuous,
-                        reward_dim=reward_dim)
+        env = env_class(
+            num_env,
+            steps_per_episode,
+            action_type=ActionType.Continuous,
+            reward_dim=reward_dim,
+        )
 
-        eval_env = env_class(100,
-                             steps_per_episode,
-                             action_type=ActionType.Continuous,
-                             reward_dim=reward_dim)
+        eval_env = env_class(
+            100,
+            steps_per_episode,
+            action_type=ActionType.Continuous,
+            reward_dim=reward_dim,
+        )
 
         obs_spec = env._observation_spec
         action_spec = env._action_spec
@@ -62,34 +68,38 @@ class OACAlgorithmTest(alf.test.TestCase):
 
         fc_layer_params = (10, 10)
 
-        continuous_projection_net_ctor = partial(NormalProjectionNetwork,
-                                                 state_dependent_std=True,
-                                                 scale_distribution=True,
-                                                 std_transform=clipped_exp)
+        continuous_projection_net_ctor = partial(
+            NormalProjectionNetwork,
+            state_dependent_std=True,
+            scale_distribution=True,
+            std_transform=clipped_exp,
+        )
 
         actor_network = partial(
             ActorDistributionNetwork,
             fc_layer_params=fc_layer_params,
-            continuous_projection_net_ctor=continuous_projection_net_ctor)
+            continuous_projection_net_ctor=continuous_projection_net_ctor,
+        )
 
-        critic_network = partial(CriticNetwork,
-                                 joint_fc_layer_params=fc_layer_params)
+        critic_network = partial(CriticNetwork, joint_fc_layer_params=fc_layer_params)
 
-        alg = OacAlgorithm(observation_spec=obs_spec,
-                           action_spec=action_spec,
-                           reward_spec=reward_spec,
-                           actor_network_cls=actor_network,
-                           critic_network_cls=critic_network,
-                           use_entropy_reward=reward_dim == 1,
-                           env=env,
-                           config=config,
-                           explore_delta=1.,
-                           beta_ub=1.,
-                           actor_optimizer=alf.optimizers.Adam(lr=1e-2),
-                           critic_optimizer=alf.optimizers.Adam(lr=1e-2),
-                           alpha_optimizer=alf.optimizers.Adam(lr=1e-2),
-                           debug_summaries=False,
-                           name="MyOAC")
+        alg = OacAlgorithm(
+            observation_spec=obs_spec,
+            action_spec=action_spec,
+            reward_spec=reward_spec,
+            actor_network_cls=actor_network,
+            critic_network_cls=critic_network,
+            use_entropy_reward=reward_dim == 1,
+            env=env,
+            config=config,
+            explore_delta=1.0,
+            beta_ub=1.0,
+            actor_optimizer=alf.optimizers.Adam(lr=1e-2),
+            critic_optimizer=alf.optimizers.Adam(lr=1e-2),
+            alpha_optimizer=alf.optimizers.Adam(lr=1e-2),
+            debug_summaries=False,
+            name="MyOAC",
+        )
 
         eval_env.reset()
         for i in range(700):
@@ -101,11 +111,10 @@ class OACAlgorithmTest(alf.test.TestCase):
             logging.log_every_n_seconds(
                 logging.INFO,
                 "%d reward=%f" % (i, float(eval_time_step.reward.mean())),
-                n_seconds=1)
+                n_seconds=1,
+            )
 
-        self.assertAlmostEqual(1.0,
-                               float(eval_time_step.reward.mean()),
-                               delta=0.3)
+        self.assertAlmostEqual(1.0, float(eval_time_step.reward.mean()), delta=0.3)
 
 
 def unroll(env, algorithm, steps, epsilon_greedy=0.1):
@@ -115,19 +124,23 @@ def unroll(env, algorithm, steps, epsilon_greedy=0.1):
     trans_state = algorithm.get_initial_transform_state(env.batch_size)
     for _ in range(steps):
         policy_state = common.reset_state_if_necessary(
-            policy_state, algorithm.get_initial_predict_state(env.batch_size),
-            time_step.is_first())
+            policy_state,
+            algorithm.get_initial_predict_state(env.batch_size),
+            time_step.is_first(),
+        )
         transformed_time_step, trans_state = algorithm.transform_timestep(
-            time_step, trans_state)
+            time_step, trans_state
+        )
         action_dist, action, _, action_state = algorithm._predict_action(
             transformed_time_step.observation,
             policy_state.action,
             epsilon_greedy=epsilon_greedy,
-            eps_greedy_sampling=True)
+            eps_greedy_sampling=True,
+        )
         time_step = env.step(action)
         policy_state = SacState(action=action_state)
     return time_step
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

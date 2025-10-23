@@ -57,19 +57,21 @@ class TransformerNetwork(PreprocessorNetwork):
          Language Understanding
     """
 
-    def __init__(self,
-                 input_tensor_spec,
-                 num_prememory_layers,
-                 num_attention_heads,
-                 d_ff=None,
-                 core_size=1,
-                 use_core_embedding=True,
-                 memory_size=0,
-                 num_memory_layers=0,
-                 return_core_only=True,
-                 centralized_memory=True,
-                 input_preprocessors=None,
-                 name="TransformerNetwork"):
+    def __init__(
+        self,
+        input_tensor_spec,
+        num_prememory_layers,
+        num_attention_heads,
+        d_ff=None,
+        core_size=1,
+        use_core_embedding=True,
+        memory_size=0,
+        num_memory_layers=0,
+        return_core_only=True,
+        centralized_memory=True,
+        input_preprocessors=None,
+        name="TransformerNetwork",
+    ):
         """
         Args:
             input_tensor_spec (nested TensorSpec): the (nested) tensor spec of
@@ -114,23 +116,25 @@ class TransformerNetwork(PreprocessorNetwork):
         preprocessing_combiner = None
         if input_preprocessors is not None:
             preprocessing_combiner = NestConcat(dim=-2)
-        super().__init__(input_tensor_spec,
-                         input_preprocessors,
-                         preprocessing_combiner=preprocessing_combiner,
-                         name=name)
+        super().__init__(
+            input_tensor_spec,
+            input_preprocessors,
+            preprocessing_combiner=preprocessing_combiner,
+            name=name,
+        )
 
         assert self._processed_input_tensor_spec.ndim == 2
 
         input_size, d_model = self._processed_input_tensor_spec.shape
         if num_memory_layers > 0:
-            assert memory_size > 0, ("memory_size needs to be set if "
-                                     "num_memory_layers > 0")
+            assert memory_size > 0, (
+                "memory_size needs to be set if " "num_memory_layers > 0"
+            )
             if centralized_memory:
                 self._memories = [FIFOMemory(d_model, memory_size)]
             else:
                 self._memories = [
-                    FIFOMemory(d_model, memory_size)
-                    for _ in range(num_memory_layers)
+                    FIFOMemory(d_model, memory_size) for _ in range(num_memory_layers)
                 ]
         else:
             self._memories = []
@@ -138,8 +142,7 @@ class TransformerNetwork(PreprocessorNetwork):
 
         self._core_size = core_size
         if use_core_embedding:
-            self._core_embedding = nn.Parameter(
-                torch.empty(1, core_size, d_model))
+            self._core_embedding = nn.Parameter(torch.empty(1, core_size, d_model))
             nn.init.uniform_(self._core_embedding, -0.1, 0.1)
         else:
             self._core_embedding = None
@@ -157,7 +160,9 @@ class TransformerNetwork(PreprocessorNetwork):
                     d_ff=d_ff,
                     num_heads=num_attention_heads,
                     memory_size=input_size + core_size,
-                    positional_encoding='abs' if i == 0 else 'none'))
+                    positional_encoding="abs" if i == 0 else "none",
+                )
+            )
 
         for i in range(num_memory_layers):
             self._transformers.append(
@@ -166,7 +171,9 @@ class TransformerNetwork(PreprocessorNetwork):
                     d_ff=d_ff,
                     num_heads=num_attention_heads,
                     memory_size=memory_size + input_size + core_size,
-                    positional_encoding='abs' if i == 0 else 'none'))
+                    positional_encoding="abs" if i == 0 else "none",
+                )
+            )
 
         self._return_core_only = return_core_only
 
@@ -202,29 +209,26 @@ class TransformerNetwork(PreprocessorNetwork):
             memory.from_states(state[0])
             mem = memory.memory()
             for i in range(self._num_memory_layers):
-                transformer = self._transformers[self._num_prememory_layers +
-                                                 i]
-                query = transformer.forward(memory=torch.cat([mem, query],
-                                                             dim=-2),
-                                            query=query)
-            memory.write(query[:, :self._core_size, :])
+                transformer = self._transformers[self._num_prememory_layers + i]
+                query = transformer.forward(
+                    memory=torch.cat([mem, query], dim=-2), query=query
+                )
+            memory.write(query[:, : self._core_size, :])
         else:
             for i in range(self._num_memory_layers):
                 memory = self._memories[i]
                 memory.from_states(state[i])
-                transformer = self._transformers[self._num_prememory_layers +
-                                                 i]
-                new_query = transformer.forward(memory=torch.cat(
-                    [memory.memory(), query], dim=-2),
-                                                query=query)
-                memory.write(query[:, :self._core_size, :])
+                transformer = self._transformers[self._num_prememory_layers + i]
+                new_query = transformer.forward(
+                    memory=torch.cat([memory.memory(), query], dim=-2), query=query
+                )
+                memory.write(query[:, : self._core_size, :])
                 query = new_query
 
         new_state = [mem.states for mem in self._memories]
 
         if self._return_core_only:
-            return query[:, :self._core_size, :].reshape(batch_size,
-                                                         -1), new_state
+            return query[:, : self._core_size, :].reshape(batch_size, -1), new_state
         else:
             return query, new_state
 
@@ -232,25 +236,27 @@ class TransformerNetwork(PreprocessorNetwork):
 @alf.configurable
 class SocialAttentionNetwork(PreprocessorNetwork):
     """Simple graph encoding network, which takes as input a set of objects and
-        outputs one encoded feature vector.
-        Reference:
-            Leurent et al "Social Attention for Autonomous Decision-Making in
-            Dense Traffic", arXiv:1911.12250
+    outputs one encoded feature vector.
+    Reference:
+        Leurent et al "Social Attention for Autonomous Decision-Making in
+        Dense Traffic", arXiv:1911.12250
     """
 
-    def __init__(self,
-                 input_tensor_spec,
-                 input_preprocessors=None,
-                 preprocessing_combiner=None,
-                 fc_layer_params=(128, 128),
-                 activation=torch.relu_,
-                 kernel_initializer=None,
-                 use_fc_bn=False,
-                 num_of_heads=1,
-                 last_layer_size=None,
-                 last_activation=None,
-                 last_kernel_initializer=None,
-                 name="SocialAttentionNetwork"):
+    def __init__(
+        self,
+        input_tensor_spec,
+        input_preprocessors=None,
+        preprocessing_combiner=None,
+        fc_layer_params=(128, 128),
+        activation=torch.relu_,
+        kernel_initializer=None,
+        use_fc_bn=False,
+        num_of_heads=1,
+        last_layer_size=None,
+        last_activation=None,
+        last_kernel_initializer=None,
+        name="SocialAttentionNetwork",
+    ):
         """
         Args:
             input_tensor_spec (nested TensorSpec): the (nested) tensor spec of
@@ -285,30 +291,37 @@ class SocialAttentionNetwork(PreprocessorNetwork):
             last_use_fc_bn (None): not used; for interface compatibility
             name (str):
         """
-        super().__init__(input_tensor_spec,
-                         input_preprocessors,
-                         preprocessing_combiner=preprocessing_combiner,
-                         name=name)
+        super().__init__(
+            input_tensor_spec,
+            input_preprocessors,
+            preprocessing_combiner=preprocessing_combiner,
+            name=name,
+        )
 
         if kernel_initializer is None:
             kernel_initializer = functools.partial(
                 variance_scaling_init,
-                mode='fan_in',
-                distribution='truncated_normal',
-                nonlinearity=activation)
+                mode="fan_in",
+                distribution="truncated_normal",
+                nonlinearity=activation,
+            )
 
         embedding_layers = nn.ModuleList()
         assert self._processed_input_tensor_spec.ndim == 2, (
             "expect the "
-            "processed spec to have the shape of [entity_num, feature_dim]")
+            "processed spec to have the shape of [entity_num, feature_dim]"
+        )
         input_size = self._processed_input_tensor_spec.shape[-1]
         for size in fc_layer_params:
             embedding_layers.append(
-                layers.FC(input_size,
-                          size,
-                          activation=activation,
-                          use_bn=use_fc_bn,
-                          kernel_initializer=kernel_initializer))
+                layers.FC(
+                    input_size,
+                    size,
+                    activation=activation,
+                    use_bn=use_fc_bn,
+                    kernel_initializer=kernel_initializer,
+                )
+            )
             input_size = size
         self._embedding_layers = embedding_layers
 
@@ -318,18 +331,15 @@ class SocialAttentionNetwork(PreprocessorNetwork):
         self._fea_dim_per_head = fea_dim // num_of_heads
 
         # attention related layers
-        self._value_proj = layers.FC(fea_dim,
-                                     fea_dim,
-                                     use_bias=False,
-                                     kernel_initializer=kernel_initializer)
-        self._key_proj = layers.FC(fea_dim,
-                                   fea_dim,
-                                   use_bias=False,
-                                   kernel_initializer=kernel_initializer)
-        self._query_proj = layers.FC(fea_dim,
-                                     fea_dim,
-                                     use_bias=False,
-                                     kernel_initializer=kernel_initializer)
+        self._value_proj = layers.FC(
+            fea_dim, fea_dim, use_bias=False, kernel_initializer=kernel_initializer
+        )
+        self._key_proj = layers.FC(
+            fea_dim, fea_dim, use_bias=False, kernel_initializer=kernel_initializer
+        )
+        self._query_proj = layers.FC(
+            fea_dim, fea_dim, use_bias=False, kernel_initializer=kernel_initializer
+        )
 
         self._simple_attention = alf.layers.SimpleAttention()
 
@@ -360,14 +370,17 @@ class SocialAttentionNetwork(PreprocessorNetwork):
         key = X[:, 0]
 
         # [B, head * d'] -> [B, 1, head, d']
-        query = self._query_proj(key).reshape(B, 1, self._num_of_heads,
-                                              self._fea_dim_per_head)
+        query = self._query_proj(key).reshape(
+            B, 1, self._num_of_heads, self._fea_dim_per_head
+        )
 
-        key = self._key_proj(X).reshape(B, N, self._num_of_heads,
-                                        self._fea_dim_per_head)
+        key = self._key_proj(X).reshape(
+            B, N, self._num_of_heads, self._fea_dim_per_head
+        )
 
-        value = self._value_proj(X).reshape(B, N, self._num_of_heads,
-                                            self._fea_dim_per_head)
+        value = self._value_proj(X).reshape(
+            B, N, self._num_of_heads, self._fea_dim_per_head
+        )
 
         # [B, N, head, d'] -> [B, head, N, d']
         query = query.permute(0, 2, 1, 3)

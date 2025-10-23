@@ -28,8 +28,9 @@ from alf.tensor_specs import TensorSpec
 from alf.utils import common, math_ops
 from alf.utils.averager import AdaptiveAverager
 
-GeneratorLossInfo = namedtuple("GeneratorLossInfo",
-                               ["generator", "mi_estimator", "inverse_mvp"])
+GeneratorLossInfo = namedtuple(
+    "GeneratorLossInfo", ["generator", "mi_estimator", "inverse_mvp"]
+)
 
 
 @alf.configurable
@@ -39,16 +40,18 @@ class CriticAlgorithm(Algorithm):
     called by the Generator when par_vi is 'minmax'.
     """
 
-    def __init__(self,
-                 input_tensor_spec,
-                 output_dim=None,
-                 hidden_layers=(3, 3),
-                 activation=torch.relu_,
-                 net: Network = None,
-                 use_relu_mlp=False,
-                 use_bn=True,
-                 optimizer=None,
-                 name="CriticAlgorithm"):
+    def __init__(
+        self,
+        input_tensor_spec,
+        output_dim=None,
+        hidden_layers=(3, 3),
+        activation=torch.relu_,
+        net: Network = None,
+        use_relu_mlp=False,
+        use_bn=True,
+        optimizer=None,
+        name="CriticAlgorithm",
+    ):
         """Create a CriticAlgorithm.
 
         Args:
@@ -75,17 +78,20 @@ class CriticAlgorithm(Algorithm):
         if net is None:
 
             if use_relu_mlp:
-                net = ReluMLP(input_tensor_spec=input_tensor_spec,
-                              hidden_layers=hidden_layers)
+                net = ReluMLP(
+                    input_tensor_spec=input_tensor_spec, hidden_layers=hidden_layers
+                )
             else:
-                net = EncodingNetwork(input_tensor_spec=input_tensor_spec,
-                                      fc_layer_params=hidden_layers,
-                                      use_fc_bn=use_bn,
-                                      activation=activation,
-                                      last_layer_size=self._output_dim,
-                                      last_activation=math_ops.identity,
-                                      last_use_fc_bn=use_bn,
-                                      name='Critic')
+                net = EncodingNetwork(
+                    input_tensor_spec=input_tensor_spec,
+                    fc_layer_params=hidden_layers,
+                    use_fc_bn=use_bn,
+                    activation=activation,
+                    last_layer_size=self._output_dim,
+                    last_activation=math_ops.identity,
+                    last_use_fc_bn=use_bn,
+                    name="Critic",
+                )
         self._net = net
 
     def reset_net_parameters(self):
@@ -131,14 +137,16 @@ class InverseMVPAlgorithm(Algorithm):
     trained to predict :math:`y` that minimize the  objective :math:`||Jy - vec||^2.
     """
 
-    def __init__(self,
-                 input_dim,
-                 output_dim,
-                 hidden_size=100,
-                 num_hidden_layers=1,
-                 activation=torch.relu_,
-                 optimizer=None,
-                 name="InverseMVPAlgorithm"):
+    def __init__(
+        self,
+        input_dim,
+        output_dim,
+        hidden_size=100,
+        num_hidden_layers=1,
+        activation=torch.relu_,
+        optimizer=None,
+        name="InverseMVPAlgorithm",
+    ):
         r"""Create a InverseMVPAlgorithm.
         Args:
             input_dim (int): dimension of input z
@@ -158,26 +166,30 @@ class InverseMVPAlgorithm(Algorithm):
         kernel_initializer = functools.partial(
             alf.initializers.variance_scaling_init,
             gain=1.0 / 2.0,
-            mode='fan_in',
-            distribution='truncated_normal',
-            nonlinearity=math_ops.identity)
+            mode="fan_in",
+            distribution="truncated_normal",
+            nonlinearity=math_ops.identity,
+        )
 
         self._z_dim = input_dim
         self._vec_dim = output_dim
-        z_spec = TensorSpec(shape=(self._z_dim, ))
-        vec_spec = TensorSpec(shape=(self._vec_dim, ))
+        z_spec = TensorSpec(shape=(self._z_dim,))
+        vec_spec = TensorSpec(shape=(self._vec_dim,))
 
         self._net = EncodingNetwork(
             (z_spec, vec_spec),
-            input_preprocessors=(torch.nn.Linear(self._z_dim, hidden_size),
-                                 torch.nn.Linear(self._vec_dim, hidden_size)),
+            input_preprocessors=(
+                torch.nn.Linear(self._z_dim, hidden_size),
+                torch.nn.Linear(self._vec_dim, hidden_size),
+            ),
             preprocessing_combiner=alf.layers.NestConcat(),
-            fc_layer_params=(2 * hidden_size, ) * num_hidden_layers,
+            fc_layer_params=(2 * hidden_size,) * num_hidden_layers,
             activation=activation,
             kernel_initializer=kernel_initializer,
             last_layer_size=output_dim,
             last_activation=math_ops.identity,
-            name='InverseMVPNetwork')
+            name="InverseMVPNetwork",
+        )
 
     def predict_step(self, inputs, state=None):
         """Predict for one step of inputs.
@@ -201,22 +213,22 @@ class InverseMVPAlgorithm(Algorithm):
         assert z_inputs.shape[0] == vec.shape[0]
 
         if z_inputs.shape[-1] > self._z_dim:
-            z_inputs = z_inputs[:, :self._z_dim]  # [N2, K]
+            z_inputs = z_inputs[:, : self._z_dim]  # [N2, K]
 
         if vec.ndim == 2:
             vec_inputs = vec
         elif vec.ndim == 3:  # [N2, N, D]
-            z_inputs = torch.repeat_interleave(z_inputs, vec.shape[1],
-                                               dim=0)  # [N2*N, K]
-            vec_inputs = vec.reshape(vec.shape[0] * vec.shape[1],
-                                     -1)  # [N2*N, D]
+            z_inputs = torch.repeat_interleave(
+                z_inputs, vec.shape[1], dim=0
+            )  # [N2*N, K]
+            vec_inputs = vec.reshape(vec.shape[0] * vec.shape[1], -1)  # [N2*N, D]
         else:
             raise ValueError(
-                "vec must be dimension 2 or 3, got dimension {}".format(
-                    vec.ndim))
+                "vec must be dimension 2 or 3, got dimension {}".format(vec.ndim)
+            )
 
         if vec_inputs.shape[-1] > self._vec_dim:
-            vec_inputs = vec_inputs[:, :self._vec_dim]
+            vec_inputs = vec_inputs[:, : self._vec_dim]
 
         outputs = (self._net((z_inputs, vec_inputs))[0], z_inputs)
 
@@ -286,38 +298,40 @@ class Generator(Algorithm):
     and Maximization <https://arxiv.org/pdf/1808.06670.pdf>`
     """
 
-    def __init__(self,
-                 output_dim,
-                 noise_dim=32,
-                 input_tensor_spec=None,
-                 hidden_layers=(256, ),
-                 net: Network = None,
-                 net_moving_average_rate=None,
-                 entropy_regularization=0.,
-                 mi_weight=None,
-                 mi_estimator_cls=MIEstimator,
-                 par_vi=None,
-                 use_kernel_averager=False,
-                 functional_gradient=False,
-                 init_lambda=1.,
-                 lambda_trainable=False,
-                 block_inverse_mvp=False,
-                 direct_jac_inverse=False,
-                 inverse_mvp_solve_iters=1,
-                 inverse_mvp_hidden_size=100,
-                 inverse_mvp_hidden_layers=1,
-                 critic_input_dim=None,
-                 critic_hidden_layers=(100, 100),
-                 critic_l2_weight=10.,
-                 critic_iter_num=2,
-                 critic_relu_mlp=False,
-                 critic_use_bn=True,
-                 minmax_resample=True,
-                 critic_optimizer=None,
-                 inverse_mvp_optimizer=None,
-                 optimizer=None,
-                 lambda_optimizer=None,
-                 name="Generator"):
+    def __init__(
+        self,
+        output_dim,
+        noise_dim=32,
+        input_tensor_spec=None,
+        hidden_layers=(256,),
+        net: Network = None,
+        net_moving_average_rate=None,
+        entropy_regularization=0.0,
+        mi_weight=None,
+        mi_estimator_cls=MIEstimator,
+        par_vi=None,
+        use_kernel_averager=False,
+        functional_gradient=False,
+        init_lambda=1.0,
+        lambda_trainable=False,
+        block_inverse_mvp=False,
+        direct_jac_inverse=False,
+        inverse_mvp_solve_iters=1,
+        inverse_mvp_hidden_size=100,
+        inverse_mvp_hidden_layers=1,
+        critic_input_dim=None,
+        critic_hidden_layers=(100, 100),
+        critic_l2_weight=10.0,
+        critic_iter_num=2,
+        critic_relu_mlp=False,
+        critic_use_bn=True,
+        minmax_resample=True,
+        critic_optimizer=None,
+        inverse_mvp_optimizer=None,
+        optimizer=None,
+        lambda_optimizer=None,
+        name="Generator",
+    ):
         r"""Create a Generator.
 
         Args:
@@ -415,15 +429,15 @@ class Generator(Algorithm):
         if entropy_regularization == 0:
             self._grad_func = self._ml_grad
         else:
-            if par_vi == 'gfsf':
+            if par_vi == "gfsf":
                 self._grad_func = self._gfsf_grad
-            elif par_vi == 'svgd':
+            elif par_vi == "svgd":
                 self._grad_func = self._svgd_grad
-            elif par_vi == 'svgd2':
+            elif par_vi == "svgd2":
                 self._grad_func = self._svgd_grad2
-            elif par_vi == 'svgd3':
+            elif par_vi == "svgd3":
                 self._grad_func = self._svgd_grad3
-            elif par_vi == 'minmax':
+            elif par_vi == "minmax":
                 if critic_input_dim is None:
                     critic_input_dim = output_dim
                 self._grad_func = self._minmax_grad
@@ -432,19 +446,20 @@ class Generator(Algorithm):
                 self._critic_relu_mlp = critic_relu_mlp
                 self._minmax_resample = minmax_resample
                 self._critic = CriticAlgorithm(
-                    TensorSpec(shape=(critic_input_dim, )),
+                    TensorSpec(shape=(critic_input_dim,)),
                     hidden_layers=critic_hidden_layers,
                     use_relu_mlp=critic_relu_mlp,
                     use_bn=critic_use_bn,
-                    optimizer=critic_optimizer)
+                    optimizer=critic_optimizer,
+                )
             else:
                 raise ValueError("Unsupported par_vi method: %s" % par_vi)
 
             if functional_gradient:
                 if net is not None:
-                    assert isinstance(net, ReluMLP), (
-                        "only ReluMLP generator is supported for functional_gradient."
-                    )
+                    assert isinstance(
+                        net, ReluMLP
+                    ), "only ReluMLP generator is supported for functional_gradient."
                 if noise_dim == output_dim:
                     force_fullrank = False
                     block_inverse_mvp = False
@@ -457,11 +472,11 @@ class Generator(Algorithm):
                 assert init_lambda > 0, "init_lambda has to be positive!"
                 if lambda_trainable:
                     self._log_lambda = torch.nn.Parameter(
-                        torch.tensor(np.log(init_lambda)))
+                        torch.tensor(np.log(init_lambda))
+                    )
                     if lambda_optimizer is None:
                         lambda_optimizer = alf.optimizers.Adam(lr=1e-3)
-                    self.add_optimizer(lambda_optimizer,
-                                       nest.flatten(self._log_lambda))
+                    self.add_optimizer(lambda_optimizer, nest.flatten(self._log_lambda))
                 else:
                     self._fixed_lambda = init_lambda
                 self._lambda_trainable = lambda_trainable
@@ -471,7 +486,8 @@ class Generator(Algorithm):
                     self._inverse_mvp_solve_iters = inverse_mvp_solve_iters
                     if inverse_mvp_optimizer is None:
                         inverse_mvp_optimizer = alf.optimizers.Adam(
-                            lr=1e-4, weight_decay=1e-5)
+                            lr=1e-4, weight_decay=1e-5
+                        )
 
                     if block_inverse_mvp:
                         inverse_mvp_output_dim = noise_dim
@@ -482,42 +498,46 @@ class Generator(Algorithm):
                         inverse_mvp_output_dim,
                         hidden_size=inverse_mvp_hidden_size,
                         num_hidden_layers=inverse_mvp_hidden_layers,
-                        optimizer=inverse_mvp_optimizer)
+                        optimizer=inverse_mvp_optimizer,
+                    )
 
             if use_kernel_averager:
                 self._kernel_width_averager = AdaptiveAverager(
-                    tensor_spec=TensorSpec(shape=()))
+                    tensor_spec=TensorSpec(shape=())
+                )
             else:
                 self._kernel_width_averager = None
 
-        noise_spec = TensorSpec(shape=(noise_dim, ))
+        noise_spec = TensorSpec(shape=(noise_dim,))
 
         if net is None:
             net_input_spec = noise_spec
             if functional_gradient:
-                net = ReluMLP(net_input_spec,
-                              output_size=output_dim,
-                              hidden_layers=hidden_layers,
-                              name='Generator')
+                net = ReluMLP(
+                    net_input_spec,
+                    output_size=output_dim,
+                    hidden_layers=hidden_layers,
+                    name="Generator",
+                )
             else:
                 if input_tensor_spec is not None:
                     net_input_spec = [net_input_spec, input_tensor_spec]
-                net = EncodingNetwork(input_tensor_spec=net_input_spec,
-                                      fc_layer_params=hidden_layers,
-                                      last_layer_size=output_dim,
-                                      last_activation=math_ops.identity,
-                                      name="Generator")
+                net = EncodingNetwork(
+                    input_tensor_spec=net_input_spec,
+                    fc_layer_params=hidden_layers,
+                    last_layer_size=output_dim,
+                    last_activation=math_ops.identity,
+                    name="Generator",
+                )
 
         self._mi_estimator = None
         self._input_tensor_spec = input_tensor_spec
         if mi_weight is not None:
             x_spec = noise_spec
-            y_spec = TensorSpec((output_dim, ))
+            y_spec = TensorSpec((output_dim,))
             if input_tensor_spec is not None:
                 x_spec = [x_spec, input_tensor_spec]
-            self._mi_estimator = mi_estimator_cls(x_spec,
-                                                  y_spec,
-                                                  sampler='shift')
+            self._mi_estimator = mi_estimator_cls(x_spec, y_spec, sampler="shift")
             self._mi_weight = mi_weight
         self._net = net
         self._predict_net = None
@@ -525,7 +545,8 @@ class Generator(Algorithm):
         if net_moving_average_rate:
             self._predict_net = net.copy(name="Generator_average")
             self._predict_net_updater = common.TargetUpdater(
-                self._net, self._predict_net, tau=net_moving_average_rate)
+                self._net, self._predict_net, tau=net_moving_average_rate
+            )
 
     def _trainable_attributes_to_ignore(self):
         return ["_predict_net", "_critic"]
@@ -543,11 +564,7 @@ class Generator(Algorithm):
         else:
             return self._fixed_lambda
 
-    def _predict(self,
-                 inputs=None,
-                 noise=None,
-                 batch_size=None,
-                 training=True):
+    def _predict(self, inputs=None, noise=None, batch_size=None, training=True):
         if inputs is None:
             assert self._input_tensor_spec is None
             if noise is None:
@@ -570,10 +587,10 @@ class Generator(Algorithm):
                 if self._force_fullrank:
                     fullrank_diag_weight = self.get_lambda(training=training)
                     extra_noise = torch.randn(
-                        noise.shape[0], self._output_dim - self._noise_dim)
+                        noise.shape[0], self._output_dim - self._noise_dim
+                    )
                     outputs = self._net(gen_inputs)[0]  # [B, D]
-                    gen_inputs = torch.cat((gen_inputs, extra_noise),
-                                           dim=-1)  # [B, D]
+                    gen_inputs = torch.cat((gen_inputs, extra_noise), dim=-1)  # [B, D]
                     outputs = outputs + fullrank_diag_weight * gen_inputs
                 else:
                     outputs = self._net(gen_inputs)[0]
@@ -581,12 +598,9 @@ class Generator(Algorithm):
                 outputs = self._net(gen_inputs)[0]
         return outputs, gen_inputs
 
-    def predict_step(self,
-                     inputs=None,
-                     noise=None,
-                     batch_size=None,
-                     training=False,
-                     state=None):
+    def predict_step(
+        self, inputs=None, noise=None, batch_size=None, training=False, state=None
+    ):
         """Generate outputs given inputs.
 
         Args:
@@ -603,19 +617,20 @@ class Generator(Algorithm):
             - output (Tensor): predictions with shape ``[batch_size, output_dim]``
             - state: not used.
         """
-        outputs, _ = self._predict(inputs=inputs,
-                                   noise=noise,
-                                   batch_size=batch_size,
-                                   training=training)
+        outputs, _ = self._predict(
+            inputs=inputs, noise=noise, batch_size=batch_size, training=training
+        )
         return AlgStep(output=outputs, state=(), info=())
 
-    def train_step(self,
-                   inputs,
-                   loss_func,
-                   batch_size=None,
-                   transform_func=None,
-                   entropy_regularization=None,
-                   state=None):
+    def train_step(
+        self,
+        inputs,
+        loss_func,
+        batch_size=None,
+        transform_func=None,
+        entropy_regularization=None,
+        state=None,
+    ):
         """
         Args:
             inputs (nested Tensor): if None, the outputs is generated only from
@@ -672,9 +687,9 @@ class Generator(Algorithm):
             outputs = (outputs, gen_inputs)
         if entropy_regularization is None:
             entropy_regularization = self._entropy_regularization
-        loss, loss_propagated = self._grad_func(inputs, outputs, loss_func,
-                                                entropy_regularization,
-                                                transform_func)
+        loss, loss_propagated = self._grad_func(
+            inputs, outputs, loss_func, entropy_regularization, transform_func
+        )
         mi_loss = ()
         if self._mi_estimator is not None:
             mi_step = self._mi_estimator.train_step([gen_inputs, outputs])
@@ -685,22 +700,28 @@ class Generator(Algorithm):
         else:
             inverse_mvp_loss = ()
 
-        return AlgStep(output=outputs,
-                       state=(),
-                       info=LossInfo(loss=loss_propagated,
-                                     extra=GeneratorLossInfo(
-                                         generator=loss,
-                                         mi_estimator=mi_loss,
-                                         inverse_mvp=inverse_mvp_loss)))
+        return AlgStep(
+            output=outputs,
+            state=(),
+            info=LossInfo(
+                loss=loss_propagated,
+                extra=GeneratorLossInfo(
+                    generator=loss, mi_estimator=mi_loss, inverse_mvp=inverse_mvp_loss
+                ),
+            ),
+        )
 
-    def _ml_grad(self,
-                 inputs,
-                 outputs,
-                 loss_func,
-                 entropy_regularization=None,
-                 transform_func=None):
-        assert transform_func is None, (
-            "function value based vi is not supported for ml_grad")
+    def _ml_grad(
+        self,
+        inputs,
+        outputs,
+        loss_func,
+        entropy_regularization=None,
+        transform_func=None,
+    ):
+        assert (
+            transform_func is None
+        ), "function value based vi is not supported for ml_grad"
         loss_inputs = outputs if inputs is None else [outputs, inputs]
         loss = loss_func(loss_inputs)
 
@@ -710,7 +731,7 @@ class Generator(Algorithm):
         return loss, loss_propagated
 
     def _kernel_width(self, dist):
-        """Update kernel_width averager and get latest kernel_width. """
+        """Update kernel_width averager and get latest kernel_width."""
         if dist.ndim > 1:
             dist = torch.sum(dist, dim=-1)
             assert dist.ndim == 1, "dist must have dimension 1 or 2."
@@ -722,8 +743,8 @@ class Generator(Algorithm):
         return width
 
     def _rbf_func(self, x, y):
-        """Compute RBF kernel, used by svgd_grad. """
-        d = (x - y)**2
+        """Compute RBF kernel, used by svgd_grad."""
+        d = (x - y) ** 2
         d = torch.sum(d, -1)
         h = self._kernel_width(d)
         w = torch.exp(-d / h)
@@ -790,19 +811,17 @@ class Generator(Algorithm):
 
         return -kappa_inv @ kappa_grad
 
-    def _svgd_grad(self,
-                   inputs,
-                   outputs,
-                   loss_func,
-                   entropy_regularization,
-                   transform_func=None):
+    def _svgd_grad(
+        self, inputs, outputs, loss_func, entropy_regularization, transform_func=None
+    ):
         """
         Compute particle gradients via SVGD, empirical expectation
         evaluated by a single resampled particle.
         """
         outputs2, _ = self._predict(inputs, batch_size=outputs.shape[0])
-        assert transform_func is None, (
-            "function value based vi is not supported for svgd_grad")
+        assert (
+            transform_func is None
+        ), "function value based vi is not supported for svgd_grad"
         kernel_weight = self._rbf_func(outputs, outputs2)
         weight_sum = entropy_regularization * kernel_weight.sum()
 
@@ -822,12 +841,9 @@ class Generator(Algorithm):
 
         return loss, loss_propagated
 
-    def _svgd_grad2(self,
-                    inputs,
-                    outputs,
-                    loss_func,
-                    entropy_regularization,
-                    transform_func=None):
+    def _svgd_grad2(
+        self, inputs, outputs, loss_func, entropy_regularization, transform_func=None
+    ):
         """
         Compute particle gradients via SVGD, empirical expectation
         evaluated by splitting half of the sampled batch.
@@ -840,9 +856,7 @@ class Generator(Algorithm):
             aug_outputs = outputs
         num_particles = outputs.shape[0] // 2
         outputs_i, outputs_j = torch.split(outputs, num_particles, dim=0)
-        aug_outputs_i, aug_outputs_j = torch.split(aug_outputs,
-                                                   num_particles,
-                                                   dim=0)
+        aug_outputs_i, aug_outputs_j = torch.split(aug_outputs, num_particles, dim=0)
 
         loss_inputs = outputs_j
         loss = loss_func(loss_inputs)
@@ -850,31 +864,28 @@ class Generator(Algorithm):
             neglogp = loss.loss
         else:
             neglogp = loss
-        loss_grad = torch.autograd.grad(neglogp.sum(),
-                                        loss_inputs)[0]  # [Nj, D]
+        loss_grad = torch.autograd.grad(neglogp.sum(), loss_inputs)[0]  # [Nj, D]
 
         # [Nj, Ni], [Nj, Ni, D']
-        kernel_weight, kernel_grad = self._rbf_func2(aug_outputs_j.detach(),
-                                                     aug_outputs_i.detach())
-        kernel_logp = torch.matmul(kernel_weight.t(),
-                                   loss_grad) / num_particles  # [Ni, D]
+        kernel_weight, kernel_grad = self._rbf_func2(
+            aug_outputs_j.detach(), aug_outputs_i.detach()
+        )
+        kernel_logp = (
+            torch.matmul(kernel_weight.t(), loss_grad) / num_particles
+        )  # [Ni, D]
 
-        loss_prop_kernel_logp = torch.sum(kernel_logp.detach() * outputs_i,
-                                          dim=-1)
-        loss_prop_kernel_grad = torch.sum(-entropy_regularization *
-                                          kernel_grad.mean(0).detach() *
-                                          aug_outputs_i,
-                                          dim=-1)
+        loss_prop_kernel_logp = torch.sum(kernel_logp.detach() * outputs_i, dim=-1)
+        loss_prop_kernel_grad = torch.sum(
+            -entropy_regularization * kernel_grad.mean(0).detach() * aug_outputs_i,
+            dim=-1,
+        )
         loss_propagated = loss_prop_kernel_logp + loss_prop_kernel_grad
 
         return loss, loss_propagated
 
-    def _svgd_grad3(self,
-                    inputs,
-                    outputs,
-                    loss_func,
-                    entropy_regularization,
-                    transform_func=None):
+    def _svgd_grad3(
+        self, inputs, outputs, loss_func, entropy_regularization, transform_func=None
+    ):
         """
         Compute particle gradients via SVGD, empirical expectation
         evaluated by resampled particles of the same batch size.
@@ -896,32 +907,28 @@ class Generator(Algorithm):
             neglogp = loss.loss
         else:
             neglogp = loss
-        loss_grad = torch.autograd.grad(neglogp.sum(),
-                                        loss_inputs)[0]  # [N2, D]
+        loss_grad = torch.autograd.grad(neglogp.sum(), loss_inputs)[0]  # [N2, D]
 
         # [N2, N], [N2, N, D']
-        kernel_weight, kernel_grad = self._rbf_func2(aug_outputs2.detach(),
-                                                     aug_outputs.detach())
-        kernel_logp = torch.matmul(kernel_weight.t(),
-                                   loss_grad) / num_particles  # [N, D]
+        kernel_weight, kernel_grad = self._rbf_func2(
+            aug_outputs2.detach(), aug_outputs.detach()
+        )
+        kernel_logp = (
+            torch.matmul(kernel_weight.t(), loss_grad) / num_particles
+        )  # [N, D]
 
-        loss_prop_kernel_logp = torch.sum(kernel_logp.detach() * outputs,
-                                          dim=-1)
-        loss_prop_kernel_grad = torch.sum(-entropy_regularization *
-                                          kernel_grad.mean(0).detach() *
-                                          aug_outputs,
-                                          dim=-1)
+        loss_prop_kernel_logp = torch.sum(kernel_logp.detach() * outputs, dim=-1)
+        loss_prop_kernel_grad = torch.sum(
+            -entropy_regularization * kernel_grad.mean(0).detach() * aug_outputs, dim=-1
+        )
         loss_propagated = loss_prop_kernel_logp + loss_prop_kernel_grad
 
         return loss, loss_propagated
 
-    def _gfsf_grad(self,
-                   inputs,
-                   outputs,
-                   loss_func,
-                   entropy_regularization,
-                   transform_func=None):
-        """Compute particle gradients via GFSF (Stein estimator). """
+    def _gfsf_grad(
+        self, inputs, outputs, loss_func, entropy_regularization, transform_func=None
+    ):
+        """Compute particle gradients via GFSF (Stein estimator)."""
         assert inputs is None, '"gfsf" does not support conditional generator'
         if transform_func is not None:
             outputs, extra_outputs, _ = transform_func(outputs)
@@ -935,8 +942,7 @@ class Generator(Algorithm):
             neglogp = loss.loss
         else:
             neglogp = loss
-        loss_grad = torch.autograd.grad(neglogp.sum(),
-                                        loss_inputs)[0]  # [N2, D]
+        loss_grad = torch.autograd.grad(neglogp.sum(), loss_inputs)[0]  # [N2, D]
         logq_grad = self._score_func(score_inputs) * entropy_regularization
 
         loss_prop_neglogp = torch.sum(loss_grad.detach() * outputs, dim=-1)
@@ -947,19 +953,16 @@ class Generator(Algorithm):
 
     def _jacobian_trace(self, fx, x):
         """Hutchinson's trace Jacobian estimator O(1) call to autograd,
-            used by "\"minmax\" method"""
-        assert fx.shape[-1] == x.shape[-1], (
-            "Jacobian is not square, no trace defined.")
+        used by "\"minmax\" method"""
+        assert fx.shape[-1] == x.shape[-1], "Jacobian is not square, no trace defined."
         eps = torch.randn_like(fx)
-        jvp = torch.autograd.grad(fx,
-                                  x,
-                                  grad_outputs=eps,
-                                  retain_graph=True,
-                                  create_graph=True)[0]
-        tr_jvp = torch.einsum('bi,bi->b', jvp, eps)
+        jvp = torch.autograd.grad(
+            fx, x, grad_outputs=eps, retain_graph=True, create_graph=True
+        )[0]
+        tr_jvp = torch.einsum("bi,bi->b", jvp, eps)
         return tr_jvp
 
-    def _critic_train_step(self, inputs, loss_func, entropy_regularization=1.):
+    def _critic_train_step(self, inputs, loss_func, entropy_regularization=1.0):
         """
         Compute the loss for critic training.
         """
@@ -971,8 +974,7 @@ class Generator(Algorithm):
         loss_grad = torch.autograd.grad(neglogp.sum(), inputs)[0]  # [N, D]
 
         if self._critic_relu_mlp:
-            critic_step = self._critic.predict_step(inputs,
-                                                    requires_jac_diag=True)
+            critic_step = self._critic.predict_step(inputs, requires_jac_diag=True)
             outputs, jac_diag = critic_step.output
             tr_gradf = jac_diag.sum(-1)  # [N]
         else:
@@ -987,33 +989,31 @@ class Generator(Algorithm):
 
         return critic_loss
 
-    def _minmax_grad(self,
-                     inputs,
-                     outputs,
-                     loss_func,
-                     entropy_regularization,
-                     transform_func=None):
+    def _minmax_grad(
+        self, inputs, outputs, loss_func, entropy_regularization, transform_func=None
+    ):
         """
         Compute particle gradients via minmax svgd (Fisher Neural Sampler).
         """
         assert inputs is None, '"minmax" does not support conditional generator'
 
         # optimize the critic using resampled particles
-        assert transform_func is None, (
-            "function value based vi is not supported for minmax_grad")
+        assert (
+            transform_func is None
+        ), "function value based vi is not supported for minmax_grad"
         num_particles = outputs.shape[0]
 
         for i in range(self._critic_iter_num):
 
             if self._minmax_resample:
-                critic_inputs, _ = self._predict(inputs,
-                                                 batch_size=num_particles)
+                critic_inputs, _ = self._predict(inputs, batch_size=num_particles)
             else:
                 critic_inputs = outputs.detach().clone()
                 critic_inputs.requires_grad = True
 
-            critic_loss = self._critic_train_step(critic_inputs, loss_func,
-                                                  entropy_regularization)
+            critic_loss = self._critic_train_step(
+                critic_inputs, loss_func, entropy_regularization
+            )
             self._critic.update_with_gradient(LossInfo(loss=critic_loss))
 
         # compute amortized svgd
@@ -1037,16 +1037,17 @@ class Generator(Algorithm):
             reshaped vec (Tensor): of shape [N2*N, K]
             z_repeat (Tensor): of shape [N2*N, K]
         """
-        vec_1 = vec[:, :, :self._noise_dim]  # [N2, N, K]
-        vec_2 = vec[:, :, self._noise_dim:]  # [N2, N, D-K]
+        vec_1 = vec[:, :, : self._noise_dim]  # [N2, N, K]
+        vec_2 = vec[:, :, self._noise_dim :]  # [N2, N, D-K]
         z_repeat = torch.repeat_interleave(z, vec.shape[1], dim=0)  # [N2*N, K]
-        vjp, _ = self._net.compute_vjp(z_repeat,
-                                       vec_2.reshape(-1, vec_2.shape[-1]),
-                                       output_partial_idx=torch.arange(
-                                           start=self._noise_dim,
-                                           end=self._output_dim))  # [N2*N, K]
-        vec = vec_1.reshape(
-            -1, self._noise_dim) - vjp / self.get_lambda()  # [N2*N, K]
+        vjp, _ = self._net.compute_vjp(
+            z_repeat,
+            vec_2.reshape(-1, vec_2.shape[-1]),
+            output_partial_idx=torch.arange(
+                start=self._noise_dim, end=self._output_dim
+            ),
+        )  # [N2*N, K]
+        vec = vec_1.reshape(-1, self._noise_dim) - vjp / self.get_lambda()  # [N2*N, K]
         return vec, z_repeat  # [N2*N, K]
 
     def _inverse_mvp_train_step(self, z, vec):
@@ -1075,9 +1076,9 @@ class Generator(Algorithm):
         """
         if self._force_fullrank and self._block_inverse_mvp:
             vec, z_repeat = self._get_vec_for_jac_inv_vec_prod(
-                z[:, :self._noise_dim], vec)
-            y, z_inputs = self._inverse_mvp.predict_step(
-                (z_repeat, vec)).output
+                z[:, : self._noise_dim], vec
+            )
+            y, z_inputs = self._inverse_mvp.predict_step((z_repeat, vec)).output
         else:
             # [N2*N, D] or [N2*N, K]
             y, z_inputs = self._inverse_mvp.predict_step((z, vec)).output
@@ -1088,28 +1089,26 @@ class Generator(Algorithm):
         else:
             partial_idx = None
         jac_y, _ = self._net.compute_vjp(
-            z_inputs, y,
-            output_partial_idx=partial_idx)  # [N2*N, D] or [N2*N, K]
+            z_inputs, y, output_partial_idx=partial_idx
+        )  # [N2*N, D] or [N2*N, K]
 
         if self._force_fullrank:
             if not self._block_inverse_mvp:
-                jac_y = torch.cat([
-                    jac_y,
-                    torch.zeros(jac_y.shape[0],
-                                self._output_dim - self._noise_dim)
-                ],
-                                  dim=-1)
+                jac_y = torch.cat(
+                    [
+                        jac_y,
+                        torch.zeros(jac_y.shape[0], self._output_dim - self._noise_dim),
+                    ],
+                    dim=-1,
+                )
             jac_y += self.get_lambda() * y  # [N2*N, D]
         loss = torch.nn.functional.mse_loss(jac_y, vec.detach())
 
         return loss
 
-    def _rkhs_func_grad(self,
-                        inputs,
-                        outputs,
-                        loss_func,
-                        entropy_regularization,
-                        transform_func=None):
+    def _rkhs_func_grad(
+        self, inputs, outputs, loss_func, entropy_regularization, transform_func=None
+    ):
         """
         Compute the amortized functional gradient of generator, functional gradient
         represented in an RKHS. Empirical expectation evaluated by a resampling
@@ -1124,48 +1123,56 @@ class Generator(Algorithm):
             entropy_regularization (float): tradeoff parameter
             transform_func (callable): not used
         """
-        assert inputs is None, (
-            'rkhs_func_grad does not support conditional generator')
-        assert transform_func is None, (
-            "function value based vi is not supported for rkhs_func_grad")
+        assert inputs is None, "rkhs_func_grad does not support conditional generator"
+        assert (
+            transform_func is None
+        ), "function value based vi is not supported for rkhs_func_grad"
         outputs, gen_inputs = outputs  # [N, D], [N, D]
         num_particles = outputs.shape[0]
-        outputs2, gen_inputs2 = self._predict(
-            batch_size=num_particles)  # [N2, D]
+        outputs2, gen_inputs2 = self._predict(batch_size=num_particles)  # [N2, D]
 
         # [N2, N], [N2, N, D]
         kernel_weight, kernel_grad = self._rbf_func2(gen_inputs2, gen_inputs)
-        z_inputs = gen_inputs2[:, :self._noise_dim]  # [N2, K]
+        z_inputs = gen_inputs2[:, : self._noise_dim]  # [N2, K]
         if self._direct_jac_inverse:
             # direct jac inverse, no inverse_mvp needed.
             J_inv_kernel_grad = self._direct_jac_inverse_vec_prod(
-                z_inputs.detach(), kernel_grad.detach())
+                z_inputs.detach(), kernel_grad.detach()
+            )
             inverse_mvp_loss = ()
         else:
             # train inverse_mvp
             for i in range(self._inverse_mvp_solve_iters):
                 inverse_mvp_loss = self._inverse_mvp_train_step(
-                    gen_inputs2.detach(), kernel_grad.detach())
-                self._inverse_mvp.update_with_gradient(
-                    LossInfo(loss=inverse_mvp_loss))
+                    gen_inputs2.detach(), kernel_grad.detach()
+                )
+                self._inverse_mvp.update_with_gradient(LossInfo(loss=inverse_mvp_loss))
 
             # construct functional gradient via inverse_mvp
             if self._block_inverse_mvp:  # [N2*N, K]
                 vec, z_repeat = self._get_vec_for_jac_inv_vec_prod(
-                    z_inputs.detach(), kernel_grad.detach())
+                    z_inputs.detach(), kernel_grad.detach()
+                )
                 J_inv_kernel_grad_1, _ = self._inverse_mvp.predict_step(
-                    (z_repeat, vec)).output  # [N2*N, K]
+                    (z_repeat, vec)
+                ).output  # [N2*N, K]
                 J_inv_kernel_grad_1 = J_inv_kernel_grad_1.reshape(
-                    num_particles, num_particles, -1)  # [N2, N, K]
+                    num_particles, num_particles, -1
+                )  # [N2, N, K]
                 J_inv_kernel_grad = torch.cat(
-                    [J_inv_kernel_grad_1, kernel_grad[:, :, self._noise_dim:] \
-                        / self.get_lambda()],
-                    dim=-1)  # [N2, N, D]
+                    [
+                        J_inv_kernel_grad_1,
+                        kernel_grad[:, :, self._noise_dim :] / self.get_lambda(),
+                    ],
+                    dim=-1,
+                )  # [N2, N, D]
             else:
                 J_inv_kernel_grad, _ = self._inverse_mvp.predict_step(
-                    (gen_inputs2, kernel_grad)).output  # [N2*N, D]
+                    (gen_inputs2, kernel_grad)
+                ).output  # [N2*N, D]
                 J_inv_kernel_grad = J_inv_kernel_grad.reshape(
-                    num_particles, num_particles, -1)  # [N2, N2, D]
+                    num_particles, num_particles, -1
+                )  # [N2, N2, D]
 
         loss_inputs = outputs2
         loss = loss_func(loss_inputs)
@@ -1174,10 +1181,10 @@ class Generator(Algorithm):
             neglogp = loss.loss
         else:
             neglogp = loss
-        loss_grad = torch.autograd.grad(neglogp.sum(),
-                                        loss_inputs)[0]  # [N2, D]
-        kernel_logp = torch.matmul(kernel_weight.t(),
-                                   loss_grad) / num_particles  # [N, D]
+        loss_grad = torch.autograd.grad(neglogp.sum(), loss_inputs)[0]  # [N2, D]
+        kernel_logp = (
+            torch.matmul(kernel_weight.t(), loss_grad) / num_particles
+        )  # [N, D]
 
         grad = kernel_logp - entropy_regularization * J_inv_kernel_grad.mean(0)
         loss_propagated = torch.sum(grad.detach() * outputs, dim=1)
@@ -1209,35 +1216,39 @@ class Generator(Algorithm):
                 eye_dim = self._noise_dim
             else:
                 eye_dim = self._output_dim
-                jac = torch.cat([
-                    jac,
-                    torch.zeros(*jac.shape[:-1],
-                                self._output_dim - self._noise_dim)
-                ],
-                                dim=-1)
+                jac = torch.cat(
+                    [
+                        jac,
+                        torch.zeros(
+                            *jac.shape[:-1], self._output_dim - self._noise_dim
+                        ),
+                    ],
+                    dim=-1,
+                )
             jac += fullrank_diag_weight * torch.eye(eye_dim)
         jac_inv = torch.inverse(jac)  # [N2, D, D] or [N2, K, K]
 
         if self._force_fullrank and self._block_inverse_mvp:
-            vec_1 = vec[:, :, :self._noise_dim]
-            J_inv_vec_1 = torch.einsum('bij,bai->baj', jac_inv,
-                                       vec_1)  # [N2, N, K]
-            vec_2 = vec[:, :, self._noise_dim:]  # [N2, N, D-K]
+            vec_1 = vec[:, :, : self._noise_dim]
+            J_inv_vec_1 = torch.einsum("bij,bai->baj", jac_inv, vec_1)  # [N2, N, K]
+            vec_2 = vec[:, :, self._noise_dim :]  # [N2, N, D-K]
             z_repeat = torch.repeat_interleave(z, N, dim=0)  # [N2*N, K]
 
-            vjp, _ = self._net.compute_vjp(z_repeat,
-                                           vec_2.reshape(-1, vec_2.shape[-1]),
-                                           output_partial_idx=torch.arange(
-                                               start=self._noise_dim,
-                                               end=self._output_dim))
+            vjp, _ = self._net.compute_vjp(
+                z_repeat,
+                vec_2.reshape(-1, vec_2.shape[-1]),
+                output_partial_idx=torch.arange(
+                    start=self._noise_dim, end=self._output_dim
+                ),
+            )
             vjp = vjp.reshape(N2, N, -1)  # [N2, N, K]
 
             J_inv_vec_1 = J_inv_vec_1 - vjp / fullrank_diag_weight
-            J_inv_vec = torch.cat([J_inv_vec_1, vec_2 / fullrank_diag_weight],
-                                  dim=-1)  # [N2, N, D]
+            J_inv_vec = torch.cat(
+                [J_inv_vec_1, vec_2 / fullrank_diag_weight], dim=-1
+            )  # [N2, N, D]
         else:
-            J_inv_vec = torch.einsum('bij,bai->baj', jac_inv,
-                                     vec)  # [N2, N, D]
+            J_inv_vec = torch.einsum("bij,bai->baj", jac_inv, vec)  # [N2, N, D]
 
         return J_inv_vec
 

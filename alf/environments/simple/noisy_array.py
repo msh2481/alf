@@ -50,6 +50,7 @@ class NoisyArray(gym.Env):
 
         0 0 0 0 1 | X X X
     """
+
     LEFT = 0
     FIRE = 1
     RIGHT = 2
@@ -65,10 +66,9 @@ class NoisyArray(gym.Env):
                 at every step, and FIRE becomes "no-operation".
         """
         super().__init__()
-        self.observation_space = spaces.Box(low=0,
-                                            high=1,
-                                            shape=(K + M, ),
-                                            dtype=np.float32)
+        self.observation_space = spaces.Box(
+            low=0, high=1, shape=(K + M,), dtype=np.float32
+        )
         self.action_space = spaces.Discrete(3)
         self._K = K
         self._M = M
@@ -93,16 +93,18 @@ class NoisyArray(gym.Env):
     def render(self, mode="human", close=False):
         # first convert obs to an RGB array
         obs = np.copy(1 - self._obs)
-        obs[self._K:] *= 0.5  # turn the noise portion to gray
+        obs[self._K :] *= 0.5  # turn the noise portion to gray
         obs *= 255
         obs = obs.astype("uint8")
 
         grid_size = 16
         length = obs.shape[0]
         rgb_array = np.expand_dims(obs, axis=0)
-        rgb_array = cv2.resize(rgb_array,
-                               dsize=(length * grid_size, grid_size),
-                               interpolation=cv2.INTER_NEAREST)
+        rgb_array = cv2.resize(
+            rgb_array,
+            dsize=(length * grid_size, grid_size),
+            interpolation=cv2.INTER_NEAREST,
+        )
         rgb_array = cv2.cvtColor(rgb_array, cv2.COLOR_GRAY2RGB)
 
         if mode == "rgb_array":
@@ -120,7 +122,7 @@ class NoisyArray(gym.Env):
         self._position = max(self._position + movement, 0)
         self._position %= self._K
 
-        self._game_over = (self._position == self._K - 1)
+        self._game_over = self._position == self._K - 1
 
         reward = 1 if self._game_over else 0
 
@@ -131,5 +133,6 @@ class NoisyArray(gym.Env):
         position_array[self._position] = 1
 
         observation = np.concatenate(
-            (position_array, self._noise_vector.astype(np.float32)))
+            (position_array, self._noise_vector.astype(np.float32))
+        )
         return observation, reward

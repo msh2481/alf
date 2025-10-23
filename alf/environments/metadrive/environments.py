@@ -25,13 +25,18 @@ try:
     from metadrive.obs.observation_base import ObservationBase
 except ImportError:
     from unittest.mock import Mock
+
     # create 'metadrive' as a mock to not break python argument type hints
     metadrive = Mock()
     pygame = Mock()
 
 from .geometry import FieldOfView
 from .sensors import VectorizedObservation, BirdEyeObservation
-from .renderer import Renderer, make_vectorized_observation_renderer, make_bird_eye_observation_renderer
+from .renderer import (
+    Renderer,
+    make_vectorized_observation_renderer,
+    make_bird_eye_observation_renderer,
+)
 
 
 class VectorizedTopDownEnv(metadrive.MetaDriveEnv):
@@ -42,16 +47,16 @@ class VectorizedTopDownEnv(metadrive.MetaDriveEnv):
 
     @classmethod
     def default_config(cls) -> metadrive.utils.Config:
-        """The default config is identical to that of the raster TopDownEnv.
-
-        """
+        """The default config is identical to that of the raster TopDownEnv."""
         config = metadrive.MetaDriveEnv.default_config()
         config["vehicle_config"]["lidar"] = {"num_lasers": 0, "distance": 0}
-        config.update({
-            "frame_skip": 5,
-            "frame_stack": 3,
-            "post_stack": 5,
-        })
+        config.update(
+            {
+                "frame_skip": 5,
+                "frame_stack": 3,
+                "post_stack": 5,
+            }
+        )
         return config
 
     def get_single_observation(self, _=None) -> ObservationBase:
@@ -74,7 +79,9 @@ class VectorizedTopDownEnv(metadrive.MetaDriveEnv):
         if self._top_down_renderer is None:
             self._top_down_renderer = Renderer(
                 observation_renderer=make_vectorized_observation_renderer(
-                    sensor=self.get_single_observation()))
+                    sensor=self.get_single_observation()
+                )
+            )
         return self._top_down_renderer.render(observation)
 
     @property
@@ -90,19 +97,19 @@ class BirdEyeTopDownEnv(metadrive.MetaDriveEnv):
 
     @classmethod
     def default_config(cls) -> metadrive.utils.Config:
-        """The default config is identical to that of the raster TopDownEnv.
-
-        """
+        """The default config is identical to that of the raster TopDownEnv."""
         config = metadrive.MetaDriveEnv.default_config()
         config["vehicle_config"]["lidar"] = {"num_lasers": 0, "distance": 0}
-        config.update({
-            "frame_skip": 5,
-            "frame_stack": 3,
-            "post_stack": 5,
-            "rgb_clip": True,
-            "resolution_size": 84,
-            "distance": 30
-        })
+        config.update(
+            {
+                "frame_skip": 5,
+                "frame_stack": 3,
+                "post_stack": 5,
+                "rgb_clip": True,
+                "resolution_size": 84,
+                "distance": 30,
+            }
+        )
         return config
 
     def get_single_observation(self, _=None) -> ObservationBase:
@@ -128,5 +135,6 @@ class BirdEyeTopDownEnv(metadrive.MetaDriveEnv):
     def render(self, observation=None) -> Optional[np.ndarray]:
         if self._top_down_renderer is None:
             self._top_down_renderer = Renderer(
-                observation_renderer=make_bird_eye_observation_renderer())
+                observation_renderer=make_bird_eye_observation_renderer()
+            )
         return self._top_down_renderer.render(observation)

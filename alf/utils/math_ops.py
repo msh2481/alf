@@ -32,7 +32,7 @@ def identity(x):
 
 @alf.configurable
 def clipped_exp(value, clip_value_min=-20, clip_value_max=2):
-    """ Clip value to the range [`clip_value_min`, `clip_value_max`]
+    """Clip value to the range [`clip_value_min`, `clip_value_max`]
     then compute exponential
 
     Args:
@@ -47,15 +47,15 @@ def clipped_exp(value, clip_value_min=-20, clip_value_max=2):
 def add_ignore_empty(x, y):
     """Add two Tensors which may be None or ().
 
-     If x or y is None, they are assumed to be zero and the other tensor is
-     returned.
+    If x or y is None, they are assumed to be zero and the other tensor is
+    returned.
 
-     Args:
-          x (Tensor|None|()):
-          y (Tensor(|None|())):
-     Returns:
-          x + y
-     """
+    Args:
+         x (Tensor|None|()):
+         y (Tensor(|None|())):
+    Returns:
+         x + y
+    """
 
     def _ignore(t):
         return t is None or (isinstance(t, tuple) and len(t) == 0)
@@ -83,7 +83,7 @@ def swish(x):
 
 
 @alf.configurable
-def softlower(x, low, hinge_softness=1.):
+def softlower(x, low, hinge_softness=1.0):
     """Softly lower bound ``x`` by ``low``, namely,
     ``softlower(x, low) = softplus(x - low) + low``
 
@@ -98,11 +98,11 @@ def softlower(x, low, hinge_softness=1.):
         Tensor
     """
     assert hinge_softness > 0
-    return nn.functional.softplus(x - low, beta=1. / hinge_softness) + low
+    return nn.functional.softplus(x - low, beta=1.0 / hinge_softness) + low
 
 
 @alf.configurable
-def softupper(x, high, hinge_softness=1.):
+def softupper(x, high, hinge_softness=1.0):
     """Softly upper bound ``x`` by ``high``, namely,
     ``softupper(x, high) = -softplus(high - x) + high``.
 
@@ -117,11 +117,11 @@ def softupper(x, high, hinge_softness=1.):
         Tensor
     """
     assert hinge_softness > 0
-    return -nn.functional.softplus(high - x, beta=1. / hinge_softness) + high
+    return -nn.functional.softplus(high - x, beta=1.0 / hinge_softness) + high
 
 
 @alf.configurable
-def softclip_tf(x, low, high, hinge_softness=1.):
+def softclip_tf(x, low, high, hinge_softness=1.0):
     """Softly bound ``x`` in between ``[low, high]``, namely,
 
     .. code-block:: python
@@ -148,14 +148,12 @@ def softclip_tf(x, low, high, hinge_softness=1.):
     assert torch.all(high > low), "Invalid clipping range"
 
     softupper_high_at_low = softupper(low, high, hinge_softness)
-    clipped = softupper(softlower(x, low, hinge_softness), high,
-                        hinge_softness)
-    return ((clipped - high) / (high - softupper_high_at_low) * (high - low) +
-            high)
+    clipped = softupper(softlower(x, low, hinge_softness), high, hinge_softness)
+    return (clipped - high) / (high - softupper_high_at_low) * (high - low) + high
 
 
 @alf.configurable
-def softclip(x, low, high, hinge_softness=1.):
+def softclip(x, low, high, hinge_softness=1.0):
     r"""Softly bound ``x`` in between ``[low, high]``. Unlike ``softclip_tf``,
     this transform is symmetric regarding the lower and upper bound when
     squashing. The softclip function can be defined in several forms:
@@ -182,8 +180,10 @@ def softclip(x, low, high, hinge_softness=1.):
     u1 = u.log1p()
     v1 = v.log1p()
     return torch.where(
-        x < l, l + s * ((1 / u).log1p() - v1),
-        torch.where(x > h, h + s * (u1 - (1 / v).log1p()), x + s * (u1 - v1)))
+        x < l,
+        l + s * ((1 / u).log1p() - v1),
+        torch.where(x > h, h + s * (u1 - (1 / v).log1p()), x + s * (u1 - v1)),
+    )
 
 
 def max_n(inputs):
@@ -333,7 +333,7 @@ class Softsign_(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        output, = ctx.saved_tensors
+        (output,) = ctx.saved_tensors
         return torch.mul(grad_output, torch.pow(1 - output.abs(), 2))
 
 
@@ -358,7 +358,7 @@ class Softsign(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        x, = ctx.saved_tensors
+        (x,) = ctx.saved_tensors
         return torch.mul(grad_output, torch.pow(x, 2))
 
 
@@ -413,7 +413,7 @@ class SqrtLinearTransform(InvertibleTransform):
 
     def inverse_transform(self, y):
         a = (1 + 4 * self._eps * (y.abs() + (1 + self._eps))).sqrt() - 1
-        return y.sign() * ((a / (2 * self._eps))**2 - 1)
+        return y.sign() * ((a / (2 * self._eps)) ** 2 - 1)
 
 
 @alf.repr_wrapper

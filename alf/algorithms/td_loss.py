@@ -29,14 +29,16 @@ from alf.utils.normalizers import AdaptiveNormalizer
 class TDLoss(nn.Module):
     """Temporal difference loss."""
 
-    def __init__(self,
-                 gamma: Union[float, List[float]] = 0.99,
-                 td_error_loss_fn: Callable = element_wise_squared_loss,
-                 td_lambda: float = 0.95,
-                 normalize_target: bool = False,
-                 default_return: Optional[float] = None,
-                 debug_summaries: bool = False,
-                 name: str = "TDLoss"):
+    def __init__(
+        self,
+        gamma: Union[float, List[float]] = 0.99,
+        td_error_loss_fn: Callable = element_wise_squared_loss,
+        td_lambda: float = 0.95,
+        normalize_target: bool = False,
+        default_return: Optional[float] = None,
+        debug_summaries: bool = False,
+        name: str = "TDLoss",
+    ):
         r"""
         Let :math:`G_{t:T}` be the bootstrapped return from t to T:
 
@@ -136,24 +138,27 @@ class TDLoss(nn.Module):
             td_target
         """
         if self._lambda == 1.0:
-            returns = value_ops.discounted_return(rewards=info.reward,
-                                                  values=target_value,
-                                                  step_types=info.step_type,
-                                                  discounts=info.discount *
-                                                  self._gamma)
+            returns = value_ops.discounted_return(
+                rewards=info.reward,
+                values=target_value,
+                step_types=info.step_type,
+                discounts=info.discount * self._gamma,
+            )
         elif self._lambda == 0.0:
             returns = value_ops.one_step_discounted_return(
                 rewards=info.reward,
                 values=target_value,
                 step_types=info.step_type,
-                discounts=info.discount * self._gamma)
+                discounts=info.discount * self._gamma,
+            )
         else:
             advantages = value_ops.generalized_advantage_estimation(
                 rewards=info.reward,
                 values=target_value,
                 step_types=info.step_type,
                 discounts=info.discount * self._gamma,
-                td_lambda=self._lambda)
+                td_lambda=self._lambda,
+            )
             returns = advantages + target_value[:-1]
 
         if hasattr(info, "discounted_return") and info.discounted_return != ():
@@ -163,13 +168,15 @@ class TDLoss(nn.Module):
                 mask = info.step_type[:-1] != StepType.LAST
                 episode_ended = discounted_return != self._default_return
                 mask = mask & episode_ended
-                safe_mean_hist_summary('episodic_discounted_return',
-                                       discounted_return, mask)
+                safe_mean_hist_summary(
+                    "episodic_discounted_return", discounted_return, mask
+                )
 
         return returns
 
-    def forward(self, info: namedtuple, value: torch.Tensor,
-                target_value: torch.Tensor):
+    def forward(
+        self, info: namedtuple, value: torch.Tensor, target_value: torch.Tensor
+    ):
         """Calculate the loss.
 
         The first dimension of all the tensors is time dimension and the second
@@ -199,7 +206,8 @@ class TDLoss(nn.Module):
                     alf.TensorSpec(value.shape[2:]),
                     auto_update=False,
                     debug_summaries=self._debug_summaries,
-                    name=self._name + ".target_normalizer")
+                    name=self._name + ".target_normalizer",
+                )
 
             self._target_normalizer.update(returns)
             returns = self._target_normalizer.normalize(returns)
@@ -213,18 +221,20 @@ class TDLoss(nn.Module):
                 def _summarize(v, r, td, suffix):
                     alf.summary.scalar(
                         "explained_variance_of_return_by_value" + suffix,
-                        tensor_utils.explained_variance(v, r, mask))
-                    safe_mean_hist_summary('values' + suffix, v, mask)
-                    safe_mean_hist_summary('returns' + suffix, r, mask)
+                        tensor_utils.explained_variance(v, r, mask),
+                    )
+                    safe_mean_hist_summary("values" + suffix, v, mask)
+                    safe_mean_hist_summary("returns" + suffix, r, mask)
                     safe_mean_hist_summary("td_error" + suffix, td, mask)
 
                 if value.ndim == 2:
-                    _summarize(value, returns, td_error, '')
+                    _summarize(value, returns, td_error, "")
                 else:
                     for i in range(value.shape[2]):
-                        suffix = '/' + str(i)
-                        _summarize(value[..., i], returns[..., i],
-                                   td_error[..., i], suffix)
+                        suffix = "/" + str(i)
+                        _summarize(
+                            value[..., i], returns[..., i], td_error[..., i], suffix
+                        )
 
         loss = self._td_error_loss_fn(returns.detach(), value)
 
@@ -241,17 +251,19 @@ class TDLoss(nn.Module):
 
 @alf.configurable
 class TDQRLoss(TDLoss):
-    """Temporal difference quantile regression loss. 
-    Compared to TDLoss, GAE support has not been implemented. """
+    """Temporal difference quantile regression loss.
+    Compared to TDLoss, GAE support has not been implemented."""
 
-    def __init__(self,
-                 num_quantiles: int = 50,
-                 gamma: Union[float, List[float]] = 0.99,
-                 td_error_loss_fn: Callable = iqn_huber_loss,
-                 td_lambda: float = 1.0,
-                 sum_over_quantiles: bool = False,
-                 debug_summaries: bool = False,
-                 name: str = "TDQRLoss"):
+    def __init__(
+        self,
+        num_quantiles: int = 50,
+        gamma: Union[float, List[float]] = 0.99,
+        td_error_loss_fn: Callable = iqn_huber_loss,
+        td_lambda: float = 1.0,
+        sum_over_quantiles: bool = False,
+        debug_summaries: bool = False,
+        name: str = "TDQRLoss",
+    ):
         """
         Args:
             num_quantiles: the number of quantiles.
@@ -269,26 +281,33 @@ class TDQRLoss(TDLoss):
             debug_summaries: True if debug summaries should be created
             name: The name of this loss.
         """
-        assert td_lambda in (0, 1), (
-            "Currently GAE is not supported, so td_lambda has to be 0 or 1.")
-        super().__init__(gamma=gamma,
-                         td_error_loss_fn=td_error_loss_fn,
-                         td_lambda=td_lambda,
-                         debug_summaries=debug_summaries,
-                         name=name)
+        assert td_lambda in (
+            0,
+            1,
+        ), "Currently GAE is not supported, so td_lambda has to be 0 or 1."
+        super().__init__(
+            gamma=gamma,
+            td_error_loss_fn=td_error_loss_fn,
+            td_lambda=td_lambda,
+            debug_summaries=debug_summaries,
+            name=name,
+        )
 
         self._num_quantiles = num_quantiles
-        self._cdf_midpoints = (torch.arange(num_quantiles, dtype=torch.float32)
-                               + 0.5) / num_quantiles
+        self._cdf_midpoints = (
+            torch.arange(num_quantiles, dtype=torch.float32) + 0.5
+        ) / num_quantiles
         self._sum_over_quantiles = sum_over_quantiles
 
-    def forward(self,
-                info: namedtuple,
-                value: torch.Tensor,
-                target_value: torch.Tensor,
-                tau_hat: Optional[torch.Tensor] = (),
-                delta_tau: Optional[torch.Tensor] = (),
-                next_delta_tau: Optional[torch.Tensor] = ()):
+    def forward(
+        self,
+        info: namedtuple,
+        value: torch.Tensor,
+        target_value: torch.Tensor,
+        tau_hat: Optional[torch.Tensor] = (),
+        delta_tau: Optional[torch.Tensor] = (),
+        next_delta_tau: Optional[torch.Tensor] = (),
+    ):
         """Calculate the loss.
 
         The first dimension of all the tensors is time dimension and the second
@@ -310,24 +329,29 @@ class TDQRLoss(TDLoss):
                 quantile function of the critics.
             delta_tau: the sampled increments of the probability for input of
                 the quantile function of the critics.
-            next_delta_tau: the sampled increments of the probability for the input 
+            next_delta_tau: the sampled increments of the probability for the input
                 of the quantile function of the target critics.
 
         Returns:
             LossInfo: with the ``extra`` field same as ``loss``.
         """
-        assert value.shape[-1] == self._num_quantiles, (
-            "The input value should have same num_quantiles as pre-defined.")
-        assert target_value.shape[-1] == self._num_quantiles, (
-            "The input target_value should have same num_quantiles as pre-defined."
-        )
+        assert (
+            value.shape[-1] == self._num_quantiles
+        ), "The input value should have same num_quantiles as pre-defined."
+        assert (
+            target_value.shape[-1] == self._num_quantiles
+        ), "The input target_value should have same num_quantiles as pre-defined."
         returns = self.compute_td_target(info, target_value)
         value = value[:-1]
 
-        loss, diff = self._td_error_loss_fn(value, returns, tau_hat[:-1],
-                                            next_delta_tau[1:],
-                                            self._cdf_midpoints,
-                                            self._sum_over_quantiles)
+        loss, diff = self._td_error_loss_fn(
+            value,
+            returns,
+            tau_hat[:-1],
+            next_delta_tau[1:],
+            self._cdf_midpoints,
+            self._sum_over_quantiles,
+        )
 
         if self._debug_summaries and alf.summary.should_record_summaries():
             mask = info.step_type[:-1] != StepType.LAST
@@ -339,35 +363,44 @@ class TDQRLoss(TDLoss):
                 def _summarize(v, r, td, d, n, suffix):
                     alf.summary.scalar(
                         "explained_variance_of_return_by_value" + suffix,
-                        tensor_utils.explained_variance(v, r, mask))
+                        tensor_utils.explained_variance(v, r, mask),
+                    )
 
-                    safe_mean_hist_summary('values' + suffix, v, mask)
-                    safe_mean_hist_summary('returns' + suffix, r, mask)
+                    safe_mean_hist_summary("values" + suffix, v, mask)
+                    safe_mean_hist_summary("returns" + suffix, r, mask)
                     safe_mean_hist_summary("td_error" + suffix, td, mask)
 
                     cdf = (d <= 0).float().mean(-2)
                     mean_cdf = cdf.mean(0).mean(0)
                     alf.summary.histogram(
-                        "explained_cdf_of_return_by_value_quantile" + suffix,
-                        mean_cdf)
+                        "explained_cdf_of_return_by_value_quantile" + suffix, mean_cdf
+                    )
                     alf.summary.scalar(
                         "explained_0.25_fraction_of_value_by_returns" + suffix,
-                        mean_cdf[math.ceil(0.25 * n) - 1])
+                        mean_cdf[math.ceil(0.25 * n) - 1],
+                    )
                     alf.summary.scalar(
                         "explained_0.5_fraction_of_value_by_returns" + suffix,
-                        mean_cdf[math.ceil(0.5 * n) - 1])
+                        mean_cdf[math.ceil(0.5 * n) - 1],
+                    )
                     alf.summary.scalar(
                         "explained_0.75_fraction_of_value_by_returns" + suffix,
-                        mean_cdf[math.ceil(0.75 * n) - 1])
+                        mean_cdf[math.ceil(0.75 * n) - 1],
+                    )
 
                 if value.ndim == 3:
-                    _summarize(v, r, td, diff, self._num_quantiles, '')
+                    _summarize(v, r, td, diff, self._num_quantiles, "")
                 else:
                     for i in range(value.shape[-2]):
-                        suffix = '/' + str(i)
-                        _summarize(v[..., i], r[..., i], td[..., i],
-                                   diff[...,
-                                        i, :, :], self._num_quantiles, suffix)
+                        suffix = "/" + str(i)
+                        _summarize(
+                            v[..., i],
+                            r[..., i],
+                            td[..., i],
+                            diff[..., i, :, :],
+                            self._num_quantiles,
+                            suffix,
+                        )
 
         if loss.ndim == 3:
             # Multidimensional reward. Average over the critic loss for all dimensions
@@ -376,8 +409,10 @@ class TDQRLoss(TDLoss):
         # The shape of the loss expected by Algorithm.update_with_gradient is
         # [T, B], so we need to augment it with additional zeros.
         loss = tensor_utils.tensor_extend_zero(loss)
-        return LossInfo(loss=loss,
-                        extra={
-                            'value': value,
-                            'returns': returns,
-                        })
+        return LossInfo(
+            loss=loss,
+            extra={
+                "value": value,
+                "returns": returns,
+            },
+        )

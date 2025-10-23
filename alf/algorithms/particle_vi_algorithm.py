@@ -47,20 +47,22 @@ class ParVIAlgorithm(Algorithm):
        variational inference." International Conference on Machine Learning. 2019.
     """
 
-    def __init__(self,
-                 particle_dim,
-                 num_particles=10,
-                 entropy_regularization=1.,
-                 par_vi="gfsf",
-                 critic_input_dim=None,
-                 critic_hidden_layers=(100, 100),
-                 critic_l2_weight=10.,
-                 critic_iter_num=2,
-                 critic_use_bn=True,
-                 critic_optimizer=None,
-                 optimizer=None,
-                 debug_summaries=False,
-                 name="ParVIAlgorithm"):
+    def __init__(
+        self,
+        particle_dim,
+        num_particles=10,
+        entropy_regularization=1.0,
+        par_vi="gfsf",
+        critic_input_dim=None,
+        critic_hidden_layers=(100, 100),
+        critic_l2_weight=10.0,
+        critic_iter_num=2,
+        critic_use_bn=True,
+        critic_optimizer=None,
+        optimizer=None,
+        debug_summaries=False,
+        name="ParVIAlgorithm",
+    ):
         r"""Create a ParVIAlgorithm.
 
         Args:
@@ -90,19 +92,19 @@ class ParVIAlgorithm(Algorithm):
             optimizer (torch.optim.Optimizer): (optional) optimizer for training
             name (str): name of this generator
         """
-        super().__init__(optimizer=optimizer,
-                         debug_summaries=debug_summaries,
-                         name=name)
+        super().__init__(
+            optimizer=optimizer, debug_summaries=debug_summaries, name=name
+        )
         self._particle_dim = particle_dim
         self._num_particles = num_particles
         self._entropy_regularization = entropy_regularization
         self._particles = None
         self._par_vi = par_vi
-        if par_vi == 'gfsf':
+        if par_vi == "gfsf":
             self._grad_func = self._gfsf_grad
-        elif par_vi == 'svgd':
+        elif par_vi == "svgd":
             self._grad_func = self._svgd_grad
-        elif par_vi == 'minmax':
+        elif par_vi == "minmax":
             self._grad_func = self._minmax_grad
             if critic_input_dim is None:
                 critic_input_dim = particle_dim
@@ -111,20 +113,21 @@ class ParVIAlgorithm(Algorithm):
             if critic_optimizer is None:
                 critic_optimizer = alf.optimizers.Adam(lr=1e-3)
             self._critic = CriticAlgorithm(
-                TensorSpec(shape=(critic_input_dim, )),
+                TensorSpec(shape=(critic_input_dim,)),
                 hidden_layers=critic_hidden_layers,
                 use_bn=critic_use_bn,
-                optimizer=critic_optimizer)
+                optimizer=critic_optimizer,
+            )
         elif par_vi == None:
             self._grad_func = self._ml_grad
         else:
             raise ValueError("Unsupported par_vi method: %s" % par_vi)
 
-        self._kernel_width_averager = AdaptiveAverager(tensor_spec=TensorSpec(
-            shape=()))
+        self._kernel_width_averager = AdaptiveAverager(tensor_spec=TensorSpec(shape=()))
 
         self._particles = torch.nn.Parameter(
-            torch.randn(num_particles, particle_dim, requires_grad=True))
+            torch.randn(num_particles, particle_dim, requires_grad=True)
+        )
 
     @property
     def num_particles(self):
@@ -147,12 +150,14 @@ class ParVIAlgorithm(Algorithm):
         """
         return AlgStep(output=self.particles, state=(), info=())
 
-    def train_step(self,
-                   loss_func,
-                   transform_func=None,
-                   entropy_regularization=None,
-                   loss_mask=None,
-                   state=None):
+    def train_step(
+        self,
+        loss_func,
+        transform_func=None,
+        entropy_regularization=None,
+        loss_mask=None,
+        state=None,
+    ):
         """
         Args:
             loss_func (Callable): loss_func(loss_inputs) returns a Tensor or
@@ -181,18 +186,20 @@ class ParVIAlgorithm(Algorithm):
         """
         if entropy_regularization is None:
             entropy_regularization = self._entropy_regularization
-        loss, loss_propagated = self._grad_func(self.particles, loss_func,
-                                                entropy_regularization,
-                                                transform_func)
+        loss, loss_propagated = self._grad_func(
+            self.particles, loss_func, entropy_regularization, transform_func
+        )
         if loss_mask is not None:
             loss_propagated = loss_propagated * loss_mask
 
-        return AlgStep(output=self.particles,
-                       state=(),
-                       info=LossInfo(loss=loss_propagated, extra=loss))
+        return AlgStep(
+            output=self.particles,
+            state=(),
+            info=LossInfo(loss=loss_propagated, extra=loss),
+        )
 
     def _kernel_width(self, dist):
-        """Update kernel_width averager and get latest kernel_width. """
+        """Update kernel_width averager and get latest kernel_width."""
         if dist.ndim > 1:
             dist = torch.sum(dist, dim=-1)
             assert dist.ndim == 1, "dist must have dimension 1 or 2."
@@ -227,10 +234,10 @@ class ParVIAlgorithm(Algorithm):
         diff = x.unsqueeze(1) - y.unsqueeze(0)  # [Nx, Ny, W]
         dist_sq = torch.sum(diff**2, -1)  # [Nx, Ny]
         h, _ = torch.median(dist_sq.view(-1), dim=0)
-        if h == 0.:
+        if h == 0.0:
             h = torch.ones_like(h)
         else:
-            h = h / max(np.log(Nx), 1.)
+            h = h / max(np.log(Nx), 1.0)
 
         kappa = torch.exp(-dist_sq / h)  # [Nx, Ny]
         kappa_grad = -2 * kappa.unsqueeze(-1) * diff / h  # [Nx, Ny, W]
@@ -256,10 +263,10 @@ class ParVIAlgorithm(Algorithm):
         diff = x.unsqueeze(1) - x.unsqueeze(0)  # [N, N, D]
         dist_sq = torch.sum(diff**2, -1)  # [N, N]
         h, _ = torch.median(dist_sq.view(-1), dim=0)
-        if h == 0.:
+        if h == 0.0:
             h = torch.ones_like(h)
         else:
-            h = h / max(np.log(N), 1.)
+            h = h / max(np.log(N), 1.0)
 
         kappa = torch.exp(-dist_sq / h)  # [N, N]
         kappa_inv = torch.inverse(kappa + alpha * torch.eye(N))  # [N, N]
@@ -268,11 +275,9 @@ class ParVIAlgorithm(Algorithm):
 
         return kappa_inv @ kappa_grad
 
-    def _ml_grad(self,
-                 particles,
-                 loss_func,
-                 entropy_regularization=None,
-                 transform_func=None):
+    def _ml_grad(
+        self, particles, loss_func, entropy_regularization=None, transform_func=None
+    ):
         if transform_func is not None:
             particles, extra_particles, _ = transform_func(particles)
             aug_particles = torch.cat([particles, extra_particles], dim=-1)
@@ -289,11 +294,9 @@ class ParVIAlgorithm(Algorithm):
 
         return loss, loss_propagated
 
-    def _svgd_grad(self,
-                   particles,
-                   loss_func,
-                   entropy_regularization,
-                   transform_func=None):
+    def _svgd_grad(
+        self, particles, loss_func, entropy_regularization, transform_func=None
+    ):
         """
         Compute particle gradients via SVGD, empirical expectation
         evaluated using the all particles.
@@ -309,30 +312,27 @@ class ParVIAlgorithm(Algorithm):
             neglogp = loss.loss
         else:
             neglogp = loss
-        loss_grad = torch.autograd.grad(neglogp.sum(),
-                                        loss_inputs)[0]  # [N, D]
+        loss_grad = torch.autograd.grad(neglogp.sum(), loss_inputs)[0]  # [N, D]
 
         # [N, N], [N, N, D]
         kernel_weight, kernel_grad = self._rbf_func(aug_particles.detach())
         kernel_logp = torch.matmul(kernel_weight, loss_grad) / (
-            self.num_particles)  # [N, D]
+            self.num_particles
+        )  # [N, D]
 
-        loss_prop_kernel_logp = torch.sum(kernel_logp.detach() * particles,
-                                          dim=-1)
-        loss_prop_kernel_grad = torch.sum(-entropy_regularization *
-                                          kernel_grad.mean(0).detach() *
-                                          aug_particles,
-                                          dim=-1)
+        loss_prop_kernel_logp = torch.sum(kernel_logp.detach() * particles, dim=-1)
+        loss_prop_kernel_grad = torch.sum(
+            -entropy_regularization * kernel_grad.mean(0).detach() * aug_particles,
+            dim=-1,
+        )
         loss_propagated = loss_prop_kernel_logp + loss_prop_kernel_grad
 
         return loss, loss_propagated
 
-    def _gfsf_grad(self,
-                   particles,
-                   loss_func,
-                   entropy_regularization,
-                   transform_func=None):
-        """Compute particle gradients via GFSF (Stein estimator). """
+    def _gfsf_grad(
+        self, particles, loss_func, entropy_regularization, transform_func=None
+    ):
+        """Compute particle gradients via GFSF (Stein estimator)."""
         if transform_func is not None:
             particles, extra_particles = transform_func(particles)
             aug_particles = torch.cat([particles, extra_particles], dim=-1)
@@ -356,19 +356,16 @@ class ParVIAlgorithm(Algorithm):
 
     def _jacobian_trace(self, fx, x):
         """Hutchinson's trace Jacobian estimator O(1) call to autograd,
-            used by ``minmax`` method"""
-        assert fx.shape[-1] == x.shape[-1], (
-            "Jacobian is not square, no trace defined.")
+        used by ``minmax`` method"""
+        assert fx.shape[-1] == x.shape[-1], "Jacobian is not square, no trace defined."
         eps = torch.randn_like(fx)
-        jvp = torch.autograd.grad(fx,
-                                  x,
-                                  grad_outputs=eps,
-                                  retain_graph=True,
-                                  create_graph=True)[0]
-        tr_jvp = torch.einsum('bi,bi->b', jvp, eps)
+        jvp = torch.autograd.grad(
+            fx, x, grad_outputs=eps, retain_graph=True, create_graph=True
+        )[0]
+        tr_jvp = torch.einsum("bi,bi->b", jvp, eps)
         return tr_jvp
 
-    def _critic_train_step(self, inputs, loss_func, entropy_regularization=1.):
+    def _critic_train_step(self, inputs, loss_func, entropy_regularization=1.0):
         """
         Compute the loss for critic training.
         """
@@ -389,11 +386,9 @@ class ParVIAlgorithm(Algorithm):
 
         return critic_loss
 
-    def _minmax_grad(self,
-                     particles,
-                     loss_func,
-                     entropy_regularization,
-                     transform_func=None):
+    def _minmax_grad(
+        self, particles, loss_func, entropy_regularization, transform_func=None
+    ):
         """
         Compute particle gradients via minmax svgd (Fisher Neural Sampler).
         """
@@ -406,15 +401,14 @@ class ParVIAlgorithm(Algorithm):
             critic_inputs = aug_particles.detach().clone()
             critic_inputs.requires_grad = True
 
-            critic_loss = self._critic_train_step(critic_inputs, loss_func,
-                                                  entropy_regularization)
+            critic_loss = self._critic_train_step(
+                critic_inputs, loss_func, entropy_regularization
+            )
             self._critic.update_with_gradient(LossInfo(loss=critic_loss))
 
         loss_inputs = aug_particles
         loss = loss_func(loss_inputs.detach())
-        critic_outputs = self._critic.predict_step(
-            aug_particles.detach()).output
-        loss_propagated = torch.sum(-critic_outputs.detach() * aug_particles,
-                                    dim=-1)
+        critic_outputs = self._critic.predict_step(aug_particles.detach()).output
+        loss_propagated = torch.sum(-critic_outputs.detach() * aug_particles, dim=-1)
 
         return loss, loss_propagated

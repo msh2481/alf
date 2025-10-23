@@ -69,7 +69,7 @@ from alf.environments.alf_wrappers import NonEpisodicAgent
 
 def is_available():
     """Check if both ``mujoco_py`` and ``safety_gym`` have been installed."""
-    return (mujoco_py is not None and safety_gym is not None)
+    return mujoco_py is not None and safety_gym is not None
 
 
 class CompleteEnvInfo(gym.Wrapper):
@@ -87,16 +87,20 @@ class CompleteEnvInfo(gym.Wrapper):
         # env info keys are retrieved from:
         # https://github.com/openai/safety-gym/blob/master/safety_gym/envs/engine.py
         self._env_info_keys = [
-            'cost_exception',
-            'goal_met',
-            'cost'  # this is the summed overall cost
+            "cost_exception",
+            "goal_met",
+            "cost",  # this is the summed overall cost
         ]
         if not self._is_level0_env(env_name):
             # for level 1 and 2 envs, there are constraints cost info
             self._env_info_keys += [
-                'cost_vases_contact', 'cost_pillars', 'cost_buttons',
-                'cost_gremlins', 'cost_vases_displace', 'cost_vases_velocity',
-                'cost_hazards'
+                "cost_vases_contact",
+                "cost_pillars",
+                "cost_buttons",
+                "cost_gremlins",
+                "cost_vases_displace",
+                "cost_vases_velocity",
+                "cost_hazards",
             ]
         self._default_env_info = self._generate_default_env_info()
 
@@ -109,7 +113,7 @@ class CompleteEnvInfo(gym.Wrapper):
             if key == "goal_met":
                 env_info[key] = False
             else:
-                env_info[key] = np.float32(0.)
+                env_info[key] = np.float32(0.0)
         return env_info
 
     def step(self, action):
@@ -146,9 +150,9 @@ class VectorReward(gym.Wrapper):
                 binary value indicating a success.
         """
         super().__init__(env)
-        self._reward_space = gym.spaces.Box(low=-float('inf'),
-                                            high=float('inf'),
-                                            shape=[self.REWARD_DIMENSION])
+        self._reward_space = gym.spaces.Box(
+            low=-float("inf"), high=float("inf"), shape=[self.REWARD_DIMENSION]
+        )
         self._sparse_reward = sparse_reward
 
     def step(self, action):
@@ -172,15 +176,14 @@ class VectorReward(gym.Wrapper):
         success_reward = float(info["goal_met"])
         if self._sparse_reward:
             reward = success_reward
-        return obs, np.array([reward, cost_reward],
-                             dtype=np.float32), done, info
+        return obs, np.array([reward, cost_reward], dtype=np.float32), done, info
 
     @property
     def reward_space(self):
         return self._reward_space
 
 
-@alf.configurable(blacklist=['env'])
+@alf.configurable(blacklist=["env"])
 class RGBRenderWrapper(gym.Wrapper):
     """A ``metadata`` field should've been defined in the original safety gym env;
     otherwise video recording will be disabled. See
@@ -190,7 +193,8 @@ class RGBRenderWrapper(gym.Wrapper):
     rendering, which is incompatible with our ``ALFEnvironment`` interfaces.
     Here we wrap ``render()`` with a customizable camera mode.
     """
-    _metadata = {'render.modes': ["rgb_array", "human"]}
+
+    _metadata = {"render.modes": ["rgb_array", "human"]}
 
     def __init__(self, env, width=None, height=None, camera_mode="fixedfar"):
         """
@@ -236,15 +240,17 @@ class EpisodicWrapper(gym.Wrapper):
 
 
 @alf.configurable
-def load(environment_name: str,
-         env_id: int = None,
-         discount: float = 1.0,
-         max_episode_steps: int = None,
-         unconstrained: bool = False,
-         sparse_reward: bool = False,
-         episodic: bool = False,
-         gym_env_wrappers: List[Callable] = (),
-         alf_env_wrappers: List[Callable] = ()):
+def load(
+    environment_name: str,
+    env_id: int = None,
+    discount: float = 1.0,
+    max_episode_steps: int = None,
+    unconstrained: bool = False,
+    sparse_reward: bool = False,
+    episodic: bool = False,
+    gym_env_wrappers: List[Callable] = (),
+    alf_env_wrappers: List[Callable] = (),
+):
     """Loads the selected environment and wraps it with the specified wrappers.
 
     Note that by default a ``TimeLimit`` wrapper is used to limit episode lengths
@@ -294,7 +300,7 @@ def load(environment_name: str,
 
     if episodic:
         env = EpisodicWrapper(env)
-        alf_env_wrappers = alf_env_wrappers + (NonEpisodicAgent, )
+        alf_env_wrappers = alf_env_wrappers + (NonEpisodicAgent,)
 
     # Have to -1 on top of the original env max steps here, because the
     # underlying gym env will output ``done=True`` when reaching the time limit
@@ -304,9 +310,11 @@ def load(environment_name: str,
         max_episode_steps = env.num_steps - 1
         max_episode_steps = min(env.num_steps - 1, max_episode_steps)
 
-    return suite_gym.wrap_env(env,
-                              env_id=env_id,
-                              discount=discount,
-                              max_episode_steps=max_episode_steps,
-                              gym_env_wrappers=gym_env_wrappers,
-                              alf_env_wrappers=alf_env_wrappers)
+    return suite_gym.wrap_env(
+        env,
+        env_id=env_id,
+        discount=discount,
+        max_episode_steps=max_episode_steps,
+        gym_env_wrappers=gym_env_wrappers,
+        alf_env_wrappers=alf_env_wrappers,
+    )

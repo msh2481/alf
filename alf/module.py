@@ -38,11 +38,13 @@ def original_torch_module_functions():
             model = hf_model_load()
     """
     keys = [
-        'state_dict', 'load_state_dict', '_save_to_state_dict',
-        '_load_from_state_dict'
+        "state_dict",
+        "load_state_dict",
+        "_save_to_state_dict",
+        "_load_from_state_dict",
     ]
     current_funcs = {k: getattr(Module, k) for k in keys}
-    old_funcs = {k: globals()['old_' + k] for k in keys}
+    old_funcs = {k: globals()["old_" + k] for k in keys}
     for k in keys:
         setattr(Module, k, old_funcs[k])
     yield

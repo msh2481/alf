@@ -25,11 +25,9 @@ import alf
 @alf.configurable
 class ActionQuantizer(object):
 
-    def __init__(self,
-                 action_spec,
-                 sampling_method="uniform",
-                 action_bins=7,
-                 rep_mode="center"):
+    def __init__(
+        self, action_spec, sampling_method="uniform", action_bins=7, rep_mode="center"
+    ):
         """Quantize actions in a specified way.
 
         Args:
@@ -57,9 +55,9 @@ class ActionQuantizer(object):
         # action_bins: the number of elements per action_dim
 
         self._action_dim = action_spec.shape[0]
-        assert (() == action_spec.maximum.shape) and \
-                (() == action_spec.minimum.shape), \
-                    "Only support scalar action maximum and minimum bound"
+        assert (() == action_spec.maximum.shape) and (
+            () == action_spec.minimum.shape
+        ), "Only support scalar action maximum and minimum bound"
 
         self._upper_bound = action_spec.maximum.item()
         self._lower_bound = action_spec.minimum.item()
@@ -68,17 +66,18 @@ class ActionQuantizer(object):
         # can make it different for different dims in the future
         if self._sampling_method == "uniform":
             if self._rep_mode == "center":
-                bin_size = (self._upper_bound -
-                            self._lower_bound) / self._action_bins
+                bin_size = (self._upper_bound - self._lower_bound) / self._action_bins
                 # [lb + bin_size/2, up - bin_size/2]
                 # center value representation
-                LUT_BA = torch.linspace(self._lower_bound + bin_size / 2,
-                                        self._upper_bound - bin_size / 2,
-                                        steps=self._action_bins)
+                LUT_BA = torch.linspace(
+                    self._lower_bound + bin_size / 2,
+                    self._upper_bound - bin_size / 2,
+                    steps=self._action_bins,
+                )
             elif self._rep_mode == "boundary":
-                LUT_BA = torch.linspace(self._lower_bound,
-                                        self._upper_bound,
-                                        steps=self._action_bins)
+                LUT_BA = torch.linspace(
+                    self._lower_bound, self._upper_bound, steps=self._action_bins
+                )
         else:
             raise NotImplementedError("Unimplemented sampling method!")
 

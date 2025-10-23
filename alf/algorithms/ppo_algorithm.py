@@ -24,23 +24,26 @@ from alf.data_structures import namedtuple, TimeStep
 from alf.utils import value_ops, tensor_utils
 from alf.nest.utils import convert_device
 
-PPOInfo = namedtuple("PPOInfo", [
-    "step_type",
-    "discount",
-    "reward",
-    "action",
-    "log_prob",
-    "entropy",
-    "rollout_log_prob",
-    "rollout_action_distribution",
-    "returns",
-    "advantages",
-    "action_distribution",
-    "value",
-    "reward_weights",
-    "normalized_advantages",
-],
-                     default_value=())
+PPOInfo = namedtuple(
+    "PPOInfo",
+    [
+        "step_type",
+        "discount",
+        "reward",
+        "action",
+        "log_prob",
+        "entropy",
+        "rollout_log_prob",
+        "rollout_action_distribution",
+        "returns",
+        "advantages",
+        "action_distribution",
+        "value",
+        "reward_weights",
+        "normalized_advantages",
+    ],
+    default_value=(),
+)
 
 
 @alf.configurable
@@ -59,16 +62,18 @@ class PPOAlgorithm(ActorCriticAlgorithm):
 
     def train_step(self, inputs: TimeStep, state, rollout_info):
         alg_step = self._rollout_step(inputs, state)
-        return alg_step._replace(info=rollout_info._replace(
-            step_type=alg_step.info.step_type,
-            reward=alg_step.info.reward,
-            discount=alg_step.info.discount,
-            action_distribution=alg_step.info.action_distribution,
-            value=alg_step.info.value,
-            reward_weights=alg_step.info.reward_weights))
+        return alg_step._replace(
+            info=rollout_info._replace(
+                step_type=alg_step.info.step_type,
+                reward=alg_step.info.reward,
+                discount=alg_step.info.discount,
+                action_distribution=alg_step.info.action_distribution,
+                value=alg_step.info.value,
+                reward_weights=alg_step.info.reward_weights,
+            )
+        )
 
-    def preprocess_experience(self, root_inputs: TimeStep, rollout_info,
-                              batch_info):
+    def preprocess_experience(self, root_inputs: TimeStep, rollout_info, batch_info):
         """Compute advantages and put it into exp.rollout_info."""
 
         # The device of rollout_info can be different from the default device
@@ -92,27 +97,30 @@ class PPOAlgorithm(ActorCriticAlgorithm):
             step_types=step_type,
             discounts=discounts,
             td_lambda=self._loss._lambda,
-            time_major=False)
+            time_major=False,
+        )
 
         if self._loss.normalizing_scalar_advantages:
             if self.has_multidim_reward():
                 scalar_advantages = (advantages * self.reward_weights).sum(-1)
             else:
                 scalar_advantages = advantages
-            normalized_advantages = normalize(self._loss._adv_norm,
-                                              scalar_advantages.reshape(-1, 1))
-            normalized_advantages = normalized_advantages.reshape_as(
-                scalar_advantages)
+            normalized_advantages = normalize(
+                self._loss._adv_norm, scalar_advantages.reshape(-1, 1)
+            )
+            normalized_advantages = normalized_advantages.reshape_as(scalar_advantages)
             normalized_advantages = tensor_utils.tensor_extend_zero(
-                normalized_advantages, dim=1)
+                normalized_advantages, dim=1
+            )
         elif self._loss.normalizing_advantages:
             bt = advantages.shape[0] * advantages.shape[1]
-            normalized_advantages = normalize(self._loss._adv_norm,
-                                              advantages.reshape(bt, -1))
-            normalized_advantages = normalized_advantages.reshape_as(
-                advantages)
+            normalized_advantages = normalize(
+                self._loss._adv_norm, advantages.reshape(bt, -1)
+            )
+            normalized_advantages = normalized_advantages.reshape_as(advantages)
             normalized_advantages = tensor_utils.tensor_extend_zero(
-                normalized_advantages, dim=1)
+                normalized_advantages, dim=1
+            )
         else:
             normalized_advantages = ()
 

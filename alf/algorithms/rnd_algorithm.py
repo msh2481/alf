@@ -39,17 +39,19 @@ class RNDAlgorithm(Algorithm):
     The reward is expected to be higher for novel states.
     """
 
-    def __init__(self,
-                 target_net: EncodingNetwork,
-                 predictor_net: EncodingNetwork,
-                 encoder_net: EncodingNetwork = None,
-                 reward_adapt_speed=None,
-                 observation_adapt_speed=None,
-                 observation_spec=None,
-                 optimizer=None,
-                 clip_value=-1.0,
-                 keep_stacked_frames=1,
-                 name="RNDAlgorithm"):
+    def __init__(
+        self,
+        target_net: EncodingNetwork,
+        predictor_net: EncodingNetwork,
+        encoder_net: EncodingNetwork = None,
+        reward_adapt_speed=None,
+        observation_adapt_speed=None,
+        observation_spec=None,
+        optimizer=None,
+        clip_value=-1.0,
+        keep_stacked_frames=1,
+        name="RNDAlgorithm",
+    ):
         """
         Args:
             encoder_net (EncodingNetwork): a shared network that encodes
@@ -79,15 +81,14 @@ class RNDAlgorithm(Algorithm):
                 how many channels an observation has at each time step.
             name (str):
         """
-        super(RNDAlgorithm, self).__init__(train_state_spec=(),
-                                           optimizer=optimizer,
-                                           name=name)
+        super(RNDAlgorithm, self).__init__(
+            train_state_spec=(), optimizer=optimizer, name=name
+        )
         self._encoder_net = encoder_net
         self._target_net = target_net  # fixed
         self._predictor_net = predictor_net  # trainable
         if reward_adapt_speed is not None:
-            self._reward_normalizer = ScalarAdaptiveNormalizer(
-                speed=reward_adapt_speed)
+            self._reward_normalizer = ScalarAdaptiveNormalizer(speed=reward_adapt_speed)
             self._reward_clip_value = clip_value
         else:
             self._reward_normalizer = None
@@ -97,19 +98,20 @@ class RNDAlgorithm(Algorithm):
             # Assuming stacking in the first dim, we only keep the last frames.
             shape = observation_spec.shape
             assert keep_stacked_frames <= shape[0]
-            new_shape = (keep_stacked_frames, ) + tuple(shape[1:])
-            observation_spec = TensorSpec(shape=new_shape,
-                                          dtype=observation_spec.dtype)
+            new_shape = (keep_stacked_frames,) + tuple(shape[1:])
+            observation_spec = TensorSpec(shape=new_shape, dtype=observation_spec.dtype)
 
         # The paper suggests to also normalize observations, because the
         # original observation subspace might be small and the target network will
         # yield random embeddings that are indistinguishable
         self._observation_normalizer = None
         if observation_adapt_speed is not None:
-            assert observation_spec is not None, \
-                "Observation normalizer requires its input tensor spec!"
+            assert (
+                observation_spec is not None
+            ), "Observation normalizer requires its input tensor spec!"
             self._observation_normalizer = AdaptiveNormalizer(
-                tensor_spec=observation_spec, speed=observation_adapt_speed)
+                tensor_spec=observation_spec, speed=observation_adapt_speed
+            )
 
     def _step(self, time_step: TimeStep, state, calc_rewards=True):
         """
@@ -128,7 +130,7 @@ class RNDAlgorithm(Algorithm):
 
         if self._keep_stacked_frames > 0:
             # Assuming stacking in the first dim, we only keep the last frames.
-            observation = observation[:, -self._keep_stacked_frames:, ...]
+            observation = observation[:, -self._keep_stacked_frames :, ...]
 
         if self._observation_normalizer is not None:
             observation = self._observation_normalizer.normalize(observation)
@@ -141,15 +143,15 @@ class RNDAlgorithm(Algorithm):
         with torch.no_grad():
             target_embedding, _ = self._target_net(observation)
 
-        loss = torch.sum(math_ops.square(pred_embedding - target_embedding),
-                         dim=-1)
+        loss = torch.sum(math_ops.square(pred_embedding - target_embedding), dim=-1)
 
         intrinsic_reward = ()
         if calc_rewards:
             intrinsic_reward = loss.detach()
             if self._reward_normalizer:
                 intrinsic_reward = self._reward_normalizer.normalize(
-                    intrinsic_reward, clip_value=self._reward_clip_value)
+                    intrinsic_reward, clip_value=self._reward_clip_value
+                )
 
         return AlgStep(output=intrinsic_reward, info=loss)
 
