@@ -75,15 +75,20 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         """
         # Infer on_policy from first algorithm copy
         # Create a temporary instance to check on_policy property
-        temp_alg = algorithm_ctor(
-            observation_spec=observation_spec, action_spec=action_spec
-        )
+        temp_alg = algorithm_ctor(observation_spec=observation_spec,
+                                  action_spec=action_spec)
         is_on_policy = temp_alg.on_policy
 
         # Collect state specs from temporary algorithm
-        train_state_spec = [temp_alg.train_state_spec for _ in range(num_copies)]
-        rollout_state_spec = [temp_alg.rollout_state_spec for _ in range(num_copies)]
-        predict_state_spec = [temp_alg.predict_state_spec for _ in range(num_copies)]
+        train_state_spec = [
+            temp_alg.train_state_spec for _ in range(num_copies)
+        ]
+        rollout_state_spec = [
+            temp_alg.rollout_state_spec for _ in range(num_copies)
+        ]
+        predict_state_spec = [
+            temp_alg.predict_state_spec for _ in range(num_copies)
+        ]
 
         # Clean up temporary algorithm
         del temp_alg
@@ -113,20 +118,17 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
             ), f"Environment batch size {env.batch_size} must be a multiple of num_copies {num_copies}"
 
         # Create K independent algorithm copies
-        self._algorithms = nn.ModuleList(
-            [
-                algorithm_ctor(
-                    observation_spec=observation_spec,
-                    action_spec=action_spec,
-                    reward_spec=reward_spec,
-                    env=None,  # Only root algorithm gets env
-                    config=config,
-                    debug_summaries=debug_summaries,
-                    name=f"{name}_copy_{i}",
-                )
-                for i in range(num_copies)
-            ]
-        )
+        self._algorithms = nn.ModuleList([
+            algorithm_ctor(
+                observation_spec=observation_spec,
+                action_spec=action_spec,
+                reward_spec=reward_spec,
+                env=None,  # Only root algorithm gets env
+                config=config,
+                debug_summaries=debug_summaries,
+                name=f"{name}_copy_{i}",
+            ) for i in range(num_copies)
+        ])
 
     def get_initial_predict_state(self, batch_size):
         """Get initial predict state for all algorithm copies."""
@@ -135,16 +137,22 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
             return self._algorithms[0].get_initial_predict_state(batch_size)
         else:
             return [
-                alg.get_initial_predict_state(batch_size) for alg in self._algorithms
+                alg.get_initial_predict_state(batch_size)
+                for alg in self._algorithms
             ]
 
     def get_initial_rollout_state(self, batch_size):
         """Get initial rollout state for all algorithm copies."""
-        return [alg.get_initial_rollout_state(batch_size) for alg in self._algorithms]
+        return [
+            alg.get_initial_rollout_state(batch_size)
+            for alg in self._algorithms
+        ]
 
     def get_initial_train_state(self, batch_size):
         """Get initial train state for all algorithm copies."""
-        return [alg.get_initial_train_state(batch_size) for alg in self._algorithms]
+        return [
+            alg.get_initial_train_state(batch_size) for alg in self._algorithms
+        ]
 
         # Setup replay buffers for off-policy algorithms
         if not is_on_policy and config:
@@ -172,15 +180,17 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         routing = {}
         for i in range(self._num_copies):
             # Use efficient slicing: elements where j % K == i
-            batch_indices = torch.arange(i, batch_size, self._num_copies, device=device)
+            batch_indices = torch.arange(i,
+                                         batch_size,
+                                         self._num_copies,
+                                         device=device)
 
             if len(batch_indices) == 0:
                 continue
 
             # Slice time_step for this algorithm
             sliced_time_step = alf.nest.map_structure(
-                lambda x: x[batch_indices], time_step
-            )
+                lambda x: x[batch_indices], time_step)
 
             # Slice state for this algorithm
             sliced_state = state[i] if isinstance(state, list) else state
@@ -213,9 +223,9 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
 
             # Determine output shape
             out_shape = [batch_size] + list(first_tensor.shape[1:])
-            result = torch.zeros(
-                out_shape, dtype=first_tensor.dtype, device=first_tensor.device
-            )
+            result = torch.zeros(out_shape,
+                                 dtype=first_tensor.dtype,
+                                 device=first_tensor.device)
 
             # Scatter each algorithm's outputs
             for tensor, batch_indices in tensor_by_alg.values():
@@ -255,10 +265,10 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         new_states = [None] * self._num_copies
         infos_dict = {}  # {alg_idx: (alg_step.info, batch_indices)}
 
-        for alg_idx, (sliced_time_step, sliced_state, batch_indices) in routing.items():
+        for alg_idx, (sliced_time_step, sliced_state,
+                      batch_indices) in routing.items():
             alg_step = self._algorithms[alg_idx].rollout_step(
-                sliced_time_step, sliced_state
-            )
+                sliced_time_step, sliced_state)
 
             outputs_dict[alg_idx] = (alg_step.output, batch_indices)
             new_states[alg_idx] = alg_step.state
@@ -288,15 +298,14 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         new_states = [None] * self._num_copies
         infos_dict = {}
 
-        for alg_idx, (sliced_time_step, sliced_state, batch_indices) in routing.items():
+        for alg_idx, (sliced_time_step, sliced_state,
+                      batch_indices) in routing.items():
             # Slice rollout_info
             sliced_rollout_info = alf.nest.map_structure(
-                lambda x: x[batch_indices], rollout_info
-            )
+                lambda x: x[batch_indices], rollout_info)
 
             alg_step = self._algorithms[alg_idx].train_step(
-                sliced_time_step, sliced_state, sliced_rollout_info
-            )
+                sliced_time_step, sliced_state, sliced_rollout_info)
 
             outputs_dict[alg_idx] = (alg_step.output, batch_indices)
             new_states[alg_idx] = alg_step.state
@@ -327,28 +336,32 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
 
         for alg_idx in range(self._num_copies):
             # Use efficient slicing: elements where j % K == alg_idx
-            batch_indices = torch.arange(
-                alg_idx, batch_size, self._num_copies, device=device
-            )
+            batch_indices = torch.arange(alg_idx,
+                                         batch_size,
+                                         self._num_copies,
+                                         device=device)
 
             if len(batch_indices) == 0:
                 continue
 
             # Slice info for this algorithm
-            sliced_info = alf.nest.map_structure(lambda x: x[:, batch_indices], info)
+            sliced_info = alf.nest.map_structure(lambda x: x[:, batch_indices],
+                                                 info)
 
             # Compute loss for this algorithm
             loss_info = self._algorithms[alg_idx].calc_loss(sliced_info)
 
             # Accumulate losses using add_ignore_empty to handle () gracefully
-            total_loss = alf.utils.math_ops.add_ignore_empty(total_loss, loss_info.loss)
+            total_loss = alf.utils.math_ops.add_ignore_empty(
+                total_loss, loss_info.loss)
             total_priority = alf.utils.math_ops.add_ignore_empty(
-                total_priority, loss_info.priority
-            )
+                total_priority, loss_info.priority)
 
             extra_dict[f"alg_{alg_idx}"] = loss_info.extra
 
-        return LossInfo(loss=total_loss, priority=total_priority, extra=extra_dict)
+        return LossInfo(loss=total_loss,
+                        priority=total_priority,
+                        extra=extra_dict)
 
     def predict_step(self, inputs: TimeStep, state) -> AlgStep:
         """Route batch elements to algorithm copies for prediction.
@@ -365,9 +378,9 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         # Handle single environment evaluation (batch_size=1, single state)
         if batch_size == 1 and not isinstance(state, list):
             alg_step = self._algorithms[0].predict_step(inputs, state)
-            return AlgStep(
-                output=alg_step.output, state=alg_step.state, info=alg_step.info
-            )
+            return AlgStep(output=alg_step.output,
+                           state=alg_step.state,
+                           info=alg_step.info)
 
         # Handle multi-environment training (batch_size > 1, list of states)
         routing = self._route_batch_to_algorithms(inputs, state)
@@ -376,10 +389,10 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         new_states = [None] * self._num_copies
         infos_dict = {}
 
-        for alg_idx, (sliced_time_step, sliced_state, batch_indices) in routing.items():
+        for alg_idx, (sliced_time_step, sliced_state,
+                      batch_indices) in routing.items():
             alg_step = self._algorithms[alg_idx].predict_step(
-                sliced_time_step, sliced_state
-            )
+                sliced_time_step, sliced_state)
 
             outputs_dict[alg_idx] = (alg_step.output, batch_indices)
             new_states[alg_idx] = alg_step.state

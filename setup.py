@@ -56,9 +56,7 @@ setup(
     ],  # And any other dependencies alf needs
     cmdclass={"build_ext": build_ext},
     extras_require={
-        "metadrive": [
-            "metadrive-simulator==0.2.5.1",
-        ],
+        "metadrive": ["metadrive-simulator==0.2.5.1", ],
         "docs": [
             "sphinx==3.0",
             "sphinx-autobuild",
