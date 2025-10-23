@@ -14,14 +14,14 @@
 
 from typing import Optional, Union
 
-import numpy as np
 import gym
+import numpy as np
 
 from alf.tensor_specs import TensorSpec
 
 try:
-    import pygame
     import metadrive
+    import pygame
     from metadrive.obs.observation_base import ObservationBase
 except ImportError:
     from unittest.mock import Mock
@@ -31,12 +31,12 @@ except ImportError:
     pygame = Mock()
 
 from .geometry import FieldOfView
-from .sensors import VectorizedObservation, BirdEyeObservation
 from .renderer import (
     Renderer,
-    make_vectorized_observation_renderer,
     make_bird_eye_observation_renderer,
+    make_vectorized_observation_renderer,
 )
+from .sensors import BirdEyeObservation, VectorizedObservation
 
 
 class VectorizedTopDownEnv(metadrive.MetaDriveEnv):

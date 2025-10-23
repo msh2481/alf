@@ -16,7 +16,6 @@
 from typing import Callable
 
 import numpy as np
-
 import torch
 import torch.distributions as td
 import torch.nn as nn
@@ -27,9 +26,9 @@ from alf.data_structures import AlgStep, LossInfo, namedtuple
 from alf.layers import FC
 from alf.networks import EncodingNetwork
 from alf.tensor_specs import BoundedTensorSpec
-from alf.utils import math_ops, dist_utils
-from alf.utils.tensor_utils import tensor_extend_new_dim
+from alf.utils import dist_utils, math_ops
 from alf.utils.schedulers import ConstantScheduler, Scheduler
+from alf.utils.tensor_utils import tensor_extend_new_dim
 
 VAEInfo = namedtuple(
     "VAEInfo", ["kld", "z_std", "loss", "beta_loss", "beta"], default_value=()

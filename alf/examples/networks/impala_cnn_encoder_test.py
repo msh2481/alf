@@ -15,8 +15,8 @@
 import torch
 
 import alf
-from alf.tensor_specs import TensorSpec
 from alf.examples.networks import impala_cnn_encoder
+from alf.tensor_specs import TensorSpec
 
 
 class TestImpalaCnnEncoder(alf.test.TestCase):

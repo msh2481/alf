@@ -13,10 +13,11 @@
 # limitations under the License.
 
 import random
+
 import torch
 
 import alf
-from alf.experience_replayers.segment_tree import SumSegmentTree, MaxSegmentTree
+from alf.experience_replayers.segment_tree import MaxSegmentTree, SumSegmentTree
 
 
 class SegmentTreeTest(alf.test.TestCase):

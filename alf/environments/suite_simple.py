@@ -18,12 +18,12 @@ import numpy as np
 
 import alf
 from alf.environments import suite_gym
+from alf.environments.gym_wrappers import FrameSkip, FrameStack
+from alf.environments.object_centric.bouncing_squares import BouncingSquares
 from alf.environments.simple.noisy_array import NoisyArray
 from alf.environments.simple.stochastic_with_risky_branch import (
     StochasticWithRiskyBranch,
 )
-from alf.environments.object_centric.bouncing_squares import BouncingSquares
-from alf.environments.gym_wrappers import FrameSkip, FrameStack
 
 
 @alf.configurable

@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
-from absl.testing import parameterized
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
+from absl import logging
+from absl.testing import parameterized
 
 import alf
 from alf.utils import math_ops

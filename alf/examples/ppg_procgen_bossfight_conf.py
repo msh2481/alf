@@ -13,11 +13,10 @@
 # limitations under the License.
 
 import alf
-from alf.examples import ppg_conf
-from alf.examples import procgen_conf
+from alf.algorithms.ppg_algorithm import PPGAuxOptions
+from alf.examples import ppg_conf, procgen_conf
 from alf.examples.networks import impala_cnn_encoder
 from alf.utils.losses import element_wise_squared_loss
-from alf.algorithms.ppg_algorithm import PPGAuxOptions
 
 # Environment Configuration
 alf.config("create_environment", env_name="bossfight", num_parallel_environments=96)

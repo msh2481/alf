@@ -13,18 +13,18 @@
 # limitations under the License.
 
 from functools import partial
+
 import torch
 
 import alf
+from alf.algorithms.one_step_loss import OneStepTDQRLoss
 from alf.algorithms.qrsac_algorithm import QrsacAlgorithm
 from alf.algorithms.td_loss import TDQRLoss
-from alf.algorithms.one_step_loss import OneStepTDQRLoss
+from alf.examples import sac_conf
 from alf.nest.utils import NestConcat
 from alf.optimizers import Adam, AdamTF
 from alf.tensor_specs import TensorSpec
 from alf.utils.math_ops import clipped_exp
-
-from alf.examples import sac_conf
 
 # environment config
 alf.config("create_environment", env_name="HalfCheetah-v2", num_parallel_environments=1)

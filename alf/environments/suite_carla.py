@@ -37,19 +37,20 @@ Make sure you are using python3.7
 
 """
 
-from collections import OrderedDict
-from absl import logging
 import math
-import numpy as np
 import os
 import random
-import scipy.interpolate
 import subprocess
 import sys
 import time
-import torch
-from unittest.mock import Mock
 import weakref
+from collections import OrderedDict
+from unittest.mock import Mock
+
+import numpy as np
+import scipy.interpolate
+import torch
+from absl import logging
 
 try:
     import carla
@@ -59,32 +60,32 @@ except ImportError:
 
 import alf
 import alf.data_structures as ds
-from alf.utils import common
-from .alf_environment import AlfEnvironment
-from .carla_sensors import (
-    BEVSensor,
-    CameraSensor,
-    CollisionSensor,
-    GnssSensor,
-    IMUSensor,
-    LaneInvasionSensor,
-    NavigationSensor,
-    RadarSensor,
-    RedlightSensor,
-    DynamicObjectSensor,
-    ObstacleDetectionSensor,
-    World,
-    get_scaled_image_size,
-    MINIMUM_RENDER_WIDTH,
-    MINIMUM_RENDER_HEIGHT,
-)
-
 from alf.environments.carla_env.carla_utils import (
     _calculate_relative_position,
     _calculate_relative_velocity,
     _get_self_pose,
-    geo_distance,
     _to_numpy_loc,
+    geo_distance,
+)
+from alf.utils import common
+
+from .alf_environment import AlfEnvironment
+from .carla_sensors import (
+    MINIMUM_RENDER_HEIGHT,
+    MINIMUM_RENDER_WIDTH,
+    BEVSensor,
+    CameraSensor,
+    CollisionSensor,
+    DynamicObjectSensor,
+    GnssSensor,
+    IMUSensor,
+    LaneInvasionSensor,
+    NavigationSensor,
+    ObstacleDetectionSensor,
+    RadarSensor,
+    RedlightSensor,
+    World,
+    get_scaled_image_size,
 )
 
 
@@ -1237,6 +1238,7 @@ class Player(object):
 
     def _draw_text(self, texts):
         import os
+
         import pygame
 
         if self._font is None:

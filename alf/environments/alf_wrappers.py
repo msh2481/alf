@@ -18,24 +18,24 @@ Adapted from TF-Agents Environment API as seen in:
 """
 
 import abc
-from collections import OrderedDict
 import copy
 import cProfile
 import math
-import numpy as np
 import random
-import six
+from collections import OrderedDict
 from typing import List
 
+import numpy as np
+import six
 import torch
 import torch.nn.functional as F
 
 import alf
+import alf.nest as nest
+import alf.tensor_specs as ts
 from alf.data_structures import StepType, TimeStep, _is_numpy_array
 from alf.environments.alf_environment import AlfEnvironment
 from alf.environments.parallel_environment import ParallelAlfEnvironment
-import alf.nest as nest
-import alf.tensor_specs as ts
 from alf.utils import spec_utils
 from alf.utils.tensor_utils import to_tensor
 

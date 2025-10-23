@@ -14,13 +14,13 @@
 
 import abc
 from typing import Tuple
+
 import numpy as np
 import torch
-
-import alf
-
 from metadrive.component.vehicle.base_vehicle import BaseVehicle
 from metadrive.engine.base_engine import BaseEngine
+
+import alf
 from alf.tensor_specs import TensorSpec
 
 

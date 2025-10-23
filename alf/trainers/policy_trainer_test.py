@@ -14,13 +14,13 @@
 
 import functools
 import tempfile
+
 import torch
 
 import alf
 from alf.algorithms.hypernetwork_algorithm import HyperNetwork
-from alf.algorithms.rl_algorithm_test import MyEnv, MyAlg
-from alf.trainers.policy_trainer import RLTrainer, TrainerConfig, play
-from alf.trainers.policy_trainer import SLTrainer
+from alf.algorithms.rl_algorithm_test import MyAlg, MyEnv
+from alf.trainers.policy_trainer import RLTrainer, SLTrainer, TrainerConfig, play
 from alf.utils import common, datagen
 
 

@@ -13,15 +13,16 @@
 # limitations under the License.
 """Wrappers for gym (numpy) environments. """
 
-from functools import partial
-from absl import logging
-from typing import List
-from collections import deque, OrderedDict
 import copy
+import random
+from collections import OrderedDict, deque
+from functools import partial
+from typing import List
+
 import cv2
 import gym
 import numpy as np
-import random
+from absl import logging
 
 import alf
 from alf.nest import transform_nest

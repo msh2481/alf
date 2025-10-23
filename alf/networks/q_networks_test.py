@@ -13,19 +13,18 @@
 # limitations under the License.
 """Tests for alf.networks.q_networks."""
 
-from absl.testing import parameterized
-import unittest
 import functools
+import unittest
 
 import torch
+from absl.testing import parameterized
 
 import alf
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
-from alf.networks import QNetwork
-from alf.networks import QRNNNetwork
-from alf.networks.q_networks import ParallelQNetwork
-from alf.utils import common
 from alf.nest.utils import NestSum
+from alf.networks import QNetwork, QRNNNetwork
+from alf.networks.q_networks import ParallelQNetwork
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
+from alf.utils import common
 
 
 class TestQNetworks(parameterized.TestCase, unittest.TestCase):

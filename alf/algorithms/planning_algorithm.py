@@ -12,14 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
 from typing import Callable
+
+import torch
 
 import alf
 from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
-from alf.data_structures import AlgStep, namedtuple, TimeStep, StepType
+from alf.data_structures import AlgStep, StepType, TimeStep, namedtuple
 from alf.nest import nest
-from alf.optimizers.traj_optimizers import RandomOptimizer, CEMOptimizer
+from alf.optimizers.traj_optimizers import CEMOptimizer, RandomOptimizer
 from alf.tensor_specs import TensorSpec
 
 PlannerState = namedtuple("PlannerState", ["prev_plan"], default_value=())

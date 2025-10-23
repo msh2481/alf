@@ -12,12 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
 import functools
 
+from absl.testing import parameterized
+
 import alf
-from alf.environments import gym_wrappers, suite_dmlab, alf_environment
-from alf.environments import parallel_environment, thread_environment
+from alf.environments import (
+    alf_environment,
+    gym_wrappers,
+    parallel_environment,
+    suite_dmlab,
+    thread_environment,
+)
 
 
 class SuiteDMLabTest(parameterized.TestCase, alf.test.TestCase):

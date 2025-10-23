@@ -19,8 +19,8 @@ import math
 import torch
 
 import alf
-import alf.utils.math_ops as math_ops
 import alf.nest as nest
+import alf.utils.math_ops as math_ops
 from alf.initializers import variance_scaling_init
 from alf.tensor_specs import TensorSpec
 

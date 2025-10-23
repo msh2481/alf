@@ -19,23 +19,22 @@ around 6000 as it used to be.
 TODO: Tune the parameters to make it achieving 6000 or better reward again.
 
 """
-import alf
+import functools
+
 import torch
 
-import functools
+import alf
 
 # from alf.algorithms.actor_critic_algorithm import ActorCriticAlgorithm
 from alf.algorithms.rnd_algorithm import RNDAlgorithm
+from alf.examples import atari_conf, ppo_conf
 from alf.networks import (
-    EncodingNetwork,
     ActorDistributionNetwork,
     CategoricalProjectionNetwork,
+    EncodingNetwork,
     ValueNetwork,
 )
 from alf.tensor_specs import TensorSpec
-
-from alf.examples import ppo_conf
-from alf.examples import atari_conf
 
 alf.config("DMAtariPreprocessing", noop_max=0)
 

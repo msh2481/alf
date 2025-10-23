@@ -17,9 +17,9 @@ import torch
 import torch.nn as nn
 
 import alf
+from alf.nest.utils import get_outer_rank
 from alf.tensor_specs import TensorSpec
 from alf.utils.data_buffer import DataBuffer
-from alf.nest.utils import get_outer_rank
 
 
 def average_outer_dims(tensor, spec):

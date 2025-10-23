@@ -14,9 +14,9 @@
 import math
 
 import alf
+from alf.algorithms.td_loss import TDLoss
 from alf.examples import sac_conf
 from alf.examples.benchmarks.dm_control import dm_control_conf
-from alf.algorithms.td_loss import TDLoss
 
 alf.config("create_environment", env_name="fish:swim")
 

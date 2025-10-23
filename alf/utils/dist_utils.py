@@ -13,23 +13,25 @@
 # limitations under the License.
 
 import functools
-import numbers
-import numpy as np
 import math
+import numbers
+from typing import Union
+
+import numpy as np
 import torch
 import torch.distributions as td
+import torch.nn as nn
 from torch.distributions import constraints
 from torch.distributions.distribution import Distribution
-import torch.nn as nn
-from typing import Union
 
 import alf
 import alf.nest as nest
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
+
 from .distributions import (
+    TruncatedCauchy,
     TruncatedDistribution,
     TruncatedNormal,
-    TruncatedCauchy,
     TruncatedT2,
 )
 

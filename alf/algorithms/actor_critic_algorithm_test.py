@@ -12,20 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
+import unittest
 from functools import partial
+
 import torch
 import torch.distributions as td
-import unittest
+from absl.testing import parameterized
 
 import alf
-from alf.utils import common, dist_utils, tensor_utils
-from alf.data_structures import StepType, TimeStep
-from alf.networks import ActorDistributionNetwork, ValueNetwork
+from alf.algorithms.actor_critic_algorithm import ActorCriticAlgorithm
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.rl_algorithm import RLAlgorithm
-from alf.algorithms.actor_critic_algorithm import ActorCriticAlgorithm
 from alf.algorithms.rl_algorithm_test import MyEnv
+from alf.data_structures import StepType, TimeStep
+from alf.networks import ActorDistributionNetwork, ValueNetwork
+from alf.utils import common, dist_utils, tensor_utils
 
 
 def create_algorithm(env):

@@ -13,9 +13,10 @@
 # limitations under the License.
 
 from numbers import Number
+from typing import Union
+
 import torch
 from torch.optim.swa_utils import AveragedModel as _AveragedModel
-from typing import Union
 
 from alf.utils.schedulers import Scheduler
 

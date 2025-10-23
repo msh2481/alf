@@ -13,19 +13,20 @@
 # limitations under the License.
 """Tests for alf.networks.value_networks."""
 
-from absl.testing import parameterized
-from absl import logging
 import functools
 import time
+
 import torch
+from absl import logging
+from absl.testing import parameterized
 
 import alf
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.nest.utils import NestConcat
 from alf.networks import CriticNetwork, CriticRNNNetwork
 from alf.networks.network import NaiveParallelNetwork
 from alf.networks.network_test import test_net_copy
 from alf.networks.preprocessors import EmbeddingPreprocessor
-from alf.nest.utils import NestConcat
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 
 
 class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):

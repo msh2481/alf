@@ -13,14 +13,13 @@
 # limitations under the License.
 
 from functools import partial
-from alf.environments.carla_env.carla_agents import SimpleNavigationAgent
-from alf.algorithms.handcrafted_algorithm import SimpleCarlaAlgorithm
-from alf.environments import suite_carla
-from alf.environments.alf_wrappers import ActionObservationWrapper, ScalarRewardWrapper
 
 import alf
 from alf.algorithms.agent import Agent
-
+from alf.algorithms.handcrafted_algorithm import SimpleCarlaAlgorithm
+from alf.environments import suite_carla
+from alf.environments.alf_wrappers import ActionObservationWrapper, ScalarRewardWrapper
+from alf.environments.carla_env.carla_agents import SimpleNavigationAgent
 from alf.examples import carla_conf
 
 # This is an example config file for data collection in CARLA.

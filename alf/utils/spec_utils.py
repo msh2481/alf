@@ -13,16 +13,18 @@
 # limitations under the License.
 """Collection of spec utility functions."""
 
-import numpy as np
 import sys
-import torch
 from typing import Iterable
+
+import numpy as np
+import torch
 
 import alf.nest as nest
 from alf.nest.utils import get_outer_rank
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec, dtype_to_str
-from . import dist_utils
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec, dtype_to_str
 from alf.utils.tensor_utils import BatchSquash
+
+from . import dist_utils
 
 
 def spec_means_and_magnitudes(spec: BoundedTensorSpec):

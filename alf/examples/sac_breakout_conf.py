@@ -17,10 +17,9 @@ import functools
 import alf
 from alf.algorithms.td_loss import TDLoss
 from alf.environments.alf_wrappers import AtariTerminalOnLifeLossWrapper
+from alf.examples import ac_breakout_conf, sac_conf
 from alf.networks import QNetwork
 from alf.optimizers import AdamTF
-
-from alf.examples import ac_breakout_conf, sac_conf
 
 
 def define_config(name, default_value):

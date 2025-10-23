@@ -13,18 +13,19 @@
 # limitations under the License.
 """MuZero algorithm."""
 
-from typing import Optional, Callable
+from typing import Callable, Optional
+
 import torch
 
 import alf
-from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
 from alf.algorithms.config import TrainerConfig
-from alf.data_structures import AlgStep, LossInfo, TimeStep
 from alf.algorithms.mcts_algorithm import MCTSAlgorithm, MCTSInfo
 from alf.algorithms.muzero_representation_learner import (
-    MuzeroRepresentationImpl,
     MuzeroInfo,
+    MuzeroRepresentationImpl,
 )
+from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
+from alf.data_structures import AlgStep, LossInfo, TimeStep
 from alf.tensor_specs import TensorSpec
 from alf.trainers.policy_trainer import Trainer
 

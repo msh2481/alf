@@ -14,18 +14,18 @@
 """Some nest utils functions."""
 
 import abc
+from functools import reduce
+from typing import Callable
 
+import numpy as np
 import torch
 import torch.nn as nn
 
-from functools import reduce
-import numpy as np
-from typing import Callable
-
 import alf
+from alf.tensor_specs import TensorSpec
+
 from . import nest
 from .nest import get_field, map_structure
-from alf.tensor_specs import TensorSpec
 
 
 class NestCombiner(abc.ABC, nn.Module):

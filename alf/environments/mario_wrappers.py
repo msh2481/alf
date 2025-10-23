@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import deque
 import itertools
+from collections import deque
 from copy import copy
-import numpy as np
-from PIL import Image
+
 import gym
+import numpy as np
 from gym import spaces
+from PIL import Image
 
 # See https://github.com/openai/large-scale-curiosity/blob/0c3d179fd61ee46233199d0891c40fbe7964d3aa/wrappers.py#L155-L238
 

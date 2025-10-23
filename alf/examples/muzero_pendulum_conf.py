@@ -12,20 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from alf.algorithms.muzero_representation_learner import MuzeroRepresentationImpl
 import math
 
 import alf
 import alf.examples.muzero_conf
-from alf.utils import dist_utils
 from alf.algorithms.data_transformer import RewardNormalizer
-from alf.algorithms.mcts_models import SimpleMCTSModel
 from alf.algorithms.mcts_algorithm import (
     MCTSAlgorithm,
     VisitSoftmaxTemperatureByProgress,
 )
-from alf.optimizers import AdamTF
+from alf.algorithms.mcts_models import SimpleMCTSModel
+from alf.algorithms.muzero_representation_learner import MuzeroRepresentationImpl
 from alf.networks import StableNormalProjectionNetwork, TruncatedProjectionNetwork
+from alf.optimizers import AdamTF
+from alf.utils import dist_utils
 
 
 def define_config(name, default_value):

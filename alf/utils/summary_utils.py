@@ -12,20 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Utility functions for generate summary."""
-from absl import logging
 import functools
-import numpy as np
 import os
 import time
+from typing import List, Optional
+
+import numpy as np
 import torch
 import torch.distributions as td
+from absl import logging
 
 import alf
 from alf.data_structures import LossInfo
-from alf.nest import is_namedtuple, is_nested, py_map_structure_with_path, map_structure
+from alf.nest import is_namedtuple, is_nested, map_structure, py_map_structure_with_path
+from alf.summary import get_global_counter, should_record_summaries
 from alf.utils import dist_utils
-from alf.summary import should_record_summaries, get_global_counter
-from typing import List, Optional
 
 DEFAULT_BUCKET_COUNT = 30
 

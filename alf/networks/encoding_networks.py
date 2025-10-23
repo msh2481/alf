@@ -13,19 +13,21 @@
 # limitations under the License.
 
 import functools
-import numpy as np
 from typing import Callable, Optional, Tuple, Union
 
+import numpy as np
 import torch
 import torch.nn as nn
-from .containers import Sequential, _Sequential, Parallel
-from .network import Network, NetworkWrapper
+
 import alf
 import alf.layers as layers
 from alf.initializers import variance_scaling_init
+from alf.nest.utils import get_outer_rank
 from alf.tensor_specs import TensorSpec
 from alf.utils import common
-from alf.nest.utils import get_outer_rank
+
+from .containers import Parallel, Sequential, _Sequential
+from .network import Network, NetworkWrapper
 
 
 @alf.configurable

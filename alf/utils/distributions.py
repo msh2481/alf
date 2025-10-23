@@ -13,10 +13,10 @@
 # limitations under the License.
 
 import math
-import torch
-from torch import Tensor
 
+import torch
 import torch.distributions as td
+from torch import Tensor
 
 
 class InverseTransformSampling(object):

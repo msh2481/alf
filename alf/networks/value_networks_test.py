@@ -13,19 +13,19 @@
 # limitations under the License.
 """Tests for alf.networks.value_networks."""
 
-from absl.testing import parameterized
-from absl import logging
 import functools
 import time
+
 import torch
+from absl import logging
+from absl.testing import parameterized
 
 import alf
-from alf.tensor_specs import TensorSpec
-from alf.networks import ValueNetwork
-from alf.networks import ValueRNNNetwork
-from alf.networks.value_networks import ParallelValueNetwork
 from alf.nest.utils import NestConcat
+from alf.networks import ValueNetwork, ValueRNNNetwork
 from alf.networks.preprocessors import EmbeddingPreprocessor
+from alf.networks.value_networks import ParallelValueNetwork
+from alf.tensor_specs import TensorSpec
 
 
 class TestValueNetworks(parameterized.TestCase, alf.test.TestCase):

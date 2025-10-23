@@ -27,10 +27,10 @@ import torch
 import torch.nn as nn
 
 import alf
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+import alf.utils.math_ops as math_ops
 from alf.nest.utils import get_outer_rank
 from alf.networks.network import Network
-import alf.utils.math_ops as math_ops
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 
 
 @alf.configurable

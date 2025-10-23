@@ -12,14 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
 import glob
 import json
 import os
-import torch
-from torch import nn
-from typing import Optional, List
 import warnings
+from typing import List, Optional
+
+import torch
+from absl import logging
+from torch import nn
 
 import alf
 from alf.nest import map_structure

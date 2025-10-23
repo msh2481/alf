@@ -13,12 +13,17 @@
 # limitations under the License.
 
 import functools
+
 import torch
 
 import alf
-from alf.environments import suite_safety_gym, alf_environment
-from alf.environments import thread_environment, parallel_environment
 import alf.nest as nest
+from alf.environments import (
+    alf_environment,
+    parallel_environment,
+    suite_safety_gym,
+    thread_environment,
+)
 
 
 class SuiteSafetyGymTest(alf.test.TestCase):

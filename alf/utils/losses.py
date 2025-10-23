@@ -13,16 +13,17 @@
 # limitations under the License.
 """Various function/classes related to loss computation."""
 
+from typing import Callable, Optional, Tuple
+
 import torch
-from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional, Tuple, Callable
 from scipy.optimize import linear_sum_assignment
+from torch import Tensor
 
 import alf
-from alf.utils.math_ops import InvertibleTransform, binary_neg_entropy
 from alf.utils import summary_utils
+from alf.utils.math_ops import InvertibleTransform, binary_neg_entropy
 
 
 @alf.configurable

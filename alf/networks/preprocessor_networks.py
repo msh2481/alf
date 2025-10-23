@@ -21,8 +21,8 @@ import torch
 import torch.nn as nn
 
 import alf
-import alf.utils.math_ops as math_ops
 import alf.nest as nest
+import alf.utils.math_ops as math_ops
 from alf.initializers import variance_scaling_init
 from alf.nest.utils import get_outer_rank
 from alf.networks.network import Network

@@ -13,9 +13,8 @@
 # limitations under the License.
 
 import alf
-from alf.utils.schedulers import LinearScheduler
-
 from alf.examples import sac_bipedal_walker_conf
+from alf.utils.schedulers import LinearScheduler
 
 optimizer = alf.optimizers.Adam(
     lr=5e-4,

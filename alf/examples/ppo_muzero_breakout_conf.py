@@ -11,19 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from alf.algorithms.ppo_algorithm import PPOAlgorithm
-from alf.algorithms.data_transformer import FrameStacker, UntransformedTimeStep
-from alf.optimizers import AdamTF
-from alf.algorithms.muzero_representation_learner import (
-    LinearTdStepFunc,
-    MuzeroRepresentationImpl,
-    MuzeroRepresentationLearner,
-    MuzeroRepresentationTrainingOptions,
-)
-from alf.algorithms.mcts_models import SimpleMCTSModel
-from alf.utils.summary_utils import summarize_tensor_gradients
-from alf.networks.network import Network
-from alf.tensor_specs import TensorSpec
 import functools
 
 import torch
@@ -31,10 +18,22 @@ import torch
 import alf
 from alf import layers
 from alf.algorithms.agent import Agent
+from alf.algorithms.data_transformer import FrameStacker, UntransformedTimeStep
+from alf.algorithms.mcts_models import SimpleMCTSModel
+from alf.algorithms.muzero_representation_learner import (
+    LinearTdStepFunc,
+    MuzeroRepresentationImpl,
+    MuzeroRepresentationLearner,
+    MuzeroRepresentationTrainingOptions,
+)
+from alf.algorithms.ppo_algorithm import PPOAlgorithm
+from alf.examples import atari_conf, muzero_repr_conf, ppo_conf
 from alf.networks import ActorDistributionNetwork, ValueNetwork
+from alf.networks.network import Network
+from alf.optimizers import AdamTF
+from alf.tensor_specs import TensorSpec
 from alf.utils.losses import AsymmetricSimSiamLoss, OrderedDiscreteRegressionLoss
-
-from alf.examples import atari_conf, ppo_conf, muzero_repr_conf
+from alf.utils.summary_utils import summarize_tensor_gradients
 
 discount = 0.999
 num_envs = 64

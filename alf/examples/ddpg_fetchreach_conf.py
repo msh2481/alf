@@ -20,10 +20,9 @@ from alf.algorithms.data_transformer import ObservationNormalizer
 from alf.algorithms.ddpg_algorithm import DdpgAlgorithm
 from alf.algorithms.one_step_loss import OneStepTDLoss
 from alf.environments import suite_robotics
+from alf.examples import ddpg_conf
 from alf.networks import ActorNetwork, CriticNetwork
 from alf.optimizers import AdamTF
-
-from alf.examples import ddpg_conf
 
 
 def define_config(name, default_value):

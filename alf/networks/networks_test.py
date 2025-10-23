@@ -15,7 +15,6 @@
 import torch
 
 import alf
-
 from alf.networks import TemporalPool
 from alf.utils.common import zero_tensor_from_nested_spec
 

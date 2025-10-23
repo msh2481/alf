@@ -12,14 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
 import os
+
 import torch
+from absl import logging
 
 import alf
 from alf.algorithms.config import TrainerConfig
-from alf.algorithms.merlin_algorithm import MerlinAlgorithm
 from alf.algorithms.decoding_algorithm import DecodingAlgorithm
+from alf.algorithms.merlin_algorithm import MerlinAlgorithm
 from alf.algorithms.ppo_algorithm_test import unroll
 from alf.environments.suite_unittest import RNNPolicyUnittestEnv
 from alf.utils import common, math_ops

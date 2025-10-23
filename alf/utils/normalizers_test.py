@@ -12,16 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
 import math
 
 import torch
+from absl.testing import parameterized
 
 import alf
 from alf.utils import math_ops
-from alf.utils.normalizers import ScalarWindowNormalizer
-from alf.utils.normalizers import ScalarEMNormalizer
-from alf.utils.normalizers import ScalarAdaptiveNormalizer
+from alf.utils.normalizers import (
+    ScalarAdaptiveNormalizer,
+    ScalarEMNormalizer,
+    ScalarWindowNormalizer,
+)
 
 
 class NormalizersTest(parameterized.TestCase, alf.test.TestCase):

@@ -12,19 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-import tempfile
-from absl.testing import parameterized
-import os
 import json
+import os
+import tempfile
+import unittest
 
 import torch
 import torch.nn as nn
+from absl.testing import parameterized
 
 import alf
-from alf.pretrained_models.pretrained_model import PretrainedModel
 import alf.utils.checkpoint_utils as ckpt_utils
-from alf.pretrained_models.model_adapters.lora import LinearAdapter, Conv2dAdapter
+from alf.pretrained_models.model_adapters.lora import Conv2dAdapter, LinearAdapter
+from alf.pretrained_models.pretrained_model import PretrainedModel
 
 
 class Net(nn.Module):

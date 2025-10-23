@@ -15,20 +15,20 @@
 
 import functools
 import math
-import numpy as np
 
+import numpy as np
 import torch
-import torch.nn.functional as f
 import torch.nn as nn
+import torch.nn.functional as f
 
 import alf
 import alf.layers as layers
 import alf.nest as nest
-from alf.networks import Network, EncodingNetwork, ParallelEncodingNetwork
-from alf.initializers import variance_scaling_init
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
-from alf.utils import common, spec_utils, tensor_utils
 import alf.utils.math_ops as math_ops
+from alf.initializers import variance_scaling_init
+from alf.networks import EncodingNetwork, Network, ParallelEncodingNetwork
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
+from alf.utils import common, spec_utils, tensor_utils
 from alf.utils.action_quantizer import ActionQuantizer
 
 

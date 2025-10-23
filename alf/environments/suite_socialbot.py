@@ -21,12 +21,13 @@ except ImportError:
     social_bot = None
 
 import functools
+
 import gym
 
 import alf
-from alf.utils.common import get_unused_port
-from alf.environments import suite_gym, alf_wrappers, process_environment
+from alf.environments import alf_wrappers, process_environment, suite_gym
 from alf.environments.utils import UnwrappedEnvChecker
+from alf.utils.common import get_unused_port
 
 DEFAULT_SOCIALBOT_PORT = 11345
 

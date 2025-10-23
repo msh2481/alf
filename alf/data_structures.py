@@ -15,8 +15,9 @@
 Converted to PyTorch from the TF version.
 """
 import collections
-import numpy as np
 import sys
+
+import numpy as np
 import torch
 
 import alf.nest as nest

@@ -14,15 +14,15 @@
 
 from functools import partial
 
+import torch
+
 import alf
+from alf.algorithms.agent import Agent
+from alf.algorithms.data_transformer import RewardNormalizer
+from alf.algorithms.entropy_target_algorithm import SGDEntropyTargetAlgorithm
 from alf.algorithms.ppo_algorithm import PPOAlgorithm
 from alf.algorithms.ppo_loss import PPOLoss
-from alf.algorithms.data_transformer import RewardNormalizer
-from alf.algorithms.agent import Agent
-from alf.algorithms.entropy_target_algorithm import SGDEntropyTargetAlgorithm
 from alf.networks.projection_networks import BetaProjectionNetwork
-
-import torch
 
 # algorithm config
 fc_layer_params = (128,) * 4

@@ -87,6 +87,7 @@ master_doc = "index"
 
 def run_apidoc(_):
     import glob
+
     from sphinx.ext import apidoc
 
     # ignore all files with "_test.py" suffix

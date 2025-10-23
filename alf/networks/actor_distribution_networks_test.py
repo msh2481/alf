@@ -13,21 +13,25 @@
 # limitations under the License.
 """Tests for alf.networks.actor_distribution_networks."""
 
-from alf.networks.actor_distribution_networks import ParallelActorDistributionNetwork
-from absl.testing import parameterized
 import functools
-from absl import logging
 import time
+
 import torch
 import torch.distributions as td
+from absl import logging
+from absl.testing import parameterized
 
 import alf
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
-from alf.networks import ActorDistributionNetwork
-from alf.networks import ActorDistributionRNNNetwork
-from alf.networks import NormalProjectionNetwork, CategoricalProjectionNetwork
-from alf.utils.common import zero_tensor_from_nested_spec
 from alf.nest.utils import NestConcat
+from alf.networks import (
+    ActorDistributionNetwork,
+    ActorDistributionRNNNetwork,
+    CategoricalProjectionNetwork,
+    NormalProjectionNetwork,
+)
+from alf.networks.actor_distribution_networks import ParallelActorDistributionNetwork
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
+from alf.utils.common import zero_tensor_from_nested_spec
 from alf.utils.dist_utils import DistributionSpec
 
 

@@ -17,15 +17,14 @@ from functools import partial
 import alf
 from alf.algorithms.data_transformer import RewardNormalizer
 from alf.algorithms.taac_algorithm import TaacAlgorithm, TaacLAlgorithm, TaacQAlgorithm
+from alf.examples import sac_conf
 from alf.networks import (
-    NormalProjectionNetwork,
     ActorDistributionNetwork,
     CriticNetwork,
+    NormalProjectionNetwork,
 )
 from alf.optimizers import AdamTF
 from alf.utils import dist_utils, math_ops
-
-from alf.examples import sac_conf
 
 # environment config
 alf.config(

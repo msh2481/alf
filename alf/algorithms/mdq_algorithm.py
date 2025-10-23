@@ -14,10 +14,10 @@
 """Multi-Dimensional Q-Learning Algorithm."""
 
 import functools
+from typing import Callable
 
 import torch
 import torch.nn as nn
-from typing import Callable
 
 import alf
 from alf.algorithms.config import TrainerConfig
@@ -25,12 +25,11 @@ from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
 from alf.algorithms.one_step_loss import OneStepTDLoss
 from alf.algorithms.rl_algorithm import RLAlgorithm
 from alf.algorithms.sac_algorithm import _set_target_entropy
-from alf.data_structures import TimeStep, Experience, LossInfo, namedtuple
-from alf.data_structures import AlgStep
+from alf.data_structures import AlgStep, Experience, LossInfo, TimeStep, namedtuple
 from alf.nest import nest
 from alf.networks import MdqCriticNetwork
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
-from alf.utils import losses, common, dist_utils, math_ops, spec_utils, tensor_utils
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
+from alf.utils import common, dist_utils, losses, math_ops, spec_utils, tensor_utils
 
 MdqCriticState = namedtuple("MdqCriticState", ["critic", "target_critic"])
 MdqCriticInfo = namedtuple(

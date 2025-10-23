@@ -13,22 +13,22 @@
 # limitations under the License.
 
 from functools import partial
+
 import torch
 
 import alf
 from alf.algorithms.oac_algorithm import OacAlgorithm
+from alf.examples import sac_conf
 from alf.nest.utils import NestConcat
 from alf.networks import (
-    NormalProjectionNetwork,
     ActorDistributionNetwork,
     CriticNetwork,
+    NormalProjectionNetwork,
 )
 from alf.optimizers import Adam, AdamTF
 from alf.utils.dist_utils import calc_default_target_entropy
-from alf.utils.math_ops import clipped_exp
 from alf.utils.losses import element_wise_squared_loss
-
-from alf.examples import sac_conf
+from alf.utils.math_ops import clipped_exp
 
 # environment config
 alf.config("create_environment", env_name="Humanoid-v2", num_parallel_environments=1)

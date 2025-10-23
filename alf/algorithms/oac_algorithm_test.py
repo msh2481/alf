@@ -12,21 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
-from absl.testing import parameterized
+import unittest
 from functools import partial
+
 import torch
 import torch.distributions as td
-import unittest
+from absl import logging
+from absl.testing import parameterized
 
 import alf
 from alf.algorithms.config import TrainerConfig
+from alf.algorithms.oac_algorithm import NormalProjectionNetwork, OacAlgorithm
 from alf.algorithms.rl_algorithm import RLAlgorithm
-from alf.algorithms.oac_algorithm import OacAlgorithm, NormalProjectionNetwork
-from alf.algorithms.sac_algorithm import SacState
 from alf.algorithms.rl_algorithm_test import MyEnv
+from alf.algorithms.sac_algorithm import SacState
 from alf.data_structures import TimeStep
-from alf.environments.suite_unittest import PolicyUnittestEnv, ActionType
+from alf.environments.suite_unittest import ActionType, PolicyUnittestEnv
 from alf.networks import ActorDistributionNetwork, CriticNetwork
 from alf.utils import common
 from alf.utils.math_ops import clipped_exp

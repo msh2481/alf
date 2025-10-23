@@ -12,21 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from functools import partial
 import math
-import numpy as np
+from functools import partial
 from typing import Callable, Optional
 
+import numpy as np
 import torch
-import torch.nn as nn
 import torch.distributions as td
+import torch.nn as nn
 
 import alf
 import alf.layers as layers
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
-from alf.networks.network import Network, wrap_as_network
-from alf.utils import dist_utils
 import alf.utils.math_ops as math_ops
+from alf.networks.network import Network, wrap_as_network
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
+from alf.utils import dist_utils
 from alf.utils.tensor_utils import tensor_extend_new_dim
 
 

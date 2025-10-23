@@ -14,10 +14,12 @@
 """Various Network containers."""
 
 import copy
-import torch.nn as nn
 from typing import Callable
 
+import torch.nn as nn
+
 import alf
+from alf.layers import make_parallel_spec
 from alf.nest import (
     flatten,
     flatten_up_to,
@@ -28,8 +30,8 @@ from alf.nest import (
 )
 from alf.nest.utils import get_nested_field
 from alf.utils.spec_utils import is_same_spec
+
 from .network import Network, get_input_tensor_spec, wrap_as_network
-from alf.layers import make_parallel_spec
 
 
 def Sequential(

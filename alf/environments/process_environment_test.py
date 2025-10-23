@@ -16,12 +16,13 @@ Adapted from TF-Agents' parallel_py_environment_test.py
 """
 
 import functools
+
 import torch
 
 import alf
+import alf.tensor_specs as ts
 from alf.environments.process_environment import ProcessEnvironment
 from alf.environments.random_alf_environment import RandomAlfEnvironment
-import alf.tensor_specs as ts
 
 
 class ProcessEnvironmentTest(alf.test.TestCase):

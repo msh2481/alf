@@ -16,10 +16,10 @@
 https://github.com/tensorflow/tensorflow/blob/r1.8/tensorflow/python/framework/tensor_spec.py
 """
 from __future__ import annotations
-from typing import Optional, Union, Tuple, Dict, List
+
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
-
 import torch
 
 import alf

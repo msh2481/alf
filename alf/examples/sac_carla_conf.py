@@ -13,23 +13,22 @@
 # limitations under the License.
 
 from functools import partial
+
 import torch
 
 import alf
-from alf.algorithms.td_loss import TDLoss
 from alf.algorithms.data_transformer import (
     ImageScaleTransformer,
     ObservationNormalizer,
     RewardNormalizer,
 )
+from alf.algorithms.td_loss import TDLoss
 from alf.environments import suite_carla
 from alf.environments.alf_wrappers import ActionObservationWrapper, ScalarRewardWrapper
-from alf.environments.carla_env.carla_utils import CarlaActionWrapper
 from alf.environments.carla_controller import VehicleController
+from alf.environments.carla_env.carla_utils import CarlaActionWrapper
+from alf.examples import carla_conf, sac_conf
 from alf.tensor_specs import BoundedTensorSpec
-
-from alf.examples import carla_conf
-from alf.examples import sac_conf
 
 alf.config("ImageScaleTransformer", min=0.0, fields=["observation.camera"])
 alf.config("ObservationNormalizer", clipping=5.0)

@@ -13,34 +13,35 @@
 # limitations under the License.
 """Algorithm base class."""
 
-from absl import logging
 import copy
-from collections import OrderedDict
-from contextlib import nullcontext
 import functools
 import itertools
 import json
-import numpy as np
 import os
-import psutil
+from collections import OrderedDict
+from contextlib import nullcontext
 from typing import Dict
+
+import numpy as np
+import psutil
 import torch
 import torch.nn as nn
-from torch.nn.modules.module import _IncompatibleKeys, _addindent
+from absl import logging
+from torch.nn.modules.module import _addindent, _IncompatibleKeys
 
 import alf
 from alf.data_structures import AlgStep, Experience, LossInfo, StepType, TimeStep
 from alf.experience_replayers.replay_buffer import BatchInfo, ReplayBuffer
 from alf.optimizers.utils import GradientNoiseScaleEstimator
+from alf.utils import common, dist_utils, spec_utils, summary_utils, tensor_utils
 from alf.utils.checkpoint_utils import (
-    is_checkpoint_enabled,
     extract_sub_state_dict_from_checkpoint,
+    is_checkpoint_enabled,
 )
-from alf.utils import common, dist_utils, spec_utils, summary_utils
-from alf.utils.summary_utils import record_time
-from alf.utils.math_ops import add_ignore_empty
 from alf.utils.distributed import data_distributed_when
-from alf.utils import tensor_utils
+from alf.utils.math_ops import add_ignore_empty
+from alf.utils.summary_utils import record_time
+
 from .algorithm_interface import AlgorithmInterface
 from .config import TrainerConfig
 from .data_transformer import IdentityDataTransformer

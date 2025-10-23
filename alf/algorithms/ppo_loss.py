@@ -16,10 +16,9 @@
 import torch
 
 import alf
-
 from alf.algorithms.actor_critic_loss import ActorCriticLoss
-from alf.utils.losses import element_wise_squared_loss
 from alf.utils import value_ops
+from alf.utils.losses import element_wise_squared_loss
 
 
 @alf.configurable

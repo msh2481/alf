@@ -17,9 +17,9 @@ from functools import partial
 import torch
 
 import alf
+from alf.algorithms.entropy_target_algorithm import SGDEntropyTargetAlgorithm
 from alf.examples import ppo_bipedal_walker_conf
 from alf.networks import LatentActorDistributionNetwork
-from alf.algorithms.entropy_target_algorithm import SGDEntropyTargetAlgorithm
 
 alf.config(
     "ActorCriticAlgorithm",

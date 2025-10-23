@@ -12,19 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
-from collections import namedtuple
 import itertools
 import multiprocessing as mp
+from collections import namedtuple
+from typing import List
+
 import torch
+from absl.testing import parameterized
 
 import alf
 from alf import data_structures as ds
-from alf.utils.data_buffer import RingBuffer
-from alf.experience_replayers.replay_buffer import ReplayBuffer
 from alf.algorithms.data_transformer import HindsightExperienceTransformer
-
-from typing import List
+from alf.experience_replayers.replay_buffer import ReplayBuffer
+from alf.utils.data_buffer import RingBuffer
 
 TimestepItem = namedtuple(
     "TimestepItem", ["step_type", "o", "reward", "env_id", "discount", "x"]

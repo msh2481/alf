@@ -13,7 +13,9 @@
 # limitations under the License.
 
 import unittest
+
 from absl.testing import parameterized
+
 from alf.environments.simple.noisy_array import NoisyArray
 
 

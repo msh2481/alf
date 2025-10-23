@@ -12,12 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .optimizers import AdamTF
-from .optimizers import Adam
-from .optimizers import AdamW
-from .optimizers import SGD
-from .optimizers import NeroPlus
-
 from typing import Any
+
+from .optimizers import SGD, Adam, AdamTF, AdamW, NeroPlus
 
 Optimizer = Any

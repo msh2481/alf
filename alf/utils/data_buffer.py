@@ -14,16 +14,16 @@
 """Classes for storing data for sampling."""
 
 import functools
-from multiprocessing import Event
 import time
+from multiprocessing import Event
 
 import torch
 import torch.nn as nn
 
 import alf
 from alf.nest import get_nest_batch_size
-from alf.tensor_specs import TensorSpec
 from alf.nest.utils import convert_device
+from alf.tensor_specs import TensorSpec
 
 
 def atomic(func):

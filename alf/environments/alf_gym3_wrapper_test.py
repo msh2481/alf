@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import gym3
 import numpy as np
 import torch
 from procgen import ProcgenGym3Env
-import gym3
 
 import alf
-from alf import TensorSpec, BoundedTensorSpec
+from alf import BoundedTensorSpec, TensorSpec
+from alf.data_structures import StepType
 from alf.environments.alf_gym3_wrapper import AlfGym3Wrapper
 from alf.utils.common import zero_tensor_from_nested_spec
-from alf.data_structures import StepType
 
 
 class GymWrapperOnProcgenTest(alf.test.TestCase):

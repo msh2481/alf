@@ -14,7 +14,6 @@
 """DocstringChecker is used to check python doc string's style."""
 
 import astroid
-
 from pylint.checkers import BaseChecker
 
 # Newer versions of pylint (>= 2.5.0) do not have IAstroidChecker
@@ -25,8 +24,8 @@ try:
 except ImportError:
     IASTROID_CHECKER_AVAILABLE = False
 
-from collections import defaultdict
 import re
+from collections import defaultdict
 
 
 def register(linter):

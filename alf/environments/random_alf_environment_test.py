@@ -13,11 +13,11 @@
 # limitations under the License.
 """Test cases adapted from tf_agents' random_py_environment_test.py."""
 
-import alf
-from absl.testing import parameterized
-import torch
 import numpy as np
+import torch
+from absl.testing import parameterized
 
+import alf
 from alf.environments.random_alf_environment import RandomAlfEnvironment
 from alf.tensor_specs import BoundedTensorSpec
 

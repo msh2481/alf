@@ -17,16 +17,14 @@ from functools import partial
 import torch
 
 import alf
-
 import alf.examples.metadrive.base_conf
-from alf.examples import ppg_conf
-
-from alf.examples.networks import impala_cnn_encoder
-from alf.utils.losses import element_wise_squared_loss
-from alf.algorithms.ppg_algorithm import PPGAuxOptions, PPGAlgorithm
+from alf.algorithms.ppg_algorithm import PPGAlgorithm, PPGAuxOptions
 from alf.environments import suite_metadrive
-from alf.tensor_specs import BoundedTensorSpec, TensorSpec
+from alf.examples import ppg_conf
+from alf.examples.networks import impala_cnn_encoder
 from alf.networks import StableNormalProjectionNetwork
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
+from alf.utils.losses import element_wise_squared_loss
 
 # Environment Configuration
 alf.config("create_environment", env_name="BirdEye", num_parallel_environments=36)

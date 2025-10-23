@@ -13,38 +13,44 @@
 # limitations under the License.
 """Some basic layers."""
 
-from absl import logging
 import copy
-from functools import partial
 import math
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.distributions as td
-from torch import Tensor
+from functools import partial
 from typing import Callable, Dict, Iterable, Literal, Optional, Tuple, Union
 
+import numpy as np
+import torch
+import torch.distributions as td
+import torch.nn as nn
+import torch.nn.functional as F
+from absl import logging
+from torch import Tensor
+
 import alf
+from alf.ext import fused_linear_act
 from alf.initializers import variance_scaling_init
+from alf.nest import get_field, map_structure
 from alf.nest.utils import (
-    get_nested_field,
-    get_outer_rank,
     NestConcat,
     NestMultiply,
     NestOuterProduct,
     NestSum,
+    get_nested_field,
+    get_outer_rank,
 )
-from alf.nest import map_structure, get_field
 from alf.tensor_specs import TensorSpec
-from alf.utils import common
+from alf.utils import common, dist_utils
 from alf.utils.math_ops import identity
 from alf.utils.summary_utils import summarize_tensor_gradients
 from alf.utils.tensor_utils import BatchSquash, tensor_extend_new_dim
-from alf.utils import dist_utils
-from .norm_layers import BatchNorm1d, BatchNorm2d, prepare_rnn_batch_norm
-from .norm_layers import ParamLayerNorm1d, ParamLayerNorm2d
-from alf.ext import fused_linear_act
+
+from .norm_layers import (
+    BatchNorm1d,
+    BatchNorm2d,
+    ParamLayerNorm1d,
+    ParamLayerNorm2d,
+    prepare_rnn_batch_norm,
+)
 
 
 def normalize_along_batch_dims(x, mean, variance, variance_epsilon):

@@ -12,16 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
-import torch
-
-from absl import logging
-import alf
-from alf.environments import alf_environment
-from alf.environments.process_environment import ProcessEnvironment, _penv
-import alf.nest as nest
 import os
 import time
+
+import numpy as np
+import torch
+from absl import logging
+
+import alf
+import alf.nest as nest
+from alf.environments import alf_environment
+from alf.environments.process_environment import ProcessEnvironment, _penv
 
 
 @alf.configurable

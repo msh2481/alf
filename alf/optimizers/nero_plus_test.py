@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
-from absl import logging
 import torch
 import torch.nn.functional as F
+from absl import logging
+from absl.testing import parameterized
 
 import alf
-
 from alf.optimizers import NeroPlus
 from alf.utils.datagen import load_mnist
 

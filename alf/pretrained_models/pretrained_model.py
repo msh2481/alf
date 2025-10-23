@@ -13,10 +13,10 @@
 # limitations under the License.
 
 import re
+from typing import Callable, List
+
 import torch
 import torch.nn as nn
-
-from typing import Callable, List
 
 from .model_adapters.lora import LoRA
 

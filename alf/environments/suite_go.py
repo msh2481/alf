@@ -13,15 +13,16 @@
 # limitations under the License.
 """GoEnvironment."""
 
-from absl import logging
-from collections import OrderedDict
-import numpy as np
 import sys
 import time
+from collections import OrderedDict
+
+import numpy as np
 import torch
+from absl import logging
 
 import alf
-from alf.data_structures import TimeStep, StepType
+from alf.data_structures import StepType, TimeStep
 from alf.nest.utils import convert_device
 
 from .alf_environment import AlfEnvironment

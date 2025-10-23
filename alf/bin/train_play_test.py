@@ -13,16 +13,17 @@
 # limitations under the License.
 """Test the training and playing of the alf conf files under alf/examples."""
 
-from absl import logging
 import os
-import numpy as np
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
-from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 import unittest
+from pathlib import Path
 from unittest import SkipTest
+
+import numpy as np
+from absl import logging
+from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 
 import alf
 

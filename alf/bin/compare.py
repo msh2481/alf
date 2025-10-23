@@ -29,14 +29,13 @@ connections.
 Set the proper DISPLAY variable when recording video.
 """
 
-from absl import app
-from absl import flags
-from absl import logging
 import collections
 import heapq
-import numpy as np
 import os
 import re
+
+import numpy as np
+from absl import app, flags, logging
 
 
 def _define_flags():

@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Any
+
 import torch
 import torch.nn as nn
-from typing import Any
 
 import alf
 from alf.utils.averager import ScalarEMAverager
-from alf.utils.tensor_utils import global_norm, clip_by_global_norm
+from alf.utils.tensor_utils import clip_by_global_norm, global_norm
 
 
 def get_opt_arg(p: nn.Parameter, argname: str, default: Any = None):

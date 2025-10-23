@@ -53,6 +53,7 @@ setup(
         "torchvision==0.21.0",
         "wheel",
         "black>=24.8.0",
+        "isort>=5.13.0",
     ],  # And any other dependencies alf needs
     cmdclass={"build_ext": build_ext},
     extras_require={

@@ -13,16 +13,16 @@
 # limitations under the License.
 
 from functools import partial
+
 import torch
 
 import alf
 from alf.algorithms.agent import Agent
 from alf.algorithms.bc_algorithm import BcAlgorithm
-
-from alf.examples import carla_conf
 from alf.environments import suite_carla
 from alf.environments.alf_wrappers import ActionObservationWrapper, ScalarRewardWrapper
 from alf.environments.carla_env.carla_utils import CarlaMergedActionWrapper
+from alf.examples import carla_conf
 
 # +++++++++++++++++++ ENV +++++++++++++++++++++++++++
 alf.config(

@@ -13,15 +13,19 @@
 # limitations under the License.
 """Test cases adapted from tf_agents' tensor_spec_test.py."""
 
-import numpy as np
 import unittest
-import alf
+
+import numpy as np
+import torch
 from absl.testing import parameterized
 
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec, concat_specs
-from alf.tensor_specs import torch_dtype_to_str
-
-import torch
+import alf
+from alf.tensor_specs import (
+    BoundedTensorSpec,
+    TensorSpec,
+    concat_specs,
+    torch_dtype_to_str,
+)
 
 TYPE_PARAMETERS = (
     (torch.int32,),

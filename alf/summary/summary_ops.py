@@ -14,10 +14,12 @@
 """Summary related functions."""
 
 import functools
+from typing import Callable, Union
+
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable, Union
+
 from alf.utils.schedulers import update_progress
 
 # These will be used by orig_tf_gfile_context() in alf.utils.common
@@ -29,8 +31,8 @@ try:
     # tensorboard. In this case, gfile needs to be redirected if embedding
     # projector is to be used.
     # https://github.com/pytorch/pytorch/issues/30966#issuecomment-582747929
-    import tensorflow as tf
     import tensorboard as tb
+    import tensorflow as tf
 
     # Store tensorflow's original gfile module
     TF_IO_GFILE = tf.io.gfile

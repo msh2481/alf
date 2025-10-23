@@ -13,16 +13,17 @@
 # limitations under the License.
 
 import tempfile
-import torch
-import torch.distributions as td
 import unittest
 
+import torch
+import torch.distributions as td
+
 import alf
-from alf.utils import common, dist_utils, tensor_utils
-from alf.data_structures import AlgStep, Experience, LossInfo, StepType, TimeStep
-from alf.algorithms.rl_algorithm import RLAlgorithm
 from alf.algorithms.config import TrainerConfig
+from alf.algorithms.rl_algorithm import RLAlgorithm
+from alf.data_structures import AlgStep, Experience, LossInfo, StepType, TimeStep
 from alf.tensor_specs import TensorSpec
+from alf.utils import common, dist_utils, tensor_utils
 
 
 class MyAlg(RLAlgorithm):

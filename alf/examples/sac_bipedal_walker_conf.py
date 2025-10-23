@@ -17,8 +17,8 @@ from functools import partial
 import torch
 
 import alf
-from alf.examples import sac_conf
 from alf.algorithms.data_transformer import RewardNormalizer
+from alf.examples import sac_conf
 
 alf.config(
     "create_environment", env_name="BipedalWalker-v2", num_parallel_environments=32

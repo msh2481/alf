@@ -16,10 +16,9 @@
 import functools
 
 import alf
-from alf.environments import suite_dmc
-from alf.environments import alf_wrappers
-from alf.environments.gym_wrappers import DMAtariPreprocessing, FrameStack
+from alf.environments import alf_wrappers, suite_dmc
 from alf.environments.alf_environment import AlfEnvironment
+from alf.environments.gym_wrappers import DMAtariPreprocessing, FrameStack
 
 
 class SuiteDmcTest(alf.test.TestCase):

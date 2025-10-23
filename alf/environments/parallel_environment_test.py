@@ -14,24 +14,25 @@
 """Tests for the parallel_environment.
 Adapted from TF-Agents' parallel_py_environment_test.py
 """
-from absl import logging
-from absl.testing import parameterized
 import collections
 import functools
 import multiprocessing.dummy as dummy_multiprocessing
-import numpy as np
 import time
+
+import numpy as np
 import torch
+from absl import logging
+from absl.testing import parameterized
 
 import alf
 import alf.data_structures as ds
+import alf.tensor_specs as ts
 from alf.environments import parallel_environment
+from alf.environments.alf_environment import AlfEnvironment
 from alf.environments.alf_wrappers import BatchEnvironmentWrapper
 from alf.environments.fast_parallel_environment import FastParallelEnvironment
 from alf.environments.random_alf_environment import RandomAlfEnvironment
-from alf.environments.alf_environment import AlfEnvironment
-import alf.tensor_specs as ts
-from alf.utils.schedulers import update_progress, get_progress
+from alf.utils.schedulers import get_progress, update_progress
 
 
 class SlowStartingEnvironment(RandomAlfEnvironment):

@@ -17,15 +17,15 @@ Converted to PyTorch from the TF version.
 https://github.com/tensorflow/agents/blob/master/tf_agents/metrics/tf_metrics.py
 """
 from typing import List
-import numpy as np
 
+import numpy as np
 import torch
 
 import alf
 import alf.utils.data_buffer as db
-from alf.data_structures import TimeStep, StepType
-
+from alf.data_structures import StepType, TimeStep
 from alf.utils import common
+
 from . import metric
 
 

@@ -15,9 +15,9 @@
 import alf
 
 alf.import_config("sac_conf.py")
+from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.networks import ActorDistributionNetwork, QNetwork
 from alf.utils.losses import element_wise_squared_loss
-from alf.algorithms.sac_algorithm import SacAlgorithm
 
 # environment config
 alf.config("create_environment", env_name="CartPole-v0", num_parallel_environments=8)

@@ -13,8 +13,8 @@
 # limitations under the License.
 
 import os
-import numpy as np
 
+import numpy as np
 from gym import utils
 
 from alf.environments.adv_fetch_envs import adv_fetch_env

@@ -13,9 +13,10 @@
 # limitations under the License.
 import os
 import tempfile
+
+import torch
 from tensorboard.backend.event_processing import event_file_loader
 from tensorboard.util import tensor_util
-import torch
 
 import alf
 

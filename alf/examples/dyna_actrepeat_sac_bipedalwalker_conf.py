@@ -15,9 +15,9 @@
 from functools import partial
 
 import alf
-from alf.algorithms.sac_algorithm import SacAlgorithm
-from alf.algorithms.dynamic_action_repeat_agent import DynamicActionRepeatAgent
 from alf.algorithms.data_transformer import UntransformedTimeStep
+from alf.algorithms.dynamic_action_repeat_agent import DynamicActionRepeatAgent
+from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.examples import sac_bipedal_walker_conf
 from alf.utils import dist_utils
 

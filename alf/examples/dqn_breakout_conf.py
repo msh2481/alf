@@ -19,14 +19,14 @@
 
 import alf
 from alf.algorithms.dqn_algorithm import DqnAlgorithm
-from alf.utils.schedulers import LinearScheduler
 
 # Much of the network and critic loss parameters are the same as in sac_breakout.
 from alf.examples.sac_breakout_conf import (
-    q_network_cls,
     critic_loss_ctor,
     critic_optimizer,
+    q_network_cls,
 )
+from alf.utils.schedulers import LinearScheduler
 
 alf.config(
     "DqnAlgorithm",

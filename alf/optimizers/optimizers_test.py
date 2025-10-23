@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
 import copy
+
 import torch
 import torch.nn as nn
+from absl.testing import parameterized
 
 import alf
 from alf.algorithms.hypernetwork_algorithm import regression_loss

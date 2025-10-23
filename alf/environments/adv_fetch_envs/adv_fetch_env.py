@@ -15,9 +15,8 @@
 from typing import Union
 
 import numpy as np
-
-from gym.envs.robotics.fetch_env import FetchEnv
 from gym.envs.robotics import robot_env, rotations, utils
+from gym.envs.robotics.fetch_env import FetchEnv
 
 
 class AdvFetchEnv(FetchEnv):

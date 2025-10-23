@@ -14,6 +14,7 @@
 """Various functions related to visualizations of networks etc."""
 
 import torch
+
 import alf.nest as nest
 
 

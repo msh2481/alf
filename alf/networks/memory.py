@@ -19,11 +19,12 @@ episode, which means that the memory is reset at the beginning of an episode.
 
 import abc
 import math
-import six
 from typing import Callable
+
+import six
 import torch
-import torch.nn.functional as F
 import torch.nn as nn
+import torch.nn.functional as F
 
 import alf
 from alf.utils.common import expand_dims_as

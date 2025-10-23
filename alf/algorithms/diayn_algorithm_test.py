@@ -12,14 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
 import math
 
+import torch
+
 import alf
-from alf.tensor_specs import BoundedTensorSpec, TensorSpec
-from alf.data_structures import TimeStep, StepType
-from alf.networks import EncodingNetwork
 from alf.algorithms.diayn_algorithm import DIAYNAlgorithm
+from alf.data_structures import StepType, TimeStep
+from alf.networks import EncodingNetwork
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 
 
 class DIAYNAlgorithmTest(alf.test.TestCase):

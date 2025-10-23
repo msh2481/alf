@@ -13,7 +13,8 @@
 # limitations under the License.
 
 from collections import namedtuple
-from typing import Callable, Optional, Any
+from typing import Any, Callable, Optional
+
 import torch
 
 import alf
@@ -22,13 +23,13 @@ from alf.data_structures import (
     AlgStep,
     Experience,
     LossInfo,
-    namedtuple,
     StepType,
     TimeStep,
+    namedtuple,
 )
 from alf.nest import nest
 from alf.nest.utils import NestConcat, get_outer_rank
-from alf.networks import Network, EncodingNetwork, DynamicsNetwork
+from alf.networks import DynamicsNetwork, EncodingNetwork, Network
 from alf.tensor_specs import TensorSpec
 from alf.utils import dist_utils, losses, math_ops, spec_utils, tensor_utils
 

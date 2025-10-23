@@ -13,22 +13,27 @@
 # limitations under the License.
 """Optimistic Actor Critic algorithm."""
 
-import torch
-import torch.distributions as td
 from typing import Callable, Optional
 
+import torch
+import torch.distributions as td
+
 import alf
-from alf.algorithms.config import TrainerConfig
-from alf.algorithms.sac_algorithm import SacAlgorithm, SacInfo, ActionType
-from alf.algorithms.sac_algorithm import SacActionState, SacCriticState, SacState
-from alf.data_structures import TimeStep
-from alf.data_structures import AlgStep
-from alf.nest import nest
 import alf.nest.utils as nest_utils
-from alf.networks import ActorDistributionNetwork, CriticNetwork
-from alf.networks import QNetwork
+from alf.algorithms.config import TrainerConfig
+from alf.algorithms.sac_algorithm import (
+    ActionType,
+    SacActionState,
+    SacAlgorithm,
+    SacCriticState,
+    SacInfo,
+    SacState,
+)
+from alf.data_structures import AlgStep, TimeStep
+from alf.nest import nest
+from alf.networks import ActorDistributionNetwork, CriticNetwork, QNetwork
 from alf.networks.projection_networks import NormalProjectionNetwork
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 from alf.utils import dist_utils
 
 

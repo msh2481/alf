@@ -13,31 +13,37 @@
 # limitations under the License.
 """Soft Actor Critic Algorithm."""
 
-from absl import logging
-import numpy as np
 import functools
 from enum import Enum
-
-import torch
-import torch.nn as nn
-import torch.distributions as td
 from typing import Callable, Optional, Union
 
+import numpy as np
+import torch
+import torch.distributions as td
+import torch.nn as nn
+from absl import logging
+
 import alf
+import alf.nest.utils as nest_utils
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
 from alf.algorithms.one_step_loss import OneStepTDLoss
 from alf.algorithms.rl_algorithm import RLAlgorithm
+from alf.data_structures import (
+    AlgStep,
+    BasicRLInfo,
+    Experience,
+    LossInfo,
+    StepType,
+    TimeStep,
+    namedtuple,
+)
 from alf.experience_replayers.replay_buffer import ReplayBuffer
-from alf.nest.utils import convert_device
-from alf.data_structures import TimeStep, Experience, LossInfo, namedtuple, BasicRLInfo
-from alf.data_structures import AlgStep, StepType
 from alf.nest import nest
-import alf.nest.utils as nest_utils
-from alf.networks import ActorDistributionNetwork, CriticNetwork
-from alf.networks import QNetwork, QRNNNetwork
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
-from alf.utils import losses, common, dist_utils, math_ops
+from alf.nest.utils import convert_device
+from alf.networks import ActorDistributionNetwork, CriticNetwork, QNetwork, QRNNNetwork
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
+from alf.utils import common, dist_utils, losses, math_ops
 from alf.utils.normalizers import ScalarAdaptiveNormalizer
 from alf.utils.schedulers import Scheduler
 

@@ -38,20 +38,18 @@ does not start from beginning because of TrainerConfig.initial_collect_steps.
 You may also want to set a different value of ``--num_test_steps`` to test more steps.
 """
 
-from absl import app
-from absl import flags
-from absl import logging
 import os
 import tempfile
+
 import torch
+from absl import app, flags, logging
 
 import alf
-from alf.trainers import policy_trainer
+import alf.utils.checkpoint_utils as ckpt_utils
 from alf.algorithms.data_transformer import create_data_transformer
 from alf.environments.utils import create_environment
 from alf.trainers import policy_trainer
 from alf.utils import common, dist_utils
-import alf.utils.checkpoint_utils as ckpt_utils
 
 
 def _define_flags():

@@ -42,9 +42,11 @@ There are several important algorithmic differences with EfficientZero:
 There are many other hyper-parameter differences not listed above.
 """
 import math
+from functools import partial
+
 import torch
 import torch.nn as nn
-from functools import partial
+
 import alf
 from alf.environments import alf_wrappers
 
@@ -57,22 +59,20 @@ if suite == "PROCGEN":
     from alf.environments import suite_procgen
 
 import alf.examples.muzero_conf
-from alf.utils.schedulers import LinearScheduler, StepScheduler
-from alf.algorithms.muzero_representation_learner import (
-    LinearTdStepFunc,
-    MuzeroRepresentationImpl,
-)
-from alf.algorithms.mcts_models import SimpleMCTSModel
+from alf.algorithms.data_transformer import FrameStacker, RewardClipping
 from alf.algorithms.mcts_algorithm import (
     MCTSAlgorithm,
     VisitSoftmaxTemperatureByProgress,
 )
+from alf.algorithms.mcts_models import SimpleMCTSModel
+from alf.algorithms.muzero_representation_learner import (
+    LinearTdStepFunc,
+    MuzeroRepresentationImpl,
+)
 from alf.optimizers import SGD, Adam, AdamTF, AdamW, NeroPlus
-from alf.algorithms.data_transformer import RewardClipping
-
-from alf.algorithms.data_transformer import FrameStacker
-from alf.utils.summary_utils import summarize_tensor_gradients
 from alf.utils import losses
+from alf.utils.schedulers import LinearScheduler, StepScheduler
+from alf.utils.summary_utils import summarize_tensor_gradients
 
 # MuzeroAlgorithm does not support the RewardClipping configured in atari_conf
 alf.config("TrainerConfig", data_transformer_ctor=[FrameStacker])

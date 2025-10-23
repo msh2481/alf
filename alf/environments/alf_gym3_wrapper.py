@@ -24,17 +24,17 @@ choices.
 https://github.com/openai/gym3/blob/master/docs/design.md
 
 """
-from typing import List, Callable, Optional, Any
+from typing import Any, Callable, List, Optional
 
-import torch
-import numpy as np
 import gym3
+import numpy as np
+import torch
 from absl import logging
 
-from alf.environments.alf_environment import AlfEnvironment
-from alf import TensorSpec, BoundedTensorSpec
 import alf.data_structures as ds
 import alf.nest as nest
+from alf import BoundedTensorSpec, TensorSpec
+from alf.environments.alf_environment import AlfEnvironment
 
 
 def _gym3_space_to_tensor_spec(space, force_int64: bool = False):

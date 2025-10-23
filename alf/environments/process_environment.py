@@ -17,34 +17,35 @@ Adapted from TF-Agents Environment API as seen in:
     https://github.com/tensorflow/agents/blob/master/tf_agents/environments/parallel_py_environment.py
 """
 
-from absl import flags, logging
 import atexit
-from enum import Enum
-from functools import partial
 import multiprocessing
 import os
+import pathlib
 import sys
+import traceback
+from enum import Enum
+from functools import partial
+from typing import Any, Callable, List, Tuple
+
 import threadpoolctl
 import torch
-import traceback
-from typing import Any, Callable, List, Tuple
+from absl import flags, logging
 
 import alf
 import alf.nest as nest
 from alf.utils import common
+from alf.utils.common import lazy_load_extension
 from alf.utils.per_process_context import PerProcessContext
 from alf.utils.schedulers import (
-    update_all_progresses,
-    get_all_progresses,
     disallow_scheduler,
+    get_all_progresses,
+    update_all_progresses,
 )
 from alf.utils.spawned_process_utils import (
     SpawnedProcessContext,
     get_spawned_process_context,
     set_spawned_process_context,
 )
-from alf.utils.common import lazy_load_extension
-import pathlib
 
 DIR = pathlib.Path(__file__).parent.absolute()
 _penv = lazy_load_extension(

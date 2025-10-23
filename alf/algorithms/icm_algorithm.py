@@ -16,12 +16,12 @@ import torch
 
 import alf
 from alf.algorithms.algorithm import Algorithm
-from alf.data_structures import TimeStep, namedtuple, AlgStep, LossInfo, StepType
-from alf.networks import EncodingNetwork
+from alf.data_structures import AlgStep, LossInfo, StepType, TimeStep, namedtuple
 from alf.nest.utils import NestConcat
+from alf.networks import EncodingNetwork
 from alf.tensor_specs import TensorSpec
 from alf.utils import math_ops
-from alf.utils.normalizers import ScalarAdaptiveNormalizer, AdaptiveNormalizer
+from alf.utils.normalizers import AdaptiveNormalizer, ScalarAdaptiveNormalizer
 
 ICMInfo = namedtuple("ICMInfo", ["step_type", "forward_loss", "inverse_loss"])
 

@@ -14,24 +14,25 @@
 """Phasic Policy Gradient Algorithm."""
 
 from __future__ import annotations
-import torch
 
 from typing import Callable, Optional
 
+import torch
+
 import alf
+from alf.algorithms.config import TrainerConfig
+from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
 from alf.algorithms.ppg import (
     DisjointPolicyValueNetwork,
-    PPGRolloutInfo,
-    PPGTrainInfo,
     PPGAuxAlgorithm,
     PPGAuxOptions,
+    PPGRolloutInfo,
+    PPGTrainInfo,
     ppg_network_forward,
 )
-from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
-from alf.algorithms.config import TrainerConfig
 from alf.algorithms.ppo_loss import PPOLoss
-from alf.networks import Network, EncodingNetwork
-from alf.data_structures import TimeStep, AlgStep, LossInfo, make_experience
+from alf.data_structures import AlgStep, LossInfo, TimeStep, make_experience
+from alf.networks import EncodingNetwork, Network
 from alf.tensor_specs import TensorSpec
 
 

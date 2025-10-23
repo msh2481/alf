@@ -13,10 +13,12 @@
 # limitations under the License.
 
 import unittest
-import torch
-from alf.data_structures import TimeStep, StepType
-from alf.utils import value_ops
+
 import numpy as np
+import torch
+
+from alf.data_structures import StepType, TimeStep
+from alf.utils import value_ops
 
 
 class DiscountedReturnTest(unittest.TestCase):

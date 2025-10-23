@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Tuple
 import math
+from typing import Callable, Tuple
+
 import numpy as np
 import scipy
 import torch
@@ -25,7 +26,7 @@ import alf.layers
 from alf.initializers import variance_scaling_init
 from alf.networks import Network
 
-from .utils import make_DPLR_HiPPO, diag_ssm_forward
+from .utils import diag_ssm_forward, make_DPLR_HiPPO
 
 """
 Implement the S5 networks described in

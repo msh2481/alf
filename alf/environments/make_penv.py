@@ -13,8 +13,8 @@
 # limitations under the License.
 
 import os
-import sys
 import subprocess
+import sys
 
 
 def gen_penv():

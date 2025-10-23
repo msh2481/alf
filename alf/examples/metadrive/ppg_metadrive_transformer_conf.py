@@ -11,27 +11,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import NamedTuple, Tuple
-
 from functools import partial
+from typing import NamedTuple, Tuple
 
 import torch
 
 import alf
-
 import alf.examples.metadrive.base_conf
-from alf.examples import ppg_conf
-
-from alf.examples.networks import impala_cnn_encoder
-from alf.utils.losses import element_wise_squared_loss
-from alf.algorithms.ppg_algorithm import PPGAuxOptions, PPGAlgorithm
+from alf.algorithms.ppg_algorithm import PPGAlgorithm, PPGAuxOptions
 from alf.environments import suite_metadrive
+from alf.examples import ppg_conf
+from alf.examples.networks import impala_cnn_encoder
 from alf.networks import (
-    StableNormalProjectionNetwork,
-    TruncatedProjectionNetwork,
     BetaProjectionNetwork,
     EncodingNetwork,
+    StableNormalProjectionNetwork,
+    TruncatedProjectionNetwork,
 )
+from alf.utils.losses import element_wise_squared_loss
 
 alf.config("create_environment", env_name="Vectorized", num_parallel_environments=36)
 

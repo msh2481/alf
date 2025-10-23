@@ -13,14 +13,15 @@
 # limitations under the License.
 """Runs a single environments in a separate thread. """
 
-from multiprocessing import dummy as mp_threads
 import numbers
+from multiprocessing import dummy as mp_threads
+
 import numpy as np
 import torch
 
 import alf
-from alf.environments import alf_environment
 import alf.nest as nest
+from alf.environments import alf_environment
 
 
 def _array_to_tensor(data):

@@ -13,9 +13,11 @@
 # limitations under the License.
 """Simple wrapper over unittest.TestCase to provide extra functionality."""
 
+import unittest
+
 import numpy as np
 import torch
-import unittest
+
 import alf
 from alf.utils import common
 

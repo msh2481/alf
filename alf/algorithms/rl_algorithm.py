@@ -13,32 +13,33 @@
 # limitations under the License.
 """Base class for RL algorithms."""
 
-from abc import abstractmethod
-from absl import logging
-from collections import namedtuple
 import os
 import time
-import torch
+from abc import abstractmethod
+from collections import namedtuple
 from typing import Callable, Optional
+
+import torch
 from absl import logging
 
 import alf
 from alf.algorithms.algorithm import Algorithm
 from alf.algorithms.async_unroller import AsyncUnroller
-from alf.experience_replayers.replay_buffer import ReplayBuffer
 from alf.data_structures import (
     AlgStep,
+    BasicRLInfo,
+    BasicRolloutInfo,
     Experience,
-    make_experience,
     StepType,
     TimeStep,
-    BasicRolloutInfo,
-    BasicRLInfo,
+    make_experience,
 )
-from alf.utils import common, dist_utils, summary_utils
-from alf.utils.summary_utils import record_time
-from alf.utils.distributed import data_distributed_when, make_ddp_performer
+from alf.experience_replayers.replay_buffer import ReplayBuffer
 from alf.tensor_specs import TensorSpec
+from alf.utils import common, dist_utils, summary_utils
+from alf.utils.distributed import data_distributed_when, make_ddp_performer
+from alf.utils.summary_utils import record_time
+
 from .config import TrainerConfig
 
 

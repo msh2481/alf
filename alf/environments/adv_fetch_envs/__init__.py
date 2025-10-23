@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from gym.envs.registration import registry, register, make, spec
+from gym.envs.registration import make, register, registry, spec
 
 register(
     id="FetchPickAndPlaceAdv-v0",

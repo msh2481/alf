@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import alf
-import torch
-import torchvision
 from functools import partial
 from pathlib import Path
 from typing import Union
+
+import torch
+import torchvision
+
+import alf
 
 DEFAULT_CACHE_DIR_ROOT = Path("./cache_dir/")
 

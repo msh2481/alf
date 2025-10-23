@@ -12,18 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
 import gym
-from gym import spaces
 import numpy as np
+from absl.testing import parameterized
+from gym import spaces
 
 import alf
 from alf.environments.gym_wrappers import (
-    FrameStack,
-    FrameResize,
-    FrameCrop,
     ContinuousActionClip,
     ContinuousActionMapping,
+    FrameCrop,
+    FrameResize,
+    FrameStack,
 )
 
 

@@ -13,10 +13,11 @@
 # limitations under the License.
 
 import functools
+
 import alf
-from alf.utils import datagen
 from alf.algorithms.hypernetwork_algorithm import HyperNetwork
 from alf.trainers import policy_trainer
+from alf.utils import datagen
 
 CONV_LAYER_PARAMS = ((32, 3, 1, 0, 2), (64, 3, 1, 0, 2), (64, 3, 1, 0, 2))
 FC_LAYER_PARAMS = (128,)

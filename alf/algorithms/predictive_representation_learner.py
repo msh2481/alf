@@ -13,21 +13,22 @@
 # limitations under the License.
 """PredictiveRepresentationLearner."""
 
-from typing import Optional
 from functools import partial
+from typing import Optional
+
 import torch
 
 import alf
 from alf.algorithms.algorithm import Algorithm
 from alf.algorithms.config import TrainerConfig
-from alf.data_structures import AlgStep, TimeStep, LossInfo, namedtuple
+from alf.data_structures import AlgStep, LossInfo, TimeStep, namedtuple
 from alf.experience_replayers.replay_buffer import BatchInfo, ReplayBuffer
 from alf.nest.utils import convert_device
-from alf.networks import Network, LSTMEncodingNetwork, wrap_as_network
+from alf.networks import LSTMEncodingNetwork, Network, wrap_as_network
+from alf.tensor_specs import TensorSpec
 from alf.utils import common, dist_utils, tensor_utils
 from alf.utils.normalizers import AdaptiveNormalizer
 from alf.utils.summary_utils import safe_mean_hist_summary, safe_mean_summary
-from alf.tensor_specs import TensorSpec
 
 PredictiveRepresentationLearnerInfo = namedtuple(
     "PredictiveRepresentationLearnerInfo",

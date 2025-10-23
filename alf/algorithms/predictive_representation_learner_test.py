@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from functools import partial
 import pprint
+from functools import partial
+
 import torch
 
 import alf
@@ -23,7 +24,7 @@ from alf.algorithms.predictive_representation_learner import (
     PredictiveRepresentationLearnerInfo,
     SimpleDecoder,
 )
-from alf.experience_replayers.replay_buffer import ReplayBuffer, BatchInfo
+from alf.experience_replayers.replay_buffer import BatchInfo, ReplayBuffer
 from alf.networks import EncodingNetwork, LSTMEncodingNetwork
 from alf.utils import common, dist_utils
 

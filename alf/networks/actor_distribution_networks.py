@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ActorDistributionNetwork and ActorRNNDistributionNetwork."""
-from typing import Callable
 from functools import partial
+from typing import Callable
 
 import torch
 import torch.distributions as td
@@ -21,12 +21,13 @@ import torch.nn as nn
 
 import alf
 import alf.nest as nest
+from alf.networks.network import Network
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
+
 from .encoding_networks import EncodingNetwork, LSTMEncodingNetwork
 from .normalizing_flow_networks import RealNVPNetwork
-from .projection_networks import NormalProjectionNetwork, CategoricalProjectionNetwork
 from .preprocessor_networks import PreprocessorNetwork
-from alf.tensor_specs import BoundedTensorSpec, TensorSpec
-from alf.networks.network import Network
+from .projection_networks import CategoricalProjectionNetwork, NormalProjectionNetwork
 
 
 @alf.configurable

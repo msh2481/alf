@@ -13,20 +13,18 @@
 # limitations under the License.
 """Tests for alf.networks.disjoint_policy_value_network"""
 
-from alf.algorithms.ppg import DisjointPolicyValueNetwork
-
-from absl.testing import parameterized
-
 import functools
 
 import torch
 import torch.distributions as td
+from absl.testing import parameterized
 
 import alf
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
-from alf.utils.common import zero_tensor_from_nested_spec
-from alf.networks import EncodingNetwork
+from alf.algorithms.ppg import DisjointPolicyValueNetwork
 from alf.nest.utils import NestConcat
+from alf.networks import EncodingNetwork
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
+from alf.utils.common import zero_tensor_from_nested_spec
 from alf.utils.dist_utils import DistributionSpec
 
 

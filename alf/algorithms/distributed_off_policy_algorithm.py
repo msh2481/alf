@@ -12,32 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
-from typing import Callable
-import time
 import io
 import queue
 import random
-import threading
 import subprocess
-import zmq
+import threading
+import time
+from multiprocessing import Manager
+from multiprocessing.shared_memory import SharedMemory
+from typing import Callable
 
 import torch
 import torch.multiprocessing as mp
-from multiprocessing.shared_memory import SharedMemory
-from multiprocessing import Manager
+import zmq
+from absl import logging
 
 import alf
-from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
 from alf.algorithms.config import TrainerConfig
+from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
+from alf.data_structures import Experience, StepType, make_experience
 from alf.environments.alf_environment import AlfEnvironment
 from alf.experience_replayers.replay_buffer import ReplayBuffer
-from alf.data_structures import Experience, make_experience, StepType
-from alf.utils.common import allow_child_to_ptrace
-from alf.utils.per_process_context import PerProcessContext
 from alf.utils import dist_utils
-from alf.utils.summary_utils import record_time
+from alf.utils.common import allow_child_to_ptrace
 from alf.utils.common_test import _test_tensor_sharing
+from alf.utils.per_process_context import PerProcessContext
+from alf.utils.summary_utils import record_time
 
 
 class UnrollerMessage(object):

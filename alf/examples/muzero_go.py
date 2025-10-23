@@ -13,8 +13,9 @@
 # limitations under the License.
 
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
+
 import alf
 from alf.networks import CategoricalProjectionNetwork
 

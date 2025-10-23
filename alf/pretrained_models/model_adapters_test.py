@@ -12,20 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-from absl.testing import parameterized
-import torch
 import copy
+import unittest
+
+import torch
+from absl.testing import parameterized
 
 import alf
 from alf.optimizers import AdamTF
-
-from alf.pretrained_models.pretrained_model import PretrainedModel
 from alf.pretrained_models.model_adapters.lora import (
-    LinearAdapter,
     Conv2dAdapter,
     EmbeddingAdapter,
+    LinearAdapter,
 )
+from alf.pretrained_models.pretrained_model import PretrainedModel
 
 
 class LoRATest(alf.test.TestCase, parameterized.TestCase):

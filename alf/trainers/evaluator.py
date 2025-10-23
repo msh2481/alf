@@ -12,29 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
-from absl import flags
 import math
-import torch.multiprocessing as mp
 import os
 import sys
-import torch
-import torch.nn as nn
+from collections import namedtuple
 from typing import Dict, List, Optional, Union
+
+import torch
+import torch.multiprocessing as mp
+import torch.nn as nn
+from absl import flags, logging
 
 import alf
 from alf.algorithms.config import TrainerConfig
-from alf.algorithms.rl_algorithm import RLAlgorithm
-from alf.environments.alf_environment import AlfEnvironment
-from alf.utils import common
-from alf.utils.checkpoint_utils import Checkpointer
-from alf.utils.summary_utils import record_time
-from alf.data_structures import StepType
 from alf.algorithms.data_transformer import create_data_transformer
+from alf.algorithms.rl_algorithm import RLAlgorithm
+from alf.data_structures import StepType
+from alf.environments.alf_environment import AlfEnvironment
 from alf.environments.utils import create_environment
 from alf.trainers import policy_trainer
+from alf.utils import common
+from alf.utils.checkpoint_utils import Checkpointer
 from alf.utils.schedulers import Scheduler, as_scheduler
-from collections import namedtuple
+from alf.utils.summary_utils import record_time
 
 EvalJob = namedtuple(
     "EvalJob",

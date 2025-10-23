@@ -13,9 +13,10 @@
 # limitations under the License.
 
 import torch
+
 import alf
-from alf.utils.common import zero_tensor_from_nested_spec
 from alf.utils.action_samplers import _CategoricalSeedSamplerBase
+from alf.utils.common import zero_tensor_from_nested_spec
 
 
 class ActionSamplersTest(alf.test.TestCase):

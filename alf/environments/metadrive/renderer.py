@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Callable, Any
+from typing import Any, Callable, Optional
 
 import numpy as np
 
 try:
-    import pygame
     import metadrive
+    import pygame
     from metadrive.obs.top_down_renderer import TopDownRenderer, history_object
     from metadrive.utils.map_utils import is_map_related_instance
 except ImportError:

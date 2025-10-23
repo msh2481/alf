@@ -11,28 +11,27 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import functools
+import io
 import os
-
-import torch.onnx
-import torch
+import types
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import numpy as np
-import functools
-import types
-from typing import Tuple, Optional, Callable, Dict, Any
-import io
+import torch
+import torch.onnx
 
 try:
     import onnx
-    from onnx import shape_inference
     import onnxruntime.backend as backend
+    from onnx import shape_inference
 except ImportError:
     backend = None
 
 try:
-    import tensorrt as trt
-    import pycuda.driver as cuda
     import pycuda.autoinit
+    import pycuda.driver as cuda
+    import tensorrt as trt
 except ImportError:
     trt = None
 

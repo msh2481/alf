@@ -12,31 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
-from collections import OrderedDict
-import numpy as np
 import functools
 import json
 import os
 import shutil
 import tempfile
+import unittest
 import warnings
+from collections import OrderedDict
 
+import numpy as np
 import torch
 import torch.nn as nn
+from absl.testing import parameterized
 
 import alf
-from alf.data_structures import LossInfo
-from alf.algorithms.algorithm import Algorithm
 import alf.utils.checkpoint_utils as ckpt_utils
-
-from alf.networks.encoding_networks import EncodingNetwork
-from alf.networks.encoding_networks import LSTMEncodingNetwork
-from alf.networks.encoding_networks import ParallelEncodingNetwork
+from alf.algorithms.algorithm import Algorithm
+from alf.data_structures import LossInfo
+from alf.networks.encoding_networks import (
+    EncodingNetwork,
+    LSTMEncodingNetwork,
+    ParallelEncodingNetwork,
+)
 from alf.networks.preprocessors import EmbeddingPreprocessor
 from alf.tensor_specs import TensorSpec
 from alf.utils import common
-import unittest
 
 
 class Net(nn.Module):

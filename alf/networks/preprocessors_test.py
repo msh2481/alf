@@ -12,17 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
 import functools
 
 import torch
 import torch.nn as nn
+from absl.testing import parameterized
 
 import alf
 from alf.nest.utils import NestConcat
-from alf.networks.encoding_networks import EncodingNetwork
-from alf.networks.encoding_networks import LSTMEncodingNetwork
-from alf.networks.encoding_networks import ParallelEncodingNetwork
+from alf.networks.encoding_networks import (
+    EncodingNetwork,
+    LSTMEncodingNetwork,
+    ParallelEncodingNetwork,
+)
 from alf.networks.preprocessors import EmbeddingPreprocessor
 from alf.tensor_specs import TensorSpec
 from alf.utils import common

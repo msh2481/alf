@@ -14,9 +14,10 @@
 """Unittests for actor_critic_loss.py"""
 
 import unittest
+
+import numpy as np
 import torch
 import torch.distributions as td
-import numpy as np
 
 from alf.utils.dist_utils import compute_entropy, compute_log_probability
 

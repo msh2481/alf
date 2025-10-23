@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from functools import partial
+
 import torch
 
 import alf
 from alf.algorithms.actor_critic_algorithm import ActorCriticAlgorithm
 from alf.algorithms.config import TrainerConfig
-from alf.algorithms.trac_algorithm import TracAlgorithm
 from alf.algorithms.rl_algorithm_test import MyEnv
+from alf.algorithms.trac_algorithm import TracAlgorithm
 from alf.networks import ActorDistributionNetwork, ValueNetwork
 from alf.utils import common
 

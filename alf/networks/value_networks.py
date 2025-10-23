@@ -20,11 +20,12 @@ import torch
 import torch.nn as nn
 
 import alf
-from .encoding_networks import EncodingNetwork, LSTMEncodingNetwork
-from .preprocessor_networks import PreprocessorNetwork
+import alf.utils.math_ops as math_ops
 from alf.networks import Network
 from alf.tensor_specs import TensorSpec
-import alf.utils.math_ops as math_ops
+
+from .encoding_networks import EncodingNetwork, LSTMEncodingNetwork
+from .preprocessor_networks import PreprocessorNetwork
 
 
 @alf.configurable

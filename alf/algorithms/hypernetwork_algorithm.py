@@ -13,25 +13,30 @@
 # limitations under the License.
 """HyperNetwork algorithm."""
 
-from absl import logging
 import functools
 import math
+from typing import Callable
+
 import numpy as np
 import torch
 import torch.nn.functional as F
-from typing import Callable
+from absl import logging
 
 import alf
 from alf.algorithms.algorithm import Algorithm
 from alf.algorithms.config import TrainerConfig
-from alf.data_structures import AlgStep, LossInfo, namedtuple
 from alf.algorithms.generator import Generator
+from alf.data_structures import AlgStep, LossInfo, namedtuple
 from alf.networks import EncodingNetwork, ParamNetwork, ReluMLP
 from alf.tensor_specs import TensorSpec
 from alf.utils import common, math_ops, summary_utils
+from alf.utils.sl_utils import (
+    auc_score,
+    classification_loss,
+    predict_dataset,
+    regression_loss,
+)
 from alf.utils.summary_utils import record_time
-from alf.utils.sl_utils import classification_loss, regression_loss, auc_score
-from alf.utils.sl_utils import predict_dataset
 
 
 @alf.configurable

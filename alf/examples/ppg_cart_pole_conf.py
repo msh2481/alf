@@ -13,12 +13,11 @@
 # limitations under the License.
 
 import alf
-from alf.examples import ppg_conf
 from alf.algorithms.data_transformer import RewardScaling
-from alf.algorithms.ppg_algorithm import PPGAlgorithm
+from alf.algorithms.ppg_algorithm import PPGAlgorithm, PPGAuxOptions
+from alf.examples import ppg_conf
 from alf.networks.encoding_networks import EncodingNetwork
 from alf.utils.losses import element_wise_huber_loss
-from alf.algorithms.ppg_algorithm import PPGAuxOptions
 
 # Environment Configuration
 alf.config("create_environment", env_name="CartPole-v0", num_parallel_environments=8)

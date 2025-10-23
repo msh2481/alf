@@ -21,7 +21,7 @@ from torch.nn import functional as F
 
 import alf
 from alf.algorithms.algorithm import Algorithm
-from alf.data_structures import namedtuple, AlgStep, LossInfo
+from alf.data_structures import AlgStep, LossInfo, namedtuple
 from alf.tensor_specs import TensorSpec
 from alf.utils import tensor_utils
 from alf.utils.averager import EMAverager

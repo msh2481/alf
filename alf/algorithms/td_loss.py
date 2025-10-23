@@ -13,16 +13,17 @@
 # limitations under the License.
 
 import math
+from typing import Callable, List, Optional, Union
+
 import torch
 import torch.nn as nn
-from typing import Union, List, Callable, Optional
 
 import alf
-from alf.data_structures import LossInfo, namedtuple, StepType
-from alf.utils.losses import element_wise_squared_loss, iqn_huber_loss
+from alf.data_structures import LossInfo, StepType, namedtuple
 from alf.utils import losses, tensor_utils, value_ops
-from alf.utils.summary_utils import safe_mean_hist_summary
+from alf.utils.losses import element_wise_squared_loss, iqn_huber_loss
 from alf.utils.normalizers import AdaptiveNormalizer
+from alf.utils.summary_utils import safe_mean_hist_summary
 
 
 @alf.configurable

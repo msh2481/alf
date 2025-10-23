@@ -21,20 +21,19 @@ A normalizing flow network :math:`f: \mathbb{R}^N \rightarrow \mathbb{R}^N`
    diagonal elements.
 """
 
-from typing import Union, Callable, Tuple
-
 from functools import partial
-
-from absl import logging
+from typing import Callable, Tuple, Union
 
 import torch
-import torch.nn as nn
 import torch.distributions as td
+import torch.nn as nn
+from absl import logging
 
 import alf
 from alf.utils.math_ops import clipped_exp
-from .network import Network
+
 from .encoding_networks import EncodingNetwork
+from .network import Network
 
 
 class NormalizingFlowNetwork(Network):

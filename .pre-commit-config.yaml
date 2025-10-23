@@ -4,6 +4,11 @@ repos:
     hooks:
       - id: remove-crlf
         files: (?!.*third_party)^.*$ | (?!.*book)^.*$
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        files: \.py$
   - repo: https://github.com/psf/black
     rev: 24.8.0
     hooks:

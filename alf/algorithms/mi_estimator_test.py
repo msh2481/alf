@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
-from absl.testing import parameterized
 import math
+
 import torch
 import torch.distributions as td
 import torch.nn.functional as F
+from absl import logging
+from absl.testing import parameterized
 
 import alf
 from alf.algorithms.mi_estimator import MIEstimator, ScalarAdaptiveAverager

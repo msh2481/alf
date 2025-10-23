@@ -12,15 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """An algorithm for adjusting entropy regularization strength."""
-from absl import logging
 import copy
+from typing import Callable, Union
+
 import numpy as np
 import torch
-from typing import Callable, Union
+from absl import logging
 
 import alf
 from alf.algorithms.algorithm import Algorithm
-from alf.data_structures import namedtuple, AlgStep, LossInfo, StepType
+from alf.data_structures import AlgStep, LossInfo, StepType, namedtuple
 from alf.summary import should_record_summaries
 from alf.utils.averager import ScalarWindowAverager
 from alf.utils.dist_utils import calc_default_target_entropy, entropy_with_fallback

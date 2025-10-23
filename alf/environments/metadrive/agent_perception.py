@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple, Optional, NamedTuple
 import functools
+from typing import NamedTuple, Optional, Tuple
 
-import torch
 import numpy as np
+import torch
 
 from alf.tensor_specs import TensorSpec
+
 from .geometry import FieldOfView, Polyline
 
 try:

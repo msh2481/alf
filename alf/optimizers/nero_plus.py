@@ -14,9 +14,11 @@
 """NeroPlus optimizer."""
 
 import math
+from typing import Optional, Tuple
+
 import torch
 from torch.optim import Optimizer
-from typing import Tuple, Optional
+
 from .utils import get_opt_arg
 
 

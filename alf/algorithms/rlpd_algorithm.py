@@ -14,18 +14,23 @@
 """RLPD Algorithm."""
 
 from enum import Enum
-import torch
 from typing import Callable, Optional, Union
+
+import torch
 
 import alf
 from alf.algorithms.config import TrainerConfig
-from alf.algorithms.sac_algorithm import ActionType, SacAlgorithm
-from alf.algorithms.sac_algorithm import SacState, SacCriticState
-from alf.algorithms.sac_algorithm import SacActorInfo
-from alf.data_structures import TimeStep, AlgStep, LossInfo, namedtuple
+from alf.algorithms.sac_algorithm import (
+    ActionType,
+    SacActorInfo,
+    SacAlgorithm,
+    SacCriticState,
+    SacState,
+)
+from alf.data_structures import AlgStep, LossInfo, TimeStep, namedtuple
 from alf.nest import nest
 from alf.networks import ActorDistributionNetwork, CriticNetwork
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 from alf.utils import common, math_ops
 from alf.utils.schedulers import Scheduler
 

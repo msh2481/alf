@@ -15,15 +15,16 @@
 from typing import Callable, Tuple
 
 import torch
+
 import alf
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
 from alf.data_structures import namedtuple
 from alf.networks import (
-    Network,
-    NormalProjectionNetwork,
     CategoricalProjectionNetwork,
     EncodingNetwork,
+    Network,
+    NormalProjectionNetwork,
 )
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 
 
 def _create_projection_net_based_on_action_spec(

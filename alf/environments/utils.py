@@ -14,19 +14,20 @@
 
 import functools
 import inspect
-from absl import logging as logger
-import numpy as np
 import random
+
+import numpy as np
 import torch
+from absl import logging as logger
 
 import alf
-from alf.environments import suite_gym
 from alf.environments import (
-    thread_environment,
-    parallel_environment,
+    alf_wrappers,
     fast_parallel_environment,
+    parallel_environment,
+    suite_gym,
+    thread_environment,
 )
-from alf.environments import alf_wrappers
 
 
 class UnwrappedEnvChecker(object):

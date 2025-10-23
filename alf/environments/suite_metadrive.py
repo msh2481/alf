@@ -12,27 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple, Optional, Union
+from typing import Optional, Tuple, Union
 
-import numpy as np
 import gym
+import numpy as np
 import torch
-
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 import alf
-from alf.environments.alf_environment import AlfEnvironment
-from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 import alf.data_structures as ds
 import alf.nest as nest
-
-from alf.environments.metadrive import VectorizedTopDownEnv, BirdEyeTopDownEnv
+from alf.environments.alf_environment import AlfEnvironment
+from alf.environments.metadrive import BirdEyeTopDownEnv, VectorizedTopDownEnv
 from alf.environments.metadrive.extra_rewards import (
     CrashVehicleReward,
     EgoKinematicReward,
     LaneKeepingReward,
 )
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 
 try:
     import metadrive

@@ -16,24 +16,23 @@ from functools import partial
 
 import alf
 from alf.algorithms.data_transformer import RewardNormalizer, UntransformedTimeStep
-
-# Needs to install safety gym first:
-# https://github.com/openai/safety-gym
-from alf.environments import suite_safety_gym
 from alf.algorithms.lagrangian_reward_weight_algorithm import (
     LagrangianRewardWeightAlgorithm,
 )
 from alf.algorithms.sac_algorithm import SacAlgorithm
+from alf.algorithms.td_loss import TDLoss
+
+# Needs to install safety gym first:
+# https://github.com/openai/safety-gym
+from alf.environments import suite_safety_gym
+from alf.examples import sac_conf
 from alf.networks import (
-    NormalProjectionNetwork,
     ActorDistributionNetwork,
     CriticNetwork,
+    NormalProjectionNetwork,
 )
-from alf.utils import math_ops
-from alf.algorithms.td_loss import TDLoss
 from alf.optimizers import AdamTF
-
-from alf.examples import sac_conf
+from alf.utils import math_ops
 
 # environment config
 alf.config(

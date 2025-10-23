@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import alf
-from alf.environments import suite_gym, gym_wrappers
 from alf.algorithms.data_transformer import (
     FrameStacker,
     ImageScaleTransformer,
     RewardClipping,
 )
+from alf.environments import gym_wrappers, suite_gym
 
 alf.config("create_environment", env_load_fn=suite_gym.load)
 alf.config("DMAtariPreprocessing", frame_skip=4)

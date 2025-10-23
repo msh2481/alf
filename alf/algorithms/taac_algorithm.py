@@ -12,26 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from enum import Enum
 import functools
-import numpy as np
+from enum import Enum
 from typing import Callable
 
+import numpy as np
 import torch
-import torch.nn as nn
 import torch.distributions as td
+import torch.nn as nn
 
 import alf
+import alf.nest.utils as nest_utils
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
 from alf.algorithms.sac_algorithm import _set_target_entropy
-from alf.data_structures import LossInfo, namedtuple, TimeStep
-from alf.data_structures import AlgStep, StepType
+from alf.data_structures import AlgStep, LossInfo, StepType, TimeStep, namedtuple
 from alf.nest import nest
-import alf.nest.utils as nest_utils
 from alf.networks import ActorDistributionNetwork, CriticNetwork
 from alf.networks.preprocessors import EmbeddingPreprocessor
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 from alf.utils import common, dist_utils, losses, math_ops, tensor_utils
 from alf.utils.conditional_ops import conditional_update
 from alf.utils.summary_utils import safe_mean_hist_summary

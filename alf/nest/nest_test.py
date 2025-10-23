@@ -13,18 +13,18 @@
 # limitations under the License.
 """Unittests for nest.py"""
 
-import torch
-
-from absl.testing import parameterized
 import collections
+
+import cnest
+import torch
+from absl.testing import parameterized
 
 import alf
 import alf.nest as nest
-import cnest
 from alf.data_structures import namedtuple
-from alf.tensor_specs import TensorSpec
-from alf.nest.utils import NestConcat, NestSum, NestMultiply, NestOuterProduct
 from alf.nest import transform_nest, transform_nests
+from alf.nest.utils import NestConcat, NestMultiply, NestOuterProduct, NestSum
+from alf.tensor_specs import TensorSpec
 
 NTuple = namedtuple("NTuple", ["a", "b"])  # default value will be None
 

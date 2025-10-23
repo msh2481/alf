@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import parameterized
 import torch
 import torch.nn as nn
-from alf.networks import TransformerNetwork
+from absl.testing import parameterized
 
 import alf
+from alf.networks import TransformerNetwork
 
 
 class TransformerNetworkTest(parameterized.TestCase, alf.test.TestCase):

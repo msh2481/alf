@@ -14,13 +14,14 @@
 """Encoding algorithm."""
 
 from typing import Optional
-from alf.algorithms.config import TrainerConfig
+
 import alf
 from alf.algorithms.algorithm import Algorithm
+from alf.algorithms.config import TrainerConfig
 from alf.data_structures import AlgStep, LossInfo, TimeStep
-from alf.networks import EncodingNetwork
-from alf.nest import map_structure, flatten
+from alf.nest import flatten, map_structure
 from alf.nest.utils import get_nested_field
+from alf.networks import EncodingNetwork
 
 
 @alf.configurable

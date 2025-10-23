@@ -15,16 +15,18 @@
 
 import copy
 import math
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import typing
 from typing import Callable, Dict, Optional, Tuple
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
 import alf
 from alf.initializers import variance_scaling_init
-from alf.utils.math_ops import identity
 from alf.utils.common import expand_dims_as, is_eval
+from alf.utils.math_ops import identity
+
 from .network import Network, wrap_as_network
 
 __all__ = [

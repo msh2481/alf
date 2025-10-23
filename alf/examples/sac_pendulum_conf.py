@@ -15,10 +15,9 @@
 import alf
 
 alf.import_config("sac_conf.py")
+import alf.utils.math_ops
 from alf.environments import suite_gym
 from alf.utils.losses import element_wise_squared_loss
-
-import alf.utils.math_ops
 
 # environment config
 alf.config(

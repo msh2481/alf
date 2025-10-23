@@ -14,12 +14,13 @@
 """Tests for alf_gym_wrapper. Adapted from tf_agents gym_wrapper_test.py.
 """
 
-from absl.testing.absltest import mock
+import math
+
 import gym
 import gym.spaces
-import math
 import numpy as np
 import torch
+from absl.testing.absltest import mock
 
 import alf
 from alf.environments import alf_gym_wrapper

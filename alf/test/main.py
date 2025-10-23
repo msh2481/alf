@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
-import torch
 import unittest
+
+import torch
+from absl import logging
 
 
 def main(failfast: bool = False):

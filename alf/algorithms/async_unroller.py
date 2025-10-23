@@ -12,19 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl import logging
-from absl import flags
-from queue import Empty
-import torch.multiprocessing as mp
 import time
-import torch
+from collections import namedtuple
+from queue import Empty
 from typing import Dict, List
+
+import torch
+import torch.multiprocessing as mp
+from absl import flags, logging
 
 import alf
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.data_transformer import create_data_transformer
 from alf.utils import common
-from collections import namedtuple
 
 UnrollResult = namedtuple(
     "UnrollResult",

@@ -21,14 +21,15 @@ import torch
 import torch.nn as nn
 
 import alf
-from .encoding_networks import EncodingNetwork, LSTMEncodingNetwork
-from .preprocessor_networks import PreprocessorNetwork
 import alf.layers as layers
 import alf.nest as nest
 from alf.initializers import variance_scaling_init
 from alf.networks import Network
-from alf.tensor_specs import TensorSpec, BoundedTensorSpec
+from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 from alf.utils import common, math_ops, spec_utils
+
+from .encoding_networks import EncodingNetwork, LSTMEncodingNetwork
+from .preprocessor_networks import PreprocessorNetwork
 
 
 @alf.configurable
