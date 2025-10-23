@@ -19,6 +19,7 @@ Routes batch elements to independent copies of a base algorithm.
 from typing import Callable, Optional
 
 import torch
+import torch.distributions as td
 import torch.nn as nn
 
 import alf
@@ -26,6 +27,33 @@ from alf.algorithms.config import TrainerConfig
 from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
 from alf.data_structures import AlgStep, LossInfo, TimeStep
 from alf.tensor_specs import TensorSpec
+
+
+def _slice_distribution(dist, indices, time_major=False):
+    """Slice a distribution object by recreating it with sliced parameters.
+
+    Args:
+        dist: Distribution object to slice
+        indices: Indices to slice with
+        time_major: If True, slice along dimension 1 (for [T, B, ...]),
+                    otherwise slice along dimension 0 (for [B, ...])
+    """
+    if isinstance(dist, td.Distribution):
+        if hasattr(dist, "logits"):
+            if time_major:
+                sliced_logits = dist.logits[:, indices]
+            else:
+                sliced_logits = dist.logits[indices]
+            return type(dist)(logits=sliced_logits)
+        elif hasattr(dist, "probs"):
+            if time_major:
+                sliced_probs = dist.probs[:, indices]
+            else:
+                sliced_probs = dist.probs[indices]
+            return type(dist)(probs=sliced_probs)
+        else:
+            raise ValueError(f"Cannot slice distribution of type {type(dist)}")
+    return dist
 
 
 @alf.configurable
@@ -106,6 +134,12 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
 
         self._num_copies = num_copies
 
+        # Force sequential training: We don't want _collect_train_info_parallelly
+        # because it flattens temporal sequences which breaks our routing mechanism.
+        # With this set to False, the framework will use _collect_train_info_sequentially
+        # which processes one timestep at a time and naturally works with routing.
+        self._temporally_independent_train_step = False
+
         # Validate that batch size will be compatible with num_copies
         if env and hasattr(env, "batch_size"):
             assert (
@@ -159,6 +193,18 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
     def _trainable_attributes_to_ignore(self):
         """Prevent parent optimizer from managing sub-algorithm parameters."""
         return ["_algorithms"]
+
+    def _compute_train_info_and_loss_info(self, experience):
+        """Override to force sequential processing regardless of length.
+
+        The parent's _collect_train_info_parallelly would flatten [T, B, ...] to
+        [T*B, ...] which breaks our routing mechanism that expects [B, ...]
+        tensors. We always use sequential processing, even for length==1.
+        """
+        # Always use sequential processing to avoid flattening the batch dimension
+        train_info = self._collect_train_info_sequentially(experience)
+        loss_info = self.calc_loss(train_info)
+        return train_info, loss_info
 
     def _route_batch_to_algorithms(self, time_step, state):
         """Route each batch element to the appropriate algorithm copy.
@@ -255,7 +301,11 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         new_states = [None] * self._num_copies
         infos_dict = {}  # {alg_idx: (alg_step.info, batch_indices)}
 
-        for alg_idx, (sliced_time_step, sliced_state, batch_indices) in routing.items():
+        for alg_idx, (
+            sliced_time_step,
+            sliced_state,
+            batch_indices,
+        ) in routing.items():
             alg_step = self._algorithms[alg_idx].rollout_step(
                 sliced_time_step, sliced_state
             )
@@ -288,10 +338,19 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         new_states = [None] * self._num_copies
         infos_dict = {}
 
-        for alg_idx, (sliced_time_step, sliced_state, batch_indices) in routing.items():
-            # Slice rollout_info
+        for alg_idx, (
+            sliced_time_step,
+            sliced_state,
+            batch_indices,
+        ) in routing.items():
+            # Slice rollout_info (handling distributions specially)
             sliced_rollout_info = alf.nest.map_structure(
-                lambda x: x[batch_indices], rollout_info
+                lambda x: (
+                    _slice_distribution(x, batch_indices, time_major=False)
+                    if isinstance(x, td.Distribution)
+                    else x[batch_indices]
+                ),
+                rollout_info,
             )
 
             alg_step = self._algorithms[alg_idx].train_step(
@@ -334,8 +393,15 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
             if len(batch_indices) == 0:
                 continue
 
-            # Slice info for this algorithm
-            sliced_info = alf.nest.map_structure(lambda x: x[:, batch_indices], info)
+            # Slice info for this algorithm (handling distributions specially)
+            sliced_info = alf.nest.map_structure(
+                lambda x: (
+                    _slice_distribution(x, batch_indices, time_major=True)
+                    if isinstance(x, td.Distribution)
+                    else x[:, batch_indices]
+                ),
+                info,
+            )
 
             # Compute loss for this algorithm
             loss_info = self._algorithms[alg_idx].calc_loss(sliced_info)
@@ -376,7 +442,11 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         new_states = [None] * self._num_copies
         infos_dict = {}
 
-        for alg_idx, (sliced_time_step, sliced_state, batch_indices) in routing.items():
+        for alg_idx, (
+            sliced_time_step,
+            sliced_state,
+            batch_indices,
+        ) in routing.items():
             alg_step = self._algorithms[alg_idx].predict_step(
                 sliced_time_step, sliced_state
             )

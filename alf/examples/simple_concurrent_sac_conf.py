@@ -12,60 +12,53 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Simple Concurrent DQN Demo Configuration.
+"""Simple Concurrent SAC Demo Configuration.
 
-This demonstrates SimpleConcurrentAlgorithm with DQN on the NoisyArray environment.
-The algorithm creates multiple independent DQN copies that learn concurrently.
+This demonstrates SimpleConcurrentAlgorithm with SAC on LunarLander-v2.
+The algorithm creates multiple independent SAC copies that learn concurrently.
 """
 
 import alf
-from alf.algorithms.dqn_algorithm import DqnAlgorithm
+from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.simple_concurrent_algorithm import SimpleConcurrentAlgorithm
-from alf.environments.parallel_environment import ParallelAlfEnvironment
 from alf.networks import QNetwork
 from alf.optimizers import AdamTF
-from alf.utils.schedulers import LinearScheduler
+from alf.utils.losses import element_wise_squared_loss
 
 # Environment configuration
 alf.config(
     "create_environment",
-    env_name="CartPole-v1",
+    env_name="LunarLander-v2",
     num_parallel_environments=2,  # Must be multiple of num_copies (2)
-)  # Use parallel environments
+)
 
 # Q-Network configuration
-q_network_cls = lambda input_tensor_spec, action_spec: QNetwork(
-    input_tensor_spec=input_tensor_spec,
-    action_spec=action_spec,
-    fc_layer_params=(64, 64),
+alf.config("QNetwork", fc_layer_params=(128, 128))
+
+# SAC algorithm configuration
+alf.config(
+    "SacAlgorithm",
+    q_network_cls=QNetwork,
+    actor_optimizer=AdamTF(lr=1e-3, name="actor"),
+    critic_optimizer=AdamTF(lr=1e-3, name="critic"),
+    alpha_optimizer=AdamTF(lr=1e-3, name="alpha"),
+    target_update_tau=0.01,
 )
 
-# DQN algorithm configuration
-alf.config(
-    "DqnAlgorithm",
-    q_network_cls=q_network_cls,
-    rollout_epsilon_greedy=LinearScheduler(
-        progress_type="percent", schedule=[(0, 0.9), (0.1, 0.1), (1.0, 0.05)]
-    ),
-    q_optimizer=AdamTF(lr=1e-3),
-)
+alf.config("OneStepTDLoss", td_error_loss_fn=element_wise_squared_loss, gamma=0.99)
 
 # SimpleConcurrentAlgorithm configuration
 alf.config(
-    "SimpleConcurrentAlgorithm", algorithm_ctor=DqnAlgorithm, num_copies=2
-)  # 2 independent DQN copies
+    "SimpleConcurrentAlgorithm", algorithm_ctor=SacAlgorithm, num_copies=2
+)  # 2 independent SAC copies
 
 # Training configuration
 alf.config(
     "TrainerConfig",
     algorithm_ctor=SimpleConcurrentAlgorithm,
-    num_iterations=2000,
+    num_iterations=10000,
     unroll_length=1,
-    # mini_batch_length=1: SimpleConcurrentAlgorithm currently only supports
-    # single-timestep training. Using T>1 would require handling temporal
-    # sequences in the routing mechanism (see simple_concurrent_algorithm.py).
-    # Setting T=1 works correctly and is used by PPO examples as well.
-    mini_batch_length=1,
+    mini_batch_length=2,
     mini_batch_size=64,
     num_updates_per_train_iter=1,
     initial_collect_steps=1000,

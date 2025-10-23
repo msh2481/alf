@@ -177,7 +177,8 @@ def _visualize_alf_tree(module: Algorithm):
             # Such representation can start with either "bound method",
             # "built-in method" or "function".
             res = re.match(
-                r"<(bound method|built-in method|function) (\S+) .*>", match_obj.group()
+                r"<(bound method|built-in method|function) (\S+) .*>",
+                match_obj.group(),
             )
             if res is None:
                 # In case there is an outlier, return "NOT_PARSED" instead.
@@ -314,10 +315,14 @@ class Trainer(object):
             logging.info(f"Server port for request handling : {flags.FLAGS.port}.")
             self._server_thread.start()
             register_endpoint(
-                "/checkpoint", self.handle_checkpoint_request, "Request a checkpoint"
+                "/checkpoint",
+                self.handle_checkpoint_request,
+                "Request a checkpoint",
             )
             register_endpoint(
-                "/evaluation", self.handle_evaluation_request, "Request evaluation"
+                "/evaluation",
+                self.handle_evaluation_request,
+                "Request evaluation",
             )
 
     def train(self):
@@ -330,44 +335,7 @@ class Trainer(object):
 
         self._checkpoint_requested = False
         self._evaluation_requested = False
-        if threading.current_thread() == threading.main_thread():
-            signal.signal(signal.SIGUSR2, self._request_checkpoint)
-            # kill -12 PID
-            logging.info(
-                "Use `kill -%s %s` to request checkpoint during training."
-                % (int(signal.SIGUSR2), self._pid)
-            )
-
         self._video_clip_requested = False
-        if threading.current_thread() == threading.main_thread():
-            import platform
-
-            # SIGRTMIN is Linux-specific, skip on other platforms
-            if platform.system() == "Linux" and hasattr(signal, "SIGRTMIN"):
-                signal.signal(signal.SIGRTMIN, self._request_video_clip)
-                # kill -34 PID
-                logging.info(
-                    (
-                        "Use `kill -%s %s` to request video-clip during training. "
-                        f"The videos will be saved at `{self._train_dir}/train/video/"
-                    )
-                    % (int(signal.SIGRTMIN), self._pid)
-                )
-            else:
-                logging.info("Video clip requests not available on this platform")
-
-        if (
-            threading.current_thread() == threading.main_thread()
-            and PerProcessContext().ddp_rank <= 0
-        ):
-            # Debugging in subprocesses is not supported because they don't have
-            # stdin.
-            # kill -10 PID
-            signal.signal(signal.SIGUSR1, self._request_debug)
-            logging.info(
-                "Use `kill -%s %s` to request debugging."
-                % (int(signal.SIGUSR1), self._pid)
-            )
 
         checkpoint_saved = False
         try:
@@ -470,13 +438,17 @@ class Trainer(object):
                 _markdownify(self._algorithm.get_unoptimized_parameter_info()),
             )
 
-            repo_roots = {**common.snapshot_repo_roots(), **{"alf": common.alf_root()}}
+            repo_roots = {
+                **common.snapshot_repo_roots(),
+                **{"alf": common.alf_root()},
+            }
             for name, root in repo_roots.items():
                 alf.summary.text(
                     f"{name}/revision", git_utils.get_revision(f"{root}/{name}")
                 )
                 alf.summary.text(
-                    f"{name}/diff", _markdownify(git_utils.get_diff(f"{root}/{name}"))
+                    f"{name}/diff",
+                    _markdownify(git_utils.get_diff(f"{root}/{name}")),
                 )
 
             alf.summary.text("seed", str(self._random_seed))
@@ -902,7 +874,9 @@ class RLTrainer(Trainer):
                     for i in range(proc_cxt.num_processes - 1):
                         their_paras_stat = queue.get()
                         is_close = map_structure(
-                            partial(np.isclose, atol=1e-6), paras_stat, their_paras_stat
+                            partial(np.isclose, atol=1e-6),
+                            paras_stat,
+                            their_paras_stat,
                         )
                         for k, v in is_close.items():
                             if not np.all(v):
