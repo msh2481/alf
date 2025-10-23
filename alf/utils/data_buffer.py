@@ -43,7 +43,7 @@ def atomic(func):
 
         @functools.wraps(func)
         def atomic_wrapper(self, *args, **kwargs):
-            lock = getattr(self, '_lock')
+            lock = getattr(self, "_lock")
             if lock:
                 with lock:
                     return func(self, *args, **kwargs)
@@ -78,13 +78,15 @@ class RingBuffer(nn.Module):
     ``_buffer[idx]`` to retrieve the stored data.
     """
 
-    def __init__(self,
-                 data_spec,
-                 num_environments,
-                 max_length=1024,
-                 device="cpu",
-                 mp_context=None,
-                 name="RingBuffer"):
+    def __init__(
+        self,
+        data_spec,
+        num_environments,
+        max_length=1024,
+        device="cpu",
+        mp_context=None,
+        name="RingBuffer",
+    ):
         """
         Args:
             data_spec (nested TensorSpec): spec describing a single item that
@@ -133,10 +135,10 @@ class RingBuffer(nn.Module):
 
         def _create_buffer(spec_path, tensor_spec):
             buf = tensor_spec.zeros((num_environments, max_length))
-            if spec_path != '':
+            if spec_path != "":
                 # buffer name cannot contain '.', which is used as the delimiter
                 # by ``py_map_structure_with_path`` in the generated path
-                spec_name = spec_path.replace('.', '|')
+                spec_name = spec_path.replace(".", "|")
                 self.register_buffer(spec_name, buf)
             else:
                 self.register_buffer("_buffer%s" % buffer_id[0], buf)
@@ -146,17 +148,19 @@ class RingBuffer(nn.Module):
         with alf.device(self._device):
             self.register_buffer(
                 "_current_size",
-                torch.zeros(num_environments, dtype=torch.int64))
+                torch.zeros(num_environments, dtype=torch.int64),
+            )
             # Current *ending* positions of data in the buffer without modulo.
             # The next experience will be stored at this position after modulo.
             # These pos always increases. To get the index in the RingBuffer,
             # use ``circular()``, e.g. ``last_idx = self.circular(pos - 1)``.
             self.register_buffer(
-                "_current_pos", torch.zeros(num_environments,
-                                            dtype=torch.int64))
+                "_current_pos", torch.zeros(num_environments, dtype=torch.int64)
+            )
 
             self._buffer = alf.nest.py_map_structure_with_path(
-                _create_buffer, data_spec)
+                _create_buffer, data_spec
+            )
 
         if self._allow_multiprocess:
             self.share_memory()
@@ -182,9 +186,9 @@ class RingBuffer(nn.Module):
             else:
                 env_ids = env_ids.to(torch.int64)
             env_ids = convert_device(env_ids)
-            assert len(env_ids.shape
-                       ) == 1, "env_ids {}, should be a 1D tensor".format(
-                           env_ids.shape)
+            assert (
+                len(env_ids.shape) == 1
+            ), "env_ids {}, should be a 1D tensor".format(env_ids.shape)
             return env_ids
 
     def has_space(self, env_ids):
@@ -220,8 +224,9 @@ class RingBuffer(nn.Module):
             True on success, False only in blocking mode when queue is stopped.
         """
         if blocking:
-            assert self._allow_multiprocess, (
-                "Pass a multiprocessing context to enable blocking mode.")
+            assert (
+                self._allow_multiprocess
+            ), "Pass a multiprocessing context to enable blocking mode."
             env_ids = self.check_convert_env_ids(env_ids)
             while not self._stop.is_set():
                 with self._lock:
@@ -256,14 +261,19 @@ class RingBuffer(nn.Module):
         with alf.device(self._device):
             batch = convert_device(batch)
             env_ids = self.check_convert_env_ids(env_ids)
-            assert batch_size == env_ids.shape[0], (
-                "batch and env_ids do not have same length %s vs. %s" %
-                (batch_size, env_ids.shape[0]))
+            assert (
+                batch_size == env_ids.shape[0]
+            ), "batch and env_ids do not have same length %s vs. %s" % (
+                batch_size,
+                env_ids.shape[0],
+            )
 
             current_pos = self._current_pos[0].item()
-            if (env_ids.numel() == self._num_envs
-                    and (self._current_pos == current_pos).all()
-                    and (env_ids == self._env_ids).all()):
+            if (
+                env_ids.numel() == self._num_envs
+                and (self._current_pos == current_pos).all()
+                and (env_ids == self._env_ids).all()
+            ):
                 # fast path for the common case when all envs have the same
                 # current_pos, and when all envs unroll the same number of steps.
                 pos = self.circular(current_pos)
@@ -273,26 +283,31 @@ class RingBuffer(nn.Module):
 
                 alf.nest.map_structure(_set, self._buffer, batch)
                 self._current_pos.fill_(current_pos + 1)
-                self._current_size.fill_(min(current_pos + 1,
-                                             self._max_length))
+                self._current_size.fill_(min(current_pos + 1, self._max_length))
             else:
                 # Make sure that there is no duplicate in `env_id`
                 # torch.unique(env_ids, return_counts=True)[1] is the counts for each unique item
-                assert torch.unique(
-                    env_ids, return_counts=True)[1].max() == 1, (
-                        "There are duplicated ids in env_ids %s" % env_ids)
+                assert (
+                    torch.unique(env_ids, return_counts=True)[1].max() == 1
+                ), ("There are duplicated ids in env_ids %s" % env_ids)
 
                 current_pos = self._current_pos[env_ids]
                 indices = env_ids * self._max_length + self.circular(
-                    current_pos)
+                    current_pos
+                )
                 alf.nest.map_structure(
                     lambda buf, bat: buf.view(-1, *buf.shape[2:]).__setitem__(
-                        indices, bat.detach()), self._buffer, batch)
+                        indices, bat.detach()
+                    ),
+                    self._buffer,
+                    batch,
+                )
 
                 self._current_pos[env_ids] += 1
                 current_size = self._current_size[env_ids]
-                self._current_size[env_ids] = torch.clamp(current_size + 1,
-                                                          max=self._max_length)
+                self._current_size[env_ids] = torch.clamp(
+                    current_size + 1, max=self._max_length
+                )
             # set flags if they exist to unblock potential consumers
             if self._enqueued:
                 self._enqueued.set()
@@ -371,15 +386,17 @@ class RingBuffer(nn.Module):
             min_size = current_size.min()
             assert min_size >= n, (
                 "Not all environments have enough data. The smallest data "
-                "size is: %s Try storing more data before calling dequeue" %
-                min_size)
+                "size is: %s Try storing more data before calling dequeue"
+                % min_size
+            )
             batch_size = env_ids.shape[0]
             pos = self._current_pos[env_ids] - current_size  # mod done later
             b_indices = env_ids.reshape(batch_size, 1).expand(-1, n)
             t_range = torch.arange(n).reshape(1, -1)
             t_indices = self.circular(pos.reshape(batch_size, 1) + t_range)
             result = alf.nest.map_structure(
-                lambda b: b[(b_indices, t_indices)], self._buffer)
+                lambda b: b[(b_indices, t_indices)], self._buffer
+            )
             self._current_size[env_ids] = current_size - n
             # set flags if they exist to unblock potential consumers
             if self._dequeued:
@@ -396,8 +413,9 @@ class RingBuffer(nn.Module):
         """
         with alf.device(self._device):
             env_ids = self.check_convert_env_ids(env_ids)
-            n = torch.min(torch.as_tensor([n] * self._num_envs),
-                          self._current_size)
+            n = torch.min(
+                torch.as_tensor([n] * self._num_envs), self._current_size
+            )
             self._current_size[env_ids] = self._current_size[env_ids] - n
 
     @atomic
@@ -470,11 +488,9 @@ class DataBuffer(RingBuffer):
     Not multiprocessing safe.
     """
 
-    def __init__(self,
-                 data_spec: TensorSpec,
-                 capacity,
-                 device='cpu',
-                 name="DataBuffer"):
+    def __init__(
+        self, data_spec: TensorSpec, capacity, device="cpu", name="DataBuffer"
+    ):
         """
         Args:
             data_spec (nested TensorSpec): spec for the data item (without batch
@@ -483,16 +499,19 @@ class DataBuffer(RingBuffer):
             device (str): which device to store the data
             name (str): name of the buffer
         """
-        super().__init__(data_spec=data_spec,
-                         num_environments=1,
-                         max_length=capacity,
-                         device=device,
-                         name=name)
-        self._capacity = torch.as_tensor(self._max_length,
-                                         dtype=torch.int64,
-                                         device=device)
-        self._derived_buffer = alf.nest.map_structure(lambda buf: buf[0],
-                                                      self._buffer)
+        super().__init__(
+            data_spec=data_spec,
+            num_environments=1,
+            max_length=capacity,
+            device=device,
+            name=name,
+        )
+        self._capacity = torch.as_tensor(
+            self._max_length, dtype=torch.int64, device=device
+        )
+        self._derived_buffer = alf.nest.map_structure(
+            lambda buf: buf[0], self._buffer
+        )
 
     def add_batch(self, batch):
         r"""Add a batch of items to the buffer.
@@ -513,7 +532,9 @@ class DataBuffer(RingBuffer):
             indices = self.circular(torch.arange(current_pos, current_pos + n))
             alf.nest.map_structure(
                 lambda buf, bat: buf.__setitem__(indices, bat[-n:].detach()),
-                self._derived_buffer, batch)
+                self._derived_buffer,
+                batch,
+            )
 
             current_pos.copy_(current_pos + n)
             current_size.copy_(torch.min(current_size + n, self._capacity))
@@ -527,10 +548,12 @@ class DataBuffer(RingBuffer):
             Tensor of shape ``[batch_size] + tensor_spec.shape``
         """
         with alf.device(self._device):
-            indices = torch.randint(low=0,
-                                    high=self.current_size,
-                                    size=(batch_size, ),
-                                    dtype=torch.int64)
+            indices = torch.randint(
+                low=0,
+                high=self.current_size,
+                size=(batch_size,),
+                dtype=torch.int64,
+            )
             result = self.get_batch_by_indices(indices)
         return convert_device(result)
 
@@ -549,10 +572,12 @@ class DataBuffer(RingBuffer):
         """
         with alf.device(self._device):
             indices = convert_device(indices)
-            indices = self.circular(indices + self.current_pos -
-                                    self.current_size)
-            result = alf.nest.map_structure(lambda buf: buf[indices],
-                                            self._derived_buffer)
+            indices = self.circular(
+                indices + self.current_pos - self.current_size
+            )
+            result = alf.nest.map_structure(
+                lambda buf: buf[indices], self._derived_buffer
+            )
         return convert_device(result)
 
     def is_full(self):
@@ -568,4 +593,5 @@ class DataBuffer(RingBuffer):
 
     def get_all(self):
         return convert_device(
-            alf.nest.map_structure(lambda buf: buf, self._derived_buffer))
+            alf.nest.map_structure(lambda buf: buf, self._derived_buffer)
+        )

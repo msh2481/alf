@@ -40,33 +40,33 @@ class InverseMVPTest(parameterized.TestCase, alf.test.TestCase):
         r"""
         The InverseMVP network is an encoding network that is trained to
         predict the inverse Jacobian vector product :math:`J^{-1}v`,
-        where the Jacobian is w.r.t. :math:`f(z)=g(z^{(:k)})+\lambda z`, 
-        :math:`z^{(:k)}` denote the vector of the first k components 
-        of z. In the following test case, z is a randomly generated input 
+        where the Jacobian is w.r.t. :math:`f(z)=g(z^{(:k)})+\lambda z`,
+        :math:`z^{(:k)}` denote the vector of the first k components
+        of z. In the following test case, z is a randomly generated input
         of dimension 3 and :math:`k=2`.
         Using relu_mlp for g we can compute this exactly, and check that the
-        trained network is correct. 
+        trained network is correct.
         """
         input_dim = 2
         vec_dim = 3
         output_dim = 3
         fullrank_diag_weight = 1.0
-        input_spec = TensorSpec(shape=(input_dim, ))
-        vec_spec = TensorSpec(shape=(vec_dim, ))
+        input_spec = TensorSpec(shape=(input_dim,))
+        vec_spec = TensorSpec(shape=(vec_dim,))
         input_tensor_spec = (input_spec, vec_spec)
         optimizer = alf.optimizers.Adam(lr=5e-4)
-        self.inverse_mvp = InverseMVPAlgorithm(input_dim,
-                                               output_dim,
-                                               hidden_size=300,
-                                               num_hidden_layers=1,
-                                               optimizer=optimizer)
-        mlp_spec = TensorSpec((input_dim, ))
-        self.mlp = ReluMLP(mlp_spec,
-                           output_size=output_dim,
-                           hidden_layers=(2, ))
+        self.inverse_mvp = InverseMVPAlgorithm(
+            input_dim,
+            output_dim,
+            hidden_size=300,
+            num_hidden_layers=1,
+            optimizer=optimizer,
+        )
+        mlp_spec = TensorSpec((input_dim,))
+        self.mlp = ReluMLP(mlp_spec, output_size=output_dim, hidden_layers=(2,))
         # make Jac better behaved
-        w1 = torch.tensor([[1., 2.], [2., 1.]])
-        w2 = torch.tensor([[2., 1.], [1, 1], [1., 2.]])
+        w1 = torch.tensor([[1.0, 2.0], [2.0, 1.0]])
+        w2 = torch.tensor([[2.0, 1.0], [1, 1], [1.0, 2.0]])
 
         self.mlp._fc_layers[0].weight = nn.Parameter(w1)
         self.mlp._fc_layers[1].weight = nn.Parameter(w2)
@@ -76,7 +76,8 @@ class InverseMVPTest(parameterized.TestCase, alf.test.TestCase):
             jac_y, _ = self.mlp.compute_vjp(z_inputs, y)
             jac_y = torch.cat(
                 (jac_y, torch.zeros(jac_y.shape[0], output_dim - input_dim)),
-                dim=-1)
+                dim=-1,
+            )
             jac_y += fullrank_diag_weight * y
             loss = torch.nn.functional.mse_loss(jac_y, vec)
             return loss
@@ -90,8 +91,9 @@ class InverseMVPTest(parameterized.TestCase, alf.test.TestCase):
         y, z_inputs = self.inverse_mvp.predict_step((inputs, vec)).output
         jac = self.mlp.compute_jac(z_inputs)
         jac = torch.cat(
-            (jac, torch.zeros(*jac.shape[:-1] + (output_dim - input_dim, ))),
-            dim=-1)
+            (jac, torch.zeros(*jac.shape[:-1] + (output_dim - input_dim,))),
+            dim=-1,
+        )
         jac += fullrank_diag_weight * torch.eye(output_dim)
         jac_inv = torch.inverse(jac)
         jac_inv_vec = torch.matmul(vec.unsqueeze(1), jac_inv).squeeze(1)

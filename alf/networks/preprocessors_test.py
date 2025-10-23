@@ -29,19 +29,20 @@ from alf.utils import common
 
 
 class TestInputpreprocessor(parameterized.TestCase, alf.test.TestCase):
-    input_spec = TensorSpec((10, ))
+    input_spec = TensorSpec((10,))
 
     def _make_preproc(self, shared):
         preproc = EmbeddingPreprocessor(
-            input_tensor_spec=TestInputpreprocessor.input_spec,
-            embedding_dim=10)
+            input_tensor_spec=TestInputpreprocessor.input_spec, embedding_dim=10
+        )
         if shared:
             return preproc.copy().singleton()
         else:
             return preproc
 
-    @parameterized.parameters((False, False), (True, False), (False, True),
-                              (True, True))
+    @parameterized.parameters(
+        (False, False), (True, False), (False, True), (True, True)
+    )
     def test_input_preprocessor(self, lstm, shared_preproc):
         preproc = self._make_preproc(shared_preproc)
 
@@ -64,28 +65,33 @@ class TestInputpreprocessor(parameterized.TestCase, alf.test.TestCase):
         input_preprocessor_copy = input_preprocessor.copy()
 
         if not preproc._singleton_instance:
-            _check_with_shared_param(input_preprocessor,
-                                     input_preprocessor_copy)
+            _check_with_shared_param(
+                input_preprocessor, input_preprocessor_copy
+            )
         elif preproc._singleton_instance:
-            _check_with_shared_param(input_preprocessor,
-                                     input_preprocessor_copy,
-                                     input_preprocessor)
+            _check_with_shared_param(
+                input_preprocessor, input_preprocessor_copy, input_preprocessor
+            )
 
         if lstm:
-            network_ctor = functools.partial(LSTMEncodingNetwork,
-                                             hidden_size=(1, ),
-                                             post_fc_layer_params=(2, 2))
+            network_ctor = functools.partial(
+                LSTMEncodingNetwork,
+                hidden_size=(1,),
+                post_fc_layer_params=(2, 2),
+            )
         else:
-            network_ctor = functools.partial(EncodingNetwork,
-                                             fc_layer_params=(10, 10))
+            network_ctor = functools.partial(
+                EncodingNetwork, fc_layer_params=(10, 10)
+            )
 
         net = network_ctor(
             input_tensor_spec=[
                 TestInputpreprocessor.input_spec,
-                TestInputpreprocessor.input_spec
+                TestInputpreprocessor.input_spec,
             ],
             input_preprocessors=[input_preprocessor, torch.relu],
-            preprocessing_combiner=NestConcat(dim=0))
+            preprocessing_combiner=NestConcat(dim=0),
+        )
 
         # 2) test copied network has its own parameters, including
         # parameters from input preprocessors
@@ -102,17 +108,17 @@ class TestInputpreprocessor(parameterized.TestCase, alf.test.TestCase):
         if not preproc._singleton_instance:
             _check_with_shared_param(p_net._networks[0], p_net._networks[1])
         else:
-            _check_with_shared_param(p_net._networks[0], p_net._networks[1],
-                                     input_preprocessor)
+            _check_with_shared_param(
+                p_net._networks[0], p_net._networks[1], input_preprocessor
+            )
 
         # 4) test network forward
         batch_size = 6
-        batch = TestInputpreprocessor.input_spec.zeros(
-            outer_dims=(batch_size, ))
+        batch = TestInputpreprocessor.input_spec.zeros(outer_dims=(batch_size,))
 
         if lstm:
-            state = [(), (torch.zeros((batch_size, 1)), ) * 2, ()]
-            p_state = [(), (torch.zeros((batch_size, replicas, 1)), ) * 2, ()]
+            state = [(), (torch.zeros((batch_size, 1)),) * 2, ()]
+            p_state = [(), (torch.zeros((batch_size, replicas, 1)),) * 2, ()]
         else:
             state = ()
             p_state = ()
@@ -124,15 +130,13 @@ class TestInputpreprocessor(parameterized.TestCase, alf.test.TestCase):
     def test_input_preprocessor_state(self, shared_preproc):
         input_preprocessor = self._make_preproc(shared_preproc)
         batch_size = 6
-        batch = TestInputpreprocessor.input_spec.zeros(
-            outer_dims=(batch_size, ))
+        batch = TestInputpreprocessor.input_spec.zeros(outer_dims=(batch_size,))
 
         input_preprocessor(batch)
-        self.assertRaises(AssertionError,
-                          input_preprocessor,
-                          inputs=batch,
-                          state=batch)
+        self.assertRaises(
+            AssertionError, input_preprocessor, inputs=batch, state=batch
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

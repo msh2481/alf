@@ -30,4 +30,4 @@ import alf
 import alf.examples.ppo_procgen.base_conf
 
 # Environment Configuration
-alf.config('create_environment', env_name='bossfight')
+alf.config("create_environment", env_name="bossfight")

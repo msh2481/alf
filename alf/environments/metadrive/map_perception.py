@@ -25,6 +25,7 @@ try:
     from metadrive.constants import LineType
 except ImportError:
     from unittest.mock import Mock
+
     # create 'metadrive' as a mock to not break python argument type hints
     metadrive = Mock()
 
@@ -44,11 +45,13 @@ class MapPolylinePerception(object):
 
     """
 
-    def __init__(self,
-                 fov: FieldOfView,
-                 segment_resolution: float = 1.0,
-                 polyline_size: int = 1,
-                 polyline_limit: int = 256):
+    def __init__(
+        self,
+        fov: FieldOfView,
+        segment_resolution: float = 1.0,
+        polyline_size: int = 1,
+        polyline_limit: int = 256,
+    ):
         """Construct a MapPolylinePerception instance.
 
         Args:
@@ -85,9 +88,10 @@ class MapPolylinePerception(object):
         # Add the size of one hot type encoding
         self._feature_size += self._category_encoder.size
 
-        self._spec = TensorSpec(shape=(self._polyline_limit,
-                                       self._feature_size),
-                                dtype=torch.float32)
+        self._spec = TensorSpec(
+            shape=(self._polyline_limit, self._feature_size),
+            dtype=torch.float32,
+        )
 
         self._polylines = None
 
@@ -129,12 +133,18 @@ class MapPolylinePerception(object):
                         if lane.line_types[side] == LineType.NONE:
                             continue
                         category = self._category_encoder.encode_line_type(
-                            lane.line_types[side])
+                            lane.line_types[side]
+                        )
                         offset = side - 0.5
                         polylines.append(
-                            Polyline.from_lane(lane, offset, category,
-                                               self._segment_resolution,
-                                               self._polyline_size))
+                            Polyline.from_lane(
+                                lane,
+                                offset,
+                                category,
+                                self._segment_resolution,
+                                self._polyline_size,
+                            )
+                        )
 
         # 2. Collect all the navigation lines. They are actually center lines of
         # selected lanes.
@@ -145,9 +155,14 @@ class MapPolylinePerception(object):
             for lane in lanes:
                 category = self._category_encoder.encode_navigation()
                 polylines.append(
-                    Polyline.from_lane(lane, 0.0, category,
-                                       self._segment_resolution,
-                                       self._polyline_size))
+                    Polyline.from_lane(
+                        lane,
+                        0.0,
+                        category,
+                        self._segment_resolution,
+                        self._polyline_size,
+                    )
+                )
 
         # 3. Now polylines is a list of Polyline instances, where each Polyline
         # instance corresponds to a batch of polylines. Here we flatten it so
@@ -155,10 +170,12 @@ class MapPolylinePerception(object):
         # instance, which gets stored in self._polylines.
         self._polylines = Polyline(
             point=np.concatenate([pl.point for pl in polylines], axis=0),
-            category=np.concatenate([pl.category for pl in polylines], axis=0))
+            category=np.concatenate([pl.category for pl in polylines], axis=0),
+        )
 
-    def observe(self, position: tuple,
-                heading: float) -> Tuple[np.ndarray, int]:
+    def observe(
+        self, position: tuple, heading: float
+    ) -> Tuple[np.ndarray, int]:
         """Called upon every observation to get a rotated and cropped view of the map
         objects and navigation. Returns the feature vector of the observation.
 
@@ -188,13 +205,18 @@ class MapPolylinePerception(object):
         """
         # 1. Filter the polylines to keep only the ones that are within FOV
         polylines = self._polylines.transformed_within_fov(
-            position, heading, self._fov)
+            position, heading, self._fov
+        )
 
         # 2. Filter the polylines to make the population below the limit
         polylines = polylines.keep_closest_n(self._polyline_limit)
         polyline_count = polylines.point.shape[0]
 
         # 3. Fill in the features
-        return polylines.to_feature(
-            required_batch_size=self._polyline_limit,
-            category_encoder=self._category_encoder), polyline_count
+        return (
+            polylines.to_feature(
+                required_batch_size=self._polyline_limit,
+                category_encoder=self._category_encoder,
+            ),
+            polyline_count,
+        )

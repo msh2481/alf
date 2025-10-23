@@ -79,31 +79,38 @@ class AdvFetchEnv(FetchEnv):
         self.reward_type = reward_type
         self._quat = None
 
-        robot_env.RobotEnv.__init__(self,
-                                    model_path=model_path,
-                                    n_substeps=n_substeps,
-                                    n_actions=7,
-                                    initial_qpos=initial_qpos)
+        robot_env.RobotEnv.__init__(
+            self,
+            model_path=model_path,
+            n_substeps=n_substeps,
+            n_actions=7,
+            initial_qpos=initial_qpos,
+        )
 
     def _reset_sim(self):
         # reset to the upright orientation
-        self._quat = np.array([1., 0., 1., 0.])
+        self._quat = np.array([1.0, 0.0, 1.0, 0.0])
         return super()._reset_sim()
 
     def _set_action(self, action):
-        assert action.shape == (7, )
-        action = action.copy(
+        assert action.shape == (7,)
+        action = (
+            action.copy()
         )  # ensure that we don't change the action outside of this scope
-        pos_ctrl, euler_angles, gripper_ctrl = action[:3], action[3:6], action[
-            -1]
+        pos_ctrl, euler_angles, gripper_ctrl = (
+            action[:3],
+            action[3:6],
+            action[-1],
+        )
 
         pos_ctrl *= 0.05  # limit maximum change in position
         # first downscale the euler angle to limit the max rotation of each step
         self._quat = rotations.quat_mul(
-            rotations.euler2quat(euler_angles * np.pi * 0.05), self._quat)
+            rotations.euler2quat(euler_angles * np.pi * 0.05), self._quat
+        )
 
         gripper_ctrl = np.array([gripper_ctrl, gripper_ctrl])
-        assert gripper_ctrl.shape == (2, )
+        assert gripper_ctrl.shape == (2,)
         if self.block_gripper:
             gripper_ctrl = np.zeros_like(gripper_ctrl)
         action = np.concatenate([pos_ctrl, self._quat, gripper_ctrl])
@@ -113,11 +120,12 @@ class AdvFetchEnv(FetchEnv):
         utils.mocap_set_action(self.sim, action)
 
     def _get_obs(self):
-        """We should also return the gripper's orientation.
-        """
+        """We should also return the gripper's orientation."""
         obs = super()._get_obs()
         gripper_rot = rotations.mat2euler(
-            self.sim.data.get_site_xmat('robot0:grip'))
-        obs['observation'] = np.concatenate(
-            [obs['observation'], gripper_rot.ravel()])
+            self.sim.data.get_site_xmat("robot0:grip")
+        )
+        obs["observation"] = np.concatenate(
+            [obs["observation"], gripper_rot.ravel()]
+        )
         return obs

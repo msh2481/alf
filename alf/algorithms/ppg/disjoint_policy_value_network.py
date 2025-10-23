@@ -18,15 +18,20 @@ import torch
 import alf
 from alf.tensor_specs import TensorSpec, BoundedTensorSpec
 from alf.data_structures import namedtuple
-from alf.networks import Network, NormalProjectionNetwork, CategoricalProjectionNetwork, EncodingNetwork
+from alf.networks import (
+    Network,
+    NormalProjectionNetwork,
+    CategoricalProjectionNetwork,
+    EncodingNetwork,
+)
 
 
 def _create_projection_net_based_on_action_spec(
-        discrete_projection_net_ctor: Callable[[int, BoundedTensorSpec],
-                                               Network],
-        continuous_projection_net_ctor: Callable[[int, BoundedTensorSpec],
-                                                 Network], input_size: int,
-        action_spec):
+    discrete_projection_net_ctor: Callable[[int, BoundedTensorSpec], Network],
+    continuous_projection_net_ctor: Callable[[int, BoundedTensorSpec], Network],
+    input_size: int,
+    action_spec,
+):
     """Create project network(s) for the potentially nested action spec.
 
     This function basically creates a projection network for each of the leaf
@@ -50,8 +55,11 @@ def _create_projection_net_based_on_action_spec(
     """
 
     def _create_individually(spec):
-        constructor = (discrete_projection_net_ctor
-                       if spec.is_discrete else continuous_projection_net_ctor)
+        constructor = (
+            discrete_projection_net_ctor
+            if spec.is_discrete
+            else continuous_projection_net_ctor
+        )
         return constructor(input_size=input_size, action_spec=spec)
 
     return alf.nest.map_structure(_create_individually, action_spec)
@@ -114,14 +122,16 @@ class DisjointPolicyValueNetwork(Network):
     """
 
     # TODO(breakds): Add type hints when nest of tensor type is defined
-    def __init__(self,
-                 observation_spec,
-                 action_spec,
-                 encoding_network_ctor=EncodingNetwork,
-                 is_sharing_encoder: bool = False,
-                 discrete_projection_net_ctor=CategoricalProjectionNetwork,
-                 continuous_projection_net_ctor=NormalProjectionNetwork,
-                 name='DisjointPolicyValueNetwork'):
+    def __init__(
+        self,
+        observation_spec,
+        action_spec,
+        encoding_network_ctor=EncodingNetwork,
+        is_sharing_encoder: bool = False,
+        discrete_projection_net_ctor=CategoricalProjectionNetwork,
+        continuous_projection_net_ctor=NormalProjectionNetwork,
+        name="DisjointPolicyValueNetwork",
+    ):
         """The constructor of DisjointPolicyValueNetwork
 
         Note that there are two projection constructor parameters. They exist
@@ -163,7 +173,8 @@ class DisjointPolicyValueNetwork(Network):
         # +------------------------------------+
 
         self._actor_encoder = encoding_network_ctor(
-            input_tensor_spec=observation_spec)
+            input_tensor_spec=observation_spec
+        )
 
         encoder_output_size = self._actor_encoder.output_spec.shape[0]
 
@@ -175,7 +186,8 @@ class DisjointPolicyValueNetwork(Network):
             discrete_projection_net_ctor=discrete_projection_net_ctor,
             continuous_projection_net_ctor=continuous_projection_net_ctor,
             input_size=encoder_output_size,
-            action_spec=action_spec)
+            action_spec=action_spec,
+        )
 
         # +------------------------------------------+
         # | Step 3: Value head of the aux branch     |
@@ -186,7 +198,8 @@ class DisjointPolicyValueNetwork(Network):
         # Like the value head Aux head is outputting value estimation
         self._aux_head = alf.nn.Sequential(
             alf.layers.FC(input_size=encoder_output_size, output_size=1),
-            alf.layers.Reshape(()))
+            alf.layers.Reshape(()),
+        )
 
         # +------------------------------------------+
         # | Step 4: Assemble network + value head    |
@@ -200,30 +213,43 @@ class DisjointPolicyValueNetwork(Network):
                     alf.nn.Sequential(
                         # Use the same encoder, but the encoder is DETACHED.
                         alf.layers.Detach(),
-                        alf.layers.FC(input_size=encoder_output_size,
-                                      output_size=1),
+                        alf.layers.FC(
+                            input_size=encoder_output_size, output_size=1
+                        ),
                         alf.layers.Reshape(()),
-                        input_tensor_spec=self._actor_encoder.output_spec),
-                    alf.layers.Identity()))
+                        input_tensor_spec=self._actor_encoder.output_spec,
+                    ),
+                    alf.layers.Identity(),
+                ),
+            )
         else:
             # When not sharing encoder, create a separate encoder for the value
             # component.
             self._value_encoder = encoding_network_ctor(
-                input_tensor_spec=observation_spec)
+                input_tensor_spec=observation_spec
+            )
 
             self._composition = alf.nn.Sequential(
                 alf.nn.Branch(
                     alf.nn.Sequential(
                         self._actor_encoder,
-                        alf.nn.Branch(self._policy_head,
-                                      alf.layers.Identity(),
-                                      name='PolicyComponent')),
+                        alf.nn.Branch(
+                            self._policy_head,
+                            alf.layers.Identity(),
+                            name="PolicyComponent",
+                        ),
+                    ),
                     alf.nn.Sequential(
                         self._value_encoder,
-                        alf.layers.FC(input_size=encoder_output_size,
-                                      output_size=1), alf.layers.Reshape(()))),
+                        alf.layers.FC(
+                            input_size=encoder_output_size, output_size=1
+                        ),
+                        alf.layers.Reshape(()),
+                    ),
+                ),
                 # Order: policy, value, aux value
-                lambda heads: (heads[0][0], heads[1], heads[0][1]))
+                lambda heads: (heads[0][0], heads[1], heads[0][1]),
+            )
 
     def forward(self, observation, state, require_aux: bool = True):
         """Computes the action distribution, aux value and value estimation
@@ -254,8 +280,9 @@ class DisjointPolicyValueNetwork(Network):
             state (Triplet): RNN states in the order of policy, value, aux value
 
         """
-        (action_distribution, value,
-         encoded), output_state = self._composition(observation, state=state)
+        (action_distribution, value, encoded), output_state = self._composition(
+            observation, state=state
+        )
 
         if require_aux:
             aux, _ = self._aux_head(encoded)

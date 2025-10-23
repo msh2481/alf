@@ -41,12 +41,16 @@ class ConditionalOpsTest(alf.test.TestCase):
         self.assertTensorEqual(updated_target[0], x + 1)
         self.assertTensorEqual(updated_target[1], y - 1)
 
-        cond = torch.rand((batch_size, )) < 0.5
+        cond = torch.rand((batch_size,)) < 0.5
         updated_target = conditional_update(target, cond, _func, x, y)
-        self.assertTensorEqual(select_from_mask(updated_target[0], cond),
-                               select_from_mask(x + 1, cond))
-        self.assertTensorEqual(select_from_mask(updated_target[1], cond),
-                               select_from_mask(y - 1, cond))
+        self.assertTensorEqual(
+            select_from_mask(updated_target[0], cond),
+            select_from_mask(x + 1, cond),
+        )
+        self.assertTensorEqual(
+            select_from_mask(updated_target[1], cond),
+            select_from_mask(y - 1, cond),
+        )
 
         vx = torch.zeros(())
         vy = torch.zeros(())
@@ -72,19 +76,23 @@ class ConditionalOpsTest(alf.test.TestCase):
         cond = torch.randint(high=2, size=[batch_size]).to(torch.bool)
 
         updated_y = conditional_update(y, cond, _func, x)
-        self.assertTensorEqual(select_from_mask(updated_y, cond),
-                               select_from_mask(x**2, cond))
-        self.assertTensorEqual(select_from_mask(updated_y, ~cond),
-                               select_from_mask(y, ~cond))
+        self.assertTensorEqual(
+            select_from_mask(updated_y, cond), select_from_mask(x**2, cond)
+        )
+        self.assertTensorEqual(
+            select_from_mask(updated_y, ~cond), select_from_mask(y, ~cond)
+        )
 
     def test_select_from_mask(self):
-        data = torch.as_tensor([[1, 2], [3, 4], [5, 6], [7, 8], [9, 10],
-                                [10, 11]])
+        data = torch.as_tensor(
+            [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10], [10, 11]]
+        )
         cond = torch.as_tensor([False, True, True, False, False, True])
         result = select_from_mask(data, cond)
-        self.assertTensorEqual(result,
-                               torch.as_tensor([[3, 4], [5, 6], [10, 11]]))
+        self.assertTensorEqual(
+            result, torch.as_tensor([[3, 4], [5, 6], [10, 11]])
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

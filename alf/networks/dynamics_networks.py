@@ -35,15 +35,17 @@ from .projection_networks import NormalProjectionNetwork
 class DynamicsNetwork(Network):
     """Create an instance of DynamicsNetwork."""
 
-    def __init__(self,
-                 input_tensor_spec,
-                 output_tensor_spec,
-                 joint_fc_layer_params=None,
-                 activation=torch.relu_,
-                 kernel_initializer=None,
-                 prob=False,
-                 continuous_projection_net_ctor=NormalProjectionNetwork,
-                 name="DynamicsNetwork"):
+    def __init__(
+        self,
+        input_tensor_spec,
+        output_tensor_spec,
+        joint_fc_layer_params=None,
+        activation=torch.relu_,
+        kernel_initializer=None,
+        prob=False,
+        continuous_projection_net_ctor=NormalProjectionNetwork,
+        name="DynamicsNetwork",
+    ):
         """Creates an instance of `DynamicsNetwork` for predicting the next
         observation given current observation and action.
 
@@ -73,26 +75,28 @@ class DynamicsNetwork(Network):
         flat_action_spec = nest.flatten(action_spec)
         if len(flat_action_spec) > 1:
             raise ValueError(
-                'Only a single action is supported by this network')
+                "Only a single action is supported by this network"
+            )
 
         if kernel_initializer is None:
             kernel_initializer = functools.partial(
                 variance_scaling_init,
                 gain=1.0 / 2.0,
-                mode='fan_in',
-                distribution='truncated_normal',
-                nonlinearity=math_ops.identity)
+                mode="fan_in",
+                distribution="truncated_normal",
+                nonlinearity=math_ops.identity,
+            )
 
         self._single_action_spec = flat_action_spec[0]
 
         self._prob = prob
         if self._prob:
             self._joint_encoder = EncodingNetwork(
-                TensorSpec(
-                    (observation_spec.shape[0] + action_spec.shape[0], )),
+                TensorSpec((observation_spec.shape[0] + action_spec.shape[0],)),
                 fc_layer_params=joint_fc_layer_params,
                 activation=activation,
-                kernel_initializer=kernel_initializer)
+                kernel_initializer=kernel_initializer,
+            )
 
             # the output spec is named as ``action_spec`` in projection_net
             self._projection_net = continuous_projection_net_ctor(
@@ -101,19 +105,20 @@ class DynamicsNetwork(Network):
                 action_spec=output_tensor_spec,
                 squash_mean=False,
                 scale_distribution=False,
-                state_dependent_std=True)
+                state_dependent_std=True,
+            )
         else:
             self._joint_encoder = EncodingNetwork(
-                TensorSpec(
-                    (observation_spec.shape[0] + action_spec.shape[0], )),
+                TensorSpec((observation_spec.shape[0] + action_spec.shape[0],)),
                 fc_layer_params=joint_fc_layer_params,
                 activation=activation,
                 kernel_initializer=kernel_initializer,
                 last_activation=math_ops.identity,
-                last_layer_size=out_size)
+                last_layer_size=out_size,
+            )
             self._projection_net = None
 
-        self._output_spec = TensorSpec((out_size, ))
+        self._output_spec = TensorSpec((out_size,))
 
     def forward(self, inputs, state=()):
         """Computes prediction given inputs.
@@ -147,10 +152,12 @@ class DynamicsNetwork(Network):
 class ParallelDynamicsNetwork(Network):
     """Create ``n`` DynamicsNetwork in parallel."""
 
-    def __init__(self,
-                 dynamics_network: DynamicsNetwork,
-                 n: int,
-                 name="ParallelDynamicsNetwork"):
+    def __init__(
+        self,
+        dynamics_network: DynamicsNetwork,
+        n: int,
+        name="ParallelDynamicsNetwork",
+    ):
         """
         It create a parallelized version of ``DynamicsNetwork``.
 
@@ -160,19 +167,23 @@ class ParallelDynamicsNetwork(Network):
                 initializations.
             name (str):
         """
-        super().__init__(input_tensor_spec=dynamics_network.input_tensor_spec,
-                         name=name)
+        super().__init__(
+            input_tensor_spec=dynamics_network.input_tensor_spec, name=name
+        )
         self._joint_encoder = dynamics_network._joint_encoder.make_parallel(
-            n, True)
+            n, True
+        )
         self._prob = dynamics_network._prob
         if self._prob:
-            self._projection_net = \
-                            dynamics_network._projection_net.make_parallel(n)
+            self._projection_net = (
+                dynamics_network._projection_net.make_parallel(n)
+            )
         else:
             self._projection_net = None
 
-        self._output_spec = TensorSpec((n, ) +
-                                       dynamics_network.output_spec.shape)
+        self._output_spec = TensorSpec(
+            (n,) + dynamics_network.output_spec.shape
+        )
 
     def forward(self, inputs, state=()):
         """Computes prediction given inputs.

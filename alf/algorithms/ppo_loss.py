@@ -26,23 +26,25 @@ from alf.utils import value_ops
 class PPOLoss(ActorCriticLoss):
     """PPO loss."""
 
-    def __init__(self,
-                 reward_dim=1,
-                 gamma=0.99,
-                 td_error_loss_fn=element_wise_squared_loss,
-                 td_lambda=0.95,
-                 normalize_advantages=True,
-                 normalize_scalar_advantages=False,
-                 advantage_norm_momentum=0.9,
-                 compute_advantages_internally=False,
-                 advantage_clip=None,
-                 entropy_regularization=None,
-                 td_loss_weight=1.0,
-                 importance_ratio_clipping=0.2,
-                 log_prob_clipping=0.0,
-                 check_numerics=False,
-                 debug_summaries=False,
-                 name='PPOLoss'):
+    def __init__(
+        self,
+        reward_dim=1,
+        gamma=0.99,
+        td_error_loss_fn=element_wise_squared_loss,
+        td_lambda=0.95,
+        normalize_advantages=True,
+        normalize_scalar_advantages=False,
+        advantage_norm_momentum=0.9,
+        compute_advantages_internally=False,
+        advantage_clip=None,
+        entropy_regularization=None,
+        td_loss_weight=1.0,
+        importance_ratio_clipping=0.2,
+        log_prob_clipping=0.0,
+        check_numerics=False,
+        debug_summaries=False,
+        name="PPOLoss",
+    ):
         """Implement the simplified surrogate loss in equation (9) of `Proximal
         Policy Optimization Algorithms <https://arxiv.org/abs/1707.06347>`_.
 
@@ -114,7 +116,8 @@ class PPOLoss(ActorCriticLoss):
             entropy_regularization=entropy_regularization,
             td_loss_weight=td_loss_weight,
             debug_summaries=debug_summaries,
-            name=name)
+            name=name,
+        )
 
         self._importance_ratio_clipping = importance_ratio_clipping
         self._log_prob_clipping = log_prob_clipping
@@ -123,18 +126,21 @@ class PPOLoss(ActorCriticLoss):
 
     def _pg_loss(self, info, advantages):
         scope = alf.summary.scope(self._name)
-        importance_ratio, importance_ratio_clipped = value_ops.action_importance_ratio(
-            action_distribution=info.action_distribution,
-            rollout_action_distribution=info.rollout_action_distribution,
-            action=info.action,
-            rollout_log_prob=info.rollout_log_prob,
-            log_prob=info.log_prob,
-            clipping_mode='double_sided',
-            scope=scope,
-            importance_ratio_clipping=self._importance_ratio_clipping,
-            log_prob_clipping=self._log_prob_clipping,
-            check_numerics=self._check_numerics,
-            debug_summaries=self._debug_summaries)
+        importance_ratio, importance_ratio_clipped = (
+            value_ops.action_importance_ratio(
+                action_distribution=info.action_distribution,
+                rollout_action_distribution=info.rollout_action_distribution,
+                action=info.action,
+                rollout_log_prob=info.rollout_log_prob,
+                log_prob=info.log_prob,
+                clipping_mode="double_sided",
+                scope=scope,
+                importance_ratio_clipping=self._importance_ratio_clipping,
+                log_prob_clipping=self._log_prob_clipping,
+                check_numerics=self._check_numerics,
+                debug_summaries=self._debug_summaries,
+            )
+        )
         if alf.summary.get_grad_step_counter() == 0:
             # For the first gradient step in one iteration, the importance ratios
             # should be 1. Summarize them so that we can notice something is wrong
@@ -143,13 +149,20 @@ class PPOLoss(ActorCriticLoss):
             # to 1.
             global_step = alf.summary.get_global_counter()
             summary_interval = alf.get_config_value(
-                'TrainerConfig.summary_interval')
-            if global_step < summary_interval or global_step % summary_interval == 0:
+                "TrainerConfig.summary_interval"
+            )
+            if (
+                global_step < summary_interval
+                or global_step % summary_interval == 0
+            ):
                 with alf.summary.record_if(lambda: True), scope:
-                    alf.summary.histogram('importance_ratio0_minus1',
-                                          importance_ratio - 1)
-                    alf.summary.scalar('importance_ratio0_minus1_abs',
-                                       (importance_ratio - 1).abs().mean())
+                    alf.summary.histogram(
+                        "importance_ratio0_minus1", importance_ratio - 1
+                    )
+                    alf.summary.scalar(
+                        "importance_ratio0_minus1_abs",
+                        (importance_ratio - 1).abs().mean(),
+                    )
 
         # Pessimistically choose the maximum objective value for clipped and
         # unclipped importance ratios.
@@ -159,12 +172,14 @@ class PPOLoss(ActorCriticLoss):
 
         if self._debug_summaries and alf.summary.should_record_summaries():
             with scope:
-                alf.summary.scalar('pg_objective', pg_objective.mean())
-                alf.summary.scalar('pg_objective_clipped',
-                                   pg_objective_clipped.mean())
-                alf.summary.scalar('objective_clip_fraction',
-                                   (pg_objective_clipped
-                                    > pg_objective).float().mean())
+                alf.summary.scalar("pg_objective", pg_objective.mean())
+                alf.summary.scalar(
+                    "pg_objective_clipped", pg_objective_clipped.mean()
+                )
+                alf.summary.scalar(
+                    "objective_clip_fraction",
+                    (pg_objective_clipped > pg_objective).float().mean(),
+                )
 
         if self._check_numerics:
             assert torch.all(torch.isfinite(policy_gradient_loss))
@@ -179,7 +194,8 @@ class PPOLoss(ActorCriticLoss):
         # info.value is the newly computed value which is different from the
         # rollout time value prediction. The rollout time value prediction is
         # preserved in info.rollout_value.
-        assert hasattr(info, 'rollout_value'), (
-            'Expect info.rollout_value to exist for computing returns '
-            'and advatages inside PPOLoss.')
+        assert hasattr(info, "rollout_value"), (
+            "Expect info.rollout_value to exist for computing returns "
+            "and advatages inside PPOLoss."
+        )
         return super()._calc_returns_and_advantages(info, info.rollout_value)

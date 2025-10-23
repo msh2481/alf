@@ -10,7 +10,7 @@ import torch
 from gym import spaces
 
 # Add ALF to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '.'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "."))
 
 import alf
 import alf.nest
@@ -26,7 +26,7 @@ class RandomHandcraftedAlgorithm(HandcraftedAlgorithm):
     def _policy_func(self, observation):
         """Random action selection."""
         batch_size = alf.nest.get_nest_batch_size(observation)
-        return torch.randint(0, 3, (batch_size, ))
+        return torch.randint(0, 3, (batch_size,))
 
 
 class SimpleGridWorld(gym.Env):
@@ -34,10 +34,9 @@ class SimpleGridWorld(gym.Env):
 
     def __init__(self):
         super().__init__()
-        self.observation_space = spaces.Box(low=0,
-                                            high=1,
-                                            shape=(5, ),
-                                            dtype=np.float32)
+        self.observation_space = spaces.Box(
+            low=0, high=1, shape=(5,), dtype=np.float32
+        )
         self.action_space = spaces.Discrete(3)  # LEFT, STAY, RIGHT
         self.reset()
 
@@ -73,26 +72,27 @@ def test_simple_concurrent():
     env = SimpleGridWorld()
 
     # Create specs
-    observation_spec = TensorSpec(shape=(5, ), dtype=torch.float32)
-    action_spec = BoundedTensorSpec(shape=(),
-                                    dtype=torch.int64,
-                                    minimum=0,
-                                    maximum=2)
+    observation_spec = TensorSpec(shape=(5,), dtype=torch.float32)
+    action_spec = BoundedTensorSpec(
+        shape=(), dtype=torch.int64, minimum=0, maximum=2
+    )
 
     print(f"Observation spec: {observation_spec}")
     print(f"Action spec: {action_spec}")
 
     # Create algorithm constructor
     def alg_ctor(observation_spec, action_spec, **kwargs):
-        return RandomHandcraftedAlgorithm(observation_spec=observation_spec,
-                                          action_spec=action_spec,
-                                          **kwargs)
+        return RandomHandcraftedAlgorithm(
+            observation_spec=observation_spec, action_spec=action_spec, **kwargs
+        )
 
     # Create SimpleConcurrentAlgorithm
-    algorithm = SimpleConcurrentAlgorithm(observation_spec=observation_spec,
-                                          action_spec=action_spec,
-                                          algorithm_ctor=alg_ctor,
-                                          num_copies=2)
+    algorithm = SimpleConcurrentAlgorithm(
+        observation_spec=observation_spec,
+        action_spec=action_spec,
+        algorithm_ctor=alg_ctor,
+        num_copies=2,
+    )
 
     print(f"Algorithm created with {algorithm._num_copies} copies")
 
@@ -102,7 +102,8 @@ def test_simple_concurrent():
         observation=torch.tensor(obs).unsqueeze(0),  # Add batch dimension
         reward=torch.tensor([0.0]),
         discount=torch.tensor([1.0]),
-        step_type=torch.tensor([0]))  # 0 = FIRST
+        step_type=torch.tensor([0]),
+    )  # 0 = FIRST
 
     state = algorithm.get_initial_rollout_state(1)  # batch_size = 1
 
@@ -124,12 +125,15 @@ def test_simple_concurrent():
 
     # Test with larger batch size (must be multiple of num_copies)
     print("\nTesting with batch size 4 (multiple of 2)...")
-    batch_obs = torch.tensor([[1, 0, 0, 0, 0], [0, 1, 0, 0, 0],
-                              [0, 0, 1, 0, 0], [0, 0, 0, 1, 0]])
-    batch_time_step = TimeStep(observation=batch_obs,
-                               reward=torch.tensor([0.0, 0.0, 0.0, 0.0]),
-                               discount=torch.tensor([1.0, 1.0, 1.0, 1.0]),
-                               step_type=torch.tensor([0, 0, 0, 0]))
+    batch_obs = torch.tensor(
+        [[1, 0, 0, 0, 0], [0, 1, 0, 0, 0], [0, 0, 1, 0, 0], [0, 0, 0, 1, 0]]
+    )
+    batch_time_step = TimeStep(
+        observation=batch_obs,
+        reward=torch.tensor([0.0, 0.0, 0.0, 0.0]),
+        discount=torch.tensor([1.0, 1.0, 1.0, 1.0]),
+        step_type=torch.tensor([0, 0, 0, 0]),
+    )
 
     batch_state = algorithm.get_initial_rollout_state(4)
     batch_alg_step = algorithm.rollout_step(batch_time_step, batch_state)
@@ -141,5 +145,5 @@ def test_simple_concurrent():
     print("✅ SimpleConcurrentAlgorithm demo passed!")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_simple_concurrent()

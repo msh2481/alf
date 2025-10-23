@@ -19,9 +19,13 @@ import torch
 import torch.distributions as td
 
 import alf
-from alf.algorithms.mcts_algorithm import (MCTSModel, MCTSState, ModelOutput,
-                                           MCTSAlgorithm,
-                                           VisitSoftmaxTemperatureByMoves)
+from alf.algorithms.mcts_algorithm import (
+    MCTSModel,
+    MCTSState,
+    ModelOutput,
+    MCTSAlgorithm,
+    VisitSoftmaxTemperatureByMoves,
+)
 from alf.algorithms.mcts_algorithm import calculate_exploration_policy
 from alf.data_structures import StepType, TimeStep
 
@@ -38,20 +42,38 @@ class TicTacToeModel(MCTSModel):
     """
 
     def __init__(self):
-        super().__init__(num_unroll_steps=5,
-                         representation_net=torch.nn.Module(),
-                         dynamics_net=torch.nn.Module(),
-                         prediction_net=torch.nn.Module(),
-                         train_reward_function=True,
-                         train_game_over_function=True)
-        self._line_x = torch.tensor([[0, 0, 0], [1, 1, 1], [2, 2,
-                                                            2], [0, 1, 2],
-                                     [0, 1, 2], [0, 1, 2], [0, 1, 2],
-                                     [0, 1, 2]]).unsqueeze(0)
-        self._line_y = torch.tensor([[0, 1, 2], [0, 1, 2], [0, 1,
-                                                            2], [0, 0, 0],
-                                     [1, 1, 1], [2, 2, 2], [0, 1, 2],
-                                     [2, 1, 0]]).unsqueeze(0)
+        super().__init__(
+            num_unroll_steps=5,
+            representation_net=torch.nn.Module(),
+            dynamics_net=torch.nn.Module(),
+            prediction_net=torch.nn.Module(),
+            train_reward_function=True,
+            train_game_over_function=True,
+        )
+        self._line_x = torch.tensor(
+            [
+                [0, 0, 0],
+                [1, 1, 1],
+                [2, 2, 2],
+                [0, 1, 2],
+                [0, 1, 2],
+                [0, 1, 2],
+                [0, 1, 2],
+                [0, 1, 2],
+            ]
+        ).unsqueeze(0)
+        self._line_y = torch.tensor(
+            [
+                [0, 1, 2],
+                [0, 1, 2],
+                [0, 1, 2],
+                [0, 0, 0],
+                [1, 1, 1],
+                [2, 2, 2],
+                [0, 1, 2],
+                [2, 1, 0],
+            ]
+        ).unsqueeze(0)
         self._actions = torch.arange(9, dtype=torch.int64).unsqueeze(0)
 
     def initial_representation(self, observation):
@@ -62,18 +84,20 @@ class TicTacToeModel(MCTSModel):
         board = latent
         player = -self._get_current_player(board)
         won = self._check_player_win(board, player)
-        reward = torch.where(won, -player.to(torch.float32), torch.tensor(0.))
+        reward = torch.where(won, -player.to(torch.float32), torch.tensor(0.0))
         game_over = self._check_game_over(board)
         prob = self._get_action_probs(board)
-        prob[game_over] = 1. / 9
-        value = torch.zeros((batch_size, ))
+        prob[game_over] = 1.0 / 9
+        value = torch.zeros((batch_size,))
 
-        return ModelOutput(value=value,
-                           reward=reward,
-                           state=latent,
-                           actions=self._actions.expand(batch_size, -1),
-                           action_probs=prob,
-                           game_over=game_over)
+        return ModelOutput(
+            value=value,
+            reward=reward,
+            state=latent,
+            actions=self._actions.expand(batch_size, -1),
+            action_probs=prob,
+            game_over=game_over,
+        )
 
     def recurrent_inference(self, state, action):
         batch_size = state.shape[0]
@@ -87,19 +111,21 @@ class TicTacToeModel(MCTSModel):
         valid = board[B, y, x] == 0
         board[B[valid], y[valid], x[valid]] = player[valid]
         won = self._check_player_win(board, player)
-        reward = torch.where(won, -player, torch.tensor(0.))
+        reward = torch.where(won, -player, torch.tensor(0.0))
         reward = torch.where(valid, reward, player)
         game_over = self._check_game_over(board)
         game_over = torch.max(game_over, ~valid)
         prob = self._get_action_probs(board)
-        prob[game_over] = 1. / 9
-        value = torch.zeros((batch_size, ))
-        return ModelOutput(value=value,
-                           reward=reward,
-                           state=board,
-                           actions=self._actions.expand(batch_size, -1),
-                           action_probs=prob,
-                           game_over=game_over)
+        prob[game_over] = 1.0 / 9
+        value = torch.zeros((batch_size,))
+        return ModelOutput(
+            value=value,
+            reward=reward,
+            state=board,
+            actions=self._actions.expand(batch_size, -1),
+            action_probs=prob,
+            game_over=game_over,
+        )
 
     def _check_player_win(self, board, player):
         B = torch.arange(board.shape[0]).unsqueeze(-1).unsqueeze(-1)
@@ -127,70 +153,77 @@ class TicTacToeModelTest(alf.test.TestCase):
 
     def test_tic_tac_toe(self):
         model = TicTacToeModel()
-        observation = torch.tensor([[[ 1,  0, -1.],
-                                     [-1,  1,  1],
-                                     [-1, -1,  1.]]]) # yapf: disable
+        observation = torch.tensor(
+            [[[1, 0, -1.0], [-1, 1, 1], [-1, -1, 1.0]]]
+        )  # yapf: disable
         model_output = model.initial_inference(observation)
-        self.assertEqual(model_output.reward, torch.tensor([-1.]))
+        self.assertEqual(model_output.reward, torch.tensor([-1.0]))
         self.assertEqual(model_output.game_over, torch.tensor([True]))
 
-        observation = torch.tensor([[[-1,  1,  1.],
-                                     [-1, -1,  1],
-                                     [-1, -1,  1.]]]) # yapf: disable
+        observation = torch.tensor(
+            [[[-1, 1, 1.0], [-1, -1, 1], [-1, -1, 1.0]]]
+        )  # yapf: disable
         model_output = model.initial_inference(observation)
         self.assertEqual(model_output.game_over, torch.tensor([True]))
 
-        self.assertEqual(model_output.reward, torch.tensor([1.]))
-        observation = torch.tensor([[[0.,  0.,  1.],
-                                     [0.,  1., -1.],
-                                     [1., -1., -1.]]]) # yapf: disable
+        self.assertEqual(model_output.reward, torch.tensor([1.0]))
+        observation = torch.tensor(
+            [[[0.0, 0.0, 1.0], [0.0, 1.0, -1.0], [1.0, -1.0, -1.0]]]
+        )  # yapf: disable
         model_output = model.initial_inference(observation)
-        self.assertEqual(model_output.reward, torch.tensor([-1.]))
+        self.assertEqual(model_output.reward, torch.tensor([-1.0]))
         self.assertEqual(model_output.game_over, torch.tensor([True]))
         # calling recurrent_inference on ended game causes exception
-        self.assertRaises(AssertionError, model.recurrent_inference,
-                          observation, torch.tensor([3]))
+        self.assertRaises(
+            AssertionError,
+            model.recurrent_inference,
+            observation,
+            torch.tensor([3]),
+        )
 
-        observation = torch.tensor([[[0.,  0.,  1.],
-                                     [0.,  1., -1.],
-                                     [0., -1., -1.]]]) # yapf: disable
-        model_output = model.recurrent_inference(observation,
-                                                 torch.tensor([6]))
-        self.assertEqual(model_output.reward, torch.tensor([-1.]))
+        observation = torch.tensor(
+            [[[0.0, 0.0, 1.0], [0.0, 1.0, -1.0], [0.0, -1.0, -1.0]]]
+        )  # yapf: disable
+        model_output = model.recurrent_inference(observation, torch.tensor([6]))
+        self.assertEqual(model_output.reward, torch.tensor([-1.0]))
         self.assertEqual(model_output.game_over, torch.tensor([True]))
 
         # not a valid move for player -1
-        model_output = model.recurrent_inference(observation,
-                                                 torch.tensor([5]))
-        self.assertEqual(model_output.reward, torch.tensor([1.]))
+        model_output = model.recurrent_inference(observation, torch.tensor([5]))
+        self.assertEqual(model_output.reward, torch.tensor([1.0]))
         self.assertEqual(model_output.game_over, torch.tensor([True]))
 
-        model_output = model.recurrent_inference(observation,
-                                                 torch.tensor([3]))
-        self.assertEqual(model_output.reward, torch.tensor([0.]))
+        model_output = model.recurrent_inference(observation, torch.tensor([3]))
+        self.assertEqual(model_output.reward, torch.tensor([0.0]))
         self.assertEqual(model_output.game_over, torch.tensor([False]))
 
 
 class MCTSAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
 
     @parameterized.parameters(
-        dict(), dict(num_parallel_sims=4), dict(with_exploration_policy=True),
+        dict(),
+        dict(num_parallel_sims=4),
+        dict(with_exploration_policy=True),
         dict(with_exploration_policy=True, num_parallel_sims=4),
         dict(expand_all_children=True, with_exploration_policy=True),
         dict(expand_all_root_children=True, with_exploration_policy=True),
-        dict(expand_all_root_children=True,
-             with_exploration_policy=True,
-             num_parallel_sims=4))
-    def test_mcts_algorithm(self,
-                            expand_all_children=False,
-                            expand_all_root_children=False,
-                            with_exploration_policy=False,
-                            num_parallel_sims=1):
+        dict(
+            expand_all_root_children=True,
+            with_exploration_policy=True,
+            num_parallel_sims=4,
+        ),
+    )
+    def test_mcts_algorithm(
+        self,
+        expand_all_children=False,
+        expand_all_root_children=False,
+        with_exploration_policy=False,
+        num_parallel_sims=1,
+    ):
         observation_spec = alf.TensorSpec((3, 3))
-        action_spec = alf.BoundedTensorSpec((),
-                                            dtype=torch.int64,
-                                            minimum=0,
-                                            maximum=8)
+        action_spec = alf.BoundedTensorSpec(
+            (), dtype=torch.int64, minimum=0, maximum=8
+        )
         model = TicTacToeModel()
         time_step = TimeStep(step_type=torch.tensor([StepType.MID]))
 
@@ -226,7 +259,7 @@ class MCTSAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
                 observation_spec,
                 action_spec,
                 discount=0.9,
-                root_dirichlet_alpha=100.,
+                root_dirichlet_alpha=100.0,
                 root_exploration_fraction=0.25,
                 num_simulations=num_simulations,
                 expand_all_children=expand_all_children,
@@ -236,12 +269,13 @@ class MCTSAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
                 learn_with_exploration_policy=with_exploration_policy,
                 pb_c_init=0.25,
                 pb_c_base=19652,
-                visit_softmax_temperature_fn=VisitSoftmaxTemperatureByMoves([
-                    (0, 1.0), (10, 0.0001)
-                ]),
+                visit_softmax_temperature_fn=VisitSoftmaxTemperatureByMoves(
+                    [(0, 1.0), (10, 0.0001)]
+                ),
                 known_value_bounds=(-1, 1),
                 num_parallel_sims=num_parallel_sims,
-                is_two_player_game=True)
+                is_two_player_game=True,
+            )
 
         # test case serially
         for observation, action in cases:
@@ -250,14 +284,16 @@ class MCTSAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
             # We use varying num_simulations instead of a fixed large number such
             # as 2000 to make the test faster.
             num_simulations = int((observation == 0).sum().cpu()) * 200
-            mcts = _create_mcts(observation_spec,
-                                action_spec,
-                                num_simulations=num_simulations)
+            mcts = _create_mcts(
+                observation_spec, action_spec, num_simulations=num_simulations
+            )
             mcts.set_model(model)
             alg_step = mcts.predict_step(
                 time_step._replace(
-                    observation=model.initial_representation(observation)),
-                state)
+                    observation=model.initial_representation(observation)
+                ),
+                state,
+            )
             print(observation, alg_step.output, alg_step.info)
             if type(action) == tuple:
                 self.assertTrue(alg_step.output[0] in action)
@@ -265,17 +301,19 @@ class MCTSAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
                 self.assertEqual(alg_step.output[0], action)
 
         # test batch predict
-        observation = torch.tensor([case[0] for case in cases],
-                                   dtype=torch.float32)
+        observation = torch.tensor(
+            [case[0] for case in cases], dtype=torch.float32
+        )
         state = MCTSState(steps=(observation != 0).sum(dim=(1, 2)))
-        mcts = _create_mcts(observation_spec,
-                            action_spec,
-                            num_simulations=2500)
+        mcts = _create_mcts(observation_spec, action_spec, num_simulations=2500)
         mcts.set_model(model)
         alg_step = mcts.predict_step(
             time_step._replace(
                 step_type=torch.tensor([StepType.MID] * len(cases)),
-                observation=model.initial_representation(observation)), state)
+                observation=model.initial_representation(observation),
+            ),
+            state,
+        )
         for i, (observation, action) in enumerate(cases):
             if type(action) == tuple:
                 self.assertTrue(alg_step.output[i] in action)
@@ -291,7 +329,7 @@ class CalculateExplorationPolicyTest(alf.test.TestCase):
         tol = 1e-6
 
         dist = td.Dirichlet(torch.full([dim], 0.25))
-        prior = dist.sample((batch_size, ))
+        prior = dist.sample((batch_size,))
         value = torch.rand([batch_size, dim])
         c = torch.rand([batch_size, 1]) + 0.01
         for i in range(10):
@@ -302,5 +340,5 @@ class CalculateExplorationPolicyTest(alf.test.TestCase):
         self.assertTrue(((p.sum(dim=1) - 1).abs() < tol).all())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

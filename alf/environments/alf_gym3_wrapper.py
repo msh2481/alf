@@ -77,18 +77,21 @@ def _gym3_space_to_tensor_spec(space, force_int64: bool = False):
                 shape=gym3_space.shape,
                 dtype=torch.int64 if force_int64 else eltype.dtype_name,
                 minimum=0,
-                maximum=eltype.n - 1)
+                maximum=eltype.n - 1,
+            )
         elif isinstance(eltype, gym3.types.Real):
             # Currently this follows gym3's logic to convert it to unbounded
             # tesnor as gym3.types.Real is not bounded.
             eltype = gym3_space.eltype
-            return BoundedTensorSpec(shape=gym3_space.shape,
-                                     dtype=eltype.dtype_name,
-                                     minimum=float('-inf'),
-                                     maximum=float('inf'))
+            return BoundedTensorSpec(
+                shape=gym3_space.shape,
+                dtype=eltype.dtype_name,
+                minimum=float("-inf"),
+                maximum=float("inf"),
+            )
         else:
             raise NotImplementedError(
-                f'AlfGym3Wrapper does not support space element type {eltype} yet'
+                f"AlfGym3Wrapper does not support space element type {eltype} yet"
             )
 
     if isinstance(space, gym3.types.DictType):
@@ -126,7 +129,8 @@ def _extract_env_info_spec(sampe_env_info, ignored_info_keys: List[str] = []):
 
     trimmed = {
         key: sampe_env_info[key]
-        for key in sampe_env_info if key not in ignored_info_keys
+        for key in sampe_env_info
+        if key not in ignored_info_keys
     }
 
     return nest.map_structure(__to_tensor_spec, trimmed)
@@ -163,13 +167,15 @@ class AlfGym3Wrapper(AlfEnvironment):
 
     """
 
-    def __init__(self,
-                 gym3_env: gym3.Env,
-                 image_channel_first: bool = True,
-                 ignored_info_keys: List[str] = [],
-                 support_force_reset: bool = False,
-                 render_activator: Optional[Callable[[], gym3.Env]] = None,
-                 frame_extractor: Optional[Callable[[gym3.Env], Any]] = None):
+    def __init__(
+        self,
+        gym3_env: gym3.Env,
+        image_channel_first: bool = True,
+        ignored_info_keys: List[str] = [],
+        support_force_reset: bool = False,
+        render_activator: Optional[Callable[[], gym3.Env]] = None,
+        frame_extractor: Optional[Callable[[gym3.Env], Any]] = None,
+    ):
         """Construct an adapted instance for the input Gym3 environment
 
         Args:
@@ -198,8 +204,9 @@ class AlfGym3Wrapper(AlfEnvironment):
                 environment.
 
         """
-        assert isinstance(gym3_env, gym3.Env), \
-            f'AlfGym3Wrapper: {type(gym3_env)} is not derived from gym3.Env'
+        assert isinstance(
+            gym3_env, gym3.Env
+        ), f"AlfGym3Wrapper: {type(gym3_env)} is not derived from gym3.Env"
         super().__init__()
 
         # The underlying Gym3 environment
@@ -219,9 +226,12 @@ class AlfGym3Wrapper(AlfEnvironment):
         self._frame_extrator = frame_extractor
         # Create metadata with 'render.modes' so that it is compatible with
         # VideoRecorder.
-        self.metadata = {'render.modes': []}
-        if self._render_activator is not None and self._frame_extrator is not None:
-            self.metadata['render.modes'].append('rgb_array')
+        self.metadata = {"render.modes": []}
+        if (
+            self._render_activator is not None
+            and self._frame_extrator is not None
+        ):
+            self.metadata["render.modes"].append("rgb_array")
 
         # +--------------------------+
         # | Cache the Tensor Specs   |
@@ -230,7 +240,8 @@ class AlfGym3Wrapper(AlfEnvironment):
         # NOTE(breakds): when needed, expose this and allow an user to set it.
         self._discount = 1.0
         self._observation_spec = _gym3_space_to_tensor_spec(
-            self._gym3_env.ob_space)
+            self._gym3_env.ob_space
+        )
 
         self._image_channel_first = image_channel_first
 
@@ -239,21 +250,25 @@ class AlfGym3Wrapper(AlfEnvironment):
             # simply assumes ndim == 3 implies an image.
             if spec.ndim != 3:
                 return spec
-            return BoundedTensorSpec(shape=(spec.shape[2], spec.shape[0],
-                                            spec.shape[1]),
-                                     dtype=spec.dtype,
-                                     minimum=spec.minimum,
-                                     maximum=spec.maximum)
+            return BoundedTensorSpec(
+                shape=(spec.shape[2], spec.shape[0], spec.shape[1]),
+                dtype=spec.dtype,
+                minimum=spec.minimum,
+                maximum=spec.maximum,
+            )
 
         if image_channel_first:
             self._observation_spec = nest.map_structure(
-                _image_channel_first_permute_spec, self._observation_spec)
+                _image_channel_first_permute_spec, self._observation_spec
+            )
 
         # For discrete action type, always use int64 during the conversion.
-        self._action_spec = _gym3_space_to_tensor_spec(self._gym3_env.ac_space,
-                                                       force_int64=True)
+        self._action_spec = _gym3_space_to_tensor_spec(
+            self._gym3_env.ac_space, force_int64=True
+        )
         self._env_info_spec = _extract_env_info_spec(
-            self._gym3_env.get_info()[0], ignored_info_keys=ignored_info_keys)
+            self._gym3_env.get_info()[0], ignored_info_keys=ignored_info_keys
+        )
 
         # +--------------------------+
         # | Stateful Contexts        |
@@ -287,8 +302,9 @@ class AlfGym3Wrapper(AlfEnvironment):
     def action_spec(self):
         return self._action_spec
 
-    def _create_time_step(self, reward, observation, action,
-                          step_type: List[ds.StepType]) -> ds.TimeStep:
+    def _create_time_step(
+        self, reward, observation, action, step_type: List[ds.StepType]
+    ) -> ds.TimeStep:
         """Construct a TimeStep object for Alf algorithms to consume
 
         This function construct the TimeStep objects based on the information
@@ -299,11 +315,13 @@ class AlfGym3Wrapper(AlfEnvironment):
         3. Trim ignored keys from the env info
 
         """
-        observation = nest.map_structure(lambda x: torch.as_tensor(x),
-                                         observation)
+        observation = nest.map_structure(
+            lambda x: torch.as_tensor(x), observation
+        )
         if self._image_channel_first:
             observation = nest.map_structure(
-                lambda x: x.permute(0, 3, 1, 2).contiguous(), observation)
+                lambda x: x.permute(0, 3, 1, 2).contiguous(), observation
+            )
 
         trimmed_info = [
             nest.prune_nest_like(info, self.env_info_spec())
@@ -316,15 +334,17 @@ class AlfGym3Wrapper(AlfEnvironment):
             0.0 if s == ds.StepType.LAST else self._discount for s in step_type
         ]
 
-        return ds.TimeStep(step_type=torch.as_tensor(step_type),
-                           reward=torch.as_tensor(reward),
-                           discount=torch.as_tensor(discount),
-                           observation=observation,
-                           env_id=torch.arange(self.batch_size),
-                           prev_action=torch.as_tensor(action),
-                           env_info=nest.map_structure(
-                               lambda *values: torch.as_tensor(values),
-                               *trimmed_info))
+        return ds.TimeStep(
+            step_type=torch.as_tensor(step_type),
+            reward=torch.as_tensor(reward),
+            discount=torch.as_tensor(discount),
+            observation=observation,
+            env_id=torch.arange(self.batch_size),
+            prev_action=torch.as_tensor(action),
+            env_info=nest.map_structure(
+                lambda *values: torch.as_tensor(values), *trimmed_info
+            ),
+        )
 
     # Implement abstract _reset
     def _reset(self) -> ds.TimeStep:
@@ -342,7 +362,7 @@ class AlfGym3Wrapper(AlfEnvironment):
             self._gym3_env.act(np.array([-1] * self.batch_size))
             self._prev_first = [False] * self.batch_size
         else:
-            logging.warning('reset() ignored by AlfGym3Wrapper')
+            logging.warning("reset() ignored by AlfGym3Wrapper")
 
         reward, observation, _ = self._gym3_env.observe()
 
@@ -352,8 +372,10 @@ class AlfGym3Wrapper(AlfEnvironment):
             step_type=[ds.StepType.FIRST] * self.batch_size,
             # Faking actions
             action=nest.map_structure(
-                lambda spec: spec.numpy_zeros(outer_dims=(self.batch_size, )),
-                self.action_spec()))
+                lambda spec: spec.numpy_zeros(outer_dims=(self.batch_size,)),
+                self.action_spec(),
+            ),
+        )
 
         return time_step
 
@@ -393,12 +415,14 @@ class AlfGym3Wrapper(AlfEnvironment):
         # Override the observation with the previous observation if that
         # particular environment has ``first=True``.
 
-        def __override_with_prev_observation(ob_array: np.ndarray,
-                                             prev_ob_array: np.ndarray):
+        def __override_with_prev_observation(
+            ob_array: np.ndarray, prev_ob_array: np.ndarray
+        ):
             ob_array[first] = prev_ob_array[first]
 
-        nest.map_structure(__override_with_prev_observation, observation,
-                           prev_observation)
+        nest.map_structure(
+            __override_with_prev_observation, observation, prev_observation
+        )
 
         # TODO(breakds): More properly deal with this by pre-process the
         # experiences in the replay buffer so that if the next step has first =
@@ -410,15 +434,20 @@ class AlfGym3Wrapper(AlfEnvironment):
         # This does the trick of repeating end-of-episode frames and throwing
         # away first-of-episode frames.
         step_type = [
-            ds.StepType.FIRST if d else
-            (ds.StepType.LAST if f else ds.StepType.MID)
+            (
+                ds.StepType.FIRST
+                if d
+                else (ds.StepType.LAST if f else ds.StepType.MID)
+            )
             for d, f in zip(self._prev_first, first)
         ]
 
-        time_step = self._create_time_step(reward=reward,
-                                           observation=observation,
-                                           step_type=step_type,
-                                           action=action)
+        time_step = self._create_time_step(
+            reward=reward,
+            observation=observation,
+            step_type=step_type,
+            action=action,
+        )
 
         self._prev_first = first
 
@@ -436,16 +465,18 @@ class AlfGym3Wrapper(AlfEnvironment):
 
         """
         if not self._render_enabled:
-            assert self._render_activator is not None, \
-                ('This gym3 environment does not support rendering because '
-                 'render_activator is not provided.')
+            assert self._render_activator is not None, (
+                "This gym3 environment does not support rendering because "
+                "render_activator is not provided."
+            )
             self._gym3_env = self._render_activator()
             self._render_enabled = True
 
-        if mode == 'rgb_array':
-            assert self._frame_extrator is not None, \
-                ('This gym3 environment does not support recording because '
-                 'frame_extractor is not provided.')
+        if mode == "rgb_array":
+            assert self._frame_extrator is not None, (
+                "This gym3 environment does not support recording because "
+                "frame_extractor is not provided."
+            )
             return self._frame_extrator(self._gym3_env)
 
         return None

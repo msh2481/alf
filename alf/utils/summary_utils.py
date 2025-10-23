@@ -22,7 +22,12 @@ import torch.distributions as td
 
 import alf
 from alf.data_structures import LossInfo
-from alf.nest import is_namedtuple, is_nested, py_map_structure_with_path, map_structure
+from alf.nest import (
+    is_namedtuple,
+    is_nested,
+    py_map_structure_with_path,
+    map_structure,
+)
 from alf.utils import dist_utils
 from alf.summary import should_record_summaries, get_global_counter
 from typing import List, Optional
@@ -61,18 +66,20 @@ def histogram_discrete(name, data, bucket_min, bucket_max, step=None):
     bins = torch.arange(bucket_min, bucket_max + 1).cpu()
     # For N bins, there should be N+1 bin edges
     bin_edges = bins.to(torch.float32) - 0.5
-    bin_edges = torch.cat([bin_edges, bin_edges[-1:] + 1.])
+    bin_edges = torch.cat([bin_edges, bin_edges[-1:] + 1.0])
     alf.summary.histogram(name, data, step=step, bins=bin_edges)
 
 
 @_summary_wrapper
-def histogram_continuous(name,
-                         data,
-                         bucket_min=None,
-                         bucket_max=None,
-                         bucket_count=DEFAULT_BUCKET_COUNT,
-                         edge_inclusive=True,
-                         step=None):
+def histogram_continuous(
+    name,
+    data,
+    bucket_min=None,
+    bucket_max=None,
+    bucket_count=DEFAULT_BUCKET_COUNT,
+    edge_inclusive=True,
+    step=None,
+):
     """histogram for continuous data.
 
     Args:
@@ -97,10 +104,9 @@ def histogram_continuous(name,
         bucket_max = data.max()
     else:
         bucket_max = torch.as_tensor(bucket_max)
-    bins = (
-        bucket_min +
-        (torch.arange(bucket_count + 1, dtype=torch.float64) / bucket_count) *
-        (bucket_max - bucket_min))
+    bins = bucket_min + (
+        torch.arange(bucket_count + 1, dtype=torch.float64) / bucket_count
+    ) * (bucket_max - bucket_min)
     if edge_inclusive:
         bins[0] -= 1e-6
         bins[-1] += 1e-6
@@ -123,10 +129,13 @@ def summarize_variables(name_and_params, with_histogram=True):
         if with_histogram and torch.all(torch.isfinite(var_values)):
             # Need to make sure all values are finite to avoid the histogram range
             # error
-            alf.summary.histogram(name='summarize_vars/' + var_name + '_value',
-                                  data=var_values)
-        alf.summary.scalar(name='summarize_vars/' + var_name + '_value_norm',
-                           data=var_values.norm())
+            alf.summary.histogram(
+                name="summarize_vars/" + var_name + "_value", data=var_values
+            )
+        alf.summary.scalar(
+            name="summarize_vars/" + var_name + "_value_norm",
+            data=var_values.norm(),
+        )
 
 
 @_summary_wrapper
@@ -145,12 +154,14 @@ def summarize_gradients(name_and_params, with_histogram=True):
         grad_values = var.grad
         if with_histogram:
             if torch.all(grad_values.isfinite()):
-                alf.summary.histogram(name='summarize_grads/' + var_name +
-                                      '_gradient',
-                                      data=grad_values)
-        alf.summary.scalar(name='summarize_grads/' + var_name +
-                           '_gradient_norm',
-                           data=grad_values.norm())
+                alf.summary.histogram(
+                    name="summarize_grads/" + var_name + "_gradient",
+                    data=grad_values,
+                )
+        alf.summary.scalar(
+            name="summarize_grads/" + var_name + "_gradient_norm",
+            data=grad_values.norm(),
+        )
 
 
 alf.summary.histogram = _summary_wrapper(alf.summary.histogram)
@@ -167,16 +178,18 @@ def add_nested_summaries(prefix, data):
 
     def _summarize(path, x):
         if isinstance(x, torch.Tensor):
-            alf.summary.scalar(prefix + '/' + path, x)
+            alf.summary.scalar(prefix + "/" + path, x)
 
     py_map_structure_with_path(_summarize, data)
 
 
 @_summary_wrapper
 @alf.configurable
-def summarize_per_category_loss(loss_info: LossInfo,
-                                summarize_count: bool = False,
-                                label_names: Optional[List[str]] = None):
+def summarize_per_category_loss(
+    loss_info: LossInfo,
+    summarize_count: bool = False,
+    label_names: Optional[List[str]] = None,
+):
     """Add summary about each category of the unaggregated ``loss_info.loss``
     of the shape (T, B), or (B, ) by partitioning it according to
     ``loss_info.batch_label``, which has the same shape as ``loss_info.loss``.
@@ -196,8 +209,8 @@ def summarize_per_category_loss(loss_info: LossInfo,
     if loss_info.batch_label != ():
         assert loss_info.batch_label.shape == loss_info.loss.shape, (
             "shape mismatch between batch_label shape {} and loss "
-            "shape {}".format(loss_info.batch_label.shape,
-                              loss_info.loss.shape))
+            "shape {}".format(loss_info.batch_label.shape, loss_info.loss.shape)
+        )
 
         # (T, B) -> (T * B, )
         loss = loss_info.loss.reshape(-1)
@@ -206,19 +219,22 @@ def summarize_per_category_loss(loss_info: LossInfo,
         labels = labels.tolist()
 
         for label in labels:
-            subset_indices = (batch_label == label)
+            subset_indices = batch_label == label
             subset_loss = loss[subset_indices]
             if label_names is None:
                 label_str = label
             else:
                 label_str = label_names[label]
 
-            alf.summary.scalar('loss/loss_for_category_{}'.format(label_str),
-                               data=subset_loss.mean())
+            alf.summary.scalar(
+                "loss/loss_for_category_{}".format(label_str),
+                data=subset_loss.mean(),
+            )
             if summarize_count:
                 alf.summary.scalar(
-                    'loss/sample_count_for_category_{}'.format(label_str),
-                    data=subset_indices.sum())
+                    "loss/sample_count_for_category_{}".format(label_str),
+                    data=subset_indices.sum(),
+                )
     else:
         return
 
@@ -231,14 +247,14 @@ def summarize_loss(loss_info: LossInfo):
         loss_info (LossInfo): ``loss_info.extra`` must be a namedtuple
     """
     if not isinstance(loss_info.loss, tuple):
-        alf.summary.scalar('loss', data=loss_info.loss)
+        alf.summary.scalar("loss", data=loss_info.loss)
     if loss_info.gns != ():
-        alf.summary.scalar('gradient_noise_scale', data=loss_info.gns)
+        alf.summary.scalar("gradient_noise_scale", data=loss_info.gns)
     if not loss_info.extra:
         return
     # Support extra as namedtuple or dict (more flexible)
     if is_namedtuple(loss_info.extra) or isinstance(loss_info.extra, dict):
-        add_nested_summaries('loss', loss_info.extra)
+        add_nested_summaries("loss", loss_info.extra)
 
 
 @_summary_wrapper
@@ -267,10 +283,12 @@ def summarize_action(actions, action_specs, name="action"):
             return
 
         if action_spec.is_discrete:
-            histogram_discrete(name="%s/%s" % (name, path),
-                               data=action,
-                               bucket_min=int(action_spec.minimum),
-                               bucket_max=int(action_spec.maximum))
+            histogram_discrete(
+                name="%s/%s" % (name, path),
+                data=action,
+                bucket_min=int(action_spec.minimum),
+                bucket_max=int(action_spec.maximum),
+            )
         else:
             if len(action_spec.shape) == 0:
                 action_dim = 1
@@ -286,9 +304,11 @@ def summarize_action(actions, action_specs, name="action"):
                     name="%s/%s/%s/value" % (name, path, a),
                     data=action[:, a],
                     bucket_min=_get_val(action_spec.minimum, a),
-                    bucket_max=_get_val(action_spec.maximum, a))
-                alf.summary.scalar("%s/%s/%s/mean" % (name, path, a),
-                                   action[:, a].mean())
+                    bucket_max=_get_val(action_spec.maximum, a),
+                )
+                alf.summary.scalar(
+                    "%s/%s/%s/mean" % (name, path, a), action[:, a].mean()
+                )
 
     py_map_structure_with_path(_summarize_one, actions, action_specs)
 
@@ -319,21 +339,26 @@ def summarize_distribution(name, distributions):
             # dist might be a Tensor
             action_dim = dist.shape[-1]
             for a in range(action_dim):
-                add_mean_hist_summary("%s_loc/%s/%s" % (name, path, a),
-                                      dist[..., a])
+                add_mean_hist_summary(
+                    "%s_loc/%s/%s" % (name, path, a), dist[..., a]
+                )
         else:
             ind = None
             if isinstance(dist, td.MixtureSameFamily):
                 probs = dist.mixture_distribution.probs
                 n = probs.shape[-1]
-                if n <= 10:  # 10 is arbitrarily chosen to avoid too many summaries
+                if (
+                    n <= 10
+                ):  # 10 is arbitrarily chosen to avoid too many summaries
                     for i in range(n):
                         add_mean_hist_summary(
-                            "%s_probs/%s/%s" % (name, path, i), probs[..., i])
+                            "%s_probs/%s/%s" % (name, path, i), probs[..., i]
+                        )
                 else:
                     entropy = -torch.xlogy(probs, probs).sum(-1)
-                    add_mean_hist_summary("%s_cond_entropy/%s" % (name, path),
-                                          entropy)
+                    add_mean_hist_summary(
+                        "%s_cond_entropy/%s" % (name, path), entropy
+                    )
                     probs = probs.reshape(-1, probs.shape[-1]).mean(0)
                     entropy = -torch.xlogy(probs, probs).sum()
                     alf.summary.scalar("%s_entropy/%s" % (name, path), entropy)
@@ -341,8 +366,14 @@ def summarize_distribution(name, distributions):
                 ind = dist_utils.get_mode(dist.mixture_distribution)
                 dist = dist.component_distribution
             dist = dist_utils.get_base_dist(dist)
-            if isinstance(dist, (td.Normal, dist_utils.StableCauchy,
-                                 dist_utils.TruncatedDistribution)):
+            if isinstance(
+                dist,
+                (
+                    td.Normal,
+                    dist_utils.StableCauchy,
+                    dist_utils.TruncatedDistribution,
+                ),
+            ):
                 loc = dist.loc
                 log_scale = dist.scale.log()
             elif isinstance(dist, td.Beta):
@@ -368,10 +399,12 @@ def summarize_distribution(name, distributions):
 
             action_dim = loc.shape[-1]
             for a in range(action_dim):
-                add_mean_hist_summary("%s_log_scale/%s/%s" % (name, path, a),
-                                      log_scale[..., a])
-                add_mean_hist_summary("%s_loc/%s/%s" % (name, path, a),
-                                      loc[..., a])
+                add_mean_hist_summary(
+                    "%s_log_scale/%s/%s" % (name, path, a), log_scale[..., a]
+                )
+                add_mean_hist_summary(
+                    "%s_loc/%s/%s" % (name, path, a), loc[..., a]
+                )
 
     py_map_structure_with_path(_summarize_one, distributions)
 
@@ -467,9 +500,9 @@ class record_time(object):
         self._sync = sync
         caller = logging.get_absl_logger().findCaller()
         # token is a string of filename:lineno:tag
-        token = caller[0] + ':' + str(caller[1]) + ':' + tag
+        token = caller[0] + ":" + str(caller[1]) + ":" + tag
         if token not in _contexts:
-            _contexts[token] = {'time': 0., 'c0': int(get_global_counter())}
+            _contexts[token] = {"time": 0.0, "c0": int(get_global_counter())}
         self._counter = _contexts[token]
 
     def __enter__(self):
@@ -480,15 +513,14 @@ class record_time(object):
     def __exit__(self, type, value, traceback):
         if self._sync and torch.cuda.is_available():
             torch.cuda.synchronize()
-        self._counter['time'] += time.time() - self._t0
+        self._counter["time"] += time.time() - self._t0
         if should_record_summaries():
-            c0 = self._counter['c0']
+            c0 = self._counter["c0"]
             c1 = int(get_global_counter())
             if c1 > c0:
-                alf.summary.scalar(self._tag,
-                                   self._counter['time'] / (c1 - c0))
-                self._counter['time'] = .0
-                self._counter['c0'] = c1
+                alf.summary.scalar(self._tag, self._counter["time"] / (c1 - c0))
+                self._counter["time"] = 0.0
+                self._counter["c0"] = c1
 
 
 def summarize_tensor_gradients(name, tensor, batch_dims=1, clone=False):
@@ -515,8 +547,8 @@ def summarize_tensor_gradients(name, tensor, batch_dims=1, clone=False):
             if max.dtype == torch.bfloat16:
                 max = max.cpu().float()
                 mean = mean.cpu().float()
-            alf.summary.scalar(name + '/max_norm', max)
-            alf.summary.scalar(name + '/avg_norm', mean)
+            alf.summary.scalar(name + "/max_norm", max)
+            alf.summary.scalar(name + "/avg_norm", mean)
 
     def _register_hook1(tensor, name):
         if tensor.requires_grad:
@@ -527,22 +559,21 @@ def summarize_tensor_gradients(name, tensor, batch_dims=1, clone=False):
 
     if not torch.is_grad_enabled():
         return tensor
-    name = '/' + alf.summary.scope_name() + name
+    name = "/" + alf.summary.scope_name() + name
     if not is_nested(tensor):
         return _register_hook1(tensor, name)
     else:
 
         def _register_hook(path, x):
-            return _register_hook1(x, name + '/' + path)
+            return _register_hook1(x, name + "/" + path)
 
         tensor = py_map_structure_with_path(_register_hook, tensor)
         return tensor
 
 
-def summarize_distribution_gradient(name,
-                                    distribution,
-                                    batch_dims=1,
-                                    clone=False):
+def summarize_distribution_gradient(
+    name, distribution, batch_dims=1, clone=False
+):
     """Summarize the gradient of the parameters of ``distribution`` during backward.
 
     Args:
@@ -562,8 +593,7 @@ def summarize_distribution_gradient(name,
         spec = dist_utils.extract_spec(distribution)
         dist_params = map_structure(torch.clone, dist_params)
         distribution = dist_utils.params_to_distributions(dist_params, spec)
-    summarize_tensor_gradients(name,
-                               dist_params,
-                               batch_dims=batch_dims,
-                               clone=False)
+    summarize_tensor_gradients(
+        name, dist_params, batch_dims=batch_dims, clone=False
+    )
     return distribution

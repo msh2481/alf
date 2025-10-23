@@ -29,11 +29,11 @@ from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 from alf.networks import StableNormalProjectionNetwork
 
 # Environment Configuration
-alf.config('create_environment',
-           env_name='BirdEye',
-           num_parallel_environments=36)
+alf.config(
+    "create_environment", env_name="BirdEye", num_parallel_environments=36
+)
 
-alf.config('metadrive.sensors.BirdEyeObservation', velocity_steps=1)
+alf.config("metadrive.sensors.BirdEyeObservation", velocity_steps=1)
 
 
 def encoding_network_ctor(input_tensor_spec):
@@ -44,27 +44,33 @@ def encoding_network_ctor(input_tensor_spec):
 
     encoder_output_size = 256
 
-    bev_spec = input_tensor_spec['bev']
+    bev_spec = input_tensor_spec["bev"]
     # Get the original BEV's shape (channel, height, width).
     c, h, w = bev_spec.shape
     # The shape of velocity is (v,), where v is the number of historical steps
     # we store for the velocities.
-    v = input_tensor_spec['vel'].shape[0]
+    v = input_tensor_spec["vel"].shape[0]
 
-    combined_input_spec = BoundedTensorSpec(shape=(c + v, h, w),
-                                            dtype=bev_spec.dtype,
-                                            minimum=bev_spec.minimum,
-                                            maximum=bev_spec.maximum)
+    combined_input_spec = BoundedTensorSpec(
+        shape=(c + v, h, w),
+        dtype=bev_spec.dtype,
+        minimum=bev_spec.minimum,
+        maximum=bev_spec.maximum,
+    )
 
-    return alf.nn.Sequential(lambda x: torch.cat(
-        (x['bev'], x['vel'].repeat_interleave(w * h).reshape(-1, v, h, w)),
-        dim=1),
-                             impala_cnn_encoder.create(
-                                 input_tensor_spec=combined_input_spec,
-                                 cnn_channel_list=(16, 32, 32),
-                                 num_blocks_per_stack=2,
-                                 flatten_output_size=encoder_output_size),
-                             input_tensor_spec=input_tensor_spec)
+    return alf.nn.Sequential(
+        lambda x: torch.cat(
+            (x["bev"], x["vel"].repeat_interleave(w * h).reshape(-1, v, h, w)),
+            dim=1,
+        ),
+        impala_cnn_encoder.create(
+            input_tensor_spec=combined_input_spec,
+            cnn_channel_list=(16, 32, 32),
+            num_blocks_per_stack=2,
+            flatten_output_size=encoder_output_size,
+        ),
+        input_tensor_spec=input_tensor_spec,
+    )
 
 
 # The PPG auxiliary replay buffer is typically large and does not fit in the GPU
@@ -72,23 +78,27 @@ def encoding_network_ctor(input_tensor_spec):
 # to ``False`` so that it does not have to put everything directly into GPU
 # memory. Because of this, all data transformers should be created on "cpu" as
 # they will be used while the experience is still in CPU memory.
-alf.config('ReplayBuffer.gather_all', convert_to_default_device=False)
-alf.config('data_transformer.create_data_transformer', device="cpu")
+alf.config("ReplayBuffer.gather_all", convert_to_default_device=False)
+alf.config("data_transformer.create_data_transformer", device="cpu")
 
-stable_normal_proj_net = partial(StableNormalProjectionNetwork,
-                                 state_dependent_std=True,
-                                 squash_mean=False,
-                                 scale_distribution=True,
-                                 min_std=1e-3,
-                                 max_std=10.0)
+stable_normal_proj_net = partial(
+    StableNormalProjectionNetwork,
+    state_dependent_std=True,
+    squash_mean=False,
+    scale_distribution=True,
+    min_std=1e-3,
+    max_std=10.0,
+)
 
 # NOTE: replace stable_normal_proj_net with the other projection
-alf.config('DisjointPolicyValueNetwork',
-           continuous_projection_net_ctor=stable_normal_proj_net,
-           is_sharing_encoder=True)
+alf.config(
+    "DisjointPolicyValueNetwork",
+    continuous_projection_net_ctor=stable_normal_proj_net,
+    is_sharing_encoder=True,
+)
 
 alf.config(
-    'PPGAlgorithm',
+    "PPGAlgorithm",
     encoding_network_ctor=encoding_network_ctor,
     policy_optimizer=alf.optimizers.AdamTF(lr=8e-5),
     aux_optimizer=alf.optimizers.AdamTF(lr=8e-5),
@@ -99,24 +109,29 @@ alf.config(
         # mini_batch_length for aux phase
         mini_batch_size=18,
         num_updates_per_train_iter=6,
-    ))
+    ),
+)
 
-alf.config('PPOLoss',
-           compute_advantages_internally=True,
-           entropy_regularization=0.01,
-           gamma=0.999,
-           td_lambda=0.95,
-           td_loss_weight=0.5)
+alf.config(
+    "PPOLoss",
+    compute_advantages_internally=True,
+    entropy_regularization=0.01,
+    gamma=0.999,
+    td_lambda=0.95,
+    td_loss_weight=0.5,
+)
 
-alf.config('PPGAuxPhaseLoss',
-           td_error_loss_fn=element_wise_squared_loss,
-           policy_kl_loss_weight=1.0,
-           gamma=0.999,
-           td_lambda=0.95)
+alf.config(
+    "PPGAuxPhaseLoss",
+    td_error_loss_fn=element_wise_squared_loss,
+    policy_kl_loss_weight=1.0,
+    gamma=0.999,
+    td_lambda=0.95,
+)
 
 # training config
 alf.config(
-    'TrainerConfig',
+    "TrainerConfig",
     unroll_length=64,
     # This means that mini_batch_length will set to equal to the
     # length of the batches taken from the replay buffer, and in this
@@ -131,4 +146,5 @@ alf.config(
     debug_summaries=True,
     summarize_grads_and_vars=True,
     summarize_action_distributions=True,
-    summary_interval=40)
+    summary_interval=40,
+)

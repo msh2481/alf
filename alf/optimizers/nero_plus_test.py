@@ -27,7 +27,8 @@ class NeroPlusTest(parameterized.TestCase, alf.test.TestCase):
 
     @parameterized.parameters(
         dict(betas=(0, 0.999), eps=1e-30, normalizing_grad_by_norm=True),
-        dict(betas=(0.9, 0.999), eps=1e-7, normalizing_grad_by_norm=False))
+        dict(betas=(0.9, 0.999), eps=1e-7, normalizing_grad_by_norm=False),
+    )
     def test_nero_plus(self, betas, eps, normalizing_grad_by_norm):
         train_set, test_set = load_mnist(train_bs=256, test_bs=256)
         num_classes = len(train_set.dataset.classes)
@@ -36,17 +37,24 @@ class NeroPlusTest(parameterized.TestCase, alf.test.TestCase):
             alf.layers.Conv2D(32, 32, 3, strides=2, padding=1),
             alf.layers.Conv2D(32, 32, 3, strides=2, padding=1),
             alf.layers.Reshape(-1),
-            alf.layers.FC(4 * 4 * 32,
-                          num_classes,
-                          weight_opt_args=dict(fixed_norm=False,
-                                               l2_regularization=1e-3,
-                                               zero_mean=True,
-                                               max_norm=float('inf'))))
+            alf.layers.FC(
+                4 * 4 * 32,
+                num_classes,
+                weight_opt_args=dict(
+                    fixed_norm=False,
+                    l2_regularization=1e-3,
+                    zero_mean=True,
+                    max_norm=float("inf"),
+                ),
+            ),
+        )
         NeroPlus.initialize(model)
-        opt = NeroPlus(lr=0.01,
-                       betas=betas,
-                       eps=eps,
-                       normalizing_grad_by_norm=normalizing_grad_by_norm)
+        opt = NeroPlus(
+            lr=0.01,
+            betas=betas,
+            eps=eps,
+            normalizing_grad_by_norm=normalizing_grad_by_norm,
+        )
         opt.add_param_group(dict(params=list(model.parameters())))
 
         for epoch in range(5):
@@ -62,10 +70,11 @@ class NeroPlusTest(parameterized.TestCase, alf.test.TestCase):
                 logits = model(data)
                 correct += (logits.argmax(dim=1) == target).sum()
                 total += target.numel()
-            logging.info("epoch=%s loss=%s acc=%s" %
-                         (epoch, loss.item(), correct.item()))
+            logging.info(
+                "epoch=%s loss=%s acc=%s" % (epoch, loss.item(), correct.item())
+            )
         self.assertGreater(correct / total, 0.97)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

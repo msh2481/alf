@@ -32,9 +32,9 @@ class SuiteUnittestEnvTest(parameterized.TestCase, alf.test.TestCase):
         batch_size = 1
         steps_per_episode = 13
 
-        env = ValueUnittestEnv(batch_size,
-                               steps_per_episode,
-                               action_type=action_type)
+        env = ValueUnittestEnv(
+            batch_size, steps_per_episode, action_type=action_type
+        )
 
         time_step = env.reset()
         for _ in range(10):
@@ -49,11 +49,13 @@ class SuiteUnittestEnvTest(parameterized.TestCase, alf.test.TestCase):
                     step_type = StepType.MID
                     discount = 1.0
 
-                self.assertEqual(time_step.step_type,
-                                 torch.full([batch_size], step_type))
+                self.assertEqual(
+                    time_step.step_type, torch.full([batch_size], step_type)
+                )
                 self.assertEqual(time_step.reward, torch.ones(batch_size))
-                self.assertEqual(time_step.discount,
-                                 torch.full([batch_size], discount))
+                self.assertEqual(
+                    time_step.discount, torch.full([batch_size], discount)
+                )
 
                 action = torch.randint(0, 2, (batch_size, 1))
                 time_step = env.step(action)
@@ -63,9 +65,9 @@ class SuiteUnittestEnvTest(parameterized.TestCase, alf.test.TestCase):
         batch_size = 100
         steps_per_episode = 13
 
-        env = PolicyUnittestEnv(batch_size,
-                                steps_per_episode,
-                                action_type=action_type)
+        env = PolicyUnittestEnv(
+            batch_size, steps_per_episode, action_type=action_type
+        )
 
         time_step = env.reset()
         for _ in range(10):
@@ -84,14 +86,17 @@ class SuiteUnittestEnvTest(parameterized.TestCase, alf.test.TestCase):
                     reward = torch.zeros(batch_size)
                 else:
                     reward = (action == prev_observation.to(torch.int64)).to(
-                        torch.float32)
+                        torch.float32
+                    )
                     reward = reward.reshape(batch_size)
 
-                self.assertEqual(time_step.step_type,
-                                 torch.full([batch_size], step_type))
+                self.assertEqual(
+                    time_step.step_type, torch.full([batch_size], step_type)
+                )
                 self.assertEqual(time_step.reward, reward)
-                self.assertEqual(time_step.discount,
-                                 torch.full([batch_size], discount))
+                self.assertEqual(
+                    time_step.discount, torch.full([batch_size], discount)
+                )
 
                 action = torch.randint(0, 2, (batch_size, 1))
                 prev_observation = time_step.observation
@@ -123,19 +128,22 @@ class SuiteUnittestEnvTest(parameterized.TestCase, alf.test.TestCase):
                 if s <= gap:
                     reward = torch.zeros(batch_size)
                 else:
-                    reward = (2 * action - 1 == observation0.to(
-                        torch.int64)).to(torch.float32)
+                    reward = (
+                        2 * action - 1 == observation0.to(torch.int64)
+                    ).to(torch.float32)
                     reward = reward.reshape(batch_size)
 
-                self.assertEqual(time_step.step_type,
-                                 torch.full([batch_size], step_type))
+                self.assertEqual(
+                    time_step.step_type, torch.full([batch_size], step_type)
+                )
                 self.assertEqual(time_step.reward, reward)
-                self.assertEqual(time_step.discount,
-                                 torch.full([batch_size], discount))
+                self.assertEqual(
+                    time_step.discount, torch.full([batch_size], discount)
+                )
 
                 action = torch.randint(0, 2, (batch_size, 1))
                 time_step = env.step(action)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

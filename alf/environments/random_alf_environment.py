@@ -33,19 +33,21 @@ class RandomAlfEnvironment(alf_environment.AlfEnvironment):
     environment fall within the defined spec.
     """
 
-    def __init__(self,
-                 observation_spec,
-                 action_spec,
-                 env_id=None,
-                 episode_end_probability=0.1,
-                 discount=1.0,
-                 reward_fn=None,
-                 batch_size=None,
-                 seed=42,
-                 render_size=(2, 2, 3),
-                 min_duration=0,
-                 max_duration=None,
-                 use_tensor_time_step=False):
+    def __init__(
+        self,
+        observation_spec,
+        action_spec,
+        env_id=None,
+        episode_end_probability=0.1,
+        discount=1.0,
+        reward_fn=None,
+        batch_size=None,
+        seed=42,
+        render_size=(2, 2, 3),
+        min_duration=0,
+        max_duration=None,
+        use_tensor_time_step=False,
+    ):
         """Initializes the environment.
 
         Args:
@@ -78,9 +80,9 @@ class RandomAlfEnvironment(alf_environment.AlfEnvironment):
         self._batch_size = batch_size
         self._observation_spec = observation_spec
         self._action_spec = action_spec
-        self._time_step_spec = ds.time_step_spec(self._observation_spec,
-                                                 action_spec, ts.TensorSpec(
-                                                     ()))
+        self._time_step_spec = ds.time_step_spec(
+            self._observation_spec, action_spec, ts.TensorSpec(())
+        )
         self._episode_end_probability = episode_end_probability
         discount = np.asarray(discount, dtype=np.float32)
         if env_id is None:
@@ -92,8 +94,7 @@ class RandomAlfEnvironment(alf_environment.AlfEnvironment):
             if not discount.shape:
                 discount = np.tile(discount, self._batch_size)
             if self._batch_size != len(discount):
-                raise ValueError(
-                    'Size of discounts must equal the batch size.')
+                raise ValueError("Size of discounts must equal the batch size.")
         self._discount = discount
 
         if reward_fn is None:
@@ -101,8 +102,9 @@ class RandomAlfEnvironment(alf_environment.AlfEnvironment):
             if self._batch_size is None:
                 self._reward_fn = lambda *_: np.float32(0)
             else:
-                self._reward_fn = (
-                    lambda *_: np.zeros(self._batch_size, dtype=np.float32))
+                self._reward_fn = lambda *_: np.zeros(
+                    self._batch_size, dtype=np.float32
+                )
         else:
             self._reward_fn = reward_fn
 
@@ -138,18 +140,21 @@ class RandomAlfEnvironment(alf_environment.AlfEnvironment):
         return False if self._batch_size is None else True
 
     def _get_observation(self):
-        batch_size = (self._batch_size, ) if self._batch_size else ()
+        batch_size = (self._batch_size,) if self._batch_size else ()
         return nest.map_structure(
             lambda spec: self._sample_spec(spec, batch_size),
-            self._observation_spec)
+            self._observation_spec,
+        )
 
     def _reset(self):
         self._done = False
         batched = self._batch_size is not None
-        time_step = ds.restart(self._get_observation(),
-                               self._action_spec,
-                               env_id=self._env_id,
-                               batched=batched)
+        time_step = ds.restart(
+            self._get_observation(),
+            self._action_spec,
+            env_id=self._env_id,
+            batched=batched,
+        )
         if self._use_tensor_time_step:
             time_step = nest.map_structure(torch.as_tensor, time_step)
         return time_step
@@ -162,12 +167,12 @@ class RandomAlfEnvironment(alf_environment.AlfEnvironment):
         return spec.numpy_sample(outer_dims=outer_dims, rng=self._rng)
 
     def _check_reward_shape(self, reward):
-        expected_shape = () if self._batch_size is None else (
-            self._batch_size, )
+        expected_shape = () if self._batch_size is None else (self._batch_size,)
         if reward.shape != expected_shape:
             raise ValueError(
-                '%r != %r. Size of reward must equal the batch size.' %
-                (np.asarray(reward).shape, self._batch_size))
+                "%r != %r. Size of reward must equal the batch size."
+                % (np.asarray(reward).shape, self._batch_size)
+            )
 
     def _step(self, action):
         if self._done:
@@ -191,41 +196,44 @@ class RandomAlfEnvironment(alf_environment.AlfEnvironment):
 
         if self._batch_size:
             action = nest.map_structure(
-                lambda t: np.concatenate([np.expand_dims(t, 0)] * self.
-                                         _batch_size), action)
+                lambda t: np.concatenate(
+                    [np.expand_dims(t, 0)] * self._batch_size
+                ),
+                action,
+            )
 
         if self._done:
             reward = self._reward_fn(ds.StepType.LAST, action, observation)
             self._check_reward_shape(reward)
-            time_step = ds.termination(observation,
-                                       action,
-                                       reward,
-                                       env_id=self._env_id)
+            time_step = ds.termination(
+                observation, action, reward, env_id=self._env_id
+            )
             self._num_steps = 0
         else:
             reward = self._reward_fn(ds.StepType.MID, action, observation)
             self._check_reward_shape(reward)
-            time_step = ds.transition(observation,
-                                      action,
-                                      reward,
-                                      discount=self._discount,
-                                      env_id=self._env_id)
+            time_step = ds.transition(
+                observation,
+                action,
+                reward,
+                discount=self._discount,
+                env_id=self._env_id,
+            )
 
         if self._use_tensor_time_step:
             time_step = nest.map_structure(torch.as_tensor, time_step)
 
         return time_step
 
-    def render(self, mode='rgb_array'):
-        if mode != 'rgb_array':
+    def render(self, mode="rgb_array"):
+        if mode != "rgb_array":
             raise ValueError(
-                "Only rendering mode supported is 'rgb_array', got {} instead."
-                .format(mode))
+                "Only rendering mode supported is 'rgb_array', got {} instead.".format(
+                    mode
+                )
+            )
 
-        return self._rng.randint(0,
-                                 256,
-                                 size=self._render_size,
-                                 dtype=np.uint8)
+        return self._rng.randint(0, 256, size=self._render_size, dtype=np.uint8)
 
     def seed(self, seed):
         self._rng.seed(seed)

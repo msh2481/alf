@@ -35,12 +35,14 @@ class ValueNetworkBase(Network):
     different encoding network creators.
     """
 
-    def __init__(self,
-                 input_tensor_spec: alf.NestedTensorSpec,
-                 output_tensor_spec: alf.NestedTensorSpec,
-                 encoding_network_ctor: Callable,
-                 name="ValueNetworkBase",
-                 **encoder_kwargs):
+    def __init__(
+        self,
+        input_tensor_spec: alf.NestedTensorSpec,
+        output_tensor_spec: alf.NestedTensorSpec,
+        encoding_network_ctor: Callable,
+        name="ValueNetworkBase",
+        **encoder_kwargs,
+    ):
         """
         Args:
             input_tensor_spec: the tensor spec of the input.
@@ -52,19 +54,19 @@ class ValueNetworkBase(Network):
         """
         super().__init__(input_tensor_spec, name=name)
 
-        if encoder_kwargs.get('kernel_initializer', None) is None:
-            encoder_kwargs[
-                'kernel_initializer'] = torch.nn.init.xavier_uniform_
-        last_kernel_initializer = functools.partial(torch.nn.init.uniform_,
-                                                    a=-0.03,
-                                                    b=0.03)
+        if encoder_kwargs.get("kernel_initializer", None) is None:
+            encoder_kwargs["kernel_initializer"] = torch.nn.init.xavier_uniform_
+        last_kernel_initializer = functools.partial(
+            torch.nn.init.uniform_, a=-0.03, b=0.03
+        )
 
         self._encoding_net = encoding_network_ctor(
             input_tensor_spec=input_tensor_spec,
             last_layer_size=output_tensor_spec.numel,
             last_activation=math_ops.identity,
             last_kernel_initializer=last_kernel_initializer,
-            **encoder_kwargs)
+            **encoder_kwargs,
+        )
         self._output_spec = output_tensor_spec
 
     def forward(self, observation, state=()):
@@ -99,19 +101,21 @@ class ValueNetworkBase(Network):
 class ValueNetwork(ValueNetworkBase):
     """Output temporally uncorrelated values."""
 
-    def __init__(self,
-                 input_tensor_spec,
-                 output_tensor_spec=TensorSpec(()),
-                 input_preprocessors=None,
-                 input_preprocessors_ctor=None,
-                 preprocessing_combiner=None,
-                 conv_layer_params=None,
-                 fc_layer_params=None,
-                 activation=torch.relu_,
-                 kernel_initializer=None,
-                 use_fc_bn=False,
-                 use_fc_ln=False,
-                 name="ValueNetwork"):
+    def __init__(
+        self,
+        input_tensor_spec,
+        output_tensor_spec=TensorSpec(()),
+        input_preprocessors=None,
+        input_preprocessors_ctor=None,
+        preprocessing_combiner=None,
+        conv_layer_params=None,
+        fc_layer_params=None,
+        activation=torch.relu_,
+        kernel_initializer=None,
+        use_fc_bn=False,
+        use_fc_ln=False,
+        name="ValueNetwork",
+    ):
         """Creates a value network that estimates the expected return.
 
         Args:
@@ -151,28 +155,29 @@ class ValueNetwork(ValueNetworkBase):
                 fc layers (i.e. FC layers except the last one).
             name (str):
         """
-        super().__init__(input_tensor_spec,
-                         output_tensor_spec,
-                         encoding_network_ctor=EncodingNetwork,
-                         name=name,
-                         input_preprocessors=input_preprocessors,
-                         input_preprocessors_ctor=input_preprocessors_ctor,
-                         preprocessing_combiner=preprocessing_combiner,
-                         conv_layer_params=conv_layer_params,
-                         fc_layer_params=fc_layer_params,
-                         activation=activation,
-                         kernel_initializer=kernel_initializer,
-                         use_fc_bn=use_fc_bn,
-                         use_fc_ln=use_fc_ln)
+        super().__init__(
+            input_tensor_spec,
+            output_tensor_spec,
+            encoding_network_ctor=EncodingNetwork,
+            name=name,
+            input_preprocessors=input_preprocessors,
+            input_preprocessors_ctor=input_preprocessors_ctor,
+            preprocessing_combiner=preprocessing_combiner,
+            conv_layer_params=conv_layer_params,
+            fc_layer_params=fc_layer_params,
+            activation=activation,
+            kernel_initializer=kernel_initializer,
+            use_fc_bn=use_fc_bn,
+            use_fc_ln=use_fc_ln,
+        )
 
 
 class ParallelValueNetwork(Network):
     """Perform ``n`` value computations in parallel."""
 
-    def __init__(self,
-                 value_network: ValueNetwork,
-                 n: int,
-                 name="ParallelValueNetwork"):
+    def __init__(
+        self, value_network: ValueNetwork, n: int, name="ParallelValueNetwork"
+    ):
         """
         It creates a parallelized version of ``value_network``.
         Args:
@@ -182,10 +187,11 @@ class ParallelValueNetwork(Network):
             name (str):
         """
 
-        super().__init__(input_tensor_spec=value_network.input_tensor_spec,
-                         name=name)
+        super().__init__(
+            input_tensor_spec=value_network.input_tensor_spec, name=name
+        )
         self._encoding_net = value_network._encoding_net.make_parallel(n, True)
-        self._output_spec = TensorSpec((n, ) + value_network.output_spec.shape)
+        self._output_spec = TensorSpec((n,) + value_network.output_spec.shape)
 
     def forward(self, observation, state=()):
         """Computes values given a batch of observations.
@@ -209,18 +215,20 @@ class ParallelValueNetwork(Network):
 class ValueRNNNetwork(ValueNetworkBase):
     """Outputs temporally correlated values."""
 
-    def __init__(self,
-                 input_tensor_spec,
-                 output_tensor_spec=TensorSpec(()),
-                 input_preprocessors=None,
-                 preprocessing_combiner=None,
-                 conv_layer_params=None,
-                 fc_layer_params=None,
-                 lstm_hidden_size=100,
-                 value_fc_layer_params=None,
-                 activation=torch.relu_,
-                 kernel_initializer=None,
-                 name="ValueRNNNetwork"):
+    def __init__(
+        self,
+        input_tensor_spec,
+        output_tensor_spec=TensorSpec(()),
+        input_preprocessors=None,
+        preprocessing_combiner=None,
+        conv_layer_params=None,
+        fc_layer_params=None,
+        lstm_hidden_size=100,
+        value_fc_layer_params=None,
+        activation=torch.relu_,
+        kernel_initializer=None,
+        name="ValueRNNNetwork",
+    ):
         """Creates an instance of `ValueRNNNetwork`.
 
         Args:
@@ -258,15 +266,17 @@ class ValueRNNNetwork(ValueNetworkBase):
                 initializer will be used.
             name (str):
         """
-        super().__init__(input_tensor_spec=input_tensor_spec,
-                         output_tensor_spec=output_tensor_spec,
-                         encoding_network_ctor=LSTMEncodingNetwork,
-                         name=name,
-                         input_preprocessors=input_preprocessors,
-                         preprocessing_combiner=preprocessing_combiner,
-                         conv_layer_params=conv_layer_params,
-                         pre_fc_layer_params=fc_layer_params,
-                         hidden_size=lstm_hidden_size,
-                         post_fc_layer_params=value_fc_layer_params,
-                         activation=activation,
-                         kernel_initializer=kernel_initializer)
+        super().__init__(
+            input_tensor_spec=input_tensor_spec,
+            output_tensor_spec=output_tensor_spec,
+            encoding_network_ctor=LSTMEncodingNetwork,
+            name=name,
+            input_preprocessors=input_preprocessors,
+            preprocessing_combiner=preprocessing_combiner,
+            conv_layer_params=conv_layer_params,
+            pre_fc_layer_params=fc_layer_params,
+            hidden_size=lstm_hidden_size,
+            post_fc_layer_params=value_fc_layer_params,
+            activation=activation,
+            kernel_initializer=kernel_initializer,
+        )

@@ -22,79 +22,81 @@ from alf.utils.schedulers import as_scheduler
 class TrainerConfig(object):
     """Configuration for training."""
 
-    def __init__(self,
-                 root_dir,
-                 conf_file='',
-                 ml_type='rl',
-                 algorithm_ctor=None,
-                 data_transformer_ctor=None,
-                 random_seed=None,
-                 num_iterations=1000,
-                 num_env_steps=0,
-                 unroll_length=8,
-                 unroll_with_grad=False,
-                 use_root_inputs_for_after_train_iter=True,
-                 async_unroll: bool = False,
-                 max_unroll_length: int = 0,
-                 unroll_queue_size: int = 200,
-                 unroll_step_interval: float = 0,
-                 unroll_parameter_update_period: int = 10,
-                 use_rollout_state=False,
-                 temporally_independent_train_step=None,
-                 mask_out_loss_for_last_step=True,
-                 sync_progress_to_envs=False,
-                 num_checkpoints=10,
-                 confirm_checkpoint_upon_crash=True,
-                 save_checkpoint_upon_crash=False,
-                 no_thread_env_for_conf=False,
-                 evaluate=False,
-                 num_evals=None,
-                 eval_interval=10,
-                 epsilon_greedy=0.,
-                 eval_uncertainty=False,
-                 num_eval_episodes=10,
-                 num_eval_steps=0,
-                 num_eval_environments: int = 1,
-                 async_eval: bool = True,
-                 save_checkpoint_for_best_eval: Optional[Callable] = None,
-                 ddp_paras_check_interval: int = 0,
-                 num_summaries=None,
-                 summary_interval=50,
-                 summarize_first_interval=True,
-                 update_counter_every_mini_batch=False,
-                 summaries_flush_secs=1,
-                 summary_max_queue=10,
-                 metric_min_buffer_size=10,
-                 debug_summaries=False,
-                 profiling=False,
-                 enable_amp=False,
-                 amp_dtype=torch.float16,
-                 code_snapshots=None,
-                 summarize_grads_and_vars=False,
-                 summarize_gradient_noise_scale=False,
-                 summarize_action_distributions=False,
-                 summarize_output=False,
-                 initial_collect_steps=0,
-                 num_updates_per_train_iter=4,
-                 mini_batch_length=None,
-                 mini_batch_size=None,
-                 whole_replay_buffer_training=True,
-                 replay_buffer_length=1024,
-                 priority_replay=False,
-                 priority_replay_alpha=0.7,
-                 priority_replay_beta=0.4,
-                 priority_replay_eps=1e-6,
-                 offline_buffer_dir=None,
-                 offline_buffer_length=None,
-                 offline_loss_weight=1.0,
-                 rl_train_after_update_steps=0,
-                 rl_train_every_update_steps=1,
-                 empty_cache: bool = False,
-                 normalize_importance_weights_by_max: bool = False,
-                 clear_replay_buffer=True,
-                 clear_replay_buffer_but_keep_one_step=True,
-                 visualize_alf_tree=False,
-                 remote_training=False):
+    def __init__(
+        self,
+        root_dir,
+        conf_file="",
+        ml_type="rl",
+        algorithm_ctor=None,
+        data_transformer_ctor=None,
+        random_seed=None,
+        num_iterations=1000,
+        num_env_steps=0,
+        unroll_length=8,
+        unroll_with_grad=False,
+        use_root_inputs_for_after_train_iter=True,
+        async_unroll: bool = False,
+        max_unroll_length: int = 0,
+        unroll_queue_size: int = 200,
+        unroll_step_interval: float = 0,
+        unroll_parameter_update_period: int = 10,
+        use_rollout_state=False,
+        temporally_independent_train_step=None,
+        mask_out_loss_for_last_step=True,
+        sync_progress_to_envs=False,
+        num_checkpoints=10,
+        confirm_checkpoint_upon_crash=True,
+        save_checkpoint_upon_crash=False,
+        no_thread_env_for_conf=False,
+        evaluate=False,
+        num_evals=None,
+        eval_interval=10,
+        epsilon_greedy=0.0,
+        eval_uncertainty=False,
+        num_eval_episodes=10,
+        num_eval_steps=0,
+        num_eval_environments: int = 1,
+        async_eval: bool = True,
+        save_checkpoint_for_best_eval: Optional[Callable] = None,
+        ddp_paras_check_interval: int = 0,
+        num_summaries=None,
+        summary_interval=50,
+        summarize_first_interval=True,
+        update_counter_every_mini_batch=False,
+        summaries_flush_secs=1,
+        summary_max_queue=10,
+        metric_min_buffer_size=10,
+        debug_summaries=False,
+        profiling=False,
+        enable_amp=False,
+        amp_dtype=torch.float16,
+        code_snapshots=None,
+        summarize_grads_and_vars=False,
+        summarize_gradient_noise_scale=False,
+        summarize_action_distributions=False,
+        summarize_output=False,
+        initial_collect_steps=0,
+        num_updates_per_train_iter=4,
+        mini_batch_length=None,
+        mini_batch_size=None,
+        whole_replay_buffer_training=True,
+        replay_buffer_length=1024,
+        priority_replay=False,
+        priority_replay_alpha=0.7,
+        priority_replay_beta=0.4,
+        priority_replay_eps=1e-6,
+        offline_buffer_dir=None,
+        offline_buffer_length=None,
+        offline_loss_weight=1.0,
+        rl_train_after_update_steps=0,
+        rl_train_every_update_steps=1,
+        empty_cache: bool = False,
+        normalize_importance_weights_by_max: bool = False,
+        clear_replay_buffer=True,
+        clear_replay_buffer_but_keep_one_step=True,
+        visualize_alf_tree=False,
+        remote_training=False,
+    ):
         """
         Args:
             root_dir (str): directory for saving summary and checkpoints
@@ -373,9 +375,10 @@ class TrainerConfig(object):
                 False].
         """
         if isinstance(priority_replay_beta, float):
-            assert priority_replay_beta >= 0.0, (
-                "importance_weight_beta should be non-negative")
-        assert ml_type in ('rl', 'sl')
+            assert (
+                priority_replay_beta >= 0.0
+            ), "importance_weight_beta should be non-negative"
+        assert ml_type in ("rl", "sl")
         self.root_dir = root_dir
         self.conf_file = conf_file
         self.ml_type = ml_type
@@ -387,20 +390,26 @@ class TrainerConfig(object):
         self.num_env_steps = num_env_steps
         self.unroll_length = unroll_length
         self.unroll_with_grad = unroll_with_grad
-        self.use_root_inputs_for_after_train_iter = use_root_inputs_for_after_train_iter
+        self.use_root_inputs_for_after_train_iter = (
+            use_root_inputs_for_after_train_iter
+        )
         self.async_unroll = async_unroll
         if async_unroll:
-            assert not unroll_with_grad, ("unroll_with_grad is not supported "
-                                          "for async_unroll=True")
-            assert max_unroll_length > 0, ("max_unroll_length needs to be set "
-                                           "for async_unroll=True")
+            assert not unroll_with_grad, (
+                "unroll_with_grad is not supported " "for async_unroll=True"
+            )
+            assert max_unroll_length > 0, (
+                "max_unroll_length needs to be set " "for async_unroll=True"
+            )
         self.max_unroll_length = max_unroll_length or self.unroll_length
         self.unroll_queue_size = unroll_queue_size
         self.unroll_step_interval = unroll_step_interval
         self.unroll_parameter_update_period = unroll_parameter_update_period
         self.use_rollout_state = use_rollout_state
         self.mask_out_loss_for_last_step = mask_out_loss_for_last_step
-        self.temporally_independent_train_step = temporally_independent_train_step
+        self.temporally_independent_train_step = (
+            temporally_independent_train_step
+        )
         self.sync_progress_to_envs = sync_progress_to_envs
         self.num_checkpoints = num_checkpoints
         self.confirm_checkpoint_upon_crash = confirm_checkpoint_upon_crash
@@ -439,7 +448,9 @@ class TrainerConfig(object):
         self.mini_batch_size = mini_batch_size
         self.whole_replay_buffer_training = whole_replay_buffer_training
         self.clear_replay_buffer = clear_replay_buffer
-        self.clear_replay_buffer_but_keep_one_step = clear_replay_buffer_but_keep_one_step
+        self.clear_replay_buffer_but_keep_one_step = (
+            clear_replay_buffer_but_keep_one_step
+        )
         self.replay_buffer_length = replay_buffer_length
         self.priority_replay = priority_replay
         self.priority_replay_alpha = as_scheduler(priority_replay_alpha)
@@ -452,6 +463,8 @@ class TrainerConfig(object):
         self.rl_train_after_update_steps = rl_train_after_update_steps
         self.rl_train_every_update_steps = rl_train_every_update_steps
         self.empty_cache = empty_cache
-        self.normalize_importance_weights_by_max = normalize_importance_weights_by_max
+        self.normalize_importance_weights_by_max = (
+            normalize_importance_weights_by_max
+        )
         self.visualize_alf_tree = visualize_alf_tree
         self.remote_training = remote_training

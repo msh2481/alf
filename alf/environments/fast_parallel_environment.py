@@ -95,14 +95,15 @@ class FastParallelEnvironment(alf_environment.AlfEnvironment):
     """
 
     def __init__(
-            self,
-            env_constructors,
-            start_serially=True,
-            blocking=False,  # unused
-            flatten=True,  # unused
-            num_spare_envs_for_reload=0,
-            torch_num_threads_per_env=1,
-            start_method: str = "fork"):
+        self,
+        env_constructors,
+        start_serially=True,
+        blocking=False,  # unused
+        flatten=True,  # unused
+        num_spare_envs_for_reload=0,
+        torch_num_threads_per_env=1,
+        start_method: str = "fork",
+    ):
         super().__init__()
         num_envs = len(env_constructors) - num_spare_envs_for_reload
         name = f"alf_penv_{os.getpid()}_{time.time()}"
@@ -117,7 +118,8 @@ class FastParallelEnvironment(alf_environment.AlfEnvironment):
                 num_envs=num_envs,
                 torch_num_threads_per_env=torch_num_threads_per_env,
                 start_method=start_method,
-                name=name)
+                name=name,
+            )
             if env_id < num_envs:
                 self._envs.append(env)
             else:
@@ -135,31 +137,42 @@ class FastParallelEnvironment(alf_environment.AlfEnvironment):
         self._task_names = self._envs[0].task_names
         self._batch_size = self._envs[0].batch_size * num_envs
         time_step_with_env_info_spec = self._time_step_spec._replace(
-            env_info=self._env_info_spec)
+            env_info=self._env_info_spec
+        )
         batch_size_per_env = self._envs[0].batch_size
         batched = self._envs[0].batched
         if any(env.is_tensor_based for env in self._envs):
             raise ValueError(
-                'All environments must be array-based environments.')
+                "All environments must be array-based environments."
+            )
         if any(env.action_spec() != self._action_spec for env in self._envs):
+            raise ValueError("All environments must have the same action spec.")
+        if any(
+            env.time_step_spec() != self._time_step_spec for env in self._envs
+        ):
             raise ValueError(
-                'All environments must have the same action spec.')
-        if any(env.time_step_spec() != self._time_step_spec
-               for env in self._envs):
+                "All environments must have the same time_step_spec."
+            )
+        if any(
+            env.env_info_spec() != self._env_info_spec for env in self._envs
+        ):
             raise ValueError(
-                'All environments must have the same time_step_spec.')
-        if any(env.env_info_spec() != self._env_info_spec
-               for env in self._envs):
-            raise ValueError(
-                'All environments must have the same env_info_spec.')
+                "All environments must have the same env_info_spec."
+            )
         if any(env.batch_size != batch_size_per_env for env in self._envs):
-            raise ValueError('All environments must have the same batch_size.')
+            raise ValueError("All environments must have the same batch_size.")
         if any(env.batched != batched for env in self._envs):
-            raise ValueError('All environments must have the same batched.')
+            raise ValueError("All environments must have the same batched.")
         self._closed = False
         self._penv = _penv.ParallelEnvironment(
-            num_envs, num_spare_envs_for_reload, batch_size_per_env, batched,
-            self._action_spec, time_step_with_env_info_spec, name)
+            num_envs,
+            num_spare_envs_for_reload,
+            batch_size_per_env,
+            batched,
+            self._action_spec,
+            time_step_with_env_info_spec,
+            name,
+        )
 
     @property
     def envs(self):
@@ -171,22 +184,21 @@ class FastParallelEnvironment(alf_environment.AlfEnvironment):
         return self._num_spare_envs_for_reload
 
     def start(self):
-        acting_text = {
-            "fork": "Forking",
-            "spawn": "Spawning"
-        }[self._start_method]
+        acting_text = {"fork": "Forking", "spawn": "Spawning"}[
+            self._start_method
+        ]
         logging.info(f"{acting_text} all {len(self._envs)} processes.")
         for env in self._envs:
             env.start(wait_to_start=self._start_serially)
         for env in self._spare_envs:
             env.start(wait_to_start=self._start_serially)
         if not self._start_serially:
-            logging.info('Waiting for all processes to start.')
+            logging.info("Waiting for all processes to start.")
             for env in self._envs:
                 env.wait_start()
             for env in self._spare_envs:
                 env.wait_start()
-        logging.info('All processes started.')
+        logging.info("All processes started.")
 
     @property
     def is_tensor_based(self):
@@ -247,7 +259,8 @@ class FastParallelEnvironment(alf_environment.AlfEnvironment):
         # we need to do np.copy because the result from _penv.step() or
         # _penv.reset() reuses the same internal buffer.
         stacked = nest.map_structure(
-            lambda x: torch.as_tensor(np.copy(x), device='cpu'), stacked)
+            lambda x: torch.as_tensor(np.copy(x), device="cpu"), stacked
+        )
         if alf.get_default_device() == "cuda":
             cpu = stacked
             stacked = nest.map_structure(lambda x: x.cuda(), cpu)
@@ -288,7 +301,7 @@ class FastParallelEnvironment(alf_environment.AlfEnvironment):
         """Close all external process."""
         if self._closed:
             return
-        logging.info('Closing all processes.')
+        logging.info("Closing all processes.")
         i = 0
         for env in self._envs:
             env.close()
@@ -307,7 +320,8 @@ class FastParallelEnvironment(alf_environment.AlfEnvironment):
         envs = self._envs + self._spare_envs
         if len(seeds) != len(envs):
             raise ValueError(
-                'Number of seeds should match the number of parallel_envs.')
-        promises = [env.call('seed', seed) for seed, env in zip(seeds, envs)]
+                "Number of seeds should match the number of parallel_envs."
+            )
+        promises = [env.call("seed", seed) for seed, env in zip(seeds, envs)]
         # Block until all envs are seeded.
         return [promise() for promise in promises]

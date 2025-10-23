@@ -19,7 +19,7 @@ from alf.algorithms.hypernetwork_algorithm import HyperNetwork
 from alf.trainers import policy_trainer
 
 CONV_LAYER_PARAMS = ((6, 5, 1, 2, 2), (16, 5, 1, 0, 2), (120, 5, 1))
-FC_LAYER_PARAMS = (84, )
+FC_LAYER_PARAMS = (84,)
 HIDDEN_LAYERS = (512, 1024)
 
 noise_dim = 256
@@ -27,7 +27,7 @@ noise_dim = 256
 dcreator = functools.partial(datagen.load_mnist, train_bs=128, test_bs=100)
 
 alf.config(
-    'HyperNetwork',
+    "HyperNetwork",
     data_creator=dcreator,
     # data_creator_outlier= dcreator_outlier,
     conv_layer_params=CONV_LAYER_PARAMS,
@@ -36,10 +36,10 @@ alf.config(
     hidden_layers=HIDDEN_LAYERS,
     noise_dim=noise_dim,
     num_particles=10,
-    par_vi='svgd3',
+    par_vi="svgd3",
     functional_gradient=True,
-    loss_type='classification',
-    init_lambda=.1,
+    loss_type="classification",
+    init_lambda=0.1,
     lambda_trainable=True,
     direct_jac_inverse=False,
     block_inverse_mvp=True,
@@ -50,14 +50,15 @@ alf.config(
     inverse_mvp_optimizer=alf.optimizers.Adam(lr=1e-4),
     lambda_optimizer=alf.optimizers.Adam(lr=1e-3),
     logging_training=True,
-    logging_evaluate=True)
+    logging_evaluate=True,
+)
 
-alf.config('ParamConvNet', use_bias=True)
+alf.config("ParamConvNet", use_bias=True)
 
 alf.config(
-    'TrainerConfig',
+    "TrainerConfig",
     algorithm_ctor=HyperNetwork,
-    ml_type='sl',
+    ml_type="sl",
     num_iterations=200,
     num_checkpoints=1,
     evaluate=True,
@@ -66,4 +67,5 @@ alf.config(
     summary_interval=1,
     debug_summaries=True,
     summarize_grads_and_vars=True,
-    random_seed=0)
+    random_seed=0,
+)

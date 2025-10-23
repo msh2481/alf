@@ -21,18 +21,18 @@ from alf.utils.losses import element_wise_huber_loss
 from alf.algorithms.ppg_algorithm import PPGAuxOptions
 
 # Environment Configuration
-alf.config('create_environment',
-           env_name='CartPole-v0',
-           num_parallel_environments=8)
+alf.config(
+    "create_environment", env_name="CartPole-v0", num_parallel_environments=8
+)
 
 # Reward Scailing
-alf.config('TrainerConfig', data_transformer_ctor=RewardScaling)
-alf.config('RewardScaling', scale=0.01)
+alf.config("TrainerConfig", data_transformer_ctor=RewardScaling)
+alf.config("RewardScaling", scale=0.01)
 
-alf.config('EncodingNetwork', fc_layer_params=(100, ))
+alf.config("EncodingNetwork", fc_layer_params=(100,))
 
 alf.config(
-    'PPGAlgorithm',
+    "PPGAlgorithm",
     encoding_network_ctor=EncodingNetwork,
     policy_optimizer=alf.optimizers.AdamTF(lr=1e-3),
     aux_optimizer=alf.optimizers.AdamTF(lr=1e-3),
@@ -43,22 +43,27 @@ alf.config(
         # mini_batch_length for aux phase
         mini_batch_size=8,
         num_updates_per_train_iter=3,
-    ))
-
-alf.config('PPOLoss',
-           compute_advantages_internally=True,
-           entropy_regularization=1e-4,
-           gamma=0.98,
-           td_error_loss_fn=element_wise_huber_loss,
-           normalize_advantages=False)
-
-alf.config('PPGAuxPhaseLoss',
-           td_error_loss_fn=element_wise_huber_loss,
-           policy_kl_loss_weight=0.005,
-           gamma=0.98)
+    ),
+)
 
 alf.config(
-    'TrainerConfig',
+    "PPOLoss",
+    compute_advantages_internally=True,
+    entropy_regularization=1e-4,
+    gamma=0.98,
+    td_error_loss_fn=element_wise_huber_loss,
+    normalize_advantages=False,
+)
+
+alf.config(
+    "PPGAuxPhaseLoss",
+    td_error_loss_fn=element_wise_huber_loss,
+    policy_kl_loss_weight=0.005,
+    gamma=0.98,
+)
+
+alf.config(
+    "TrainerConfig",
     unroll_length=32,
     # This means that mini_batch_length will set to equal to the
     # length of the batches taken from the replay buffer, and in this
@@ -72,4 +77,5 @@ alf.config(
     eval_interval=50,
     debug_summaries=False,
     summarize_grads_and_vars=False,
-    summary_interval=5)
+    summary_interval=5,
+)

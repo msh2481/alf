@@ -14,7 +14,9 @@
 
 import numpy as np
 
-from gym.wrappers.monitoring.video_recorder import VideoRecorder as GymVideoRecorder
+from gym.wrappers.monitoring.video_recorder import (
+    VideoRecorder as GymVideoRecorder,
+)
 from gym import error, logger
 
 import alf
@@ -29,10 +31,14 @@ except ImportError:
     render = None
 
 
-@alf.configurable(whitelist=[
-    'frame_max_width', 'frames_per_sec', 'last_step_repeats',
-    'append_blank_frames'
-])
+@alf.configurable(
+    whitelist=[
+        "frame_max_width",
+        "frames_per_sec",
+        "last_step_repeats",
+        "append_blank_frames",
+    ]
+)
 class VideoRecorder(GymVideoRecorder):
     """A video recorder that renders frames and encodes them into a video file.
     Besides rendering frames, it also supports plotting prediction info. Each
@@ -41,13 +47,15 @@ class VideoRecorder(GymVideoRecorder):
     for more details.
     """
 
-    def __init__(self,
-                 env,
-                 frame_max_width=2560,
-                 frames_per_sec=None,
-                 last_step_repeats=0,
-                 append_blank_frames=0,
-                 **kwargs):
+    def __init__(
+        self,
+        env,
+        frame_max_width=2560,
+        frames_per_sec=None,
+        last_step_repeats=0,
+        append_blank_frames=0,
+        **kwargs,
+    ):
         """
         Args:
             env (Gym.env):
@@ -85,14 +93,15 @@ class VideoRecorder(GymVideoRecorder):
             is_last_step (bool): whether the current time step is the last
                 step of the episode, either due to game over or time limits.
         """
-        if not self.functional: return
-        logger.debug('Capturing video frame: path=%s', self.path)
+        if not self.functional:
+            return
+        logger.debug("Capturing video frame: path=%s", self.path)
 
         if pred_info is not None:
             assert not self.ansi_mode, "Only supports rgb_array mode!"
-            render_mode = 'rgb_array'
+            render_mode = "rgb_array"
         else:
-            render_mode = 'ansi' if self.ansi_mode else 'rgb_array'
+            render_mode = "ansi" if self.ansi_mode else "rgb_array"
 
         frame = self.env.render(mode=render_mode)
 
@@ -103,9 +112,12 @@ class VideoRecorder(GymVideoRecorder):
                 # Indicates a bug in the environment: don't want to raise
                 # an error here.
                 logger.warn(
-                    'Env returned None on render(). Disabling further '
-                    'rendering for video recorder by marking as disabled: '
-                    'path=%s metadata_path=%s', self.path, self.metadata_path)
+                    "Env returned None on render(). Disabling further "
+                    "rendering for video recorder by marking as disabled: "
+                    "path=%s metadata_path=%s",
+                    self.path,
+                    self.metadata_path,
+                )
                 self.broken = True
         else:
             frame = self._plot_pred_info(frame, pred_info)
@@ -121,15 +133,16 @@ class VideoRecorder(GymVideoRecorder):
                     for _ in range(self._append_blank_frames):
                         self._encode_frame(self._blank_frame)
 
-            assert not self.broken, (
-                "The output file is broken! Check warning messages.")
+            assert (
+                not self.broken
+            ), "The output file is broken! Check warning messages."
 
     def capture_env_frame(self):
-        """Return un-encoded env frame
-        """
-        if not self.functional: return
-        logger.debug('Capturing video frame: path=%s', self.path)
-        render_mode = 'rgb_array'
+        """Return un-encoded env frame"""
+        if not self.functional:
+            return
+        logger.debug("Capturing video frame: path=%s", self.path)
+        render_mode = "rgb_array"
         frame = self.env.render(mode=render_mode)
 
         assert frame is not None
@@ -147,8 +160,7 @@ class VideoRecorder(GymVideoRecorder):
         self._pred_info_cache.append(pred_info)
 
     def clear_cache(self):
-        """Clear the cached contents.
-        """
+        """Clear the cached contents."""
         self._frame_cache = []
         self._pred_info_cache = []
 
@@ -158,7 +170,8 @@ class VideoRecorder(GymVideoRecorder):
         The cache will be reset to empty afterwards.
         """
         for i, (frame, pred_info) in enumerate(
-                zip(self._frame_cache, self._pred_info_cache)):
+            zip(self._frame_cache, self._pred_info_cache)
+        ):
             frame = self._plot_pred_info(frame, pred_info)
             self._encode_frame(frame)
 
@@ -170,8 +183,9 @@ class VideoRecorder(GymVideoRecorder):
             for _ in range(self._append_blank_frames):
                 self._encode_frame(self._blank_frame)
 
-            assert not self.broken, (
-                "The output file is broken! Check warning messages.")
+            assert (
+                not self.broken
+            ), "The output file is broken! Check warning messages."
 
     def _encode_frame(self, frame):
         """Perform encoding of the input frame
@@ -201,7 +215,8 @@ class VideoRecorder(GymVideoRecorder):
             np.ndarray:
         """
         imgs = [
-            i for i in alf.nest.flatten(pred_info)
+            i
+            for i in alf.nest.flatten(pred_info)
             if isinstance(i, render.Image)
         ]
         if self._pred_info_img_shapes is None:
@@ -222,10 +237,12 @@ class VideoRecorder(GymVideoRecorder):
             info_img = render.Image.pack_image_nest(imgs)
             # always put env frame on top/left; for simplicity here we generate
             # both and compare their sizes.
-            horizontal = render.Image.stack_images([frame, info_img],
-                                                   horizontal=True)
-            vertical = render.Image.stack_images([frame, info_img],
-                                                 horizontal=False)
+            horizontal = render.Image.stack_images(
+                [frame, info_img], horizontal=True
+            )
+            vertical = render.Image.stack_images(
+                [frame, info_img], horizontal=False
+            )
             if np.product(horizontal.shape) < np.product(vertical.shape):
                 frame = horizontal
             else:

@@ -16,5 +16,5 @@ import alf
 
 alf.import_config("sac_cart_pole_conf.py")
 # Distributed training only supports a single environment
-alf.config('create_environment', num_parallel_environments=1)
-alf.config('TrainerConfig', unroll_length=10, num_iterations=20000)
+alf.config("create_environment", num_parallel_environments=1)
+alf.config("TrainerConfig", unroll_length=10, num_iterations=20000)

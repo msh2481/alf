@@ -140,15 +140,14 @@ def explained_variance(ypred, y, valid_mask=None, dim=None):
     if dim is None:
         if valid_mask is not None:
             valid_mask = valid_mask.reshape(-1)
-        return explained_variance(ypred.reshape(-1),
-                                  y.reshape(-1),
-                                  valid_mask,
-                                  dim=0)
+        return explained_variance(
+            ypred.reshape(-1), y.reshape(-1), valid_mask, dim=0
+        )
 
     if valid_mask is not None:
         n = torch.max(
-            valid_mask.sum(dim=dim).to(y.dtype), torch.tensor(1,
-                                                              dtype=y.dtype))
+            valid_mask.sum(dim=dim).to(y.dtype), torch.tensor(1, dtype=y.dtype)
+        )
     else:
         n = y.shape[dim]
 
@@ -156,7 +155,7 @@ def explained_variance(ypred, y, valid_mask=None, dim=None):
         if valid_mask is not None:
             x = x * valid_mask
         mean = x.sum(dim=dim, keepdims=True) / n
-        x2 = (x - mean)**2
+        x2 = (x - mean) ** 2
         if valid_mask is not None:
             x2 = x2 * valid_mask
         var = x2.sum(dim=dim) / n
@@ -209,10 +208,14 @@ def global_norm(tensors):
     if not tensors:
         return torch.zeros((), dtype=torch.float32)
     return torch.sqrt(
-        sum([
-            math_ops.square(torch.norm(torch.reshape(t, [-1])))
-            for t in tensors if t is not None
-        ]))
+        sum(
+            [
+                math_ops.square(torch.norm(torch.reshape(t, [-1])))
+                for t in tensors
+                if t is not None
+            ]
+        )
+    )
 
 
 def clip_by_global_norm(tensors, clip_norm, use_norm=None, in_place=False):
@@ -303,8 +306,13 @@ def clip_by_norms(tensors, clip_norm, in_place=False):
         the clipped tensors
     """
     return alf.nest.map_structure(
-        lambda t: clip_by_global_norm([t], clip_norm, in_place=in_place)[0]
-        if t is not None else t, tensors)
+        lambda t: (
+            clip_by_global_norm([t], clip_norm, in_place=in_place)[0]
+            if t is not None
+            else t
+        ),
+        tensors,
+    )
 
 
 def cov(data, rowvar=False):
@@ -325,7 +333,7 @@ def cov(data, rowvar=False):
     x = data.detach().clone()
 
     if x.ndim > 3:
-        raise ValueError('data has more than 3 dimensions')
+        raise ValueError("data has more than 3 dimensions")
     if x.ndim == 3:
         fact = 1.0 / (x.shape[1] - 1)
         x -= torch.mean(x, dim=1, keepdim=True)
@@ -387,7 +395,7 @@ class BatchSquash(object):
             ValueError: if batch dims is negative.
         """
         if batch_dims < 0:
-            raise ValueError('Batch dims must be non-negative.')
+            raise ValueError("Batch dims must be non-negative.")
         self._batch_dims = batch_dims
         self._original_tensor_shape = None
 
@@ -396,8 +404,9 @@ class BatchSquash(object):
         if self._batch_dims == 1:
             return tensor
         self._original_tensor_shape = tensor.shape
-        return torch.reshape(tensor,
-                             (-1, ) + tuple(tensor.shape[self._batch_dims:]))
+        return torch.reshape(
+            tensor, (-1,) + tuple(tensor.shape[self._batch_dims :])
+        )
 
     def unflatten(self, tensor):
         """Unflattens the tensor's batch_dims using the cached shape."""
@@ -405,11 +414,15 @@ class BatchSquash(object):
             return tensor
 
         if self._original_tensor_shape is None:
-            raise ValueError('Please call flatten before unflatten.')
+            raise ValueError("Please call flatten before unflatten.")
 
         return torch.reshape(
-            tensor, (tuple(self._original_tensor_shape[:self._batch_dims]) +
-                     tuple(tensor.shape[1:])))
+            tensor,
+            (
+                tuple(self._original_tensor_shape[: self._batch_dims])
+                + tuple(tensor.shape[1:])
+            ),
+        )
 
 
 def append_coordinate(im: torch.Tensor):
@@ -423,9 +436,9 @@ def append_coordinate(im: torch.Tensor):
             dimensions are xy meshgrid from -1 to 1.
     """
     assert len(im.shape) == 4, "Image must have a shape of [B,C,H,W]!"
-    y = torch.arange(-1., 1., step=2. / im.shape[-2])
-    x = torch.arange(-1., 1., step=2. / im.shape[-1])
-    yy, xx = torch.meshgrid(y, x, indexing='ij')
+    y = torch.arange(-1.0, 1.0, step=2.0 / im.shape[-2])
+    x = torch.arange(-1.0, 1.0, step=2.0 / im.shape[-1])
+    yy, xx = torch.meshgrid(y, x, indexing="ij")
     # [H,W] -> [B,H,W]
     yy = alf.utils.tensor_utils.tensor_extend_new_dim(yy, dim=0, n=im.shape[0])
     xx = alf.utils.tensor_utils.tensor_extend_new_dim(xx, dim=0, n=im.shape[0])

@@ -160,9 +160,11 @@ class CustomRequestHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(b"Endpoint not found")
 
 
-def register_endpoint(path: str,
-                      handler: Callable[[CustomRequestHandler], None],
-                      help_text: str = ""):
+def register_endpoint(
+    path: str,
+    handler: Callable[[CustomRequestHandler], None],
+    help_text: str = "",
+):
     """Registers a new endpoint with a custom handler function.
 
     Args:
@@ -191,12 +193,14 @@ def render_handler(request):
     """Handle /render endpoint by getting environment render image."""
     try:
         import alf
+
         env = alf.get_env()
         image = env.render()
 
         if image is None:
             request.send_html(
-                "<html><body><h1>No image available</h1></body></html>")
+                "<html><body><h1>No image available</h1></body></html>"
+            )
             return
 
         if isinstance(image, np.ndarray):
@@ -206,9 +210,9 @@ def render_handler(request):
                 image_rgb = image
 
             _, buffer = cv2.imencode(".jpg", image_rgb)
-            image_base64 = base64.b64encode(buffer).decode('utf-8')
+            image_base64 = base64.b64encode(buffer).decode("utf-8")
 
-            html = f'''
+            html = f"""
             <!DOCTYPE html>
             <html>
             <head>
@@ -219,11 +223,12 @@ def render_handler(request):
                 <img src="data:image/jpeg;base64,{image_base64}" alt="Environment Render" style="max-width: 100%; height: auto;">
             </body>
             </html>
-            '''
+            """
             request.send_html(html)
         else:
             request.send_html(
-                "<html><body><h1>Invalid image format</h1></body></html>")
+                "<html><body><h1>Invalid image format</h1></body></html>"
+            )
     except Exception as e:
         error_html = f"<html><body><h1>Error rendering environment</h1><p>{str(e)}</p></body></html>"
         request.send_html(error_html, 500)

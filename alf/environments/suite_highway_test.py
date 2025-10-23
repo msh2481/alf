@@ -28,14 +28,14 @@ class SuiteHighwayTest(parameterized.TestCase, alf.test.TestCase):
     def setUp(self):
         super().setUp()
         if not suite_highway.is_available():
-            self.skipTest('suite_highway is not available.')
+            self.skipTest("suite_highway is not available.")
 
     def tearDown(self):
         super().tearDown()
         self._env.close()
 
     def test_unwrapped_env(self):
-        self._env = suite_highway.load(environment_name='highway-v0')
+        self._env = suite_highway.load(environment_name="highway-v0")
         self.assertIsInstance(self._env, alf_environment.AlfEnvironment)
         self.assertEqual(torch.float32, self._env.observation_spec().dtype)
 
@@ -47,7 +47,8 @@ class SuiteHighwayTest(parameterized.TestCase, alf.test.TestCase):
 
     def test_thread_env(self):
         self._env = thread_environment.ThreadEnvironment(
-            lambda: suite_highway.load(environment_name='highway-v0'))
+            lambda: suite_highway.load(environment_name="highway-v0")
+        )
         self.assertIsInstance(self._env, alf_environment.AlfEnvironment)
         self.assertEqual(torch.float32, self._env.observation_spec().dtype)
 
@@ -59,18 +60,19 @@ class SuiteHighwayTest(parameterized.TestCase, alf.test.TestCase):
         env_num = 5
 
         def ctor(env_id=None):
-            return suite_highway.load(environment_name='highway-v0')
+            return suite_highway.load(environment_name="highway-v0")
 
         constructor = functools.partial(ctor)
 
-        self._env = parallel_environment.ParallelAlfEnvironment([constructor] *
-                                                                env_num)
+        self._env = parallel_environment.ParallelAlfEnvironment(
+            [constructor] * env_num
+        )
 
         self.assertTrue(self._env.batched)
         self.assertEqual(self._env.batch_size, env_num)
         self.assertEqual(torch.float32, self._env.observation_spec().dtype)
 
-        actions = self._env.action_spec().sample(outer_dims=(env_num, ))
+        actions = self._env.action_spec().sample(outer_dims=(env_num,))
         for _ in range(10):
             time_step = self._env.step(actions)
 
@@ -81,35 +83,38 @@ class SuiteHighwayTest(parameterized.TestCase, alf.test.TestCase):
         env_info = time_step.env_info
         for field in env_info:
             self.assertEqual(env_info[field].size, 1)
-        self.assertFalse('action' in time_step.env_info.keys())
+        self.assertFalse("action" in time_step.env_info.keys())
 
     def test_env_config(self):
 
         env = suite_highway.load(environment_name="highway-v0")
-        self.assertEqual(env.observation_spec().shape, (35, ))
+        self.assertEqual(env.observation_spec().shape, (35,))
         self.assertTrue(env.action_spec().is_continuous)
-        self.assertEqual(env.action_spec().shape, (2, ))
+        self.assertEqual(env.action_spec().shape, (2,))
         env.close()
 
         # test env with specified config
         env_config = {
             "observation": {
-                "type":
-                    "Kinematics",
-                "vehicles_count":
-                    3,
+                "type": "Kinematics",
+                "vehicles_count": 3,
                 "features": [
-                    "presence", "x", "y", "vx", "vy", "cos_h", "sin_h"
+                    "presence",
+                    "x",
+                    "y",
+                    "vx",
+                    "vy",
+                    "cos_h",
+                    "sin_h",
                 ],
             },
-            "action": {
-                "type": "DiscreteMetaAction"
-            }
+            "action": {"type": "DiscreteMetaAction"},
         }
 
-        env = suite_highway.load(environment_name="highway-v0",
-                                 env_config=env_config)
-        self.assertEqual(env.observation_spec().shape, (21, ))
+        env = suite_highway.load(
+            environment_name="highway-v0", env_config=env_config
+        )
+        self.assertEqual(env.observation_spec().shape, (21,))
         self.assertTrue(env.action_spec().is_discrete)
         self.assertEqual(env.action_spec().numel, 1)
 
@@ -123,22 +128,25 @@ class SuiteHighwayTest(parameterized.TestCase, alf.test.TestCase):
     def test_last_step(self, max_episode_steps):
         env_config = {
             "observation": {
-                "type":
-                    "Kinematics",
-                "vehicles_count":
-                    3,
+                "type": "Kinematics",
+                "vehicles_count": 3,
                 "features": [
-                    "presence", "x", "y", "vx", "vy", "cos_h", "sin_h"
+                    "presence",
+                    "x",
+                    "y",
+                    "vx",
+                    "vy",
+                    "cos_h",
+                    "sin_h",
                 ],
             },
-            "action": {
-                "type": "DiscreteMetaAction"
-            },
-            "duration": max_episode_steps
+            "action": {"type": "DiscreteMetaAction"},
+            "duration": max_episode_steps,
         }
 
-        self._env = suite_highway.load(environment_name="highway-v0",
-                                       env_config=env_config)
+        self._env = suite_highway.load(
+            environment_name="highway-v0", env_config=env_config
+        )
 
         for i in range(max_episode_steps):
             actions = self._env.action_spec().sample().cpu().numpy()
@@ -146,13 +154,15 @@ class SuiteHighwayTest(parameterized.TestCase, alf.test.TestCase):
             if time_step.step_type == 2:
                 break
 
-        if time_step.env_info['crashed'].item() is True:
+        if time_step.env_info["crashed"].item() is True:
             assert time_step.discount == 0.0
 
-        if i == max_episode_steps - 1 and not time_step.env_info[
-                'crashed'].item():
+        if (
+            i == max_episode_steps - 1
+            and not time_step.env_info["crashed"].item()
+        ):
             assert time_step.discount == 1.0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

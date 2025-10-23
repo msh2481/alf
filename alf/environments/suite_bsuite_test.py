@@ -27,18 +27,20 @@ class SuiteBSuiteTest(alf.test.TestCase):
     def setUp(self):
         super().setUp()
         if not suite_bsuite.is_available():
-            self.skipTest('suite_safety_gym is not available.')
+            self.skipTest("suite_safety_gym is not available.")
 
     def test_reset(self):
         self._env = suite_bsuite.load(
-            environment_name=sweep.CARTPOLE_SWINGUP[0])
+            environment_name=sweep.CARTPOLE_SWINGUP[0]
+        )
         self.assertIsInstance(self._env, alf_environment.AlfEnvironment)
         self.assertEqual(torch.float32, self._env.observation_spec().dtype)
         self.assertEqual(self._env.reset().observation.ndim, 1)
 
     def test_step(self):
         self._env = suite_bsuite.load(
-            environment_name=sweep.CARTPOLE_SWINGUP[0])
+            environment_name=sweep.CARTPOLE_SWINGUP[0]
+        )
         actions = self._env.action_spec().sample()
         for _ in range(10):
             time_step = self._env.step(actions.item())
@@ -48,21 +50,21 @@ class SuiteBSuiteTest(alf.test.TestCase):
         env_num = 8
 
         def ctor(env_id=None):
-            return suite_bsuite.load(
-                environment_name=sweep.CARTPOLE_SWINGUP[0])
+            return suite_bsuite.load(environment_name=sweep.CARTPOLE_SWINGUP[0])
 
         constructor = functools.partial(ctor)
 
-        self._env = parallel_environment.ParallelAlfEnvironment([constructor] *
-                                                                env_num)
+        self._env = parallel_environment.ParallelAlfEnvironment(
+            [constructor] * env_num
+        )
         self.assertTrue(self._env.batched)
         self.assertEqual(self._env.batch_size, env_num)
         self.assertEqual(torch.float32, self._env.observation_spec().dtype)
 
-        actions = self._env.action_spec().sample(outer_dims=(env_num, ))
+        actions = self._env.action_spec().sample(outer_dims=(env_num,))
         for _ in range(10):
             time_step = self._env.step(actions)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

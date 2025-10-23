@@ -19,7 +19,14 @@ import torch
 from typing import Callable, Optional
 
 import alf
-from alf.algorithms.ppg import DisjointPolicyValueNetwork, PPGRolloutInfo, PPGTrainInfo, PPGAuxAlgorithm, PPGAuxOptions, ppg_network_forward
+from alf.algorithms.ppg import (
+    DisjointPolicyValueNetwork,
+    PPGRolloutInfo,
+    PPGTrainInfo,
+    PPGAuxAlgorithm,
+    PPGAuxOptions,
+    ppg_network_forward,
+)
 from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.ppo_loss import PPOLoss
@@ -51,63 +58,65 @@ class PPGAlgorithm(OffPolicyAlgorithm):
 
     """
 
-    def __init__(self,
-                 observation_spec,
-                 action_spec,
-                 reward_spec=TensorSpec(()),
-                 env=None,
-                 config: Optional[TrainerConfig] = None,
-                 aux_options: PPGAuxOptions = PPGAuxOptions(),
-                 encoding_network_ctor: Callable[...,
-                                                 Network] = EncodingNetwork,
-                 policy_optimizer: Optional[torch.optim.Optimizer] = None,
-                 aux_optimizer: Optional[torch.optim.Optimizer] = None,
-                 epsilon_greedy=None,
-                 checkpoint: Optional[str] = None,
-                 debug_summaries: bool = False,
-                 name: str = "PPGAlgorithm"):
+    def __init__(
+        self,
+        observation_spec,
+        action_spec,
+        reward_spec=TensorSpec(()),
+        env=None,
+        config: Optional[TrainerConfig] = None,
+        aux_options: PPGAuxOptions = PPGAuxOptions(),
+        encoding_network_ctor: Callable[..., Network] = EncodingNetwork,
+        policy_optimizer: Optional[torch.optim.Optimizer] = None,
+        aux_optimizer: Optional[torch.optim.Optimizer] = None,
+        epsilon_greedy=None,
+        checkpoint: Optional[str] = None,
+        debug_summaries: bool = False,
+        name: str = "PPGAlgorithm",
+    ):
         """Args:
 
-            observation_spec (nested TensorSpec): representing the observations.
-            action_spec (nested BoundedTensorSpec): representing the actions.
-            reward_spec (TensorSpec): a rank-1 or rank-0 tensor spec representing
-                the reward(s).
-            env (Environment): The environment to interact with. env is a
-                batched environment, which means that it runs multiple
-                simulations simultateously. env only needs to be provided to the
-                root Algorithm. NOTE: env will default to None if PPGAlgorithm
-                is run via Agent.
-            config (TrainerConfig): config for training. config only needs to be
-                provided to the algorithm which performs ``train_iter()`` by
-                itself.
-            aux_options: Options that controls the auxiliary phase training.
-            encoding_network_ctor (Callable[[TensorSpec], Network]): Function to
-                construct the encoding network from an input tensor spec. The
-                constructed network will be called with ``forward(observation,
-                state)``.
-            policy_optimizer (torch.optim.Optimizer): The optimizer for training
-                the policy phase of PPG.
-            aux_optimizer (torch.optim.Optimizer): The optimizer for training
-                the auxiliary phase of PPG.
-            epsilon_greedy (float): a floating value in [0,1], representing the
-                chance of action sampling instead of taking argmax. This can
-                help prevent a dead loop in some deterministic environment like
-                Breakout. Only used for evaluation. If None, its value is taken
-                from ``config.epsilon_greedy`` and then
-                ``alf.get_config_value(TrainerConfig.epsilon_greedy)``.
-                It is used in ``predict_step()`` during evaluation.
-            checkpoint (None|str): a string in the format of "prefix@path",
-                where the "prefix" is the multi-step path to the contents in the
-                checkpoint to be loaded. "path" is the full path to the checkpoint
-                file saved by ALF. Refer to ``Algorithm`` for more details.
-            debug_summaries (bool): True if debug summaries should be created.
-            name (str): Name of this algorithm.
+        observation_spec (nested TensorSpec): representing the observations.
+        action_spec (nested BoundedTensorSpec): representing the actions.
+        reward_spec (TensorSpec): a rank-1 or rank-0 tensor spec representing
+            the reward(s).
+        env (Environment): The environment to interact with. env is a
+            batched environment, which means that it runs multiple
+            simulations simultateously. env only needs to be provided to the
+            root Algorithm. NOTE: env will default to None if PPGAlgorithm
+            is run via Agent.
+        config (TrainerConfig): config for training. config only needs to be
+            provided to the algorithm which performs ``train_iter()`` by
+            itself.
+        aux_options: Options that controls the auxiliary phase training.
+        encoding_network_ctor (Callable[[TensorSpec], Network]): Function to
+            construct the encoding network from an input tensor spec. The
+            constructed network will be called with ``forward(observation,
+            state)``.
+        policy_optimizer (torch.optim.Optimizer): The optimizer for training
+            the policy phase of PPG.
+        aux_optimizer (torch.optim.Optimizer): The optimizer for training
+            the auxiliary phase of PPG.
+        epsilon_greedy (float): a floating value in [0,1], representing the
+            chance of action sampling instead of taking argmax. This can
+            help prevent a dead loop in some deterministic environment like
+            Breakout. Only used for evaluation. If None, its value is taken
+            from ``config.epsilon_greedy`` and then
+            ``alf.get_config_value(TrainerConfig.epsilon_greedy)``.
+            It is used in ``predict_step()`` during evaluation.
+        checkpoint (None|str): a string in the format of "prefix@path",
+            where the "prefix" is the multi-step path to the contents in the
+            checkpoint to be loaded. "path" is the full path to the checkpoint
+            file saved by ALF. Refer to ``Algorithm`` for more details.
+        debug_summaries (bool): True if debug summaries should be created.
+        name (str): Name of this algorithm.
 
         """
         dual_actor_value_network = DisjointPolicyValueNetwork(
             observation_spec=observation_spec,
             action_spec=action_spec,
-            encoding_network_ctor=encoding_network_ctor)
+            encoding_network_ctor=encoding_network_ctor,
+        )
 
         super().__init__(
             config=config,
@@ -118,7 +127,8 @@ class PPGAlgorithm(OffPolicyAlgorithm):
             predict_state_spec=dual_actor_value_network.state_spec,
             train_state_spec=dual_actor_value_network.state_spec,
             checkpoint=checkpoint,
-            optimizer=policy_optimizer)
+            optimizer=policy_optimizer,
+        )
 
         # When aux phase update is enabled, a sub algorithm named
         # "PPGAuxAlgorithm" will be created. The sub algorithm shares the same
@@ -135,7 +145,8 @@ class PPGAlgorithm(OffPolicyAlgorithm):
                 optimizer=aux_optimizer,
                 dual_actor_value_network=dual_actor_value_network,
                 aux_options=aux_options,
-                debug_summaries=debug_summaries)
+                debug_summaries=debug_summaries,
+            )
         else:
             # A None ``_aux_algorithm`` means not performaning aux
             # phase update at all.
@@ -150,7 +161,7 @@ class PPGAlgorithm(OffPolicyAlgorithm):
         self._ensure_summary = alf.summary.EnsureSummary()
 
     def _trainable_attributes_to_ignore(self):
-        return ['_aux_algorithm']
+        return ["_aux_algorithm"]
 
     def rollout_step(self, inputs: TimeStep, state) -> AlgStep:
         """Rollout step for PPG algorithm
@@ -168,18 +179,18 @@ class PPGAlgorithm(OffPolicyAlgorithm):
 
         return policy_step
 
-    def train_step(self, inputs: TimeStep, state,
-                   plain_rollout_info: PPGRolloutInfo) -> AlgStep:
-        alg_step = ppg_network_forward(self._network,
-                                       inputs,
-                                       state,
-                                       require_aux=False)
+    def train_step(
+        self, inputs: TimeStep, state, plain_rollout_info: PPGRolloutInfo
+    ) -> AlgStep:
+        alg_step = ppg_network_forward(
+            self._network, inputs, state, require_aux=False
+        )
 
         train_info = PPGTrainInfo(
             action=plain_rollout_info.action,
             rollout_log_prob=plain_rollout_info.log_prob,
             rollout_value=plain_rollout_info.value,
-            rollout_action_distribution=plain_rollout_info.action_distribution
+            rollout_action_distribution=plain_rollout_info.action_distribution,
         ).absorbed(alg_step.info)
 
         return alg_step._replace(info=train_info)
@@ -192,7 +203,8 @@ class PPGAlgorithm(OffPolicyAlgorithm):
             self._network,
             inputs,
             state,
-            epsilon_greedy=self._predict_step_epsilon_greedy)
+            epsilon_greedy=self._predict_step_epsilon_greedy,
+        )
 
     def after_train_iter(self, experience, info: PPGTrainInfo):
         """Run auxiliary update if conditions are met
@@ -207,9 +219,9 @@ class PPGAlgorithm(OffPolicyAlgorithm):
 
         self._ensure_summary.tick()
 
-        if alf.summary.get_global_counter(
-        ) % self._aux_algorithm.interval == 0:
+        if alf.summary.get_global_counter() % self._aux_algorithm.interval == 0:
             with self._ensure_summary:
                 with alf.summary.scope(self._aux_algorithm.name):
                     self._aux_algorithm.train_from_replay_buffer(
-                        update_global_counter=False)
+                        update_global_counter=False
+                    )

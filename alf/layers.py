@@ -27,8 +27,14 @@ from typing import Callable, Dict, Iterable, Literal, Optional, Tuple, Union
 
 import alf
 from alf.initializers import variance_scaling_init
-from alf.nest.utils import (get_nested_field, get_outer_rank, NestConcat,
-                            NestMultiply, NestOuterProduct, NestSum)
+from alf.nest.utils import (
+    get_nested_field,
+    get_outer_rank,
+    NestConcat,
+    NestMultiply,
+    NestOuterProduct,
+    NestSum,
+)
 from alf.nest import map_structure, get_field
 from alf.tensor_specs import TensorSpec
 from alf.utils import common
@@ -55,8 +61,9 @@ def normalize_along_batch_dims(x, mean, variance, variance_epsilon):
         Normalized tensor.
     """
     spec = TensorSpec.from_tensor(mean)
-    assert spec == TensorSpec.from_tensor(variance), \
-        "The specs of mean and variance must be equal!"
+    assert spec == TensorSpec.from_tensor(
+        variance
+    ), "The specs of mean and variance must be equal!"
 
     bs = BatchSquash(get_outer_rank(x, spec))
     x = bs.flatten(x)
@@ -157,8 +164,9 @@ class Permute(nn.Module):
             *dims: The desired ordering of dimensions (not including batch dimension)
         """
         super().__init__()
-        assert all([d >= 0 for d in dims
-                    ]), ("dims should be non-negative. Got %s" % str(dims))
+        assert all(
+            [d >= 0 for d in dims]
+        ), "dims should be non-negative. Got %s" % str(dims)
         dims = [1 + d for d in dims]
         self._dims = [0] + dims
 
@@ -188,7 +196,8 @@ class OneHot(nn.Module):
 
     def forward(self, input):
         return nn.functional.one_hot(input, num_classes=self._num_classes).to(
-            torch.float32)
+            torch.float32
+        )
 
     def make_parallel(self, n: int):
         return OneHot(self._num_classes)
@@ -198,12 +207,9 @@ class OneHot(nn.Module):
 class FixedDecodingLayer(nn.Module):
     """A layer that uses a set of fixed basis for decoding the inputs."""
 
-    def __init__(self,
-                 input_size,
-                 output_size,
-                 basis_type="rbf",
-                 sigma=1.,
-                 tau=0.5):
+    def __init__(
+        self, input_size, output_size, basis_type="rbf", sigma=1.0, tau=0.5
+    ):
         """
         Args:
             input_size (int): the size of input to be decoded, representing the
@@ -221,23 +227,25 @@ class FixedDecodingLayer(nn.Module):
         """
         # get the argument list with vals
         self._kwargs = copy.deepcopy(locals())
-        self._kwargs.pop('self')
-        self._kwargs.pop('__class__')
+        self._kwargs.pop("self")
+        self._kwargs.pop("__class__")
 
         super(FixedDecodingLayer, self).__init__()
 
         assert input_size > 0, "input_size should be at least one"
-        assert basis_type in {"poly", "cheb", "rbf", "haar"
-                              }, ("the specified method "
-                                  "{} is not supported".format(basis_type))
+        assert basis_type in {
+            "poly",
+            "cheb",
+            "rbf",
+            "haar",
+        }, "the specified method " "{} is not supported".format(basis_type)
 
         self._B = nn.Linear(input_size, output_size, bias=False)
 
         def _polyvander_matrix(n, D, tau=tau):
             # non-square matrix [n, D + 1]
             x = torch.linspace(-1, 1, n)
-            B = torch.as_tensor(np.polynomial.polynomial.polyvander(
-                x.cpu(), D))
+            B = torch.as_tensor(np.polynomial.polynomial.polyvander(x.cpu(), D))
             # weight for encoding the preference to low-frequency basis
             exp_factor = torch.arange(D + 1).float()
             basis_weight = tau**exp_factor
@@ -257,7 +265,7 @@ class FixedDecodingLayer(nn.Module):
             x = torch.linspace(-1, 1, n)
             B = torch.empty(n, n)
             for d in range(n):
-                B[:, d] = torch.exp(-(x - x[d])**2 / sigma)
+                B[:, d] = torch.exp(-((x - x[d]) ** 2) / sigma)
             return B
 
         def _haar_matrix(n, tau=tau):
@@ -276,21 +284,23 @@ class FixedDecodingLayer(nn.Module):
 
                 def _kron(A, B):
                     return torch.einsum("ab,cd->acbd", A, B).view(
-                        A.size(0) * B.size(0),
-                        A.size(1) * B.size(1))
+                        A.size(0) * B.size(0), A.size(1) * B.size(1)
+                    )
 
                 # calculate upper haar part
                 h_n = _kron(h, torch.tensor([[1], [1]], dtype=torch.float32))
                 # calculate lower haar part
-                h_i = torch.sqrt(torch.tensor([n / 2.])) * _kron(
+                h_i = torch.sqrt(torch.tensor([n / 2.0])) * _kron(
                     torch.eye(len(h)),
-                    torch.tensor([[1], [-1]], dtype=torch.float32))
+                    torch.tensor([[1], [-1]], dtype=torch.float32),
+                )
                 # combine both parts
                 h = torch.cat((h_n, h_i), dim=1)
                 return h
 
             B = _get_haar_matrix(n) / torch.sqrt(
-                torch.tensor([n], dtype=torch.float32))
+                torch.tensor([n], dtype=torch.float32)
+            )
             # weight for encoding the preference to low-frequency basis
             exp_factor = torch.ceil(torch.log2(torch.arange(n).float() + 1))
             basis_weight = tau**exp_factor
@@ -324,23 +334,24 @@ class FixedDecodingLayer(nn.Module):
 class FC(nn.Module):
     """Fully connected layer."""
 
-    def __init__(self,
-                 input_size,
-                 output_size,
-                 activation=identity,
-                 use_bias=True,
-                 use_bn=False,
-                 use_ln=False,
-                 bn_ctor=nn.BatchNorm1d,
-                 kernel_initializer=None,
-                 kernel_init_gain=1.0,
-                 bias_init_value=0.0,
-                 bias_initializer=None,
-                 use_torch_init=False,
-                 method: Literal['linear', 'fused_linear_act',
-                                 'default'] = 'default',
-                 weight_opt_args: Optional[Dict] = None,
-                 bias_opt_args: Optional[Dict] = None):
+    def __init__(
+        self,
+        input_size,
+        output_size,
+        activation=identity,
+        use_bias=True,
+        use_bn=False,
+        use_ln=False,
+        bn_ctor=nn.BatchNorm1d,
+        kernel_initializer=None,
+        kernel_init_gain=1.0,
+        bias_init_value=0.0,
+        bias_initializer=None,
+        use_torch_init=False,
+        method: Literal["linear", "fused_linear_act", "default"] = "default",
+        weight_opt_args: Optional[Dict] = None,
+        bias_opt_args: Optional[Dict] = None,
+    ):
         """A fully connected layer that's also responsible for activation and
         customized weights initialization. An auto gain calculation might depend
         on the activation following the linear layer. Suggest using this wrapper
@@ -389,9 +400,9 @@ class FC(nn.Module):
         """
         # get the argument list with vals
         self._kwargs = copy.deepcopy(locals())
-        self._kwargs.pop('self')
-        self._kwargs.pop('__class__')
-        self._kwargs.pop('method')  # ParallelFC does not have this argument
+        self._kwargs.pop("self")
+        self._kwargs.pop("__class__")
+        self._kwargs.pop("method")  # ParallelFC does not have this argument
 
         super(FC, self).__init__()
 
@@ -430,13 +441,19 @@ class FC(nn.Module):
 
         self._method = method
         assert method in (
-            'linear', 'fused_linear_act', 'default'
+            "linear",
+            "fused_linear_act",
+            "default",
         ), "method should be one of ['linear', 'fused_linear_act', 'default']"
 
         self._act_name = "NONE"
-        if method == 'fused_linear_act' and not use_bn and not use_ln:
-            if activation in (F.relu_, F.relu, torch.relu,
-                              torch.relu_) or isinstance(activation, nn.ReLU):
+        if method == "fused_linear_act" and not use_bn and not use_ln:
+            if activation in (
+                F.relu_,
+                F.relu,
+                torch.relu,
+                torch.relu_,
+            ) or isinstance(activation, nn.ReLU):
                 self._act_name = "RELU"
             # For some unknown reason, GELU is very slow for fused_linear_act.
             # So we do not use it for now.
@@ -457,9 +474,11 @@ class FC(nn.Module):
             if self._use_torch_init:
                 nn.init.kaiming_uniform_(self._weight, a=math.sqrt(5))
             else:
-                variance_scaling_init(self._weight.data,
-                                      gain=self._kernel_init_gain,
-                                      nonlinearity=self._activation)
+                variance_scaling_init(
+                    self._weight.data,
+                    gain=self._kernel_init_gain,
+                    nonlinearity=self._activation,
+                )
         else:
             self._kernel_initializer(self._weight.data)
 
@@ -487,10 +506,11 @@ class FC(nn.Module):
         Returns:
             Tensor: with shape as ``inputs.shape[:-1] + (output_size,)``
         """
-        if self._method == 'fused_linear_act':
-            y = fused_linear_act(inputs, self._weight, self._bias,
-                                 self._act_name)
-        elif self._method == 'linear':
+        if self._method == "fused_linear_act":
+            y = fused_linear_act(
+                inputs, self._weight, self._bias, self._act_name
+            )
+        elif self._method == "linear":
             y = F.linear(inputs, self._weight, self._bias)
         elif inputs.dim() == 2 and self._use_bias:
             y = torch.addmm(self._bias, inputs, self._weight.t())
@@ -539,19 +559,21 @@ class FCBatchEnsemble(FC):
 
     """
 
-    def __init__(self,
-                 input_size,
-                 output_size,
-                 ensemble_size,
-                 output_ensemble_ids=True,
-                 activation=identity,
-                 use_bias=True,
-                 use_bn=False,
-                 use_ln=False,
-                 kernel_initializer=None,
-                 kernel_init_gain=1.0,
-                 bias_init_range=0.,
-                 ensemble_group=0):
+    def __init__(
+        self,
+        input_size,
+        output_size,
+        ensemble_size,
+        output_ensemble_ids=True,
+        activation=identity,
+        use_bias=True,
+        use_bn=False,
+        use_ln=False,
+        kernel_initializer=None,
+        kernel_init_gain=1.0,
+        bias_init_range=0.0,
+        ensemble_group=0,
+    ):
         """
         Args:
             input_size (int): input size
@@ -590,21 +612,25 @@ class FCBatchEnsemble(FC):
                   Liu, Chang, et al. "Understanding and accelerating particle-based
                   variational inference." ICML, 2019.
         """
-        super().__init__(input_size,
-                         output_size,
-                         activation=activation,
-                         use_bias=False,
-                         use_bn=use_bn,
-                         use_ln=use_ln,
-                         kernel_initializer=kernel_initializer,
-                         kernel_init_gain=kernel_init_gain)
+        super().__init__(
+            input_size,
+            output_size,
+            activation=activation,
+            use_bias=False,
+            use_bn=use_bn,
+            use_ln=use_ln,
+            kernel_initializer=kernel_initializer,
+            kernel_init_gain=kernel_init_gain,
+        )
 
         self._r = nn.Parameter(torch.empty(ensemble_size, input_size))
         self._s = nn.Parameter(torch.empty(ensemble_size, output_size))
         self._ensemble_bias = nn.Parameter(
-            torch.empty(ensemble_size, output_size))
-        assert isinstance(ensemble_group,
-                          int), ("ensemble_group has to be an integer!")
+            torch.empty(ensemble_size, output_size)
+        )
+        assert isinstance(
+            ensemble_group, int
+        ), "ensemble_group has to be an integer!"
         self._r.ensemble_group = ensemble_group
         self._s.ensemble_group = ensemble_group
         self._ensemble_bias.ensemble_group = ensemble_group
@@ -621,24 +647,24 @@ class FCBatchEnsemble(FC):
         # We need to the check the existence of ``_s`` and ``_r`` since
         # ``reset_parameters()`` is also called by the init function of the parent
         # class when both ``_s`` and ``_r`` are not initialized yet.
-        if hasattr(self, '_r') and hasattr(self, '_s'):
+        if hasattr(self, "_r") and hasattr(self, "_s"):
             # Both r and s are initialized to +1/-1 according to Appendix B
-            torch.randint(2,
-                          size=self._r.shape,
-                          dtype=torch.float32,
-                          out=self._r.data)
-            torch.randint(2,
-                          size=self._s.shape,
-                          dtype=torch.float32,
-                          out=self._s.data)
+            torch.randint(
+                2, size=self._r.shape, dtype=torch.float32, out=self._r.data
+            )
+            torch.randint(
+                2, size=self._s.shape, dtype=torch.float32, out=self._s.data
+            )
             self._r.data.mul_(2)
             self._r.data.sub_(1)
             self._s.data.mul_(2)
             self._s.data.sub_(1)
             if self._use_ensemble_bias:
-                nn.init.uniform_(self._ensemble_bias.data,
-                                 a=-self._bias_init_range,
-                                 b=self._bias_init_range)
+                nn.init.uniform_(
+                    self._ensemble_bias.data,
+                    a=-self._bias_init_range,
+                    b=self._bias_init_range,
+                )
 
     def forward(self, inputs):
         """Forward computation.
@@ -662,8 +688,9 @@ class FCBatchEnsemble(FC):
         if type(inputs) == tuple:
             inputs, ensemble_ids = inputs
         else:
-            ensemble_ids = torch.randint(self._ensemble_size,
-                                         size=(inputs.shape[0], ))
+            ensemble_ids = torch.randint(
+                self._ensemble_size, size=(inputs.shape[0],)
+            )
         batch_size = inputs.shape[0]
         output_size, input_size = self._weight.shape
         r = self._r[ensemble_ids]  # [batch_size, input_size]
@@ -700,22 +727,24 @@ class FCBatchEnsemble(FC):
 class ParallelFC(nn.Module):
     """Parallel FC layer."""
 
-    def __init__(self,
-                 input_size,
-                 output_size,
-                 n,
-                 activation=identity,
-                 use_bias=True,
-                 use_bn=False,
-                 use_ln=False,
-                 bn_ctor=nn.BatchNorm1d,
-                 kernel_initializer=None,
-                 kernel_init_gain=1.0,
-                 bias_init_value=0.,
-                 use_torch_init=False,
-                 bias_initializer=None,
-                 weight_opt_args: Optional[Dict] = None,
-                 bias_opt_args: Optional[Dict] = None):
+    def __init__(
+        self,
+        input_size,
+        output_size,
+        n,
+        activation=identity,
+        use_bias=True,
+        use_bn=False,
+        use_ln=False,
+        bn_ctor=nn.BatchNorm1d,
+        kernel_initializer=None,
+        kernel_init_gain=1.0,
+        bias_init_value=0.0,
+        use_torch_init=False,
+        bias_initializer=None,
+        weight_opt_args: Optional[Dict] = None,
+        bias_opt_args: Optional[Dict] = None,
+    ):
         """
         It is equivalent to ``n`` separate FC layers with the same
         ``input_size`` and ``output_size``.
@@ -784,12 +813,15 @@ class ParallelFC(nn.Module):
         for i in range(self._n):
             if self._kernel_initializer is None:
                 if self._use_torch_init:
-                    nn.init.kaiming_uniform_(self._weight.data[i],
-                                             a=math.sqrt(5))
+                    nn.init.kaiming_uniform_(
+                        self._weight.data[i], a=math.sqrt(5)
+                    )
                 else:
-                    variance_scaling_init(self._weight.data[i],
-                                          gain=self._kernel_init_gain,
-                                          nonlinearity=self._activation)
+                    variance_scaling_init(
+                        self._weight.data[i],
+                        gain=self._kernel_init_gain,
+                        nonlinearity=self._activation,
+                    )
             else:
                 self._kernel_initializer(self._weight.data[i])
 
@@ -799,7 +831,8 @@ class ParallelFC(nn.Module):
                     self._bias_initializer(self._bias.data[i])
             elif self._use_torch_init and self._bias_init_value == 0.0:
                 fan_in, _ = nn.init._calculate_fan_in_and_fan_out(
-                    self._weight.data[0])
+                    self._weight.data[0]
+                )
                 bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
                 nn.init.uniform_(self._bias.data[i], -bound, bound)
             else:
@@ -820,28 +853,37 @@ class ParallelFC(nn.Module):
         """
         n, k, l = self._weight.shape
         if inputs.ndim == 2:
-            assert inputs.shape[1] == l, (
-                "inputs has wrong shape %s. Expecting (B, %d)" %
-                (inputs.shape, l))
+            assert (
+                inputs.shape[1] == l
+            ), "inputs has wrong shape %s. Expecting (B, %d)" % (
+                inputs.shape,
+                l,
+            )
             inputs = inputs.unsqueeze(0).expand(n, *inputs.shape)
         elif inputs.ndim == 3:
-            assert (inputs.shape[1] == n and inputs.shape[2] == l), (
-                "inputs has wrong shape %s. Expecting (B, %d, %d)" %
-                (inputs.shape, n, l))
+            assert (
+                inputs.shape[1] == n and inputs.shape[2] == l
+            ), "inputs has wrong shape %s. Expecting (B, %d, %d)" % (
+                inputs.shape,
+                n,
+                l,
+            )
             inputs = inputs.transpose(0, 1)  # [n, B, l]
         else:
             raise ValueError("Wrong inputs.ndim=%d" % inputs.ndim)
 
         if self._output_size == 1:
             # Temp fix due to https://github.com/pytorch/pytorch/issues/106951
-            y = torch.einsum('nbi,ni->nb', inputs,
-                             self._weight.squeeze(1))  # [n, B]
+            y = torch.einsum(
+                "nbi,ni->nb", inputs, self._weight.squeeze(1)
+            )  # [n, B]
             if self._bias is not None:
                 y = y + self._bias
             y = y.unsqueeze(2)  # [n, B, 1]
         elif self.bias is not None:
-            y = torch.baddbmm(self._bias.unsqueeze(1), inputs,
-                              self.weight.transpose(1, 2))  # [n, B, k]
+            y = torch.baddbmm(
+                self._bias.unsqueeze(1), inputs, self.weight.transpose(1, 2)
+            )  # [n, B, k]
         else:
             y = torch.bmm(inputs, self._weight.transpose(1, 2))  # [n, B, k]
         y = y.transpose(0, 1)  # [B, n, k]
@@ -886,18 +928,20 @@ class ParallelFC(nn.Module):
 class CompositionalFC(nn.Module):
     """Compositional FC layer."""
 
-    def __init__(self,
-                 input_size,
-                 output_size,
-                 n,
-                 activation=identity,
-                 output_comp_weight=True,
-                 use_bias=True,
-                 use_bn=False,
-                 use_ln=False,
-                 kernel_initializer=None,
-                 kernel_init_gain=1.0,
-                 bias_init_value=0.0):
+    def __init__(
+        self,
+        input_size,
+        output_size,
+        n,
+        activation=identity,
+        output_comp_weight=True,
+        use_bias=True,
+        use_bn=False,
+        use_ln=False,
+        kernel_initializer=None,
+        kernel_init_gain=1.0,
+        bias_init_value=0.0,
+    ):
         """
         It maintains a set of ``n`` FC parameters for learning. During forward
         computation, it composes the set of parameters using weighted average
@@ -979,24 +1023,29 @@ class CompositionalFC(nn.Module):
         n, k, l = self._weight.shape
 
         if inputs.ndim == 2:
-            assert inputs.shape[1] == l, (
-                "inputs has wrong shape %s. Expecting (B, %d)" %
-                (inputs.shape, l))
+            assert (
+                inputs.shape[1] == l
+            ), "inputs has wrong shape %s. Expecting (B, %d)" % (
+                inputs.shape,
+                l,
+            )
             inputs = inputs.unsqueeze(0).expand(n, *inputs.shape)
 
         else:
             raise ValueError("Wrong inputs.ndim=%d" % inputs.ndim)
 
         if self.bias is not None:
-            y = torch.baddbmm(self._bias.unsqueeze(1), inputs,
-                              self.weight.transpose(1, 2))  # [n, B, k]
+            y = torch.baddbmm(
+                self._bias.unsqueeze(1), inputs, self.weight.transpose(1, 2)
+            )  # [n, B, k]
         else:
             y = torch.bmm(inputs, self._weight.transpose(1, 2))  # [n, B, k]
         y = y.transpose(0, 1)  # [B, n, k]
 
         if comp_weight is not None:
-            assert comp_weight.ndim == 2, ("Wrong comp_weight.ndim=%d" %
-                                           comp_weight.ndim)
+            assert comp_weight.ndim == 2, (
+                "Wrong comp_weight.ndim=%d" % comp_weight.ndim
+            )
 
             # [B, 1, n] x [B, n, k] -> [B, 1, k] -> [B, k]
             y = torch.bmm(comp_weight.unsqueeze(1), y).squeeze(1)
@@ -1024,9 +1073,11 @@ class CompositionalFC(nn.Module):
         """Initialize the parameters."""
         for i in range(self._n):
             if self._kernel_initializer is None:
-                variance_scaling_init(self._weight.data[i],
-                                      gain=self._kernel_init_gain,
-                                      nonlinearity=self._activation)
+                variance_scaling_init(
+                    self._weight.data[i],
+                    gain=self._kernel_init_gain,
+                    nonlinearity=self._activation,
+                )
             else:
                 self._kernel_initializer(self._weight.data[i])
 
@@ -1064,22 +1115,24 @@ class CompositionalFC(nn.Module):
 @alf.configurable
 class CausalConv1D(nn.Module):
     """1D (Dilated) Causal Convolution layer.
-        1D Dilated Causal Convolution is proposed in `Aaron et al. WaveNet:
-        A generative model for raw audio <https://arxiv.org/abs/1609.03499>`_
+    1D Dilated Causal Convolution is proposed in `Aaron et al. WaveNet:
+    A generative model for raw audio <https://arxiv.org/abs/1609.03499>`_
     """
 
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 kernel_size,
-                 dilation=1,
-                 hide_current=False,
-                 activation=torch.relu_,
-                 use_bias=None,
-                 use_bn=False,
-                 kernel_initializer=None,
-                 kernel_init_gain=1.0,
-                 bias_init_value=0.0):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        dilation=1,
+        hide_current=False,
+        activation=torch.relu_,
+        use_bias=None,
+        use_bn=False,
+        kernel_initializer=None,
+        kernel_init_gain=1.0,
+        bias_init_value=0.0,
+    ):
         """A layer implementing the 1D (Dilated) Causal Convolution.
         It is also responsible for activation and customized weights
         initialization. An auto gain calculation might depend on the activation
@@ -1131,17 +1184,18 @@ class CausalConv1D(nn.Module):
         else:
             asymmetric_padding = ((kernel_size - 1) * dilation, 0)
 
-        self._pad = partial(F.pad,
-                            pad=asymmetric_padding,
-                            mode='constant',
-                            value=0)
-        self._causal_conv1d = nn.Conv1d(in_channels,
-                                        out_channels,
-                                        kernel_size,
-                                        stride=1,
-                                        padding=0,
-                                        dilation=dilation,
-                                        bias=use_bias)
+        self._pad = partial(
+            F.pad, pad=asymmetric_padding, mode="constant", value=0
+        )
+        self._causal_conv1d = nn.Conv1d(
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride=1,
+            padding=0,
+            dilation=dilation,
+            bias=use_bias,
+        )
 
         self._kernel_initializer = kernel_initializer
         self._kernel_init_gain = kernel_init_gain
@@ -1157,14 +1211,17 @@ class CausalConv1D(nn.Module):
     def reset_parameters(self):
         """Initialize the parameters."""
         if self._kernel_initializer is None:
-            variance_scaling_init(self._causal_conv1d.weight.data,
-                                  gain=self._kernel_init_gain,
-                                  nonlinearity=self._activation)
+            variance_scaling_init(
+                self._causal_conv1d.weight.data,
+                gain=self._kernel_init_gain,
+                nonlinearity=self._activation,
+            )
         else:
             self._kernel_initializer(self._causal_conv1d.weight.data)
         if self._use_bias:
-            nn.init.constant_(self._causal_conv1d.bias.data,
-                              self._bias_init_value)
+            nn.init.constant_(
+                self._causal_conv1d.bias.data, self._bias_init_value
+            )
         if self._bn is not None:
             self._bn.reset_parameters()
 
@@ -1249,19 +1306,21 @@ class Conv2D(nn.Module):
         """
         # get the argument list with vals
         self._kwargs = copy.deepcopy(locals())
-        self._kwargs.pop('self')
-        self._kwargs.pop('__class__')
+        self._kwargs.pop("self")
+        self._kwargs.pop("__class__")
 
         super(Conv2D, self).__init__()
         if use_bias is None:
             use_bias = not use_bn
         self._activation = activation
-        self._conv2d = nn.Conv2d(in_channels,
-                                 out_channels,
-                                 kernel_size,
-                                 stride=strides,
-                                 padding=padding,
-                                 bias=use_bias)
+        self._conv2d = nn.Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride=strides,
+            padding=padding,
+            bias=use_bias,
+        )
 
         self._kernel_initializer = kernel_initializer
         self._kernel_init_gain = kernel_init_gain
@@ -1287,20 +1346,22 @@ class Conv2D(nn.Module):
             if self._use_torch_init:
                 nn.init.kaiming_uniform_(self._conv2d.weight, a=math.sqrt(5))
             else:
-                variance_scaling_init(self._conv2d.weight.data,
-                                      gain=self._kernel_init_gain,
-                                      nonlinearity=self._activation)
+                variance_scaling_init(
+                    self._conv2d.weight.data,
+                    gain=self._kernel_init_gain,
+                    nonlinearity=self._activation,
+                )
         else:
             self._kernel_initializer(self._conv2d.weight.data)
         if self._use_bias:
             if self._bias_init_value == 0:
                 fan_in, _ = nn.init._calculate_fan_in_and_fan_out(
-                    self._conv2d.weight)
+                    self._conv2d.weight
+                )
                 bound = 1 / math.sqrt(fan_in)
                 nn.init.uniform_(self._conv2d.bias, -bound, bound)
             else:
-                nn.init.constant_(self._conv2d.bias.data,
-                                  self._bias_init_value)
+                nn.init.constant_(self._conv2d.bias.data, self._bias_init_value)
         if self._bn is not None:
             self._bn.reset_parameters()
         if self._ln is not None:
@@ -1346,21 +1407,23 @@ class Conv2DBatchEnsemble(Conv2D):
 
     """
 
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 kernel_size,
-                 ensemble_size,
-                 output_ensemble_ids=True,
-                 activation=torch.relu_,
-                 strides=1,
-                 padding=0,
-                 use_bias=None,
-                 use_bn=False,
-                 kernel_initializer=None,
-                 kernel_init_gain=1.0,
-                 bias_init_range=0.0,
-                 ensemble_group=0):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        ensemble_size,
+        output_ensemble_ids=True,
+        activation=torch.relu_,
+        strides=1,
+        padding=0,
+        use_bias=None,
+        use_bn=False,
+        kernel_initializer=None,
+        kernel_init_gain=1.0,
+        bias_init_range=0.0,
+        ensemble_group=0,
+    ):
         """
         Args:
             in_channels (int): channels of the input image
@@ -1401,23 +1464,27 @@ class Conv2DBatchEnsemble(Conv2D):
                   Liu, Chang, et al. "Understanding and accelerating particle-based
                   variational inference." ICML, 2019.
         """
-        super().__init__(in_channels,
-                         out_channels,
-                         kernel_size,
-                         activation=activation,
-                         strides=strides,
-                         padding=padding,
-                         use_bias=False,
-                         use_bn=False,
-                         kernel_initializer=kernel_initializer,
-                         kernel_init_gain=kernel_init_gain)
+        super().__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            activation=activation,
+            strides=strides,
+            padding=padding,
+            use_bias=False,
+            use_bn=False,
+            kernel_initializer=kernel_initializer,
+            kernel_init_gain=kernel_init_gain,
+        )
 
         self._r = nn.Parameter(torch.empty(ensemble_size, in_channels))
         self._s = nn.Parameter(torch.empty(ensemble_size, out_channels))
         self._ensemble_bias = nn.Parameter(
-            torch.empty(ensemble_size, out_channels))
-        assert isinstance(ensemble_group,
-                          int), ("ensemble_group has to be an integer!")
+            torch.empty(ensemble_size, out_channels)
+        )
+        assert isinstance(
+            ensemble_group, int
+        ), "ensemble_group has to be an integer!"
         self._r.ensemble_group = ensemble_group
         self._s.ensemble_group = ensemble_group
         self._ensemble_bias.ensemble_group = ensemble_group
@@ -1434,24 +1501,24 @@ class Conv2DBatchEnsemble(Conv2D):
         # We need to the check the existence of ``_s`` and ``_r`` since
         # ``reset_parameters()`` is also called by the init function of the parent
         # class when both ``_s`` and ``_r`` are not initialized yet.
-        if hasattr(self, '_r') and hasattr(self, '_s'):
+        if hasattr(self, "_r") and hasattr(self, "_s"):
             # Both r and s are initialized to +1/-1 according to Appendix B
-            torch.randint(2,
-                          size=self._r.shape,
-                          dtype=torch.float32,
-                          out=self._r.data)
-            torch.randint(2,
-                          size=self._s.shape,
-                          dtype=torch.float32,
-                          out=self._s.data)
+            torch.randint(
+                2, size=self._r.shape, dtype=torch.float32, out=self._r.data
+            )
+            torch.randint(
+                2, size=self._s.shape, dtype=torch.float32, out=self._s.data
+            )
             self._r.data.mul_(2)
             self._r.data.sub_(1)
             self._s.data.mul_(2)
             self._s.data.sub_(1)
             if self._use_ensemble_bias:
-                nn.init.uniform_(self._ensemble_bias.data,
-                                 a=-self._bias_init_range,
-                                 b=self._bias_init_range)
+                nn.init.uniform_(
+                    self._ensemble_bias.data,
+                    a=-self._bias_init_range,
+                    b=self._bias_init_range,
+                )
 
     def forward(self, inputs):
         """Forward computation.
@@ -1473,17 +1540,21 @@ class Conv2DBatchEnsemble(Conv2D):
         if type(inputs) == tuple:
             inputs, ensemble_ids = inputs
         else:
-            ensemble_ids = torch.randint(self._ensemble_size,
-                                         size=(inputs.shape[0], ))
+            ensemble_ids = torch.randint(
+                self._ensemble_size, size=(inputs.shape[0],)
+            )
         batch_size = inputs.shape[0]
-        r = self._r[ensemble_ids].unsqueeze_(-1).unsqueeze_(
-            -1)  # [B, in_channels, 1, 1]
-        s = self._s[ensemble_ids].unsqueeze_(-1).unsqueeze_(
-            -1)  # [B, out_channels, 1, 1]
+        r = (
+            self._r[ensemble_ids].unsqueeze_(-1).unsqueeze_(-1)
+        )  # [B, in_channels, 1, 1]
+        s = (
+            self._s[ensemble_ids].unsqueeze_(-1).unsqueeze_(-1)
+        )  # [B, out_channels, 1, 1]
         y = self._conv2d(inputs * r) * s
         if self._use_ensemble_bias:
-            bias = self._ensemble_bias[ensemble_ids].unsqueeze_(-1).unsqueeze_(
-                -1)
+            bias = (
+                self._ensemble_bias[ensemble_ids].unsqueeze_(-1).unsqueeze_(-1)
+            )
             y += bias
         if self._bn is not None:
             y = self._bn(y)
@@ -1498,23 +1569,25 @@ class Conv2DBatchEnsemble(Conv2D):
 @alf.configurable
 class ParallelConv2D(nn.Module):
 
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 kernel_size,
-                 n,
-                 activation=torch.relu_,
-                 strides=1,
-                 padding=0,
-                 use_bias=None,
-                 use_bn=False,
-                 use_ln=False,
-                 weight_opt_args: Optional[Dict] = None,
-                 bn_ctor=nn.BatchNorm2d,
-                 kernel_initializer=None,
-                 kernel_init_gain=1.0,
-                 bias_init_value=0.0,
-                 use_torch_init=False):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        n,
+        activation=torch.relu_,
+        strides=1,
+        padding=0,
+        use_bias=None,
+        use_bn=False,
+        use_ln=False,
+        weight_opt_args: Optional[Dict] = None,
+        bn_ctor=nn.BatchNorm2d,
+        kernel_initializer=None,
+        kernel_init_gain=1.0,
+        bias_init_value=0.0,
+        use_torch_init=False,
+    ):
         """A parallel 2D Conv layer that can be used to perform n independent
         2D convolutions in parallel.
 
@@ -1562,13 +1635,15 @@ class ParallelConv2D(nn.Module):
         self._use_torch_init = use_torch_init
 
         self._kernel_size = common.tuplify2d(kernel_size)
-        self._conv2d = nn.Conv2d(in_channels * n,
-                                 out_channels * n,
-                                 kernel_size,
-                                 groups=n,
-                                 stride=strides,
-                                 padding=padding,
-                                 bias=use_bias)
+        self._conv2d = nn.Conv2d(
+            in_channels * n,
+            out_channels * n,
+            kernel_size,
+            groups=n,
+            stride=strides,
+            padding=padding,
+            bias=use_bias,
+        )
 
         if use_bn:
             self._bn = bn_ctor(n * out_channels)
@@ -1587,32 +1662,41 @@ class ParallelConv2D(nn.Module):
             if self._kernel_initializer is None:
                 if self._use_torch_init:
                     nn.init.kaiming_uniform_(
-                        self._conv2d.weight.data[i *
-                                                 self._out_channels:(i + 1) *
-                                                 self._out_channels],
-                        a=math.sqrt(5))
+                        self._conv2d.weight.data[
+                            i
+                            * self._out_channels : (i + 1)
+                            * self._out_channels
+                        ],
+                        a=math.sqrt(5),
+                    )
                 else:
                     variance_scaling_init(
-                        self._conv2d.weight.data[i *
-                                                 self._out_channels:(i + 1) *
-                                                 self._out_channels],
+                        self._conv2d.weight.data[
+                            i
+                            * self._out_channels : (i + 1)
+                            * self._out_channels
+                        ],
                         gain=self._kernel_init_gain,
-                        nonlinearity=self._activation)
+                        nonlinearity=self._activation,
+                    )
             else:
                 self._kernel_initializer(
-                    self._conv2d.weight.data[i * self._out_channels:(i + 1) *
-                                             self._out_channels])
+                    self._conv2d.weight.data[
+                        i * self._out_channels : (i + 1) * self._out_channels
+                    ]
+                )
 
         if self._use_bias:
             if self._bias_init_value == 0:
                 fan_in, _ = nn.init._calculate_fan_in_and_fan_out(
-                    self._conv2d.weight.data[i * self._out_channels:(i + 1) *
-                                             self._out_channels])
+                    self._conv2d.weight.data[
+                        i * self._out_channels : (i + 1) * self._out_channels
+                    ]
+                )
                 bound = 1 / math.sqrt(fan_in)
                 nn.init.uniform_(self._conv2d.bias, -bound, bound)
             else:
-                nn.init.constant_(self._conv2d.bias.data,
-                                  self._bias_init_value)
+                nn.init.constant_(self._conv2d.bias.data, self._bias_init_value)
 
         if self._bn:
             self._bn.reset_parameters()
@@ -1648,24 +1732,30 @@ class ParallelConv2D(nn.Module):
 
         if img.ndim == 4:
             # the shared input case
-            assert img.shape[1] == self._in_channels, (
-                "Input img has wrong shape %s. Expecting (B, %d, H, W)" %
-                (img.shape, self._in_channels))
+            assert (
+                img.shape[1] == self._in_channels
+            ), "Input img has wrong shape %s. Expecting (B, %d, H, W)" % (
+                img.shape,
+                self._in_channels,
+            )
 
-            img = img.unsqueeze(1).expand(img.shape[0], self._n,
-                                          *img.shape[1:])
+            img = img.unsqueeze(1).expand(img.shape[0], self._n, *img.shape[1:])
         elif img.ndim == 5:
             # the non-shared case
             assert (
                 img.shape[1] == self._n and img.shape[2] == self._in_channels
-            ), ("Input img has wrong shape %s. Expecting (B, %d, %d, H, W)" %
-                (img.shape, self._n, self._in_channels))
+            ), "Input img has wrong shape %s. Expecting (B, %d, %d, H, W)" % (
+                img.shape,
+                self._n,
+                self._in_channels,
+            )
         else:
             raise ValueError("Wrong img.ndim=%d" % img.ndim)
 
         # merge replica and channels
-        img = img.reshape(img.shape[0], img.shape[1] * img.shape[2],
-                          *img.shape[3:])
+        img = img.reshape(
+            img.shape[0], img.shape[1] * img.shape[2], *img.shape[3:]
+        )
 
         res = self._conv2d(img)
 
@@ -1675,8 +1765,9 @@ class ParallelConv2D(nn.Module):
             res = self._bn(res)
 
         # reshape back: [B, n*C', H', W'] -> [B, n, C', H', W']
-        res = res.reshape(res.shape[0], self._n, self._out_channels,
-                          *res.shape[2:])
+        res = res.reshape(
+            res.shape[0], self._n, self._out_channels, *res.shape[2:]
+        )
         return self._activation(res)
 
     @property
@@ -1684,10 +1775,13 @@ class ParallelConv2D(nn.Module):
         # The reason that weight cannot pre-computed at __init__ is deepcopy will
         # fail. deepcopy is needed to implement the copy for the container networks.
         # [n*C', C, kernel_size, kernel_size]->[n, C', C, kernel_size, kernel_size]
-        return self._conv2d.weight.view(self._n, self._out_channels,
-                                        self._in_channels,
-                                        self._kernel_size[0],
-                                        self._kernel_size[1])
+        return self._conv2d.weight.view(
+            self._n,
+            self._out_channels,
+            self._in_channels,
+            self._kernel_size[0],
+            self._kernel_size[1],
+        )
 
     @property
     def bias(self):
@@ -1703,20 +1797,22 @@ class ParallelConv2D(nn.Module):
 @alf.configurable
 class ConvTranspose2D(nn.Module):
 
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 kernel_size,
-                 activation=torch.relu_,
-                 strides=1,
-                 padding=0,
-                 output_padding=0,
-                 use_bias=None,
-                 use_bn=False,
-                 bn_ctor=nn.BatchNorm2d,
-                 kernel_initializer=None,
-                 kernel_init_gain=1.0,
-                 bias_init_value=0.0):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        activation=torch.relu_,
+        strides=1,
+        padding=0,
+        output_padding=0,
+        use_bias=None,
+        use_bn=False,
+        bn_ctor=nn.BatchNorm2d,
+        kernel_initializer=None,
+        kernel_init_gain=1.0,
+        bias_init_value=0.0,
+    ):
         """A 2D ConvTranspose layer that's also responsible for activation and
         customized weights initialization. An auto gain calculation might depend
         on the activation following the conv layer. Suggest using this wrapper
@@ -1747,19 +1843,21 @@ class ConvTranspose2D(nn.Module):
         """
         # get the argument list with vals
         self._kwargs = copy.deepcopy(locals())
-        self._kwargs.pop('self')
-        self._kwargs.pop('__class__')
+        self._kwargs.pop("self")
+        self._kwargs.pop("__class__")
         super(ConvTranspose2D, self).__init__()
         if use_bias is None:
             use_bias = not use_bn
         self._activation = activation
-        self._conv_trans2d = nn.ConvTranspose2d(in_channels,
-                                                out_channels,
-                                                kernel_size,
-                                                stride=strides,
-                                                padding=padding,
-                                                output_padding=output_padding,
-                                                bias=use_bias)
+        self._conv_trans2d = nn.ConvTranspose2d(
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride=strides,
+            padding=padding,
+            output_padding=output_padding,
+            bias=use_bias,
+        )
 
         self._kernel_initializer = kernel_initializer
         self._kernel_init_gain = kernel_init_gain
@@ -1773,15 +1871,18 @@ class ConvTranspose2D(nn.Module):
     def reset_parameters(self):
         """Initialize the parameters."""
         if self._kernel_initializer is None:
-            variance_scaling_init(self._conv_trans2d.weight.data,
-                                  gain=self._kernel_init_gain,
-                                  nonlinearity=self._activation,
-                                  transposed=True)
+            variance_scaling_init(
+                self._conv_trans2d.weight.data,
+                gain=self._kernel_init_gain,
+                nonlinearity=self._activation,
+                transposed=True,
+            )
         else:
             self._kernel_initializer(self._conv_trans2d.weight.data)
         if self._use_bias:
-            nn.init.constant_(self._conv_trans2d.bias.data,
-                              self._bias_init_value)
+            nn.init.constant_(
+                self._conv_trans2d.bias.data, self._bias_init_value
+            )
         if self._bn is not None:
             self._bn.reset_parameters()
 
@@ -1806,21 +1907,23 @@ class ConvTranspose2D(nn.Module):
 @alf.configurable
 class ParallelConvTranspose2D(nn.Module):
 
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 kernel_size,
-                 n,
-                 activation=torch.relu_,
-                 strides=1,
-                 padding=0,
-                 output_padding=0,
-                 use_bias=None,
-                 use_bn=False,
-                 bn_ctor=nn.BatchNorm2d,
-                 kernel_initializer=None,
-                 kernel_init_gain=1.0,
-                 bias_init_value=0.0):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        n,
+        activation=torch.relu_,
+        strides=1,
+        padding=0,
+        output_padding=0,
+        use_bias=None,
+        use_bn=False,
+        bn_ctor=nn.BatchNorm2d,
+        kernel_initializer=None,
+        kernel_init_gain=1.0,
+        bias_init_value=0.0,
+    ):
         """A parallel ConvTranspose2D layer that can be used to perform n
         independent 2D transposed convolutions in parallel.
 
@@ -1855,39 +1958,48 @@ class ParallelConvTranspose2D(nn.Module):
         self._in_channels = in_channels
         self._out_channels = out_channels
         self._kernel_size = common.tuplify2d(kernel_size)
-        self._conv_trans2d = nn.ConvTranspose2d(in_channels * n,
-                                                out_channels * n,
-                                                kernel_size,
-                                                groups=n,
-                                                stride=strides,
-                                                padding=padding,
-                                                output_padding=output_padding,
-                                                bias=use_bias)
+        self._conv_trans2d = nn.ConvTranspose2d(
+            in_channels * n,
+            out_channels * n,
+            kernel_size,
+            groups=n,
+            stride=strides,
+            padding=padding,
+            output_padding=output_padding,
+            bias=use_bias,
+        )
 
         for i in range(n):
             if kernel_initializer is None:
                 variance_scaling_init(
-                    self._conv_trans2d.weight.data[i * in_channels:(i + 1) *
-                                                   in_channels],
+                    self._conv_trans2d.weight.data[
+                        i * in_channels : (i + 1) * in_channels
+                    ],
                     gain=kernel_init_gain,
-                    nonlinearity=self._activation)
+                    nonlinearity=self._activation,
+                )
             else:
                 kernel_initializer(
-                    self._conv_trans2d.weight.data[i * in_channels:(i + 1) *
-                                                   in_channels])
+                    self._conv_trans2d.weight.data[
+                        i * in_channels : (i + 1) * in_channels
+                    ]
+                )
 
         # [n*C, C', kernel_size, kernel_size]->[n, C, C', kernel_size, kernel_size]
-        self._weight = self._conv_trans2d.weight.view(self._n,
-                                                      self._in_channels,
-                                                      self._out_channels,
-                                                      self._kernel_size[0],
-                                                      self._kernel_size[1])
+        self._weight = self._conv_trans2d.weight.view(
+            self._n,
+            self._in_channels,
+            self._out_channels,
+            self._kernel_size[0],
+            self._kernel_size[1],
+        )
 
         if use_bias:
             nn.init.constant_(self._conv_trans2d.bias.data, bias_init_value)
             # [n*C]->[n, C]
-            self._bias = self._conv_trans2d.bias.view(self._n,
-                                                      self._out_channels)
+            self._bias = self._conv_trans2d.bias.view(
+                self._n, self._out_channels
+            )
         else:
             self._bias = None
 
@@ -1924,31 +2036,42 @@ class ParallelConvTranspose2D(nn.Module):
         """
         if img.ndim == 4:
             # the shared input case
-            assert img.shape[1] == self._in_channels, (
-                "Input img has wrong shape %s. Expecting (B, %d, H, W)" %
-                (img.shape, self._in_channels))
+            assert (
+                img.shape[1] == self._in_channels
+            ), "Input img has wrong shape %s. Expecting (B, %d, H, W)" % (
+                img.shape,
+                self._in_channels,
+            )
 
-            img = img.unsqueeze(1).expand(img.shape[0], self._n,
-                                          *img.shape[1:])
+            img = img.unsqueeze(1).expand(img.shape[0], self._n, *img.shape[1:])
         elif img.ndim == 5:
             # the non-shared case
             assert (
                 img.shape[1] == self._n and img.shape[2] == self._in_channels
-            ), ("Input img has wrong shape %s. Expecting (B, %d, %d, H, W)" %
-                (img.shape, self._n, self._in_channels))
+            ), "Input img has wrong shape %s. Expecting (B, %d, %d, H, W)" % (
+                img.shape,
+                self._n,
+                self._in_channels,
+            )
         else:
             raise ValueError("Wrong img.ndim=%d" % img.ndim)
 
         # merge replica and channels
-        img = img.reshape(img.shape[0], img.shape[1] * img.shape[2],
-                          *img.shape[3:])
+        img = img.reshape(
+            img.shape[0], img.shape[1] * img.shape[2], *img.shape[3:]
+        )
 
         res = self._conv_trans2d(img)
         if self._bn is not None:
             res = self._bn(res)
         # reshape back: [B, n*C', H', W'] -> [B, n, C', H', W']
-        res = res.reshape(res.shape[0], self._n, self._out_channels,
-                          res.shape[2], res.shape[3])
+        res = res.reshape(
+            res.shape[0],
+            self._n,
+            self._out_channels,
+            res.shape[2],
+            res.shape[3],
+        )
         return self._activation(res)
 
     @property
@@ -1963,16 +2086,18 @@ class ParallelConvTranspose2D(nn.Module):
 @alf.configurable
 class ParamFC(nn.Module):
 
-    def __init__(self,
-                 input_size,
-                 output_size,
-                 activation=torch.relu_,
-                 use_bias=True,
-                 use_ln=False,
-                 n_groups=None,
-                 kernel_initializer=None,
-                 kernel_init_gain=1.0,
-                 bias_init_value=0.0):
+    def __init__(
+        self,
+        input_size,
+        output_size,
+        activation=torch.relu_,
+        use_bias=True,
+        use_ln=False,
+        n_groups=None,
+        kernel_initializer=None,
+        kernel_init_gain=1.0,
+        bias_init_value=0.0,
+    ):
         """A fully connected layer that does not maintain its own weight and bias,
         but accepts both from users. If the given parameter (weight and bias)
         tensor has an extra batch dimension (first dimension), it performs
@@ -2016,8 +2141,9 @@ class ParamFC(nn.Module):
             self._bias = None
 
         if use_ln:
-            assert n_groups is not None, (
-                "n_groups has to be specified if use_ln")
+            assert (
+                n_groups is not None
+            ), "n_groups has to be specified if use_ln"
             self._ln = ParamLayerNorm1d(n_groups, output_size)
             self._n_groups = n_groups
         else:
@@ -2037,17 +2163,17 @@ class ParamFC(nn.Module):
 
     @property
     def weight_length(self):
-        """Get the n_element of a single weight tensor. """
+        """Get the n_element of a single weight tensor."""
         return self._weight_length
 
     @property
     def bias_length(self):
-        """Get the n_element of a single bias tensor. """
+        """Get the n_element of a single bias tensor."""
         return self._bias_length
 
     @property
     def param_length(self):
-        """Get total number of parameters for all layers. """
+        """Get total number of parameters for all layers."""
         if self._param_length is None:
             length = self.weight_length
             if self._use_bias:
@@ -2072,20 +2198,24 @@ class ParamFC(nn.Module):
         """
         if theta.ndim == 1:
             theta = theta.unsqueeze(0)
-        assert (theta.ndim == 2 and theta.shape[1] == self.param_length), (
-            "Input theta has wrong shape %s. Expecting shape (, %d)" %
-            (theta.shape, self.param_length))
+        assert (
+            theta.ndim == 2 and theta.shape[1] == self.param_length
+        ), "Input theta has wrong shape %s. Expecting shape (, %d)" % (
+            theta.shape,
+            self.param_length,
+        )
         if self._use_ln:
             assert theta.shape[0] == self._n_groups, (
-                "the input has wrong n_groups. Expecting n_groups %d" %
-                self._n_groups)
+                "the input has wrong n_groups. Expecting n_groups %d"
+                % self._n_groups
+            )
         else:
             self._n_groups = theta.shape[0]
-        weight = theta[:, :self.weight_length]
+        weight = theta[:, : self.weight_length]
         self._set_weight(weight, reinitialize=reinitialize)
         pos = self.weight_length
         if self._use_bias:
-            bias = theta[:, pos:pos + self.bias_length]
+            bias = theta[:, pos : pos + self.bias_length]
             self._set_bias(bias, reinitialize=reinitialize)
             pos = pos + self.bias_length
         if self._use_ln:
@@ -2102,14 +2232,17 @@ class ParamFC(nn.Module):
                 - ``D``: length of weight vector, should be self._weight_length
             reinitialize (bool): whether to reinitialize self._weight
         """
-        weight = weight.view(self._n_groups, self._output_size,
-                             self._input_size)
+        weight = weight.view(
+            self._n_groups, self._output_size, self._input_size
+        )
         if reinitialize:
             for i in range(self._n_groups):
                 if self._kernel_initializer is None:
-                    variance_scaling_init(weight[i],
-                                          gain=self._kernel_init_gain,
-                                          nonlinearity=self._activation)
+                    variance_scaling_init(
+                        weight[i],
+                        gain=self._kernel_init_gain,
+                        nonlinearity=self._activation,
+                    )
                 else:
                     self._kernel_initializer(weight[i])
 
@@ -2158,24 +2291,31 @@ class ParamFC(nn.Module):
         """
         if inputs.ndim == 2:
             # case 1: non-parallel inputs
-            assert inputs.shape[1] == self._input_size, (
-                "Input inputs has wrong shape %s. Expecting (B, %d)" %
-                (inputs.shape, self._input_size))
+            assert (
+                inputs.shape[1] == self._input_size
+            ), "Input inputs has wrong shape %s. Expecting (B, %d)" % (
+                inputs.shape,
+                self._input_size,
+            )
             inputs = inputs.unsqueeze(0).expand(self._n_groups, *inputs.shape)
         elif inputs.ndim == 3:
             # case 2: parallel inputs
             assert (
                 inputs.shape[1] == self._n_groups
-                and inputs.shape[2] == self._input_size), (
-                    "Input inputs has wrong shape %s. Expecting (B, %d, %d)" %
-                    (inputs.shape, self._n_groups, self._input_size))
+                and inputs.shape[2] == self._input_size
+            ), "Input inputs has wrong shape %s. Expecting (B, %d, %d)" % (
+                inputs.shape,
+                self._n_groups,
+                self._input_size,
+            )
             inputs = inputs.transpose(0, 1)  # [n, B, D]
         else:
             raise ValueError("Wrong inputs.ndim=%d" % inputs.ndim)
 
         if self._bias is not None:
-            res = torch.baddbmm(self._bias.unsqueeze(1), inputs,
-                                self._weight.transpose(1, 2))
+            res = torch.baddbmm(
+                self._bias.unsqueeze(1), inputs, self._weight.transpose(1, 2)
+            )
         else:
             res = torch.bmm(inputs, self._weight.transpose(1, 2))
         res = res.transpose(0, 1)  # [B, n, D]
@@ -2191,20 +2331,22 @@ class ParamFC(nn.Module):
 @alf.configurable
 class ParamConv2D(nn.Module):
 
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 kernel_size,
-                 activation=torch.relu_,
-                 strides=1,
-                 pooling_kernel=None,
-                 padding=0,
-                 use_bias=False,
-                 use_ln=False,
-                 n_groups=None,
-                 kernel_initializer=None,
-                 kernel_init_gain=1.0,
-                 bias_init_value=0.0):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        activation=torch.relu_,
+        strides=1,
+        pooling_kernel=None,
+        padding=0,
+        use_bias=False,
+        use_ln=False,
+        n_groups=None,
+        kernel_initializer=None,
+        kernel_init_gain=1.0,
+        bias_init_value=0.0,
+    ):
         """A 2D conv layer that does not maintain its own weight and bias,
         but accepts both from users. If the given parameter (weight and bias)
         tensor has an extra batch dimension (first dimension), it performs
@@ -2258,8 +2400,9 @@ class ParamConv2D(nn.Module):
             self._bias_length = 0
             self._bias = None
         if use_ln:
-            assert n_groups is not None, (
-                "n_groups has to be specified if use_ln")
+            assert (
+                n_groups is not None
+            ), "n_groups has to be specified if use_ln"
             self._ln = ParamLayerNorm2d(n_groups, out_channels)
             self._n_groups = n_groups
         else:
@@ -2279,17 +2422,17 @@ class ParamConv2D(nn.Module):
 
     @property
     def weight_length(self):
-        """Get the n_element of a single weight tensor. """
+        """Get the n_element of a single weight tensor."""
         return self._weight_length
 
     @property
     def bias_length(self):
-        """Get the n_element of a single bias tensor. """
+        """Get the n_element of a single bias tensor."""
         return self._bias_length
 
     @property
     def param_length(self):
-        """Get total number of parameters for all layers. """
+        """Get total number of parameters for all layers."""
         if self._param_length is None:
             length = self.weight_length
             if self._use_bias:
@@ -2315,20 +2458,24 @@ class ParamConv2D(nn.Module):
         """
         if theta.ndim == 1:
             theta = theta.unsqueeze(0)
-        assert (theta.ndim == 2 and theta.shape[1] == self.param_length), (
-            "Input theta has wrong shape %s. Expecting shape (, %d)" %
-            (theta.shape, self.param_length))
+        assert (
+            theta.ndim == 2 and theta.shape[1] == self.param_length
+        ), "Input theta has wrong shape %s. Expecting shape (, %d)" % (
+            theta.shape,
+            self.param_length,
+        )
         if self._use_ln:
             assert theta.shape[0] == self._n_groups, (
-                "the input has wrong n_groups. Expecting n_groups %d" %
-                self._n_groups)
+                "the input has wrong n_groups. Expecting n_groups %d"
+                % self._n_groups
+            )
         else:
             self._n_groups = theta.shape[0]
-        weight = theta[:, :self.weight_length]
+        weight = theta[:, : self.weight_length]
         self._set_weight(weight, reinitialize=reinitialize)
         pos = self.weight_length
         if self._use_bias:
-            bias = theta[:, pos:pos + self.bias_length]
+            bias = theta[:, pos : pos + self.bias_length]
             self._set_bias(bias, reinitialize=reinitialize)
             pos = pos + self.bias_length
         if self._use_ln:
@@ -2347,27 +2494,45 @@ class ParamConv2D(nn.Module):
         """
         if weight.shape[0] == 1:
             # non-parallel weight
-            weight = weight.view(self._out_channels, self._in_channels,
-                                 self._kH, self._kW)
+            weight = weight.view(
+                self._out_channels, self._in_channels, self._kH, self._kW
+            )
         else:
             # parallel weight
-            weight = weight.view(self._n_groups, self._out_channels,
-                                 self._in_channels, self._kH, self._kW)
-            weight = weight.reshape(self._n_groups * self._out_channels,
-                                    self._in_channels, self._kH, self._kW)
+            weight = weight.view(
+                self._n_groups,
+                self._out_channels,
+                self._in_channels,
+                self._kH,
+                self._kW,
+            )
+            weight = weight.reshape(
+                self._n_groups * self._out_channels,
+                self._in_channels,
+                self._kH,
+                self._kW,
+            )
 
         if reinitialize:
             for i in range(self._n_groups):
                 if self._kernel_initializer is None:
                     variance_scaling_init(
-                        weight[i * self._out_channels:(i + 1) *
-                               self._out_channels],
+                        weight[
+                            i
+                            * self._out_channels : (i + 1)
+                            * self._out_channels
+                        ],
                         gain=self._kernel_init_gain,
-                        nonlinearity=self._activation)
+                        nonlinearity=self._activation,
+                    )
                 else:
                     self._kernel_initializer(
-                        weight[i * self._out_channels:(i + 1) *
-                               self._out_channels])
+                        weight[
+                            i
+                            * self._out_channels : (i + 1)
+                            * self._out_channels
+                        ]
+                    )
         self._weight = weight
 
     def _set_bias(self, bias, reinitialize=False):
@@ -2415,9 +2580,12 @@ class ParamConv2D(nn.Module):
         """
         if self._n_groups == 1:
             # non-parallel layer
-            assert (img.ndim == 4 and img.shape[1] == self._in_channels), (
-                "Input img has wrong shape %s. Expecting (B, %d, H, W)" %
-                (img.shape, self._in_channels))
+            assert (
+                img.ndim == 4 and img.shape[1] == self._in_channels
+            ), "Input img has wrong shape %s. Expecting (B, %d, H, W)" % (
+                img.shape,
+                self._in_channels,
+            )
         else:
             # parallel layer
             if img.ndim == 4:
@@ -2428,27 +2596,36 @@ class ParamConv2D(nn.Module):
                     # case 2: parallel input
                     assert img.shape[1] == self._n_groups * self._in_channels, (
                         "Input img has wrong shape %s. Expecting (B, %d, H, W) or (B, %d, H, W)"
-                        % (img.shape, self._in_channels,
-                           self._n_groups * self._in_channels))
+                        % (
+                            img.shape,
+                            self._in_channels,
+                            self._n_groups * self._in_channels,
+                        )
+                    )
             elif img.ndim == 5:
                 # case 3: parallel input with unmerged group dim
                 assert (
                     img.shape[1] == self._n_groups
                     and img.shape[2] == self._in_channels
-                ), ("Input img has wrong shape %s. Expecting (B, %d, %d, H, W)"
-                    % (img.shape, self._n_groups, self._in_channels))
+                ), (
+                    "Input img has wrong shape %s. Expecting (B, %d, %d, H, W)"
+                    % (img.shape, self._n_groups, self._in_channels)
+                )
                 # merge group and channel dim
-                img = img.reshape(img.shape[0], img.shape[1] * img.shape[2],
-                                  *img.shape[3:])
+                img = img.reshape(
+                    img.shape[0], img.shape[1] * img.shape[2], *img.shape[3:]
+                )
             else:
                 raise ValueError("Wrong img.ndim=%d" % img.ndim)
 
-        res = F.conv2d(img,
-                       self._weight,
-                       bias=self._bias,
-                       stride=self._strides,
-                       padding=self._padding,
-                       groups=self._n_groups)
+        res = F.conv2d(
+            img,
+            self._weight,
+            bias=self._bias,
+            stride=self._strides,
+            padding=self._padding,
+            groups=self._n_groups,
+        )
         if self._use_ln:
             res = self._ln(res, keep_group_dim=False)
         res = self._activation(res)
@@ -2458,8 +2635,13 @@ class ParamConv2D(nn.Module):
 
         if self._n_groups > 1 and keep_group_dim:
             # reshape back: [B, n*C', H', W'] -> [B, n, C', H', W']
-            res = res.reshape(res.shape[0], self._n_groups, self._out_channels,
-                              res.shape[2], res.shape[3])
+            res = res.reshape(
+                res.shape[0],
+                self._n_groups,
+                self._out_channels,
+                res.shape[2],
+                res.shape[3],
+            )
 
         return res
 
@@ -2486,30 +2668,34 @@ class Reshape(nn.Module):
         return x.reshape(x.shape[0], *self._shape)
 
     def make_parallel(self, n: int):
-        return Reshape((n, ) + self._shape)
+        return Reshape((n,) + self._shape)
 
 
-def _conv_transpose_2d(in_channels,
-                       out_channels,
-                       kernel_size,
-                       stride=1,
-                       padding=0,
-                       bias=True):
+def _conv_transpose_2d(
+    in_channels, out_channels, kernel_size, stride=1, padding=0, bias=True
+):
     # need output_padding so that output_size is stride * input_size
     # See https://pytorch.org/docs/stable/nn.html#torch.nn.ConvTranspose2d
     output_padding = stride + 2 * padding - kernel_size
-    return nn.ConvTranspose2d(in_channels,
-                              out_channels,
-                              kernel_size,
-                              stride=stride,
-                              padding=padding,
-                              output_padding=output_padding,
-                              bias=bias)
+    return nn.ConvTranspose2d(
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride=stride,
+        padding=padding,
+        output_padding=output_padding,
+        bias=bias,
+    )
 
 
-@alf.configurable(whitelist=[
-    'with_batch_normalization', 'bn_ctor', 'weight_opt_args', 'activation'
-])
+@alf.configurable(
+    whitelist=[
+        "with_batch_normalization",
+        "bn_ctor",
+        "weight_opt_args",
+        "activation",
+    ]
+)
 class ResidueBlock(nn.Module):
     """The ResidueBlock for ResNet.
 
@@ -2520,16 +2706,18 @@ class ResidueBlock(nn.Module):
     Compared to BottleneckBlock, it has one less conv layer.
     """
 
-    def __init__(self,
-                 in_channels: int,
-                 channels: int,
-                 kernel_size: Union[int, Tuple[int, int]],
-                 stride: Union[int, Tuple[int, int]],
-                 transpose: bool = False,
-                 activation: nn.Module = nn.ReLU(inplace=True),
-                 with_batch_normalization: bool = True,
-                 weight_opt_args: Optional[Dict] = None,
-                 bn_ctor: Callable[[int], nn.Module] = nn.BatchNorm2d):
+    def __init__(
+        self,
+        in_channels: int,
+        channels: int,
+        kernel_size: Union[int, Tuple[int, int]],
+        stride: Union[int, Tuple[int, int]],
+        transpose: bool = False,
+        activation: nn.Module = nn.ReLU(inplace=True),
+        with_batch_normalization: bool = True,
+        weight_opt_args: Optional[Dict] = None,
+        bn_ctor: Callable[[int], nn.Module] = nn.BatchNorm2d,
+    ):
         """
         Args:
             in_channels: the number of channels of input
@@ -2555,17 +2743,17 @@ class ResidueBlock(nn.Module):
         self._activation = activation
         padding = (kernel_size - 1) // 2
 
-        conv1 = conv_fn(in_channels,
-                        channels,
-                        kernel_size,
-                        stride,
-                        padding=padding,
-                        bias=bias)
-        conv2 = conv_fn(channels,
-                        channels,
-                        kernel_size,
-                        padding=padding,
-                        bias=bias)
+        conv1 = conv_fn(
+            in_channels,
+            channels,
+            kernel_size,
+            stride,
+            padding=padding,
+            bias=bias,
+        )
+        conv2 = conv_fn(
+            channels, channels, kernel_size, padding=padding, bias=bias
+        )
         nn.init.kaiming_normal_(conv1.weight.data)
         nn.init.kaiming_normal_(conv2.weight.data)
 
@@ -2615,7 +2803,7 @@ class ResidueBlock(nn.Module):
         return self._activation(core + shortcut)
 
 
-@alf.configurable(whitelist=['v1_5', 'with_batch_normalization', 'bn_ctor'])
+@alf.configurable(whitelist=["v1_5", "with_batch_normalization", "bn_ctor"])
 class BottleneckBlock(nn.Module):
     """Bottleneck block for ResNet.
 
@@ -2639,15 +2827,17 @@ class BottleneckBlock(nn.Module):
        `Revisiting ResNets: Improved Training and Scaling Strategies <https://arxiv.org/abs/2103.07579>`_
     """
 
-    def __init__(self,
-                 in_channels,
-                 kernel_size,
-                 filters,
-                 stride,
-                 transpose=False,
-                 v1_5=True,
-                 with_batch_normalization=True,
-                 bn_ctor=nn.BatchNorm2d):
+    def __init__(
+        self,
+        in_channels,
+        kernel_size,
+        filters,
+        stride,
+        transpose=False,
+        v1_5=True,
+        with_batch_normalization=True,
+        bn_ctor=nn.BatchNorm2d,
+    ):
         """
         Args:
             kernel_size (int): the kernel size of middle layer at main path
@@ -2674,12 +2864,9 @@ class BottleneckBlock(nn.Module):
         padding = (kernel_size - 1) // 2
         if v1_5:
             a = conv_fn(in_channels, filters1, 1, bias=bias)
-            b = conv_fn(filters1,
-                        filters2,
-                        kernel_size,
-                        stride,
-                        padding,
-                        bias=bias)
+            b = conv_fn(
+                filters1, filters2, kernel_size, stride, padding, bias=bias
+            )
         else:
             a = conv_fn(in_channels, filters1, 1, stride, bias=bias)
             b = conv_fn(filters1, filters2, kernel_size, 1, padding, bias=bias)
@@ -2710,9 +2897,16 @@ class BottleneckBlock(nn.Module):
         relu = nn.ReLU(inplace=True)
 
         if with_batch_normalization:
-            core_layers = nn.Sequential(a, bn_ctor(filters1), relu, b,
-                                        bn_ctor(filters2), relu, c,
-                                        bn_ctor(filters3))
+            core_layers = nn.Sequential(
+                a,
+                bn_ctor(filters1),
+                relu,
+                b,
+                bn_ctor(filters2),
+                relu,
+                c,
+                bn_ctor(filters3),
+            )
         else:
             core_layers = nn.Sequential(a, relu, b, relu, c)
 
@@ -2736,7 +2930,7 @@ class BottleneckBlock(nn.Module):
 
 def _masked_softmax(logits, mask, dim=-1):
     if mask is not None:
-        logits.masked_fill_(mask, -float('inf'))
+        logits.masked_fill_(mask, -float("inf"))
     return nn.functional.softmax(logits, dim=dim)
 
 
@@ -2770,18 +2964,20 @@ class TransformerBlock(nn.Module):
     of the sinusoidal matrix proposed in [1]
     """
 
-    def __init__(self,
-                 d_model,
-                 num_heads,
-                 memory_size,
-                 d_k=None,
-                 d_v=None,
-                 d_ff=None,
-                 dropout=0.0,
-                 activation=torch.relu_,
-                 positional_encoding='abs',
-                 add_positional_encoding=True,
-                 scale_attention_score=True):
+    def __init__(
+        self,
+        d_model,
+        num_heads,
+        memory_size,
+        d_k=None,
+        d_v=None,
+        d_ff=None,
+        dropout=0.0,
+        activation=torch.relu_,
+        positional_encoding="abs",
+        add_positional_encoding=True,
+        scale_attention_score=True,
+    ):
         """
         Args:
             d_model (int): dimension of the model, same as d_model in [1]
@@ -2819,7 +3015,7 @@ class TransformerBlock(nn.Module):
         self._k_proj = nn.Parameter(torch.empty(d_model, num_heads * d_k))
         self._v_proj = nn.Parameter(torch.empty(d_model, num_heads * d_v))
         d_a = d_v
-        if positional_encoding == 'none':
+        if positional_encoding == "none":
             add_positional_encoding = False
         if add_positional_encoding:
             d_a = d_v + d_k
@@ -2831,10 +3027,10 @@ class TransformerBlock(nn.Module):
         self._d_a = d_a
         self._num_heads = num_heads
         self._memory_size = memory_size
-        self._relative_positional_encoding = positional_encoding == 'rel'
+        self._relative_positional_encoding = positional_encoding == "rel"
         self._add_positional_encoding = add_positional_encoding
 
-        self._attention_scale = d_k**-0.5 if scale_attention_score else 1.
+        self._attention_scale = d_k**-0.5 if scale_attention_score else 1.0
         mlp = [FC(d_model, d_ff, activation)]
         if dropout > 0:
             mlp.append(torch.nn.Dropout(dropout))
@@ -2848,10 +3044,10 @@ class TransformerBlock(nn.Module):
         self._norm1 = torch.nn.LayerNorm(d_model)
         self._norm2 = torch.nn.LayerNorm(d_model)
 
-        l = 2 * memory_size - 1 if positional_encoding == 'rel' else memory_size
+        l = 2 * memory_size - 1 if positional_encoding == "rel" else memory_size
         self._positional_encoding = None
         self._qp_bias = None
-        if positional_encoding != 'none':
+        if positional_encoding != "none":
             self._positional_encoding = nn.Parameter(torch.empty(l, d_k))
             # bias over query vectors when calculating score with positional encodings.
             # Introduced in [3].
@@ -2871,7 +3067,7 @@ class TransformerBlock(nn.Module):
             nn.init.uniform_(self._positional_encoding, -0.1, 0.1)
             nn.init.zeros_(self._qp_bias)
         for l in self._mlp:
-            if hasattr(l, 'reset_parameters'):
+            if hasattr(l, "reset_parameters"):
                 l.reset_parameters()
 
     @staticmethod
@@ -2952,8 +3148,9 @@ class TransformerBlock(nn.Module):
         assert m <= self._memory_size
 
         # [B, M, H, d_k] <= [B, M, d_model] * [d_model, d_k]
-        q = torch.matmul(query, self._q_proj).reshape(batch_size, m, num_heads,
-                                                      d_k)
+        q = torch.matmul(query, self._q_proj).reshape(
+            batch_size, m, num_heads, d_k
+        )
 
         # We select different versions of calculation based on memory consumption
         if n * d_k <= m * d_model:
@@ -2962,21 +3159,24 @@ class TransformerBlock(nn.Module):
             # a           M * H * N * d_k              M * H * N
 
             # [B, N, H, d_k] <= [B, N, d_model] * [d_model, H * d_k]
-            k = torch.matmul(memory,
-                             self._k_proj).reshape(batch_size, n, num_heads,
-                                                   d_k)
+            k = torch.matmul(memory, self._k_proj).reshape(
+                batch_size, n, num_heads, d_k
+            )
             # [B, M, H, N] <= [B, M, H, d_k] * [B, N, H, d_k]
-            logits = torch.einsum('bmhd,bnhd->bmhn', q + self._qk_bias, k)
+            logits = torch.einsum("bmhd,bnhd->bmhn", q + self._qk_bias, k)
         else:
             #             computation                  memory
             # qk          M * H * d_k * d_model        M * H * d_model
             # a           M * H * N * d_model          M * H * N
 
             # [B, M, H, d_model] <= [B, M, H, d_k] * [d_model, H, d_k]
-            qk = torch.einsum('bmhd,ehd->bmhe', q + self._qk_bias,
-                              self._k_proj.reshape(d_model, num_heads, d_k))
+            qk = torch.einsum(
+                "bmhd,ehd->bmhe",
+                q + self._qk_bias,
+                self._k_proj.reshape(d_model, num_heads, d_k),
+            )
             # [B, M, H, N] <= [B, M, H, d_model] * [B, N, d_model]
-            logits = torch.einsum('bmhd,bnd->bmhn', qk, memory)
+            logits = torch.einsum("bmhd,bnd->bmhn", qk, memory)
 
         if self._positional_encoding is not None:
             # [N, d_k]
@@ -2994,7 +3194,8 @@ class TransformerBlock(nn.Module):
                 positional_encoding = self._shift(positional_encoding, m)
             # [B, M, H, N] <= [B, M, H, d_k] * ([d_k, N] or [M, d_k, N])
             positional_logits = torch.matmul(
-                q + self._qp_bias, positional_encoding.transpose(-2, -1))
+                q + self._qp_bias, positional_encoding.transpose(-2, -1)
+            )
             # gradient can still be correctly calculated in this case even though
             # inplace add is used.
             logits.add_(positional_logits)
@@ -3011,22 +3212,24 @@ class TransformerBlock(nn.Module):
             # att_result  M * H * N * d_v              M * H * d_v
 
             # [B, N, H, d_v] <= [B, N, d_model] * [d_model, H * d_v]
-            v = torch.matmul(memory,
-                             self._v_proj).reshape(batch_size, n, num_heads,
-                                                   d_v)
+            v = torch.matmul(memory, self._v_proj).reshape(
+                batch_size, n, num_heads, d_v
+            )
             # [B, M, H, d_v] <= [B, M, H, N] * [B, N, H, d_v]
-            att_result = torch.einsum('bmhn,bnhd->bmhd', a, v)
+            att_result = torch.einsum("bmhn,bnhd->bmhd", a, v)
         else:
             # computation                  memory
             # att_result  M * H * N * d_model          M * H * d_model
             # att_result  M * H * d_v * d_model        M * H * d_v
 
             # [B, M, H, d_model] <= [B, M, H, N] * [B, 1, N, d_model]
-            att_result = torch.einsum('bmhn,bnd->bmhd', a, memory)
+            att_result = torch.einsum("bmhn,bnd->bmhd", a, memory)
             # [B, M, H, d_v] <= [B, M, H, d_model] * [d_model, H, d_v]
             att_result = torch.einsum(
-                'bmhd,dhe->bmhe', att_result,
-                self._v_proj.reshape(d_model, self._num_heads, d_v))
+                "bmhd,dhe->bmhe",
+                att_result,
+                self._v_proj.reshape(d_model, self._num_heads, d_v),
+            )
 
         if self._add_positional_encoding:
             # [B, M, H, d_k] <= [B, M, H, N] * ([N, d_k] or [M, N, d_k])
@@ -3077,10 +3280,12 @@ class GFT(nn.Module):
 
     def __init__(self, num_transformations, image_channels, language_dim):
         super().__init__()
-        self._t_layers = nn.ModuleList([
-            FC(language_dim, (1 + image_channels) * image_channels)
-            for k in range(num_transformations)
-        ])
+        self._t_layers = nn.ModuleList(
+            [
+                FC(language_dim, (1 + image_channels) * image_channels)
+                for k in range(num_transformations)
+            ]
+        )
         self._ones = torch.ones(1, 1, 1)
 
     def forward(self, input):
@@ -3134,7 +3339,8 @@ class GetFields(ElementwiseLayerBase):
 
     def forward(self, input):
         return alf.nest.map_structure(
-            lambda path: alf.nest.get_field(input, path), self._fields)
+            lambda path: alf.nest.get_field(input, path), self._fields
+        )
 
 
 class ReplicationPad2d(nn.Module):
@@ -3207,9 +3413,9 @@ class RandomCrop(nn.Module):
             :math:`\text{padding\_right}`, :math:`\text{padding\_top}`, :math:`\text{padding\_bottom}`).
     """
 
-    def __init__(self,
-                 size: Union[int, Tuple[int]],
-                 padding: Union[int, Tuple[int]] = 0):
+    def __init__(
+        self, size: Union[int, Tuple[int]], padding: Union[int, Tuple[int]] = 0
+    ):
         super().__init__()
         if type(size) == int:
             size = (size, size)
@@ -3229,12 +3435,12 @@ class RandomCrop(nn.Module):
         h, w = self._size
         left, right, top, bottom = self._padding
         B, C, H, W = input.shape
-        assert h <= H + top + bottom and w <= W + left + right, (
-            "input size is too small: %s vs %s" % ((H, W), (h, w)))
+        assert (
+            h <= H + top + bottom and w <= W + left + right
+        ), "input size is too small: %s vs %s" % ((H, W), (h, w))
 
-        starty = torch.randint(-top, H + bottom - h + 1, (B, )).reshape(B, 1)
-        startx = torch.randint(-left, W + right - w + 1,
-                               (B, )).reshape(B, 1, 1)
+        starty = torch.randint(-top, H + bottom - h + 1, (B,)).reshape(B, 1)
+        startx = torch.randint(-left, W + right - w + 1, (B,)).reshape(B, 1, 1)
         # [B, h, 1]
         y = (starty + torch.arange(h)).clamp_(min=0, max=H - 1).unsqueeze(-1)
         # [B, 1, w]
@@ -3304,15 +3510,16 @@ def reset_parameters(module):
     Raises:
         ValueError: fail to reset the parameters for ``module``
     """
-    if hasattr(module, 'reset_parameters'):
+    if hasattr(module, "reset_parameters"):
         module.reset_parameters()
     elif isinstance(module, nn.Sequential):
         for l in module:
             reset_parameters(l)
     elif isinstance(module, nn.Module):
         if len(list(module.parameters())) > 0:
-            raise ValueError("Cannot reset_parameter for layer type %s." %
-                             type(module))
+            raise ValueError(
+                "Cannot reset_parameter for layer type %s." % type(module)
+            )
 
 
 class Detach(ElementwiseLayerBase):
@@ -3415,10 +3622,14 @@ class Branch(nn.Module):
         has_network = any(
             alf.nest.flatten(
                 alf.nest.map_structure(
-                    lambda m: isinstance(m, alf.networks.Network), modules)))
+                    lambda m: isinstance(m, alf.networks.Network), modules
+                )
+            )
+        )
         assert not has_network, (
             "modules should not contain alf.networks.Network. "
-            "Try alf.networks.Branch instead.")
+            "Try alf.networks.Branch instead."
+        )
 
         self._networks = modules
         if alf.nest.is_nested(modules):
@@ -3440,7 +3651,8 @@ class Branch(nn.Module):
             the parallelized version of this network
         """
         new_networks = alf.nest.map_structure(
-            lambda net: make_parallel_net(net, n), self._networks)
+            lambda net: make_parallel_net(net, n), self._networks
+        )
         return Branch(new_networks)
 
 
@@ -3490,7 +3702,7 @@ class Sequential(nn.Module):
 
     """
 
-    def __init__(self, *modules, output='', **named_modules):
+    def __init__(self, *modules, output="", **named_modules):
         """
         Args:
             modules (Callable | (nested str, Callable)):
@@ -3518,31 +3730,35 @@ class Sequential(nn.Module):
                 have been calculated.
         """
         super().__init__()
-        named_elements = list(zip([''] * len(modules), modules)) + list(
-            named_modules.items())
+        named_elements = list(zip([""] * len(modules), modules)) + list(
+            named_modules.items()
+        )
         modules = []
         inputs = []
         outputs = []
         simple = True
         is_nested_str = lambda s: all(
-            map(lambda x: type(x) == str, alf.nest.flatten(s)))
+            map(lambda x: type(x) == str, alf.nest.flatten(s))
+        )
         self._networks = []
         # pytorch nn.Moddule needs to use ModuleList to keep track of parameters
         self._nets = nn.ModuleList()
         for i, (out, element) in enumerate(named_elements):
-            input = ''
+            input = ""
             if isinstance(element, tuple) and len(element) == 2:
                 input, module = element
             else:
                 module = element
             if not (isinstance(module, Callable) and is_nested_str(input)):
-                raise ValueError("Argument %s is not in the form of Callable "
-                                 "or (nested str, Callable): %s" %
-                                 (out or str(i), element))
+                raise ValueError(
+                    "Argument %s is not in the form of Callable "
+                    "or (nested str, Callable): %s" % (out or str(i), element)
+                )
             if isinstance(module, alf.networks.Network):
                 assert not alf.nest.flatten(module.state_spec), (
                     "Network element of layers.Sequential should be stateless. "
-                    "Use networks.Sequential instead")
+                    "Use networks.Sequential instead"
+                )
             inputs.append(input)
             outputs.append(out)
             self._networks.append(module)
@@ -3568,7 +3784,7 @@ class Sequential(nn.Module):
         return input
 
     def _forward_complex(self, input):
-        var_dict = {'input': input}
+        var_dict = {"input": input}
         for i, net in enumerate(self._networks):
             if self._inputs[i]:
                 input = get_nested_field(var_dict, self._inputs[i])
@@ -3598,16 +3814,17 @@ class Sequential(nn.Module):
         """
         new_networks = []
         new_named_networks = {}
-        for net, input, output in zip(self._networks, self._inputs,
-                                      self._outputs):
+        for net, input, output in zip(
+            self._networks, self._inputs, self._outputs
+        ):
             pnet = alf.layers.make_parallel_net(net, n)
             if not output:
                 new_networks.append((input, pnet))
             else:
                 new_named_networks[output] = (input, pnet)
-        return Sequential(*new_networks,
-                          output=self._output,
-                          **new_named_networks)
+        return Sequential(
+            *new_networks, output=self._output, **new_named_networks
+        )
 
 
 def make_parallel_net(module, n: int):
@@ -3644,12 +3861,13 @@ def make_parallel_net(module, n: int):
     Returns:
         the parallelized network.
     """
-    if hasattr(module, 'make_parallel'):
+    if hasattr(module, "make_parallel"):
         return module.make_parallel(n)
     else:
         logging.warning(
             "%s does not have make_parallel. A naive parallel layer "
-            "will be created." % str(module))
+            "will be created." % str(module)
+        )
         return NaiveParallelLayer(module, n)
 
 
@@ -3672,7 +3890,8 @@ class NaiveParallelLayer(nn.Module):
         super().__init__()
         if isinstance(module, nn.Module):
             self._networks = nn.ModuleList(
-                [copy.deepcopy(module) for i in range(n)])
+                [copy.deepcopy(module) for i in range(n)]
+            )
             for net in self._networks:
                 reset_parameters(net)
         else:
@@ -3694,10 +3913,12 @@ class NaiveParallelLayer(nn.Module):
             outputs.append(ret)
         if self._n > 1:
             output = alf.nest.map_structure(
-                lambda *tensors: torch.stack(tensors, dim=1), *outputs)
+                lambda *tensors: torch.stack(tensors, dim=1), *outputs
+            )
         else:
-            output = alf.nest.map_structure(lambda tensor: tensor.unsqueeze(1),
-                                            outputs[0])
+            output = alf.nest.map_structure(
+                lambda tensor: tensor.unsqueeze(1), outputs[0]
+            )
 
         return output
 
@@ -3731,10 +3952,11 @@ def make_parallel_spec(specs, n: int):
 
     def _make_spec(spec):
         if type(spec) == alf.TensorSpec:
-            return alf.TensorSpec((n, ) + spec.shape, spec.dtype)
+            return alf.TensorSpec((n,) + spec.shape, spec.dtype)
         else:  # BoundedTensorSpec
-            return alf.BoundedTensorSpec((n, ) + spec.shape, spec.dtype,
-                                         spec.minimum, spec.maximum)
+            return alf.BoundedTensorSpec(
+                (n,) + spec.shape, spec.dtype, spec.minimum, spec.maximum
+            )
 
     return map_structure(_make_spec, specs)
 
@@ -3776,7 +3998,7 @@ class AMPWrapper(nn.Module):
         super().__init__()
         self._net = net
         self._enabled = enabled
-        self._amp_dtype = alf.get_config_value('TrainerConfig.amp_dtype')
+        self._amp_dtype = alf.get_config_value("TrainerConfig.amp_dtype")
 
     def forward(self, input):
         if torch.is_autocast_enabled() and not self._enabled:
@@ -3806,7 +4028,8 @@ class SimpleAttention(nn.Module):
         """
         d_k = query.size(-1)
         scores = torch.matmul(query, key.transpose(-2, -1)) / torch.sqrt(
-            torch.tensor(d_k))
+            torch.tensor(d_k)
+        )
 
         # [B, head, M, N]
         attention_weight = F.softmax(scores, dim=-1)

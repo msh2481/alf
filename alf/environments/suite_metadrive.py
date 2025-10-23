@@ -28,13 +28,18 @@ import alf.data_structures as ds
 import alf.nest as nest
 
 from alf.environments.metadrive import VectorizedTopDownEnv, BirdEyeTopDownEnv
-from alf.environments.metadrive.extra_rewards import CrashVehicleReward, EgoKinematicReward, LaneKeepingReward
+from alf.environments.metadrive.extra_rewards import (
+    CrashVehicleReward,
+    EgoKinematicReward,
+    LaneKeepingReward,
+)
 
 try:
     import metadrive
     import pygame
 except ImportError:
     from unittest.mock import Mock
+
     # create 'metadrive' as a mock to not break python argument type hints
     metadrive = Mock()
 
@@ -42,10 +47,12 @@ except ImportError:
 def _space_to_spec(space: gym.spaces.box.Box):
     # NOTE: this is meta drive specific conversion function as it
     # assumes low and high are uniform.
-    return BoundedTensorSpec(shape=space.shape,
-                             dtype=space.dtype.name,
-                             minimum=space.low.flat[0],
-                             maximum=space.high.flat[0])
+    return BoundedTensorSpec(
+        shape=space.shape,
+        dtype=space.dtype.name,
+        minimum=space.low.flat[0],
+        maximum=space.high.flat[0],
+    )
 
 
 class AlfMetaDriveWrapper(AlfEnvironment):
@@ -85,9 +92,9 @@ class AlfMetaDriveWrapper(AlfEnvironment):
             # Add "@step" postfix to fields such as ``velocity`` and
             # ``abs_steering`` so that when being reported as metrics they are
             # averaged instead of summed over the episode steps.
-            'velocity@step': TensorSpec(shape=(), dtype=torch.float32),
-            'abs_steering@step': TensorSpec(shape=(), dtype=torch.float32),
-            'reach_goal': TensorSpec(shape=(), dtype=torch.float32),
+            "velocity@step": TensorSpec(shape=(), dtype=torch.float32),
+            "abs_steering@step": TensorSpec(shape=(), dtype=torch.float32),
+            "reach_goal": TensorSpec(shape=(), dtype=torch.float32),
             **self._ego_kinematic_reward.env_info_spec(),
             **self._lane_keeping_reward.env_info_spec(),
             **self._crash_vehicle_reward.env_info_spec(),
@@ -99,7 +106,7 @@ class AlfMetaDriveWrapper(AlfEnvironment):
         self._last_step_is_done = True
 
         # Support video recording
-        self.metadata = {'render.modes': ['rgb_array']}
+        self.metadata = {"render.modes": ["rgb_array"]}
 
         self._current_observation = None
 
@@ -126,7 +133,7 @@ class AlfMetaDriveWrapper(AlfEnvironment):
         # The type of frame is pygame.Surface of 1000 x 1000
         frame = self._env.render(self._current_observation)
 
-        if mode != 'rgb_array':
+        if mode != "rgb_array":
             return None
 
         # Now canvas is a numpy H x W x C image (ndarray)
@@ -177,12 +184,13 @@ class AlfMetaDriveWrapper(AlfEnvironment):
             discount=np.float32(discount),
             observation=observation,
             env_id=self._env_id,
-            prev_action=action)
+            prev_action=action,
+        )
 
         env_info = {
-            'velocity@step': info['velocity'],
-            'abs_steering@step': abs(info['steering']),
-            'reach_goal': 1.0 if info['arrive_dest'] else 0.0,
+            "velocity@step": info["velocity"],
+            "abs_steering@step": abs(info["steering"]),
+            "reach_goal": 1.0 if info["arrive_dest"] else 0.0,
             **extra_env_info,
         }
 
@@ -194,8 +202,9 @@ class AlfMetaDriveWrapper(AlfEnvironment):
 
         # AlfEnvironment requires everything to be numpy array
         ts = alf.nest.map_structure(_as_array, ts, self.time_step_spec())
-        env_info = alf.nest.map_structure(_as_array, env_info,
-                                          self._env_info_spec)
+        env_info = alf.nest.map_structure(
+            _as_array, env_info, self._env_info_spec
+        )
         return ts._replace(env_info=env_info)
 
     def _step(self, action) -> ds.TimeStep:
@@ -211,7 +220,8 @@ class AlfMetaDriveWrapper(AlfEnvironment):
 
         # Zero actin means do nothing in both longitudinal and lateral
         first_time_step = self._acquire_next_frame(
-            self._action_spec.zeros().cpu().numpy())
+            self._action_spec.zeros().cpu().numpy()
+        )
 
         return first_time_step._replace(step_type=ds.StepType.FIRST)
 
@@ -231,8 +241,8 @@ class AlfMetaDriveWrapper(AlfEnvironment):
         """
         if seed is not None:
             # Ensure the seed is within the range
-            scenario_num = self._env.config['environment_num']
-            start_seed = self._env.config['start_seed']
+            scenario_num = self._env.config["environment_num"]
+            start_seed = self._env.config["start_seed"]
             seed = seed % scenario_num + start_seed
         self._env.reset(force_seed=seed)
 
@@ -242,17 +252,18 @@ class AlfMetaDriveWrapper(AlfEnvironment):
 
 @alf.configurable
 def load(
-        env_name: str = 'Vectorized',
-        env_id: int = 0,
-        traffic_density: float = 0.1,
-        start_seed: int = np.random.randint(10000),
-        scenario_num: int = 5000,
-        decision_repeat: int = 5,  # 0.02 * 5 = 0.1 seconds per action
-        map_spec: Union[int, str] = 4,
-        crash_penalty: float = 5.0,
-        speed_reward_weight: float = 0.1,
-        success_reward: float = 10.0,
-        time_limit: int = 1200):
+    env_name: str = "Vectorized",
+    env_id: int = 0,
+    traffic_density: float = 0.1,
+    start_seed: int = np.random.randint(10000),
+    scenario_num: int = 5000,
+    decision_repeat: int = 5,  # 0.02 * 5 = 0.1 seconds per action
+    map_spec: Union[int, str] = 4,
+    crash_penalty: float = 5.0,
+    speed_reward_weight: float = 0.1,
+    success_reward: float = 10.0,
+    time_limit: int = 1200,
+):
     """Load the MetaDrive environment and wraps it with AlfMetaDriveWrapper.
     Args:
 
@@ -291,35 +302,37 @@ def load(
 
     """
     assert env_name in [
-        'BirdEye', 'Vectorized'
-    ], (f'"{env_name}" is not a valid ALF MetaDrive env name')
+        "BirdEye",
+        "Vectorized",
+    ], f'"{env_name}" is not a valid ALF MetaDrive env name'
 
     env_ctor = {
-        'Vectorized': VectorizedTopDownEnv,
-        'BirdEye': BirdEyeTopDownEnv,
+        "Vectorized": VectorizedTopDownEnv,
+        "BirdEye": BirdEyeTopDownEnv,
     }[env_name]
 
     env = env_ctor(
         config={
             # This means that the environment is not required to
             # render in 3D photo-realistic mode.
-            'use_render': False,
-            'traffic_density': traffic_density,
-            'environment_num': scenario_num,
-            'random_agent_model': False,
-            'random_lane_width': False,
-            'random_lane_num': True,
-            'map': map_spec,
-            'decision_repeat': decision_repeat,
-            'start_seed': start_seed,
+            "use_render": False,
+            "traffic_density": traffic_density,
+            "environment_num": scenario_num,
+            "random_agent_model": False,
+            "random_lane_width": False,
+            "random_lane_num": True,
+            "map": map_spec,
+            "decision_repeat": decision_repeat,
+            "start_seed": start_seed,
             # Reward
-            'out_of_road_penalty': crash_penalty,
-            'crash_vehicle_penalty': crash_penalty,
-            'crash_object_penalty': crash_penalty,
-            'speed_reward': speed_reward_weight,
-            'success_reward': success_reward,
-            'horizon': time_limit,
-        })
+            "out_of_road_penalty": crash_penalty,
+            "crash_vehicle_penalty": crash_penalty,
+            "crash_object_penalty": crash_penalty,
+            "speed_reward": speed_reward_weight,
+            "success_reward": success_reward,
+            "horizon": time_limit,
+        }
+    )
 
     return AlfMetaDriveWrapper(env, env_id=env_id)
 

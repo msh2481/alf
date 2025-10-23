@@ -34,24 +34,39 @@ class TicTacToeEnvironment(AlfEnvironment):
     def __init__(self, batch_size):
         self._batch_size = batch_size
         self._observation_spec = alf.TensorSpec((3, 3))
-        self._action_spec = alf.BoundedTensorSpec((),
-                                                  minimum=0,
-                                                  maximum=8,
-                                                  dtype=torch.int64)
-        self._line_x = torch.tensor([[0, 0, 0], [1, 1, 1], [2, 2,
-                                                            2], [0, 1, 2],
-                                     [0, 1, 2], [0, 1, 2], [0, 1, 2],
-                                     [0, 1, 2]]).unsqueeze(0)
-        self._line_y = torch.tensor([[0, 1, 2], [0, 1, 2], [0, 1,
-                                                            2], [0, 0, 0],
-                                     [1, 1, 1], [2, 2, 2], [0, 1, 2],
-                                     [2, 1, 0]]).unsqueeze(0)
+        self._action_spec = alf.BoundedTensorSpec(
+            (), minimum=0, maximum=8, dtype=torch.int64
+        )
+        self._line_x = torch.tensor(
+            [
+                [0, 0, 0],
+                [1, 1, 1],
+                [2, 2, 2],
+                [0, 1, 2],
+                [0, 1, 2],
+                [0, 1, 2],
+                [0, 1, 2],
+                [0, 1, 2],
+            ]
+        ).unsqueeze(0)
+        self._line_y = torch.tensor(
+            [
+                [0, 1, 2],
+                [0, 1, 2],
+                [0, 1, 2],
+                [0, 0, 0],
+                [1, 1, 1],
+                [2, 2, 2],
+                [0, 1, 2],
+                [2, 1, 0],
+            ]
+        ).unsqueeze(0)
         self._B = torch.arange(self._batch_size)
         self._empty_board = self._observation_spec.zeros()
-        self._boards = self._observation_spec.zeros((self._batch_size, ))
+        self._boards = self._observation_spec.zeros((self._batch_size,))
         self._env_ids = torch.arange(batch_size)
-        self._player_0 = torch.tensor(-1.)
-        self._player_1 = torch.tensor(1.)
+        self._player_0 = torch.tensor(-1.0)
+        self._player_1 = torch.tensor(1.0)
 
     @property
     def is_tensor_based(self):
@@ -83,44 +98,44 @@ class TicTacToeEnvironment(AlfEnvironment):
         return self._action_spec
 
     def _reset(self):
-        self._boards = self._observation_spec.zeros((self._batch_size, ))
-        self._game_over = torch.zeros((self._batch_size, ), dtype=torch.bool)
-        self._prev_action = self._action_spec.zeros((self._batch_size, ))
-        return TimeStep(observation=self._boards.clone().detach(),
-                        step_type=torch.full((self._batch_size, ),
-                                             StepType.FIRST),
-                        reward=torch.zeros((self._batch_size, )),
-                        discount=torch.ones((self._batch_size, )),
-                        prev_action=self._action_spec.zeros(
-                            (self._batch_size, )),
-                        env_id=self._env_ids,
-                        env_info={
-                            "play0_win": torch.zeros(self._batch_size),
-                            "play1_win": torch.zeros(self._batch_size),
-                            "draw": torch.zeros(self._batch_size),
-                            "invalid_move": torch.zeros(self._batch_size),
-                        })
+        self._boards = self._observation_spec.zeros((self._batch_size,))
+        self._game_over = torch.zeros((self._batch_size,), dtype=torch.bool)
+        self._prev_action = self._action_spec.zeros((self._batch_size,))
+        return TimeStep(
+            observation=self._boards.clone().detach(),
+            step_type=torch.full((self._batch_size,), StepType.FIRST),
+            reward=torch.zeros((self._batch_size,)),
+            discount=torch.ones((self._batch_size,)),
+            prev_action=self._action_spec.zeros((self._batch_size,)),
+            env_id=self._env_ids,
+            env_info={
+                "play0_win": torch.zeros(self._batch_size),
+                "play1_win": torch.zeros(self._batch_size),
+                "draw": torch.zeros(self._batch_size),
+                "invalid_move": torch.zeros(self._batch_size),
+            },
+        )
 
     def _step(self, action):
         prev_game_over = self._game_over
         prev_action = action.clone()
         prev_action[prev_game_over] = 0
         self._boards[prev_game_over] = self._empty_board
-        step_type = torch.full((self._batch_size, ), int(StepType.MID))
+        step_type = torch.full((self._batch_size,), int(StepType.MID))
         player = self._get_current_player().to(torch.float32)
         x = action % 3
         y = action // 3
         valid = self._boards[self._B, y, x] == 0
         self._boards[self._B[valid], y[valid], x[valid]] = player[valid]
         won = self._check_player_win(player)
-        reward = torch.where(won, -player, torch.tensor(0.))
+        reward = torch.where(won, -player, torch.tensor(0.0))
         reward = torch.where(valid, reward, player)
         game_over = self._check_game_over()
         game_over = torch.max(game_over, ~valid)
         step_type[game_over] = int(StepType.LAST)
         step_type[prev_game_over] = int(StepType.FIRST)
         discount = torch.ones(self._batch_size)
-        discount[game_over] = 0.
+        discount[game_over] = 0.0
         self._boards[prev_game_over] = self._empty_board
         self._game_over = game_over
         self._prev_action = action
@@ -128,18 +143,20 @@ class TicTacToeEnvironment(AlfEnvironment):
         player1_win = self._check_player_win(self._player_1)
         draw = torch.min(game_over, reward == 0)
 
-        return TimeStep(observation=self._boards.clone().detach(),
-                        reward=reward.detach(),
-                        step_type=step_type.detach(),
-                        discount=discount.detach(),
-                        prev_action=prev_action.detach(),
-                        env_id=self._env_ids,
-                        env_info={
-                            "play0_win": player0_win.to(torch.float32),
-                            "play1_win": player1_win.to(torch.float32),
-                            "draw": draw.to(torch.float32),
-                            "invalid_move": (~valid).to(torch.float32),
-                        })
+        return TimeStep(
+            observation=self._boards.clone().detach(),
+            reward=reward.detach(),
+            step_type=step_type.detach(),
+            discount=discount.detach(),
+            prev_action=prev_action.detach(),
+            env_id=self._env_ids,
+            env_info={
+                "play0_win": player0_win.to(torch.float32),
+                "play1_win": player1_win.to(torch.float32),
+                "draw": draw.to(torch.float32),
+                "invalid_move": (~valid).to(torch.float32),
+            },
+        )
 
     def _check_player_win(self, player):
         B = self._B.unsqueeze(-1).unsqueeze(-1)
@@ -159,32 +176,32 @@ class TicTacToeEnvironment(AlfEnvironment):
         return ((self._boards != 0).sum(dim=(1, 2)) % 2) * 2 - 1
 
     def render(self, mode):
-        if mode == 'human':
+        if mode == "human":
             action = self._prev_action[0].cpu().numpy()
             ay = action // 3
             ax = action % 3
             board = self._boards[0].cpu().numpy()
-            img = '-----\n'
+            img = "-----\n"
             for y in range(3):
-                img += '|'
+                img += "|"
                 for x in range(3):
                     if board[y, x] == 0:
-                        img += ' '
+                        img += " "
                     elif board[y, x] == -1:
-                        img += 'x'
+                        img += "x"
                     elif board[y, x] == 1:
-                        img += 'o'
+                        img += "o"
                     if x == ax and y == ay:
                         img = img[:-1] + img[-1].upper()
-                img += '|\n'
-            img += '-----\n'
+                img += "|\n"
+            img += "-----\n"
             print(img)
         else:
             raise ValueError("Unsupported render mode %s" % mode)
 
 
 @alf.configurable(whitelist=[])
-def load(name='', batch_size=1):
+def load(name="", batch_size=1):
     """Load TicTacToeEnvironment
 
     Args:

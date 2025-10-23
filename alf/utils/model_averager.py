@@ -20,12 +20,14 @@ from typing import Union
 from alf.utils.schedulers import Scheduler
 
 
-def ema_avg_fn(averaged_model_parameter,
-               model_parameter,
-               num_averaged,
-               ema_rate: Union[Number, Scheduler],
-               starting_average_after=0,
-               begin_with_simple_average=True):
+def ema_avg_fn(
+    averaged_model_parameter,
+    model_parameter,
+    num_averaged,
+    ema_rate: Union[Number, Scheduler],
+    starting_average_after=0,
+    begin_with_simple_average=True,
+):
     """Exponential moving average of model parameters.
 
     Args:
@@ -47,11 +49,13 @@ def ema_avg_fn(averaged_model_parameter,
         return model_parameter
     if not isinstance(ema_rate, Number):
         assert isinstance(
-            ema_rate, Scheduler), ("ema_rate must be a number or a Scheduler")
+            ema_rate, Scheduler
+        ), "ema_rate must be a number or a Scheduler"
         ema_rate = ema_rate()
     if begin_with_simple_average:
-        ema_rate = max(ema_rate,
-                       1 / (num_averaged + 1 - starting_average_after))
+        ema_rate = max(
+            ema_rate, 1 / (num_averaged + 1 - starting_average_after)
+        )
     return torch.lerp(averaged_model_parameter, model_parameter, ema_rate)
 
 
@@ -59,7 +63,7 @@ class AveragedModel(_AveragedModel):
     """torch.optim.swa_utils.AveragedModel with additional call() method."""
 
     def call(self, name, *args, **kwargs):
-        """ Calls a method of the underlying model.
+        """Calls a method of the underlying model.
 
         Args:
             name (str): the name of the method to be called

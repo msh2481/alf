@@ -19,7 +19,7 @@ from functools import partial
 from pathlib import Path
 from typing import Union
 
-DEFAULT_CACHE_DIR_ROOT = Path('./cache_dir/')
+DEFAULT_CACHE_DIR_ROOT = Path("./cache_dir/")
 
 
 class DefaultCollateMixin:
@@ -98,12 +98,10 @@ class DefaultCollateMixin:
 
     def _dataloader(self, dataset, **loader_args):
         collate_args = {
-            k: loader_args[k]
-            for k in loader_args if k in self.collate_args
+            k: loader_args[k] for k in loader_args if k in self.collate_args
         }
         loader_args = {
-            k: loader_args[k]
-            for k in loader_args if k not in self.collate_args
+            k: loader_args[k] for k in loader_args if k not in self.collate_args
         }
         loader_cls = loader_registry[loader_args.pop("_name_", None)]
         return loader_cls(
@@ -135,8 +133,9 @@ class SequenceDataset(DefaultCollateMixin):
 
     def __init__(self, _name_, data_dir=None, **dataset_cfg):
         assert _name_ == self._name_
-        self.data_dir = Path(
-            data_dir).absolute() if data_dir is not None else None
+        self.data_dir = (
+            Path(data_dir).absolute() if data_dir is not None else None
+        )
 
         # Add all arguments to self
         init_args = self.init_defaults.copy()
@@ -165,8 +164,9 @@ class SequenceDataset(DefaultCollateMixin):
         self.dataset_train, self.dataset_val = torch.utils.data.random_split(
             self.dataset_train,
             (train_len, len(self.dataset_train) - train_len),
-            generator=torch.
-            Generator(device=alf.get_default_device()).manual_seed(
+            generator=torch.Generator(
+                device=alf.get_default_device()
+            ).manual_seed(
                 getattr(self, "seed", 42)
             ),  # PL is supposed to have a way to handle seeds properly, but doesn't seem to work for us
         )
@@ -175,9 +175,11 @@ class SequenceDataset(DefaultCollateMixin):
         return self._train_dataloader(self.dataset_train, **kwargs)
 
     def _train_dataloader(self, dataset, **kwargs):
-        if dataset is None: return
-        kwargs[
-            'shuffle'] = 'sampler' not in kwargs  # shuffle can't be True if we have custom sampler
+        if dataset is None:
+            return
+        kwargs["shuffle"] = (
+            "sampler" not in kwargs
+        )  # shuffle can't be True if we have custom sampler
         return self._dataloader(dataset, **kwargs)
 
     def val_dataloader(self, **kwargs):
@@ -187,7 +189,8 @@ class SequenceDataset(DefaultCollateMixin):
         return self._eval_dataloader(self.dataset_test, **kwargs)
 
     def _eval_dataloader(self, dataset, **kwargs):
-        if dataset is None: return
+        if dataset is None:
+            return
         # Note that shuffle=False by default
         return self._dataloader(dataset, **kwargs)
 
@@ -220,8 +223,9 @@ class MNIST(SequenceDataset):
 
         transform_list = [
             torchvision.transforms.ToTensor(),
-            torchvision.transforms.Lambda(lambda x: x.view(
-                self.d_input, self.L).t()),
+            torchvision.transforms.Lambda(
+                lambda x: x.view(self.d_input, self.L).t()
+            ),
         ]  # (L, d_input)
         # TODO does MNIST need normalization?
         # torchvision.transforms.Normalize((0.1307,), (0.3081,)) # normalize inputs
@@ -243,23 +247,25 @@ class MNIST(SequenceDataset):
         return f"{'p' if self.permute else 's'}{self._name_}"
 
 
-def make_data_loader(dset,
-                     dobj,
-                     seed: int,
-                     batch_size: int = 128,
-                     shuffle: bool = True,
-                     drop_last: bool = True,
-                     collate_fn: callable = None):
+def make_data_loader(
+    dset,
+    dobj,
+    seed: int,
+    batch_size: int = 128,
+    shuffle: bool = True,
+    drop_last: bool = True,
+    collate_fn: callable = None,
+):
     """
 
-	:param dset: 			(PT dset):		PyTorch dataset object.
-	:param dobj (=None): 	(AG data): 		Dataset object, as returned by A.G.s dataloader.
-	:param seed: 			(int):			Int for seeding shuffle.
-	:param batch_size: 		(int):			Batch size for batches.
-	:param shuffle:         (bool):			Shuffle the data loader?
-	:param drop_last: 		(bool):			Drop ragged final batch (particularly for training).
-	:return:
-	"""
+    :param dset: 			(PT dset):		PyTorch dataset object.
+    :param dobj (=None): 	(AG data): 		Dataset object, as returned by A.G.s dataloader.
+    :param seed: 			(int):			Int for seeding shuffle.
+    :param batch_size: 		(int):			Batch size for batches.
+    :param shuffle:         (bool):			Shuffle the data loader?
+    :param drop_last: 		(bool):			Drop ragged final batch (particularly for training).
+    :return:
+    """
 
     # Create a generator for seeding random number draws.
     if seed is not None:
@@ -273,50 +279,65 @@ def make_data_loader(dset,
         collate_fn = dobj._collate_fn
 
     # Generate the dataloaders.
-    return torch.utils.data.DataLoader(dataset=dset,
-                                       collate_fn=collate_fn,
-                                       batch_size=batch_size,
-                                       shuffle=shuffle,
-                                       drop_last=drop_last,
-                                       generator=rng)
+    return torch.utils.data.DataLoader(
+        dataset=dset,
+        collate_fn=collate_fn,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        drop_last=drop_last,
+        generator=rng,
+    )
 
 
 def create_mnist_classification_dataset(
-        cache_dir: Union[str, Path] = DEFAULT_CACHE_DIR_ROOT,
-        seed: int = 42,
-        bsz: int = 128):
+    cache_dir: Union[str, Path] = DEFAULT_CACHE_DIR_ROOT,
+    seed: int = 42,
+    bsz: int = 128,
+):
     """
-	See abstract template.
+    See abstract template.
 
-	Cifar is quick to download and is automatically cached.
-	"""
+    Cifar is quick to download and is automatically cached.
+    """
 
     print("[*] Generating permuted-MNIST Classification Dataset")
-    name = 'mnist'
+    name = "mnist"
 
     dataset_obj = MNIST(name, data_dir=cache_dir)
     dataset_obj.setup()
 
-    trn_loader = make_data_loader(dataset_obj.dataset_train,
-                                  dataset_obj,
-                                  seed=seed,
-                                  batch_size=bsz)
-    val_loader = make_data_loader(dataset_obj.dataset_val,
-                                  dataset_obj,
-                                  seed=seed,
-                                  batch_size=bsz,
-                                  drop_last=False,
-                                  shuffle=False)
-    tst_loader = make_data_loader(dataset_obj.dataset_test,
-                                  dataset_obj,
-                                  seed=seed,
-                                  batch_size=bsz,
-                                  drop_last=False,
-                                  shuffle=False)
+    trn_loader = make_data_loader(
+        dataset_obj.dataset_train, dataset_obj, seed=seed, batch_size=bsz
+    )
+    val_loader = make_data_loader(
+        dataset_obj.dataset_val,
+        dataset_obj,
+        seed=seed,
+        batch_size=bsz,
+        drop_last=False,
+        shuffle=False,
+    )
+    tst_loader = make_data_loader(
+        dataset_obj.dataset_test,
+        dataset_obj,
+        seed=seed,
+        batch_size=bsz,
+        drop_last=False,
+        shuffle=False,
+    )
 
     N_CLASSES = dataset_obj.d_output
     SEQ_LENGTH = 28 * 28
     IN_DIM = 1
     TRAIN_SIZE = len(dataset_obj.dataset_train)
     aux_loaders = {}
-    return trn_loader, val_loader, tst_loader, aux_loaders, N_CLASSES, SEQ_LENGTH, IN_DIM, TRAIN_SIZE
+    return (
+        trn_loader,
+        val_loader,
+        tst_loader,
+        aux_loaders,
+        N_CLASSES,
+        SEQ_LENGTH,
+        IN_DIM,
+        TRAIN_SIZE,
+    )

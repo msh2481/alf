@@ -31,7 +31,8 @@ class MyACAlgorithm(ActorCriticAlgorithm):
         zeros = torch.zeros_like(action)
         print("rollout_step: ", zeros.shape)
         alg_step = alg_step._replace(
-            info=MyACInfo(ac=alg_step.info, zeros=zeros))
+            info=MyACInfo(ac=alg_step.info, zeros=zeros)
+        )
         return alg_step
 
     def calc_loss(self, info: MyACInfo):
@@ -51,7 +52,10 @@ class MyACAlgorithm(ActorCriticAlgorithm):
 
 
 # configure which RL algorithm to use
-alf.config('TrainerConfig',
-           algorithm_ctor=partial(MyACAlgorithm,
-                                  optimizer=alf.optimizers.Adam(lr=1e-3)),
-           num_iterations=1)
+alf.config(
+    "TrainerConfig",
+    algorithm_ctor=partial(
+        MyACAlgorithm, optimizer=alf.optimizers.Adam(lr=1e-3)
+    ),
+    num_iterations=1,
+)

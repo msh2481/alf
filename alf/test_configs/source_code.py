@@ -20,17 +20,17 @@ def test(a, b=123):
     return a, b
 
 
-@alf.configurable(blacklist=['b'])
+@alf.configurable(blacklist=["b"])
 def test_func(a, b=100, c=200):
     return a, b, c
 
 
-@alf.configurable(blacklist=['b'])
+@alf.configurable(blacklist=["b"])
 def test_func2(a, b=100, c=200):
     return a, b, c
 
 
-@alf.configurable(blacklist=['b'])
+@alf.configurable(blacklist=["b"])
 def test_func3(a, b=100, c=200):
     return a, b, c
 
@@ -76,7 +76,7 @@ class Test(object):
         self._b = b
         self._c = c
 
-    @alf.configurable(whitelist=['c'])
+    @alf.configurable(whitelist=["c"])
     def func(self, a, b=10, c=100):
         return a, b, c
 

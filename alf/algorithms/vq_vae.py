@@ -23,9 +23,11 @@ from alf.algorithms.algorithm import Algorithm
 from alf.data_structures import AlgStep, LossInfo, namedtuple
 from alf.networks import EncodingNetwork
 
-VqvaeLossInfo = namedtuple("VqvaeLossInfo",
-                           ["quantization", "commitment", "reconstruction"],
-                           default_value=())
+VqvaeLossInfo = namedtuple(
+    "VqvaeLossInfo",
+    ["quantization", "commitment", "reconstruction"],
+    default_value=(),
+)
 
 
 class Vqvae(Algorithm):
@@ -45,17 +47,19 @@ class Vqvae(Algorithm):
 
     """
 
-    def __init__(self,
-                 input_tensor_spec: alf.NestedTensorSpec,
-                 num_embeddings: int,
-                 embedding_dim: int,
-                 encoder_ctor: Callable = EncodingNetwork,
-                 decoder_ctor: Callable = EncodingNetwork,
-                 optimizer: torch.optim.Optimizer = None,
-                 commitment_loss_weight: float = 1.0,
-                 checkpoint=None,
-                 debug_summaries: bool = False,
-                 name: str = "Vqvae"):
+    def __init__(
+        self,
+        input_tensor_spec: alf.NestedTensorSpec,
+        num_embeddings: int,
+        embedding_dim: int,
+        encoder_ctor: Callable = EncodingNetwork,
+        decoder_ctor: Callable = EncodingNetwork,
+        optimizer: torch.optim.Optimizer = None,
+        commitment_loss_weight: float = 1.0,
+        checkpoint=None,
+        debug_summaries: bool = False,
+        name: str = "Vqvae",
+    ):
         """
         Args:
             input_tensor_spec (TensorSpec): the tensor spec of
@@ -75,20 +79,23 @@ class Vqvae(Algorithm):
                 checkpoint to be loaded. "path" is the full path to the checkpoint
                 file saved by ALF. Refer to ``Algorithm`` for more details.
         """
-        super().__init__(checkpoint=checkpoint,
-                         debug_summaries=debug_summaries,
-                         name=name)
+        super().__init__(
+            checkpoint=checkpoint, debug_summaries=debug_summaries, name=name
+        )
 
         self._embedding_dim = embedding_dim
         self._num_embeddings = num_embeddings
 
         # [n, d]
         self._embedding = torch.nn.Parameter(
-            torch.FloatTensor(self._num_embeddings, self._embedding_dim))
+            torch.FloatTensor(self._num_embeddings, self._embedding_dim)
+        )
 
-        torch.nn.init.uniform_(self._embedding,
-                               a=-1 / self._num_embeddings,
-                               b=1 / self._num_embeddings)
+        torch.nn.init.uniform_(
+            self._embedding,
+            a=-1 / self._num_embeddings,
+            b=1 / self._num_embeddings,
+        )
 
         self._encoding_net = encoder_ctor(input_tensor_spec)
 
@@ -97,7 +104,8 @@ class Vqvae(Algorithm):
         if optimizer is not None:
             self.add_optimizer(
                 optimizer,
-                [self._encoding_net, self._decoding_net, self._embedding])
+                [self._encoding_net, self._decoding_net, self._embedding],
+            )
         self._optimizer = optimizer
 
         self._commitment_loss_weight = commitment_loss_weight
@@ -112,9 +120,11 @@ class Vqvae(Algorithm):
 
         # calculate distances
         # [B, 1] + [n] + [B, n]
-        distances = (torch.sum(input_embedding**2, dim=1, keepdim=True) +
-                     torch.sum(self._embedding**2, dim=1) -
-                     2 * torch.matmul(input_embedding, self._embedding.t()))
+        distances = (
+            torch.sum(input_embedding**2, dim=1, keepdim=True)
+            + torch.sum(self._embedding**2, dim=1)
+            - 2 * torch.matmul(input_embedding, self._embedding.t())
+        )
 
         encoding_indices = torch.argmin(distances, dim=1)
 
@@ -137,16 +147,17 @@ class Vqvae(Algorithm):
 
         input_embedding, quantized, quantized_st = self._predict_step(inputs)
 
-        e_latent_loss = F.mse_loss(quantized.detach(),
-                                   input_embedding,
-                                   reduction="none")
-        q_latent_loss = F.mse_loss(quantized,
-                                   input_embedding.detach(),
-                                   reduction="none")
+        e_latent_loss = F.mse_loss(
+            quantized.detach(), input_embedding, reduction="none"
+        )
+        q_latent_loss = F.mse_loss(
+            quantized, input_embedding.detach(), reduction="none"
+        )
 
         # encoding loss
-        enc_loss = (q_latent_loss +
-                    self._commitment_loss_weight * e_latent_loss).mean(dim=1)
+        enc_loss = (
+            q_latent_loss + self._commitment_loss_weight * e_latent_loss
+        ).mean(dim=1)
 
         # decoding loss
         rec = self._decoding_net(quantized_st)[0]
@@ -157,9 +168,11 @@ class Vqvae(Algorithm):
             with alf.summary.scope(self._name):
                 alf.summary.embedding("vq_embedding", self._embedding.detach())
 
-        loss = (enc_loss + recon_loss)
-        info = VqvaeLossInfo(quantization=q_latent_loss.mean(1),
-                             commitment=e_latent_loss.mean(1),
-                             reconstruction=recon_loss)
+        loss = enc_loss + recon_loss
+        info = VqvaeLossInfo(
+            quantization=q_latent_loss.mean(1),
+            commitment=e_latent_loss.mean(1),
+            reconstruction=recon_loss,
+        )
         loss_info = LossInfo(loss=loss, extra=info)
         return AlgStep(output=rec, state=state, info=loss_info)

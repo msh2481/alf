@@ -24,8 +24,9 @@ from alf.utils.summary_utils import safe_mean_hist_summary
 from alf.utils import tensor_utils, dist_utils, value_ops
 from .algorithm import Loss
 
-ActorCriticLossInfo = namedtuple("ActorCriticLossInfo",
-                                 ["pg_loss", "td_loss", "neg_entropy"])
+ActorCriticLossInfo = namedtuple(
+    "ActorCriticLossInfo", ["pg_loss", "td_loss", "neg_entropy"]
+)
 
 
 def normalize(batch_norm, x):
@@ -46,22 +47,24 @@ def normalize(batch_norm, x):
 @alf.configurable
 class ActorCriticLoss(Loss):
 
-    def __init__(self,
-                 reward_dim=1,
-                 gamma=0.99,
-                 td_error_loss_fn=element_wise_squared_loss,
-                 use_gae=False,
-                 td_lambda=0.95,
-                 use_td_lambda_return=True,
-                 normalize_advantages=False,
-                 normalize_scalar_advantages=False,
-                 running_stats_for_normalization=True,
-                 advantage_norm_momentum=0.9,
-                 advantage_clip=None,
-                 entropy_regularization=None,
-                 td_loss_weight=1.0,
-                 debug_summaries=False,
-                 name="ActorCriticLoss"):
+    def __init__(
+        self,
+        reward_dim=1,
+        gamma=0.99,
+        td_error_loss_fn=element_wise_squared_loss,
+        use_gae=False,
+        td_lambda=0.95,
+        use_td_lambda_return=True,
+        normalize_advantages=False,
+        normalize_scalar_advantages=False,
+        running_stats_for_normalization=True,
+        advantage_norm_momentum=0.9,
+        advantage_clip=None,
+        entropy_regularization=None,
+        td_loss_weight=1.0,
+        debug_summaries=False,
+        name="ActorCriticLoss",
+    ):
         """An actor-critic loss equals to
 
         .. code-block:: python
@@ -116,7 +119,8 @@ class ActorCriticLoss(Loss):
                 eps=1e-8,
                 momentum=advantage_norm_momentum,
                 affine=False,
-                track_running_stats=running_stats_for_normalization)
+                track_running_stats=running_stats_for_normalization,
+            )
             normalize_advantages = False
         elif normalize_advantages:
             self._adv_norm = torch.nn.BatchNorm1d(
@@ -124,11 +128,13 @@ class ActorCriticLoss(Loss):
                 eps=1e-8,
                 momentum=advantage_norm_momentum,
                 affine=False,
-                track_running_stats=running_stats_for_normalization)
+                track_running_stats=running_stats_for_normalization,
+            )
         self._normalize_advantages = normalize_advantages
         self._normalize_scalar_advantages = normalize_scalar_advantages
-        assert advantage_clip is None or advantage_clip > 0, (
-            "Clipping value should be positive!")
+        assert (
+            advantage_clip is None or advantage_clip > 0
+        ), "Clipping value should be positive!"
         self._advantage_clip = advantage_clip
         self._entropy_regularization = entropy_regularization
         self._debug_summaries = debug_summaries
@@ -171,18 +177,23 @@ class ActorCriticLoss(Loss):
                 def _summarize(v, r, adv, suffix):
                     alf.summary.scalar("values" + suffix, v.mean())
                     alf.summary.scalar("returns" + suffix, r.mean())
-                    safe_mean_hist_summary('advantages' + suffix, adv)
+                    safe_mean_hist_summary("advantages" + suffix, adv)
                     alf.summary.scalar(
                         "explained_variance_of_return_by_value" + suffix,
-                        tensor_utils.explained_variance(v, r))
+                        tensor_utils.explained_variance(v, r),
+                    )
 
                 if value.ndim == 2:
-                    _summarize(value, returns, advantages, '')
+                    _summarize(value, returns, advantages, "")
                 else:
                     for i in range(value.shape[2]):
-                        suffix = '/' + str(i)
-                        _summarize(value[..., i], returns[..., i],
-                                   advantages[..., i], suffix)
+                        suffix = "/" + str(i)
+                        _summarize(
+                            value[..., i],
+                            returns[..., i],
+                            advantages[..., i],
+                            suffix,
+                        )
         if self._normalize_advantages:
             if hasattr(info, "normalized_advantages"):
                 advantages = info.normalized_advantages
@@ -199,8 +210,9 @@ class ActorCriticLoss(Loss):
                 advantages = adv.reshape_as(advantages)
 
         if self._advantage_clip:
-            advantages = torch.clamp(advantages, -self._advantage_clip,
-                                     self._advantage_clip)
+            advantages = torch.clamp(
+                advantages, -self._advantage_clip, self._advantage_clip
+            )
 
         if info.reward_weights != () and not self._normalize_scalar_advantages:
             # reward_weights has already been applied for self._normalize_scalar_advantages
@@ -222,20 +234,27 @@ class ActorCriticLoss(Loss):
                 entropy = info.entropy
                 entropy_for_gradient = info.entropy
             else:
-                entropy, entropy_for_gradient = dist_utils.entropy_with_fallback(
-                    info.action_distribution, return_sum=False)
+                entropy, entropy_for_gradient = (
+                    dist_utils.entropy_with_fallback(
+                        info.action_distribution, return_sum=False
+                    )
+                )
             entropy_loss = alf.nest.map_structure(lambda x: -x, entropy)
             loss -= self._entropy_regularization * sum(
-                alf.nest.flatten(entropy_for_gradient))
+                alf.nest.flatten(entropy_for_gradient)
+            )
 
-        return LossInfo(loss=loss,
-                        extra=ActorCriticLossInfo(td_loss=td_loss,
-                                                  pg_loss=pg_loss,
-                                                  neg_entropy=entropy_loss))
+        return LossInfo(
+            loss=loss,
+            extra=ActorCriticLossInfo(
+                td_loss=td_loss, pg_loss=pg_loss, neg_entropy=entropy_loss
+            ),
+        )
 
     def _pg_loss(self, info, advantages):
         action_log_prob = dist_utils.compute_log_probability(
-            info.action_distribution, info.action)
+            info.action_distribution, info.action
+        )
         return -advantages * action_log_prob
 
     def _calc_returns_and_advantages(self, info, value):
@@ -247,10 +266,12 @@ class ActorCriticLoss(Loss):
             # [T, B]
             discounts = info.discount * self._gamma
 
-        returns = value_ops.discounted_return(rewards=info.reward,
-                                              values=value,
-                                              step_types=info.step_type,
-                                              discounts=discounts)
+        returns = value_ops.discounted_return(
+            rewards=info.reward,
+            values=value,
+            step_types=info.step_type,
+            discounts=discounts,
+        )
         returns = tensor_utils.tensor_extend(returns, value[-1])
 
         if not self._use_gae:
@@ -261,7 +282,8 @@ class ActorCriticLoss(Loss):
                 values=value,
                 step_types=info.step_type,
                 discounts=discounts,
-                td_lambda=self._lambda)
+                td_lambda=self._lambda,
+            )
             advantages = tensor_utils.tensor_extend_zero(advantages)
             if self._use_td_lambda_return:
                 returns = advantages + value

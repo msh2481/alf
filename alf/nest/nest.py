@@ -48,8 +48,9 @@ def flatten(nest):
     try:
         return cnest.flatten(nest)
     except Exception as e:
-        logging.error("flatten() fails for {}. Error message: '{}'".format(
-            nest, str(e)))
+        logging.error(
+            "flatten() fails for {}. Error message: '{}'".format(nest, str(e))
+        )
         raise e
 
 
@@ -62,7 +63,9 @@ def assert_same_structure(nest1, nest2):
         logging.error(
             "assert_same_structure() fails for {} and {}. Error message: '{}'"
             "nest1 has paths {}. nest2 has paths {}.".format(
-                nest1, nest2, str(e), paths[0], paths[1]))
+                nest1, nest2, str(e), paths[0], paths[1]
+            )
+        )
         raise e
 
 
@@ -72,9 +75,10 @@ def map_structure(func, *nests):
         return cnest.map_structure(func, *nests)
     except Exception as e:
         paths = tuple(_get_all_paths(nst) for nst in nests)
-        logging.error("map_structure() fails for {}. Error message: '{}'. "
-                      "The paths in nests are {}.".format(
-                          nests, str(e), paths))
+        logging.error(
+            "map_structure() fails for {}. Error message: '{}'. "
+            "The paths in nests are {}.".format(nests, str(e), paths)
+        )
         raise e
 
 
@@ -86,8 +90,10 @@ def map_structure_without_check(func, *nests):
         return cnest.map_structure_without_check(func, *nests)
     except Exception as e:
         logging.error(
-            "map_structure_without_check() fails for {}. Error message: '{}'".
-            format(nests, str(e)))
+            "map_structure_without_check() fails for {}. Error message: '{}'".format(
+                nests, str(e)
+            )
+        )
         raise e
 
 
@@ -97,8 +103,10 @@ def pack_sequence_as(nest, flat_seq):
         return cnest.pack_sequence_as(nest, flat_seq)
     except Exception as e:
         logging.error(
-            "pack_sequence_as() fails for {} and {}. Error message: '{}'".
-            format(nest, flat_seq, str(e)))
+            "pack_sequence_as() fails for {} and {}. Error message: '{}'".format(
+                nest, flat_seq, str(e)
+            )
+        )
         raise e
 
 
@@ -112,7 +120,9 @@ def flatten_up_to(shallow_nest, nest):
     except Exception as e:
         logging.error(
             "flatten_up_to() fails for {} and {}. Error message: '{}'".format(
-                shallow_nest, nest, str(e)))
+                shallow_nest, nest, str(e)
+            )
+        )
         raise e
 
 
@@ -160,8 +170,11 @@ def map_structure_up_to(shallow_nest, func, *nests):
         return cnest.map_structure_up_to(shallow_nest, func, *nests)
     except Exception as e:
         logging.error(
-            ("map_structure_up_to() fails for a shallow_nest {} with nests {}."
-             " Error message: '{}'").format(shallow_nest, nests, str(e)))
+            (
+                "map_structure_up_to() fails for a shallow_nest {} with nests {}."
+                " Error message: '{}'"
+            ).format(shallow_nest, nests, str(e))
+        )
         raise e
 
 
@@ -191,7 +204,8 @@ def assert_same_structure_up_to(shallow_nest, deep_nest):
     except Exception as e:
         logging.error(
             "assert_same_structure_up_to() fails for {} and {}. Error message: "
-            "'{}'".format(shallow_nest, deep_nest, str(e)))
+            "'{}'".format(shallow_nest, deep_nest, str(e))
+        )
         raise e
 
 
@@ -234,21 +248,23 @@ def prune_nest_like(nest, slim_nest, value_to_match=None):
         return cnest.prune_nest_like(nest, slim_nest, value_to_match)
     except Exception as e:
         logging.error(
-            "prune_nest_like() fails between {} and {}. Error message: '{}'".
-            format(nest, slim_nest, str(e)))
+            "prune_nest_like() fails between {} and {}. Error message: '{}'".format(
+                nest, slim_nest, str(e)
+            )
+        )
         raise e
 
 
 def assert_same_type(value1, value2):
-    assert (type(value1) == type(value2)
-            or (isinstance(value1, dict) and isinstance(value2, dict))), (
-                "Different types! {} <-> {}".format(type(value1),
-                                                    type(value2)))
+    assert type(value1) == type(value2) or (
+        isinstance(value1, dict) and isinstance(value2, dict)
+    ), "Different types! {} <-> {}".format(type(value1), type(value2))
 
 
 def assert_same_length(seq1, seq2):
-    assert len(seq1) == len(seq2), \
-        "Different lengths! {} <-> {}".format(len(seq1), len(seq2))
+    assert len(seq1) == len(seq2), "Different lengths! {} <-> {}".format(
+        len(seq1), len(seq2)
+    )
 
 
 def is_namedtuple(value):
@@ -260,7 +276,7 @@ def is_namedtuple(value):
         ``True`` if the value is a namedtuple instance.
     """
 
-    return isinstance(value, tuple) and hasattr(value, '_fields')
+    return isinstance(value, tuple) and hasattr(value, "_fields")
 
 
 def is_unnamedtuple(value):
@@ -283,8 +299,9 @@ def extract_fields_from_nest(nest, keep_order=False):
     Raises:
         AssertionError: if the nest is neither ``namedtuple`` nor ``dict``.
     """
-    assert is_namedtuple(nest) or isinstance(nest, dict), \
-        "Nest {} must be a dict or namedtuple!".format(nest)
+    assert is_namedtuple(nest) or isinstance(
+        nest, dict
+    ), "Nest {} must be a dict or namedtuple!".format(nest)
     fields = nest.keys() if isinstance(nest, dict) else nest._fields
     if not keep_order:
         fields = sorted(fields)
@@ -343,8 +360,9 @@ def py_flatten(nest, keep_fields_order=False):
         for value in nest:
             flattened.extend(py_flatten(value))
     else:
-        for _, value in extract_fields_from_nest(nest,
-                                                 keep_order=keep_fields_order):
+        for _, value in extract_fields_from_nest(
+            nest, keep_order=keep_fields_order
+        ):
             flattened.extend(py_flatten(value))
     return flattened
 
@@ -364,17 +382,22 @@ def py_flatten_up_to(shallow_nest, nest):
         logging.error(str(e))
         raise AssertionError(
             "Different types or lengths between {} and {}".format(
-                shallow_nest, nest))
+                shallow_nest, nest
+            )
+        )
 
     flattened = []
     if isinstance(shallow_nest, list) or is_unnamedtuple(shallow_nest):
         for sn, n in zip(shallow_nest, nest):
             flattened.extend(py_flatten_up_to(sn, n))
     else:
-        for fv1, fv2 in zip(extract_fields_from_nest(shallow_nest),
-                            extract_fields_from_nest(nest)):
-            assert fv1[0] == fv2[0], \
-                "Keys are different !{} <-> {}".format(fv1[0], fv2[0])
+        for fv1, fv2 in zip(
+            extract_fields_from_nest(shallow_nest),
+            extract_fields_from_nest(nest),
+        ):
+            assert fv1[0] == fv2[0], "Keys are different !{} <-> {}".format(
+                fv1[0], fv2[0]
+            )
             flattened.extend(py_flatten_up_to(fv1[1], fv2[1]))
     return flattened
 
@@ -390,16 +413,20 @@ def py_assert_same_structure(nest1, nest2):
             logging.error(str(e))
             raise AssertionError(
                 "assert_same_structure() fails between {} and {}".format(
-                    nest1, nest2))
+                    nest1, nest2
+                )
+            )
 
         if isinstance(nest1, list) or is_unnamedtuple(nest1):
             for value1, value2 in zip(nest1, nest2):
                 py_assert_same_structure(value1, value2)
         else:
-            for fv1, fv2 in zip(extract_fields_from_nest(nest1),
-                                extract_fields_from_nest(nest2)):
-                assert fv1[0] == fv2[0], \
-                    "Keys are different !{} <-> {}".format(fv1[0], fv2[0])
+            for fv1, fv2 in zip(
+                extract_fields_from_nest(nest1), extract_fields_from_nest(nest2)
+            ):
+                assert fv1[0] == fv2[0], "Keys are different !{} <-> {}".format(
+                    fv1[0], fv2[0]
+                )
                 py_assert_same_structure(fv1[1], fv2[1])
 
 
@@ -417,19 +444,25 @@ def py_map_structure_with_path(func, *nests):
         if not is_nested(nests[0]):
             return func(path, *nests)
         if isinstance(nests[0], list) or is_unnamedtuple(nests[0]):
-            ret = type(nests[0])([
-                _map(*values[:-1],
-                     path=path + ("." if path else "") + str(values[-1]))
-                for values in zip(*nests, range(len(nests[0])))
-            ])
+            ret = type(nests[0])(
+                [
+                    _map(
+                        *values[:-1],
+                        path=path + ("." if path else "") + str(values[-1]),
+                    )
+                    for values in zip(*nests, range(len(nests[0])))
+                ]
+            )
         else:
             ret = {}
             for fields_and_values in zip(
-                    *[extract_fields_from_nest(nest) for nest in nests]):
+                *[extract_fields_from_nest(nest) for nest in nests]
+            ):
                 field = fields_and_values[0][0]
                 values = map(lambda fv: fv[1], fields_and_values)
-                ret[field] = _map(*values,
-                                  path=path + ("." if path else "") + field)
+                ret[field] = _map(
+                    *values, path=path + ("." if path else "") + field
+                )
             ret = type(nests[0])(**ret)
         return ret
 
@@ -450,7 +483,8 @@ def py_map_structure(func, *nests):
         else:
             ret = {}
             for fields_and_values in zip(
-                    *[extract_fields_from_nest(nest) for nest in nests]):
+                *[extract_fields_from_nest(nest) for nest in nests]
+            ):
                 field = fields_and_values[0][0]
                 values = map(lambda fv: fv[1], fields_and_values)
                 ret[field] = _map(*values)
@@ -515,10 +549,12 @@ def py_map_structure_up_to(shallow_nest, func, *nests):
         else:
             ret = {}
             for fields_and_values in zip(
-                    *[extract_fields_from_nest(nest) for nest in nests]):
+                *[extract_fields_from_nest(nest) for nest in nests]
+            ):
                 fields = list(map(lambda fv: fv[0], fields_and_values))
-                assert fields.count(fields[0]) == len(fields), \
-                    "Fields are not all the same {}".format(fields)
+                assert fields.count(fields[0]) == len(
+                    fields
+                ), "Fields are not all the same {}".format(fields)
                 values = list(map(lambda fv: fv[1], fields_and_values))
                 ret[fields[0]] = _map(values[0], *values[1:])
             ret = type(shallow_nest)(**ret)
@@ -529,8 +565,10 @@ def py_map_structure_up_to(shallow_nest, func, *nests):
     except AssertionError as e:
         logging.error(str(e))
         raise AssertionError(
-            "map_structure_up_to() fails for a shallow_nest {} with nests {}".
-            format(shallow_nest, nests))
+            "map_structure_up_to() fails for a shallow_nest {} with nests {}".format(
+                shallow_nest, nests
+            )
+        )
 
 
 def py_map_structure_up_to_with_path(shallow_nest, func, *nests):
@@ -563,12 +601,13 @@ def py_map_structure_up_to_with_path(shallow_nest, func, *nests):
         else:
             ret = {}
             for fields_and_values in zip(
-                    *[extract_fields_from_nest(n) for n in zipped]):
+                *[extract_fields_from_nest(n) for n in zipped]
+            ):
                 field = fields_and_values[0][0]
                 values = [fv[1] for fv in fields_and_values]
-                ret[field] = _map(values[0],
-                                  path + ("." if path else "") + field,
-                                  *values[1:])
+                ret[field] = _map(
+                    values[0], path + ("." if path else "") + field, *values[1:]
+                )
             ret = type(shallow)(**ret)
         return ret
 
@@ -577,8 +616,10 @@ def py_map_structure_up_to_with_path(shallow_nest, func, *nests):
     except AssertionError as e:
         logging.error(str(e))
         raise AssertionError(
-            "map_structure_up_to_with_path() failed for shallow_nest {} and nests {}"
-            .format(shallow_nest, nests))
+            "map_structure_up_to_with_path() failed for shallow_nest {} and nests {}".format(
+                shallow_nest, nests
+            )
+        )
 
 
 def fast_map_structure_flatten(func, structure, *flat_structure):
@@ -622,7 +663,8 @@ def py_pack_sequence_as(nest, flat_seq, keep_fields_order=False):
         else:
             ret = {}
             for field, value in extract_fields_from_nest(
-                    nest, keep_order=keep_fields_order):
+                nest, keep_order=keep_fields_order
+            ):
                 ret[field] = _pack(value, flat_seq)
             ret = type(nest)(**ret)
         return ret
@@ -710,8 +752,9 @@ def find_field(nest, name, ignore_empty=True):
     elif isinstance(nest, dict) or is_namedtuple(nest):
         for field, elem in extract_fields_from_nest(nest):
             if field == name:
-                if ((elem is not None and not _is_empty(elem))
-                        or not ignore_empty):
+                if (
+                    elem is not None and not _is_empty(elem)
+                ) or not ignore_empty:
                     ret.append(elem)
             elif isinstance(elem, (dict, tuple, list)):
                 ret = ret + find_field(elem, name)
@@ -757,18 +800,23 @@ def py_prune_nest_like(nest, slim_nest, value_to_match=None):
         if is_nested(nest) or is_nested(slim_nest):
             assert_same_type(nest, slim_nest)
             if isinstance(nest, list) or is_unnamedtuple(nest):
-                assert len(nest) == len(slim_nest), \
-                    "{} should have the same length with {}".format(
-                        nest, slim_nest)
-                ret = type(nest)([
-                    sn if sn == value_to_match else _prune(n, sn)
-                    for n, sn in zip(nest, slim_nest)
-                ])
+                assert len(nest) == len(
+                    slim_nest
+                ), "{} should have the same length with {}".format(
+                    nest, slim_nest
+                )
+                ret = type(nest)(
+                    [
+                        sn if sn == value_to_match else _prune(n, sn)
+                        for n, sn in zip(nest, slim_nest)
+                    ]
+                )
             else:
                 ret = {}
                 nest_fields_values = dict(extract_fields_from_nest(nest))
                 for field, slim_nest_value in extract_fields_from_nest(
-                        slim_nest):
+                    slim_nest
+                ):
                     if field not in nest_fields_values:
                         raise ValueError("Field '%s' not in nest!" % field)
                     nest_value = nest_fields_values[field]
@@ -787,8 +835,8 @@ def py_prune_nest_like(nest, slim_nest, value_to_match=None):
     except AssertionError as e:
         logging.error(str(e))
         raise AssertionError(
-            "prune_nest_like() fails between {} and {}".format(
-                nest, slim_nest))
+            "prune_nest_like() fails between {} and {}".format(nest, slim_nest)
+        )
 
 
 def _get_all_paths(nested):
@@ -828,12 +876,14 @@ def get_field(nested, field):
             raise LookupError()
 
     try:
-        return _traverse(nested=nested,
-                         levels=field.split('.') if field else [])
+        return _traverse(
+            nested=nested, levels=field.split(".") if field else []
+        )
     except (AttributeError, LookupError, ValueError):
         raise LookupError(
-            "Cannot find path '%s' in nested. nested has paths: %s" %
-            (field, _get_all_paths(nested)))
+            "Cannot find path '%s' in nested. nested has paths: %s"
+            % (field, _get_all_paths(nested))
+        )
 
 
 def transform_nest(nested, field, func):
@@ -873,24 +923,28 @@ def transform_nest(nested, field, func):
             return func(nested)
         level = levels[0]
         if is_namedtuple(nested):
-            new_val = _traverse_transform(nested=getattr(nested, level),
-                                          levels=levels[1:])
+            new_val = _traverse_transform(
+                nested=getattr(nested, level), levels=levels[1:]
+            )
             return nested._replace(**{level: new_val})
         elif isinstance(nested, dict):
             new_val = nested.copy()
-            new_val[level] = _traverse_transform(nested=nested[level],
-                                                 levels=levels[1:])
+            new_val[level] = _traverse_transform(
+                nested=nested[level], levels=levels[1:]
+            )
             return new_val
         elif isinstance(nested, (list, tuple)):
             new_val = list(nested).copy()
             new_val[int(level)] = _traverse_transform(
-                nested=nested[int(level)], levels=levels[1:])
+                nested=nested[int(level)], levels=levels[1:]
+            )
             return type(nested)(new_val)
         else:
             raise TypeError("")
 
-    return _traverse_transform(nested=nested,
-                               levels=field.split('.') if field else [])
+    return _traverse_transform(
+        nested=nested, levels=field.split(".") if field else []
+    )
 
 
 def transform_nests(nests, field, func):
@@ -929,13 +983,15 @@ def transform_nests(nests, field, func):
         ]
         assert all(type_check), TypeError(
             "For multiple nested inputs, each of "
-            "its elements must be either a dict or namedtuple!")
+            "its elements must be either a dict or namedtuple!"
+        )
 
         level = levels[0]
         if is_namedtuple(nests[0]):
             new_vals = _traverse_transform(
                 nests=[getattr(nest, level) for nest in nests],
-                levels=levels[1:])
+                levels=levels[1:],
+            )
             return [
                 nest._replace(**{level: new_val})
                 for nest, new_val in zip(nests, new_vals)
@@ -944,14 +1000,15 @@ def transform_nests(nests, field, func):
             new_nests = [nest.copy() for nest in nests]
 
             trans_nests_level = _traverse_transform(
-                nests=[nest[level] for nest in nests], levels=levels[1:])
+                nests=[nest[level] for nest in nests], levels=levels[1:]
+            )
 
             for nest, val in zip(new_nests, trans_nests_level):
                 nest[level] = val
 
             return new_nests
 
-    return _traverse_transform(nests, levels=field.split('.') if field else [])
+    return _traverse_transform(nests, levels=field.split(".") if field else [])
 
 
 def set_field(nested, field, new_value):
@@ -974,9 +1031,9 @@ def set_field(nested, field, new_value):
     return transform_nest(nested, field, lambda _: new_value)
 
 
-def transpose(nested: Nest,
-              shallow_nest: Nest = None,
-              new_shallow_nest: Nest = None):
+def transpose(
+    nested: Nest, shallow_nest: Nest = None, new_shallow_nest: Nest = None
+):
     """Given a nest ``A`` and its shallow nest ``a``, assuming that each child
     of ``a`` has the same nest structure ``B``, this function
     returns a new nest whose shallow nest ``b`` is a shallow nest of ``B``,
@@ -1048,8 +1105,10 @@ def transpose(nested: Nest,
     transposed_matrix = list(zip(*matrix))
     new_nest = pack_sequence_as(new_shallow_nest, transposed_matrix)
     new_nest = map_structure_up_to(
-        new_shallow_nest, lambda flat: pack_sequence_as(shallow_nest, flat),
-        new_nest)
+        new_shallow_nest,
+        lambda flat: pack_sequence_as(shallow_nest, flat),
+        new_nest,
+    )
     return new_nest
 
 

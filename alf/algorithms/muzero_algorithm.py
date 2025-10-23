@@ -21,7 +21,10 @@ from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
 from alf.algorithms.config import TrainerConfig
 from alf.data_structures import AlgStep, LossInfo, TimeStep
 from alf.algorithms.mcts_algorithm import MCTSAlgorithm, MCTSInfo
-from alf.algorithms.muzero_representation_learner import MuzeroRepresentationImpl, MuzeroInfo
+from alf.algorithms.muzero_representation_learner import (
+    MuzeroRepresentationImpl,
+    MuzeroInfo,
+)
 from alf.tensor_specs import TensorSpec
 from alf.trainers.policy_trainer import Trainer
 
@@ -53,21 +56,23 @@ class MuzeroAlgorithm(OffPolicyAlgorithm):
 
     """
 
-    def __init__(self,
-                 observation_spec,
-                 action_spec,
-                 discount: float,
-                 reward_spec=TensorSpec(()),
-                 representation_learner_ctor: Callable[
-                     ..., MuzeroRepresentationImpl] = MuzeroRepresentationImpl,
-                 mcts_algorithm_ctor: Callable[...,
-                                               MCTSAlgorithm] = MCTSAlgorithm,
-                 reward_transformer=None,
-                 config: Optional[TrainerConfig] = None,
-                 enable_amp: bool = True,
-                 checkpoint=None,
-                 debug_summaries=False,
-                 name="MuZero"):
+    def __init__(
+        self,
+        observation_spec,
+        action_spec,
+        discount: float,
+        reward_spec=TensorSpec(()),
+        representation_learner_ctor: Callable[
+            ..., MuzeroRepresentationImpl
+        ] = MuzeroRepresentationImpl,
+        mcts_algorithm_ctor: Callable[..., MCTSAlgorithm] = MCTSAlgorithm,
+        reward_transformer=None,
+        config: Optional[TrainerConfig] = None,
+        enable_amp: bool = True,
+        checkpoint=None,
+        debug_summaries=False,
+        name="MuZero",
+    ):
         """
         Args:
             observation_spec (TensorSpec): representing the observations.
@@ -111,7 +116,8 @@ class MuzeroAlgorithm(OffPolicyAlgorithm):
             enable_amp=enable_amp,
             config=config,
             debug_summaries=debug_summaries,
-            name="muzero_repr")
+            name="muzero_repr",
+        )
 
         mcts = mcts_algorithm_ctor(
             observation_spec=representation_learner.model.repr_spec,
@@ -119,25 +125,28 @@ class MuzeroAlgorithm(OffPolicyAlgorithm):
             discount=discount,
             model=representation_learner.model,
             debug_summaries=debug_summaries,
-            name="muzero_policy")
+            name="muzero_policy",
+        )
 
-        super().__init__(observation_spec=observation_spec,
-                         action_spec=action_spec,
-                         reward_spec=reward_spec,
-                         train_state_spec=mcts.train_state_spec,
-                         predict_state_spec=mcts.predict_state_spec,
-                         rollout_state_spec=mcts.rollout_state_spec,
-                         config=config,
-                         debug_summaries=debug_summaries,
-                         checkpoint=checkpoint,
-                         name=name)
+        super().__init__(
+            observation_spec=observation_spec,
+            action_spec=action_spec,
+            reward_spec=reward_spec,
+            train_state_spec=mcts.train_state_spec,
+            predict_state_spec=mcts.predict_state_spec,
+            rollout_state_spec=mcts.rollout_state_spec,
+            config=config,
+            debug_summaries=debug_summaries,
+            checkpoint=checkpoint,
+            name=name,
+        )
 
         self._config = config
         self._repr_learner = representation_learner
         self._mcts = mcts
         self._reward_transformer = reward_transformer
         self._enable_amp = enable_amp
-        self._amp_dtype = alf.get_config_value('TrainerConfig.amp_dtype')
+        self._amp_dtype = alf.get_config_value("TrainerConfig.amp_dtype")
 
     def set_path(self, path):
         super().set_path(path)
@@ -149,27 +158,33 @@ class MuzeroAlgorithm(OffPolicyAlgorithm):
     def predict_step(self, time_step: TimeStep, state) -> AlgStep:
         if self._reward_transformer is not None:
             time_step = time_step._replace(
-                reward=self._reward_transformer(time_step.reward))
+                reward=self._reward_transformer(time_step.reward)
+            )
         with torch.cuda.amp.autocast(self._enable_amp, dtype=self._amp_dtype):
             latent = self._repr_learner.predict_step(time_step, state).output
             return self._mcts.predict_step(
-                time_step._replace(observation=latent), state)
+                time_step._replace(observation=latent), state
+            )
 
     def rollout_step(self, time_step: TimeStep, state) -> AlgStep:
         if self._reward_transformer is not None:
             time_step = time_step._replace(
-                reward=self._reward_transformer(time_step.reward))
+                reward=self._reward_transformer(time_step.reward)
+            )
         latent = self._repr_learner.rollout_step(time_step, state).output
-        return self._mcts.rollout_step(time_step._replace(observation=latent),
-                                       state)
+        return self._mcts.rollout_step(
+            time_step._replace(observation=latent), state
+        )
 
     def train_step(self, exp: TimeStep, state, rollout_info: MuzeroInfo):
         return self._repr_learner.train_step(exp, state, rollout_info)
 
-    def preprocess_experience(self, root_inputs: TimeStep,
-                              rollout_info: MCTSInfo, batch_info):
+    def preprocess_experience(
+        self, root_inputs: TimeStep, rollout_info: MCTSInfo, batch_info
+    ):
         return self._repr_learner.preprocess_experience(
-            root_inputs, rollout_info, batch_info)
+            root_inputs, rollout_info, batch_info
+        )
 
     def calc_loss(self, info: LossInfo):
         return self._repr_learner.calc_loss(info)

@@ -101,8 +101,8 @@ class T2Cdf_(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        x, = ctx.saved_tensors
-        return 0.5 * (1 + x**2)**(-1.5) * grad_output
+        (x,) = ctx.saved_tensors
+        return 0.5 * (1 + x**2) ** (-1.5) * grad_output
 
 
 t2cdf = T2Cdf_.apply
@@ -154,19 +154,27 @@ class TruncatedDistribution(td.Distribution):
     """
 
     arg_constraints = {
-        'loc': td.constraints.real,
-        'scale': td.constraints.positive
+        "loc": td.constraints.real,
+        "scale": td.constraints.positive,
     }
     has_rsample = True
 
-    def __init__(self, loc: Tensor, scale: Tensor, lower_bound: Tensor,
-                 upper_bound: Tensor, its: InverseTransformSampling):
-        event_shape = torch.broadcast_shapes(lower_bound.shape,
-                                             upper_bound.shape)
-        batch_shape = torch.broadcast_shapes(scale.shape, loc.shape,
-                                             event_shape)
+    def __init__(
+        self,
+        loc: Tensor,
+        scale: Tensor,
+        lower_bound: Tensor,
+        upper_bound: Tensor,
+        its: InverseTransformSampling,
+    ):
+        event_shape = torch.broadcast_shapes(
+            lower_bound.shape, upper_bound.shape
+        )
+        batch_shape = torch.broadcast_shapes(
+            scale.shape, loc.shape, event_shape
+        )
         if len(event_shape) > 0:
-            batch_shape = batch_shape[:-len(event_shape)]
+            batch_shape = batch_shape[: -len(event_shape)]
 
         self._scale = scale
         self._loc = loc
@@ -279,8 +287,11 @@ def _kl_truncated_normal_trucated_normal(p, q):
 
     """
     assert torch.all(
-        torch.logical_and(torch.isclose(p.lower_bound, q.lower_bound),
-                          torch.isclose(p.upper_bound, q.upper_bound)))
+        torch.logical_and(
+            torch.isclose(p.lower_bound, q.lower_bound),
+            torch.isclose(p.upper_bound, q.upper_bound),
+        )
+    )
 
     delta = p.loc - q.loc
     delta2 = delta**2
@@ -289,8 +300,11 @@ def _kl_truncated_normal_trucated_normal(p, q):
     # Pad sigma_q2 as it is positive will only be served as denominator
     sigma_q2 = q.scale**2 + 1e-30
 
-    c1 = 0.5 * (torch.log(q.scale) - torch.log(p.scale)) + 0.25 * (
-        delta2 + sigma_p2) / sigma_q2 - 0.25
+    c1 = (
+        0.5 * (torch.log(q.scale) - torch.log(p.scale))
+        + 0.25 * (delta2 + sigma_p2) / sigma_q2
+        - 0.25
+    )
 
     # 1 / sqrt(2 pi) = 0.3989422804014327
     c2 = -0.3989422804014327 * p.scale * delta / sigma_q2
@@ -315,7 +329,8 @@ def _kl_truncated_normal_trucated_normal(p, q):
     area_q = q._cdf_ub - q._cdf_lb
 
     return (torch.log(area_q / area_p) + before_normalization / area_p).sum(
-        dim=list(range(-len(p._event_shape), 0)))
+        dim=list(range(-len(p._event_shape), 0))
+    )
 
 
 class TruncatedCauchy(TruncatedDistribution):

@@ -42,8 +42,8 @@ class PIDController(object):
         self._K_I = K_I
         self._K_D = K_D
         self._dt = dt
-        self._integral = 0.
-        self._prev_error = 0.
+        self._integral = 0.0
+        self._prev_error = 0.0
         self._int_decay = 1 - dt / integration_time_window
 
     def step(self, current, target):
@@ -60,33 +60,39 @@ class PIDController(object):
             derivative = (error - self._prev_error) / self._dt
             self._integral = self._int_decay * self._integral + error * self._dt
         else:
-            derivative = 0.
+            derivative = 0.0
         self._prev_error = error
-        return self._K_P * error + self._K_I * self._integral + self._K_D * derivative
+        return (
+            self._K_P * error
+            + self._K_I * self._integral
+            + self._K_D * derivative
+        )
 
     def reset(self):
         """Reset the controller."""
         self._prev_error = None
-        self._integral = 0.
+        self._integral = 0.0
 
 
-@alf.configurable(blacklist=['vehicle', 'step_time'])
+@alf.configurable(blacklist=["vehicle", "step_time"])
 class VehicleController(object):
     """A simple vehicle controller using PID controller."""
 
-    def __init__(self,
-                 vehicle,
-                 step_time,
-                 max_speed=5.56,
-                 max_throttle=0.75,
-                 max_steering=0.8,
-                 max_brake=0.3,
-                 s_P=3.6,
-                 s_I=0.18,
-                 s_D=0,
-                 d_P=1.95,
-                 d_I=0.07,
-                 d_D=0.2):
+    def __init__(
+        self,
+        vehicle,
+        step_time,
+        max_speed=5.56,
+        max_throttle=0.75,
+        max_steering=0.8,
+        max_brake=0.3,
+        s_P=3.6,
+        s_I=0.18,
+        s_D=0,
+        d_P=1.95,
+        d_I=0.07,
+        d_D=0.2,
+    ):
         """
         The defaults are from https://github.com/carla-simulator/carla/blob/master/PythonAPI/carla/agents/navigation/local_planner.py.
         Note that the max_speed and gain parameters for speed are originally
@@ -118,7 +124,7 @@ class VehicleController(object):
         self._vehicle = vehicle
         self._speed_controller = PIDController(s_P, s_I, s_D, step_time)
         self._direction_controller = PIDController(d_P, d_I, d_D, step_time)
-        self._prev_steering = 0.
+        self._prev_steering = 0.0
         self._max_speed = max_speed
         self._max_throttle = max_throttle
         self._max_steering = max_steering
@@ -138,9 +144,9 @@ class VehicleController(object):
         Returns:
             alf.BoundedTensorSpec
         """
-        return alf.BoundedTensorSpec([3],
-                                     minimum=[-1., -1., 0.],
-                                     maximum=[1., 1., 1.])
+        return alf.BoundedTensorSpec(
+            [3], minimum=[-1.0, -1.0, 0.0], maximum=[1.0, 1.0, 1.0]
+        )
 
     def action_desc(self):
         """Get the description about the action.
@@ -155,7 +161,8 @@ class VehicleController(object):
             "direction is the relative direction that the vehicle is facing, with "
             "0 being front, -0.5 being left and 0.5 being right, and reverse is "
             "interpreted as a boolean value with values greater than 0.5 "
-            "corresponding to True to indicate going backward.")
+            "corresponding to True to indicate going backward."
+        )
 
     def act(self, action):
         """Generate carla.VehicleControl based on ``action``
@@ -166,8 +173,8 @@ class VehicleController(object):
             carla.VehicleControl
         """
         target_speed, target_direction, reverse = action
-        target_speed = max(0., target_speed) * self._max_speed
-        target_direction = min(1., max(-1., target_direction))
+        target_speed = max(0.0, target_speed) * self._max_speed
+        target_direction = min(1.0, max(-1.0, target_direction))
         target_direction = math.pi * target_direction
         v = self._vehicle.get_velocity()
         speed = math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
@@ -175,19 +182,20 @@ class VehicleController(object):
         control = carla.VehicleControl()
 
         acceleration = self._speed_controller.step(speed, target_speed)
-        if acceleration >= 0.:
+        if acceleration >= 0.0:
             control.throttle = min(acceleration, self._max_throttle)
-            control.brake = 0.
+            control.brake = 0.0
         else:
             control.brake = min(-acceleration, self._max_brake)
-            control.throttle = 0.
+            control.throttle = 0.0
 
         reverse = bool(reverse > 0.5)
         if reverse:
             target_direction = -target_direction
-        steering = self._direction_controller.step(0., target_direction)
-        steering = max(self._prev_steering - 0.1,
-                       min(self._prev_steering + 0.1, steering))
+        steering = self._direction_controller.step(0.0, target_direction)
+        steering = max(
+            self._prev_steering - 0.1, min(self._prev_steering + 0.1, steering)
+        )
 
         steering = max(-self._max_steering, min(self._max_steering, steering))
         control.steer = steering
@@ -204,4 +212,4 @@ class VehicleController(object):
         """Reset the controller."""
         self._speed_controller.reset()
         self._direction_controller.reset()
-        self._prev_steering = 0.
+        self._prev_steering = 0.0

@@ -19,6 +19,7 @@ import torch
 import numpy as np
 import torch.nn.functional as F
 from alf.data_structures import LossInfo
+
 try:
     from sklearn.metrics import roc_auc_score
 except:
@@ -28,7 +29,7 @@ except:
 def classification_loss(output, target):
     """Computes the cross entropy loss with respect to a batch of predictions and
     targets.
-    
+
     Args:
         output (Tensor): predictions of shape ``[B, D]`` or ``[B, N, D]``.
         target (Tensor): targets of shape ``[B]``, ``[B, 1]``, ``[B, N]``,
@@ -50,16 +51,16 @@ def classification_loss(output, target):
     else:
         output = output.reshape(output.shape[0] * target.shape[1], -1)
         target = target.reshape(-1)
-    loss = F.cross_entropy(output, target, reduction='sum')
+    loss = F.cross_entropy(output, target, reduction="sum")
     return LossInfo(loss=loss, extra=avg_acc)
 
 
 def regression_loss(output, target):
     """Computes the MSE loss with respect to a batch of predictions and
     targets.
-    
+
     Args:
-        output (Tensor): predictions of shape ``[B, 1]`` or ``[B, N, 1]`` 
+        output (Tensor): predictions of shape ``[B, 1]`` or ``[B, N, 1]``
         target (Tensor): targets of shape ``[B, 1]`` or ``[B, N, 1]``
 
     Returns:
@@ -67,11 +68,14 @@ def regression_loss(output, target):
     """
 
     out_shape = output.shape[-1]
-    assert (target.shape[-1] == out_shape), (
-        "feature dimension of output and target does not match.")
-    loss = 0.5 * F.mse_loss(output.reshape(-1, out_shape),
-                            target.reshape(-1, out_shape),
-                            reduction='sum')
+    assert (
+        target.shape[-1] == out_shape
+    ), "feature dimension of output and target does not match."
+    loss = 0.5 * F.mse_loss(
+        output.reshape(-1, out_shape),
+        target.reshape(-1, out_shape),
+        reduction="sum",
+    )
     return LossInfo(loss=loss, extra=())
 
 
@@ -79,11 +83,11 @@ def auc_score(inliers, outliers):
     """Computes the AUROC score w.r.t network outputs on two distinct datasets.
     Typically, one dataset is the main training/testing set, while the
     second dataset represents a set of unseen outliers.
-    
-    Args: 
+
+    Args:
         inliers (torch.tensor): set of predictions on inlier data
         outliers (torch.tensor): set of predictions on outlier data
-    
+
     Returns:
         AUROC score (float)
     """
@@ -94,15 +98,15 @@ def auc_score(inliers, outliers):
     try:
         auc_score = roc_auc_score(y_true, y_score)
     except NameError:
-        absl.logging.info('roc_auc_score function not defined')
+        absl.logging.info("roc_auc_score function not defined")
         auc_score = 0.5
     return auc_score
 
 
 def predict_dataset(model, testset):
-    """Computes predictions for an input dataset. 
-    
-    Args: 
+    """Computes predictions for an input dataset.
+
+    Args:
         model (Callable): model with which to compute predictions.
         testset (torch.utils.data.DataLoader): dataset for which to compute
             predictions.
@@ -110,9 +114,9 @@ def predict_dataset(model, testset):
     Returns:
         model_outputs (torch.tensor): a tensor of shape [N, S, D] where
             N refers to the number of predictors, S is the number of data
-            points, and D is the output dimensionality. 
+            points, and D is the output dimensionality.
     """
-    if hasattr(testset.dataset, 'dataset'):
+    if hasattr(testset.dataset, "dataset"):
         cls = len(testset.dataset.dataset.classes)
     else:
         cls = len(testset.dataset.classes)

@@ -24,68 +24,86 @@ from alf.data_structures import TimeStep, StepType
 class PriorActorTest(alf.test.TestCase):
 
     def test_same_actin_prior_actor(self):
-        action_spec = dict(a=BoundedTensorSpec(shape=()),
-                           b=BoundedTensorSpec((3, ),
-                                               minimum=(-1, 0, -2),
-                                               maximum=(2, 2, 3)),
-                           c=BoundedTensorSpec((2, 3), minimum=-1, maximum=1))
-        actor = SameActionPriorActor(observation_spec=(),
-                                     action_spec=action_spec)
-        batch = TimeStep(step_type=torch.tensor([StepType.FIRST,
-                                                 StepType.MID]),
-                         prev_action=dict(a=torch.tensor([0., 1.]),
-                                          b=torch.tensor([[-1., 0., -2.],
-                                                          [2., 2., 3.]]),
-                                          c=action_spec['c'].sample((2, ))))
+        action_spec = dict(
+            a=BoundedTensorSpec(shape=()),
+            b=BoundedTensorSpec((3,), minimum=(-1, 0, -2), maximum=(2, 2, 3)),
+            c=BoundedTensorSpec((2, 3), minimum=-1, maximum=1),
+        )
+        actor = SameActionPriorActor(
+            observation_spec=(), action_spec=action_spec
+        )
+        batch = TimeStep(
+            step_type=torch.tensor([StepType.FIRST, StepType.MID]),
+            prev_action=dict(
+                a=torch.tensor([0.0, 1.0]),
+                b=torch.tensor([[-1.0, 0.0, -2.0], [2.0, 2.0, 3.0]]),
+                c=action_spec["c"].sample((2,)),
+            ),
+        )
         alg_step = actor.predict_step(batch, ())
         self.assertAlmostEqual(
-            alg_step.output['a'].log_prob(torch.tensor([0., 0.]))[0],
-            alg_step.output['a'].log_prob(torch.tensor([1., 1.]))[0],
-            delta=1e-6)
+            alg_step.output["a"].log_prob(torch.tensor([0.0, 0.0]))[0],
+            alg_step.output["a"].log_prob(torch.tensor([1.0, 1.0]))[0],
+            delta=1e-6,
+        )
         self.assertAlmostEqual(
-            alg_step.output['a'].log_prob(torch.tensor([0., 0.]))[1],
-            alg_step.output['a'].log_prob(torch.tensor([0., 0.]))[0] +
-            math.log(0.1),
-            delta=1e-6)
+            alg_step.output["a"].log_prob(torch.tensor([0.0, 0.0]))[1],
+            alg_step.output["a"].log_prob(torch.tensor([0.0, 0.0]))[0]
+            + math.log(0.1),
+            delta=1e-6,
+        )
 
-        self.assertAlmostEqual(alg_step.output['b'].log_prob(
-            torch.tensor([[-1., 0., -2.]] * 2))[0],
-                               alg_step.output['b'].log_prob(
-                                   torch.tensor([[2., 2., 3.]] * 2))[0],
-                               delta=1e-6)
+        self.assertAlmostEqual(
+            alg_step.output["b"].log_prob(
+                torch.tensor([[-1.0, 0.0, -2.0]] * 2)
+            )[0],
+            alg_step.output["b"].log_prob(torch.tensor([[2.0, 2.0, 3.0]] * 2))[
+                0
+            ],
+            delta=1e-6,
+        )
 
-        self.assertAlmostEqual(alg_step.output['b'].log_prob(
-            torch.tensor([[-1., 0., -2.]] * 2))[1],
-                               alg_step.output['b'].log_prob(
-                                   torch.tensor([[-1., 0., -2.]] * 2))[0] +
-                               3 * math.log(0.1),
-                               delta=1e-6)
+        self.assertAlmostEqual(
+            alg_step.output["b"].log_prob(
+                torch.tensor([[-1.0, 0.0, -2.0]] * 2)
+            )[1],
+            alg_step.output["b"].log_prob(
+                torch.tensor([[-1.0, 0.0, -2.0]] * 2)
+            )[0]
+            + 3 * math.log(0.1),
+            delta=1e-6,
+        )
 
     def test_uniform_prior_actor(self):
-        action_spec = dict(a=BoundedTensorSpec(shape=()),
-                           b=BoundedTensorSpec((3, ),
-                                               minimum=(-1, 0, -2),
-                                               maximum=(2, 2, 3)),
-                           c=BoundedTensorSpec((2, 3), minimum=-1, maximum=1))
+        action_spec = dict(
+            a=BoundedTensorSpec(shape=()),
+            b=BoundedTensorSpec((3,), minimum=(-1, 0, -2), maximum=(2, 2, 3)),
+            c=BoundedTensorSpec((2, 3), minimum=-1, maximum=1),
+        )
         actor = UniformPriorActor(observation_spec=(), action_spec=action_spec)
-        batch = TimeStep(step_type=torch.tensor([StepType.FIRST,
-                                                 StepType.MID]),
-                         prev_action=dict(a=torch.tensor([0., 1.]),
-                                          b=torch.tensor([[-1., 0., -2.],
-                                                          [2., 2., 3.]]),
-                                          c=action_spec['c'].sample((2, ))))
+        batch = TimeStep(
+            step_type=torch.tensor([StepType.FIRST, StepType.MID]),
+            prev_action=dict(
+                a=torch.tensor([0.0, 1.0]),
+                b=torch.tensor([[-1.0, 0.0, -2.0], [2.0, 2.0, 3.0]]),
+                c=action_spec["c"].sample((2,)),
+            ),
+        )
 
         alg_step = actor.predict_step(batch, ())
         self.assertEqual(
-            alg_step.output['a'].log_prob(action_spec['a'].sample()),
-            torch.tensor((0., ) * 2))
+            alg_step.output["a"].log_prob(action_spec["a"].sample()),
+            torch.tensor((0.0,) * 2),
+        )
         self.assertEqual(
-            alg_step.output['b'].log_prob(action_spec['b'].sample()),
-            -torch.tensor((30., ) * 2).log())
+            alg_step.output["b"].log_prob(action_spec["b"].sample()),
+            -torch.tensor((30.0,) * 2).log(),
+        )
         self.assertEqual(
-            alg_step.output['c'].log_prob(action_spec['c'].sample()),
-            -torch.tensor((64., ) * 2).log())
+            alg_step.output["c"].log_prob(action_spec["c"].sample()),
+            -torch.tensor((64.0,) * 2).log(),
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

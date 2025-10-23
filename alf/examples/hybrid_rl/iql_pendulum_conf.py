@@ -22,7 +22,7 @@ from alf.algorithms.iql_algorithm import IqlAlgorithm
 # default params
 lr = 1e-4
 encoding_dim = 256
-fc_layers_params = (encoding_dim, ) * 2
+fc_layers_params = (encoding_dim,) * 2
 activation = torch.relu_
 
 offline_buffer_length = None
@@ -30,52 +30,58 @@ offline_buffer_dir = [
     "./hybrid_rl/replay_buffer_data/pendulum_replay_buffer_from_sac_10k"
 ]
 
-alf.config("create_environment",
-           env_name="Pendulum-v0",
-           num_parallel_environments=1)
+alf.config(
+    "create_environment", env_name="Pendulum-v0", num_parallel_environments=1
+)
 
 alf.config(
-    'Agent',
+    "Agent",
     rl_algorithm_cls=IqlAlgorithm,
     optimizer=alf.optimizers.Adam(lr=lr),
 )
 
-alf.config('TrainerConfig',
-           algorithm_ctor=Agent,
-           whole_replay_buffer_training=False,
-           clear_replay_buffer=False)
+alf.config(
+    "TrainerConfig",
+    algorithm_ctor=Agent,
+    whole_replay_buffer_training=False,
+    clear_replay_buffer=False,
+)
 
 # these clip values are set according to IQL's hyper-parameter values
-alf.config('clipped_exp', clip_value_min=-5.0, clip_value_max=2.0)
+alf.config("clipped_exp", clip_value_min=-5.0, clip_value_max=2.0)
 
 proj_net = partial(
     alf.networks.NormalProjectionNetwork,
     state_dependent_std=False,  # IQL uses state independent std
     scale_distribution=False,  # IQL scales mean instead of distribution
-    std_transform=alf.math.clipped_exp)
+    std_transform=alf.math.clipped_exp,
+)
 
 actor_distribution_network_cls = partial(
     alf.networks.ActorDistributionNetwork,
     fc_layer_params=fc_layers_params,
     activation=activation,
-    continuous_projection_net_ctor=proj_net)
+    continuous_projection_net_ctor=proj_net,
+)
 
 critic_network_cls = partial(
     alf.networks.CriticNetwork,
     joint_fc_layer_params=fc_layers_params,
 )
 
-v_network_cls = partial(alf.networks.ValueNetwork,
-                        fc_layer_params=fc_layers_params)
+v_network_cls = partial(
+    alf.networks.ValueNetwork, fc_layer_params=fc_layers_params
+)
 
 alf.config(
-    'IqlAlgorithm',
+    "IqlAlgorithm",
     actor_network_cls=actor_distribution_network_cls,
     critic_network_cls=critic_network_cls,
     v_network_cls=v_network_cls,
     target_update_tau=0.005,
     expectile=0.8,  # expectile might need to be tuned for different tasks
-    temperature=1.0)  # temperature might need to be tuned for different tasks
+    temperature=1.0,
+)  # temperature might need to be tuned for different tasks
 
 num_iterations = 20000
 

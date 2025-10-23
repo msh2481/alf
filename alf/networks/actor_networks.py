@@ -39,13 +39,15 @@ class ActorNetworkBase(Network):
     different encoding network creators.
     """
 
-    def __init__(self,
-                 input_tensor_spec: alf.NestedTensorSpec,
-                 action_spec: alf.NestedTensorSpec,
-                 encoding_network_ctor: Callable = EncodingNetwork,
-                 squashing_func=torch.tanh,
-                 name="ActorNetworkBase",
-                 **encoder_kwargs):
+    def __init__(
+        self,
+        input_tensor_spec: alf.NestedTensorSpec,
+        action_spec: alf.NestedTensorSpec,
+        encoding_network_ctor: Callable = EncodingNetwork,
+        squashing_func=torch.tanh,
+        name="ActorNetworkBase",
+        **encoder_kwargs,
+    ):
         """
         Args:
             input_tensor_spec: the tensor spec of the input.
@@ -59,12 +61,13 @@ class ActorNetworkBase(Network):
         """
         super().__init__(input_tensor_spec, name=name)
 
-        if encoder_kwargs.get('kernel_initializer', None) is None:
-            encoder_kwargs['kernel_initializer'] = functools.partial(
+        if encoder_kwargs.get("kernel_initializer", None) is None:
+            encoder_kwargs["kernel_initializer"] = functools.partial(
                 variance_scaling_init,
                 gain=math.sqrt(1.0 / 3),
-                mode='fan_in',
-                distribution='uniform')
+                mode="fan_in",
+                distribution="uniform",
+            )
 
         self._action_spec = action_spec
         flat_action_spec = nest.flatten(action_spec)
@@ -76,20 +79,25 @@ class ActorNetworkBase(Network):
         ]
         assert all(is_continuous), "only continuous action is supported"
 
-        self._encoding_net = encoding_network_ctor(input_tensor_spec,
-                                                   name=self.name +
-                                                   '.encoding_net',
-                                                   **encoder_kwargs)
+        self._encoding_net = encoding_network_ctor(
+            input_tensor_spec,
+            name=self.name + ".encoding_net",
+            **encoder_kwargs,
+        )
 
-        last_kernel_initializer = functools.partial(torch.nn.init.uniform_, \
-                                    a=-0.003, b=0.003)
+        last_kernel_initializer = functools.partial(
+            torch.nn.init.uniform_, a=-0.003, b=0.003
+        )
         self._action_layers = nn.ModuleList()
         self._squashing_func = squashing_func
         for single_action_spec in flat_action_spec:
             self._action_layers.append(
-                layers.FC(self._encoding_net.output_spec.shape[0],
-                          single_action_spec.shape[0],
-                          kernel_initializer=last_kernel_initializer))
+                layers.FC(
+                    self._encoding_net.output_spec.shape[0],
+                    single_action_spec.shape[0],
+                    kernel_initializer=last_kernel_initializer,
+                )
+            )
 
     def forward(self, observation, state=()):
         """Computes action given an observation.
@@ -115,19 +123,32 @@ class ActorNetworkBase(Network):
 
             if alf.summary.should_summarize_output():
                 alf.summary.scalar(
-                    name='summarize_output/' + self.name + '.action_layer.' +
-                    str(i) + '.pre_activation.output_norm.' +
-                    common.exe_mode_name(),
+                    name="summarize_output/"
+                    + self.name
+                    + ".action_layer."
+                    + str(i)
+                    + ".pre_activation.output_norm."
+                    + common.exe_mode_name(),
                     data=torch.mean(
                         pre_activation.norm(
-                            dim=list(range(1, pre_activation.ndim)))))
-                a_name = ('summarize_output/' + self.name + '.action_layer.' +
-                          str(i) + '.action.output_norm.' +
-                          common.exe_mode_name())
+                            dim=list(range(1, pre_activation.ndim))
+                        )
+                    ),
+                )
+                a_name = (
+                    "summarize_output/"
+                    + self.name
+                    + ".action_layer."
+                    + str(i)
+                    + ".action.output_norm."
+                    + common.exe_mode_name()
+                )
                 alf.summary.scalar(
                     name=a_name,
                     data=torch.mean(
-                        action.norm(dim=list(range(1, action.ndim)))))
+                        action.norm(dim=list(range(1, action.ndim)))
+                    ),
+                )
 
             actions.append(action)
             i += 1
@@ -145,17 +166,19 @@ class ActorNetworkBase(Network):
 @alf.configurable
 class ActorNetwork(ActorNetworkBase):
 
-    def __init__(self,
-                 input_tensor_spec: TensorSpec,
-                 action_spec: BoundedTensorSpec,
-                 input_preprocessors=None,
-                 preprocessing_combiner=None,
-                 conv_layer_params=None,
-                 fc_layer_params=None,
-                 activation=torch.relu_,
-                 squashing_func=torch.tanh,
-                 kernel_initializer=None,
-                 name="ActorNetwork"):
+    def __init__(
+        self,
+        input_tensor_spec: TensorSpec,
+        action_spec: BoundedTensorSpec,
+        input_preprocessors=None,
+        preprocessing_combiner=None,
+        conv_layer_params=None,
+        fc_layer_params=None,
+        activation=torch.relu_,
+        squashing_func=torch.tanh,
+        kernel_initializer=None,
+        name="ActorNetwork",
+    ):
         """Creates an instance of ``ActorNetwork``, which maps the inputs to
         actions (single or nested) through a sequence of deterministic layers.
 
@@ -191,36 +214,39 @@ class ActorNetwork(ActorNetworkBase):
                 with uniform distribution will be used.
             name (str): name of the network
         """
-        super(ActorNetwork,
-              self).__init__(input_tensor_spec=input_tensor_spec,
-                             action_spec=action_spec,
-                             encoding_network_ctor=EncodingNetwork,
-                             squashing_func=squashing_func,
-                             name=name,
-                             input_preprocessors=input_preprocessors,
-                             preprocessing_combiner=preprocessing_combiner,
-                             conv_layer_params=conv_layer_params,
-                             fc_layer_params=fc_layer_params,
-                             activation=activation,
-                             kernel_initializer=kernel_initializer)
+        super(ActorNetwork, self).__init__(
+            input_tensor_spec=input_tensor_spec,
+            action_spec=action_spec,
+            encoding_network_ctor=EncodingNetwork,
+            squashing_func=squashing_func,
+            name=name,
+            input_preprocessors=input_preprocessors,
+            preprocessing_combiner=preprocessing_combiner,
+            conv_layer_params=conv_layer_params,
+            fc_layer_params=fc_layer_params,
+            activation=activation,
+            kernel_initializer=kernel_initializer,
+        )
 
 
 @alf.configurable
 class ActorRNNNetwork(ActorNetworkBase):
 
-    def __init__(self,
-                 input_tensor_spec: TensorSpec,
-                 action_spec: BoundedTensorSpec,
-                 input_preprocessors=None,
-                 preprocessing_combiner=None,
-                 conv_layer_params=None,
-                 fc_layer_params=None,
-                 lstm_hidden_size=100,
-                 actor_fc_layer_params=None,
-                 activation=torch.relu_,
-                 squashing_func=torch.tanh,
-                 kernel_initializer=None,
-                 name="ActorRNNNetwork"):
+    def __init__(
+        self,
+        input_tensor_spec: TensorSpec,
+        action_spec: BoundedTensorSpec,
+        input_preprocessors=None,
+        preprocessing_combiner=None,
+        conv_layer_params=None,
+        fc_layer_params=None,
+        lstm_hidden_size=100,
+        actor_fc_layer_params=None,
+        activation=torch.relu_,
+        squashing_func=torch.tanh,
+        kernel_initializer=None,
+        name="ActorRNNNetwork",
+    ):
         """Creates an instance of `ActorRNNNetwork`, which maps the inputs
         (observation and states) to actions (single or nested) through a
         sequence of deterministic layers.
@@ -262,17 +288,18 @@ class ActorRNNNetwork(ActorNetworkBase):
                 with uniform distribution will be used.
             name (str): name of the network
         """
-        super(ActorRNNNetwork,
-              self).__init__(input_tensor_spec,
-                             action_spec,
-                             encoding_network_ctor=LSTMEncodingNetwork,
-                             squashing_func=squashing_func,
-                             name=name,
-                             input_preprocessors=input_preprocessors,
-                             preprocessing_combiner=preprocessing_combiner,
-                             conv_layer_params=conv_layer_params,
-                             pre_fc_layer_params=fc_layer_params,
-                             hidden_size=lstm_hidden_size,
-                             post_fc_layer_params=actor_fc_layer_params,
-                             activation=activation,
-                             kernel_initializer=kernel_initializer)
+        super(ActorRNNNetwork, self).__init__(
+            input_tensor_spec,
+            action_spec,
+            encoding_network_ctor=LSTMEncodingNetwork,
+            squashing_func=squashing_func,
+            name=name,
+            input_preprocessors=input_preprocessors,
+            preprocessing_combiner=preprocessing_combiner,
+            conv_layer_params=conv_layer_params,
+            pre_fc_layer_params=fc_layer_params,
+            hidden_size=lstm_hidden_size,
+            post_fc_layer_params=actor_fc_layer_params,
+            activation=activation,
+            kernel_initializer=kernel_initializer,
+        )

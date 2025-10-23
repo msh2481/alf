@@ -62,14 +62,15 @@ def huber_function(x: torch.Tensor, delta: float = 1.0):
     Returns:
         Huber function (Tensor)
     """
-    return torch.where(x.abs() <= delta, 0.5 * x**2,
-                       delta * (x.abs() - 0.5 * delta))
+    return torch.where(
+        x.abs() <= delta, 0.5 * x**2, delta * (x.abs() - 0.5 * delta)
+    )
 
 
 @alf.configurable
-def multi_quantile_huber_loss(quantiles: torch.Tensor,
-                              target: torch.Tensor,
-                              delta: float = 0.1) -> torch.Tensor:
+def multi_quantile_huber_loss(
+    quantiles: torch.Tensor, target: torch.Tensor, delta: float = 0.1
+) -> torch.Tensor:
     """Multi-quantile Huber loss
 
     The loss for simultaneous multiple quantile regression. The number of quantiles
@@ -94,7 +95,7 @@ def multi_quantile_huber_loss(quantiles: torch.Tensor,
         loss of batch_shape
     """
     num_quantiles = quantiles.shape[-1]
-    t = torch.arange(0.5 / num_quantiles, 1., 1. / num_quantiles)
+    t = torch.arange(0.5 / num_quantiles, 1.0, 1.0 / num_quantiles)
     if target.ndim == quantiles.ndim - 1:
         target = target.unsqueeze(-1)
     assert quantiles.shape[:-1] == target.shape[:-1]
@@ -105,19 +106,22 @@ def multi_quantile_huber_loss(quantiles: torch.Tensor,
     else:
         c = (t - (d < 0).float()).abs()
         d_abs = d.abs()
-        loss = c * torch.where(d_abs < delta,
-                               (0.5 / delta) * d**2, d_abs - 0.5 * delta)
+        loss = c * torch.where(
+            d_abs < delta, (0.5 / delta) * d**2, d_abs - 0.5 * delta
+        )
     return loss.mean(dim=(-2, -1))
 
 
 @alf.configurable
-def iqn_huber_loss(value: torch.Tensor,
-                   target: torch.Tensor,
-                   tau_hat: Optional[torch.Tensor] = (),
-                   next_delta_tau: Optional[torch.Tensor] = (),
-                   fixed_tau: Optional[torch.Tensor] = (),
-                   sum_over_quantiles: bool = True,
-                   loss_fn: Callable = huber_function):
+def iqn_huber_loss(
+    value: torch.Tensor,
+    target: torch.Tensor,
+    tau_hat: Optional[torch.Tensor] = (),
+    next_delta_tau: Optional[torch.Tensor] = (),
+    fixed_tau: Optional[torch.Tensor] = (),
+    sum_over_quantiles: bool = True,
+    loss_fn: Callable = huber_function,
+):
     """Huber loss used by the following IQN paper:
 
     ::
@@ -129,7 +133,7 @@ def iqn_huber_loss(value: torch.Tensor,
             is between this and the target.
         target: the time-major tensor for return, this is used as the target
             for computing the loss.
-        next_delta_tau: the sampled increments of the probability for the input 
+        next_delta_tau: the sampled increments of the probability for the input
             of the quantile function of the target critics.
         fixed_tau: the fixed increments of probability, for non iqn style
             quantile regression.
@@ -153,7 +157,8 @@ def iqn_huber_loss(value: torch.Tensor,
     # (T-1 or T, B, reward_dim, n_quantiles, n_quantiles) for multi-dim reward
     assert value.shape[0] == target.shape[0]
     if isinstance(tau_hat, torch.Tensor) and isinstance(
-            next_delta_tau, torch.Tensor):
+        next_delta_tau, torch.Tensor
+    ):
         assert tau_hat.shape[0] == next_delta_tau.shape[0] == target.shape[0]
         iqn_tau = True
     else:
@@ -171,10 +176,11 @@ def iqn_huber_loss(value: torch.Tensor,
             # while tau_hat and next_delta_tau have shape [T or T-1, B, n_quantiles]
             tau_hat = tau_hat.unsqueeze(-2)
             next_delta_tau = next_delta_tau.unsqueeze(-2)
-        loss = torch.abs(
-            (tau_hat.unsqueeze(-2) -
-             (diff.detach()
-              < 0).float())) * error * next_delta_tau.unsqueeze(-1)
+        loss = (
+            torch.abs((tau_hat.unsqueeze(-2) - (diff.detach() < 0).float()))
+            * error
+            * next_delta_tau.unsqueeze(-1)
+        )
     else:
         loss = torch.abs((fixed_tau - (diff.detach() < 0).float())) * error
     if sum_over_quantiles:
@@ -199,8 +205,7 @@ class ScalarPredictionLoss(object):
         raise NotImplementedError()
 
     def calc_expectation(self, pred: torch.Tensor):
-        """Calculate the expected predition in the untransfomred domain from ``pred``.
-        """
+        """Calculate the expected predition in the untransfomred domain from ``pred``."""
         raise NotImplementedError()
 
     def initialize_bias(self, bias: torch.Tensor):
@@ -246,7 +251,7 @@ class SquareLoss(ScalarPredictionLoss):
 
         if self._transform is not None:
             target = self._transform.transform(target)
-        return (pred - target)**2
+        return (pred - target) ** 2
 
     def calc_expectation(self, pred: torch.Tensor):
         """Calculate the expected predition in the untransfomred domain from ``pred``.
@@ -278,16 +283,19 @@ def _get_indexer(shape: Tuple[int]):
     ndim = len(shape)
     ones = [1] * ndim
     B = tuple(
-        torch.arange(d).reshape(d, *ones[i + 1:]) for i, d in enumerate(shape))
+        torch.arange(d).reshape(d, *ones[i + 1 :]) for i, d in enumerate(shape)
+    )
     return B
 
 
 class _DiscreteRegressionLossBase(ScalarPredictionLoss):
     """The base class for DiscreteRegressionLoss and OrderedDiscreteRegresionLoss."""
 
-    def __init__(self,
-                 transform: Optional[InvertibleTransform] = None,
-                 inverse_after_mean=False):
+    def __init__(
+        self,
+        transform: Optional[InvertibleTransform] = None,
+        inverse_after_mean=False,
+    ):
         super().__init__()
         self._transform = transform
         if self._transform is not None:
@@ -384,7 +392,7 @@ class DiscreteRegressionLoss(_DiscreteRegressionLossBase):
         w1 = 1 - w2
         nlp = -F.log_softmax(logits, dim=-1)
         B = _get_indexer(logits.shape[:-1])
-        loss = w1 * nlp[B + (bin1, )] + w2 * nlp[B + (bin2, )]
+        loss = w1 * nlp[B + (bin1,)] + w2 * nlp[B + (bin2,)]
         neg_entropy = w1.xlogy(w1) + w2.xlogy(w2)
         return (loss + neg_entropy).relu()
 
@@ -467,11 +475,11 @@ class OrderedDiscreteRegressionLoss(_DiscreteRegressionLossBase):
         w = F.one_hot(bin1, num_classes=n).to(logits.dtype)
         w = 1 - w.cumsum(dim=-1)
         B = _get_indexer(target.shape)
-        w[B + (bin2, )] = w2
-        w[B + (bin1, )] = 1
-        cross_entropy = F.binary_cross_entropy_with_logits(logits,
-                                                           w,
-                                                           reduction='none')
+        w[B + (bin2,)] = w2
+        w[B + (bin1,)] = 1
+        cross_entropy = F.binary_cross_entropy_with_logits(
+            logits, w, reduction="none"
+        )
         kld = cross_entropy + binary_neg_entropy(w)
         return kld.relu().sum(dim=-1)
 
@@ -491,7 +499,8 @@ class OrderedDiscreteRegressionLoss(_DiscreteRegressionLossBase):
                 pred = self._transform.inverse_transform(pred)
         else:
             probs = torch.cat(
-                [probs[..., :-1] - probs[..., 1:], probs[..., -1:]], dim=-1)
+                [probs[..., :-1] - probs[..., 1:], probs[..., -1:]], dim=-1
+            )
             support = self._calc_support(logits.shape[-1])
             pred = torch.mv(probs, support)
         return pred
@@ -521,7 +530,8 @@ class OrderedDiscreteRegressionLoss(_DiscreteRegressionLossBase):
         probs = probs / probs.sum()
         probs = probs.cumsum(dim=0)
         probs = torch.cat(
-            [torch.tensor([1e-20], dtype=torch.float64), probs[:-1]], dim=0)
+            [torch.tensor([1e-20], dtype=torch.float64), probs[:-1]], dim=0
+        )
         with torch.no_grad():
             bias.copy_(((1 - probs) / probs).log().to(torch.float32))
 
@@ -557,10 +567,12 @@ class QuantileRegressionLoss(ScalarPredictionLoss):
             to mean of the samples).
     """
 
-    def __init__(self,
-                 transform: Optional[InvertibleTransform] = None,
-                 inverse_after_mean: bool = False,
-                 delta: float = 0.0):
+    def __init__(
+        self,
+        transform: Optional[InvertibleTransform] = None,
+        inverse_after_mean: bool = False,
+        delta: float = 0.0,
+    ):
         super().__init__()
         self._transform = transform
         self._delta = delta
@@ -588,11 +600,9 @@ class QuantileRegressionLoss(ScalarPredictionLoss):
         """
         if self._transform is not None:
             if self._inverse_after_mean:
-                return self._transform.inverse_transform(
-                    quantiles.mean(dim=-1))
+                return self._transform.inverse_transform(quantiles.mean(dim=-1))
             else:
-                return self._transform.inverse_transform(quantiles).mean(
-                    dim=-1)
+                return self._transform.inverse_transform(quantiles).mean(dim=-1)
         else:
             return quantiles.mean(dim=-1)
 
@@ -628,55 +638,68 @@ class AsymmetricSimSiamLoss(nn.Module):
         name: name of this loss
     """
 
-    def __init__(self,
-                 proj_net: Optional[alf.nn.Network] = None,
-                 pred_net: Optional[alf.nn.Network] = None,
-                 input_size: Optional[int] = None,
-                 proj_hidden_size: int = 256,
-                 pred_hidden_size: int = 128,
-                 output_size: int = 256,
-                 proj_last_use_bn: bool = False,
-                 eps: float = 1e-5,
-                 fixed_weight_norm: bool = False,
-                 lr: Optional[float] = None,
-                 debug_summaries: bool = True,
-                 name: str = "SimSiamLoss"):
+    def __init__(
+        self,
+        proj_net: Optional[alf.nn.Network] = None,
+        pred_net: Optional[alf.nn.Network] = None,
+        input_size: Optional[int] = None,
+        proj_hidden_size: int = 256,
+        pred_hidden_size: int = 128,
+        output_size: int = 256,
+        proj_last_use_bn: bool = False,
+        eps: float = 1e-5,
+        fixed_weight_norm: bool = False,
+        lr: Optional[float] = None,
+        debug_summaries: bool = True,
+        name: str = "SimSiamLoss",
+    ):
         super().__init__()
         if proj_net is None:
-            assert input_size is not None, "input_size must be provided if proj_net is not given"
+            assert (
+                input_size is not None
+            ), "input_size must be provided if proj_net is not given"
             proj_net = alf.nn.Sequential(
                 alf.layers.Reshape(-1),
-                alf.layers.FC(input_size,
-                              proj_hidden_size,
-                              activation=torch.relu_,
-                              use_bn=True,
-                              weight_opt_args=dict(
-                                  fixed_norm=fixed_weight_norm, lr=lr)),
-                alf.layers.FC(proj_hidden_size,
-                              proj_hidden_size,
-                              activation=torch.relu_,
-                              use_bn=True,
-                              weight_opt_args=dict(
-                                  fixed_norm=fixed_weight_norm, lr=lr)),
-                alf.layers.FC(proj_hidden_size,
-                              output_size,
-                              use_bn=proj_last_use_bn,
-                              weight_opt_args=dict(lr=lr,
-                                                   fixed_norm=fixed_weight_norm
-                                                   and proj_last_use_bn)),
-                input_tensor_spec=alf.TensorSpec((input_size, )))
+                alf.layers.FC(
+                    input_size,
+                    proj_hidden_size,
+                    activation=torch.relu_,
+                    use_bn=True,
+                    weight_opt_args=dict(fixed_norm=fixed_weight_norm, lr=lr),
+                ),
+                alf.layers.FC(
+                    proj_hidden_size,
+                    proj_hidden_size,
+                    activation=torch.relu_,
+                    use_bn=True,
+                    weight_opt_args=dict(fixed_norm=fixed_weight_norm, lr=lr),
+                ),
+                alf.layers.FC(
+                    proj_hidden_size,
+                    output_size,
+                    use_bn=proj_last_use_bn,
+                    weight_opt_args=dict(
+                        lr=lr, fixed_norm=fixed_weight_norm and proj_last_use_bn
+                    ),
+                ),
+                input_tensor_spec=alf.TensorSpec((input_size,)),
+            )
         output_size = proj_net.output_spec.numel
         if pred_net is None:
             pred_net = alf.nn.Sequential(
-                alf.layers.FC(output_size,
-                              pred_hidden_size,
-                              activation=torch.relu_,
-                              use_bn=True,
-                              weight_opt_args=dict(
-                                  lr=lr, fixed_norm=fixed_weight_norm)),
-                alf.layers.FC(pred_hidden_size,
-                              output_size,
-                              weight_opt_args=dict(lr=lr, fixed_norm=False)))
+                alf.layers.FC(
+                    output_size,
+                    pred_hidden_size,
+                    activation=torch.relu_,
+                    use_bn=True,
+                    weight_opt_args=dict(lr=lr, fixed_norm=fixed_weight_norm),
+                ),
+                alf.layers.FC(
+                    pred_hidden_size,
+                    output_size,
+                    weight_opt_args=dict(lr=lr, fixed_norm=False),
+                ),
+            )
         self._proj_net = proj_net
         self._pred_net = pred_net
         self._eps = eps
@@ -698,26 +721,26 @@ class AsymmetricSimSiamLoss(nn.Module):
         target = target.reshape(B * T, *target.shape[2:])
         pred = pred.reshape(B * T, *pred.shape[2:])
         if self._debug_summaries and alf.summary.should_record_summaries():
-            pred = summary_utils.summarize_tensor_gradients("pred_grad",
-                                                            pred,
-                                                            clone=True)
+            pred = summary_utils.summarize_tensor_gradients(
+                "pred_grad", pred, clone=True
+            )
         with torch.no_grad():
             projected_target = self._proj_net(target.to(pred.dtype))[0]
-            norm_projected_target = F.normalize(projected_target.detach(),
-                                                dim=1,
-                                                eps=self._eps)
+            norm_projected_target = F.normalize(
+                projected_target.detach(), dim=1, eps=self._eps
+            )
         projected_pred = self._proj_net(pred)[0]
         predicted_projected_pred = self._pred_net(projected_pred)[0]
-        norm_predicted_projected_pred = F.normalize(predicted_projected_pred,
-                                                    dim=1,
-                                                    eps=self._eps)
-        cos = (norm_projected_target *
-               norm_predicted_projected_pred).sum(dim=1)
+        norm_predicted_projected_pred = F.normalize(
+            predicted_projected_pred, dim=1, eps=self._eps
+        )
+        cos = (norm_projected_target * norm_predicted_projected_pred).sum(dim=1)
         if self._debug_summaries and alf.summary.should_record_summaries():
             summary_utils.add_mean_hist_summary("cos", cos)
             summary_utils.add_mean_hist_summary(
                 "predicted_projected_pred_norm",
-                predicted_projected_pred.norm(dim=1))
+                predicted_projected_pred.norm(dim=1),
+            )
         return (1 - cos).reshape(B, T)
 
 
@@ -732,10 +755,12 @@ class MeanSquaredLoss(object):
             as batch dimension. The mean is performed on the rest of the dimensions.
     """
 
-    def __init__(self,
-                 batch_dims: int = 1,
-                 debug_summaries: bool = True,
-                 name: str = "MSELoss"):
+    def __init__(
+        self,
+        batch_dims: int = 1,
+        debug_summaries: bool = True,
+        name: str = "MSELoss",
+    ):
         super().__init__()
         self._debug_summaries = debug_summaries
         self._name = name
@@ -753,12 +778,12 @@ class MeanSquaredLoss(object):
         """
         assert pred.shape == target.shape
         if self._debug_summaries and alf.summary.should_record_summaries():
-            pred = summary_utils.summarize_tensor_gradients("pred_grad",
-                                                            pred,
-                                                            clone=True)
+            pred = summary_utils.summarize_tensor_gradients(
+                "pred_grad", pred, clone=True
+            )
         ndim = pred.ndim
         assert ndim >= self._batch_dims
-        loss = (pred - target)**2
+        loss = (pred - target) ** 2
         if ndim > self._batch_dims:
             loss = loss.mean(dim=list(range(self._batch_dims, ndim)))
         return loss
@@ -792,9 +817,9 @@ class BipartiteMatchingLoss(object):
         `<https://github.com/facebookresearch/detr/blob/main/models/matcher.py>`_
     """
 
-    def __init__(self,
-                 reduction: str = 'mean',
-                 name: str = "BipartiteMatchingLoss"):
+    def __init__(
+        self, reduction: str = "mean", name: str = "BipartiteMatchingLoss"
+    ):
         """
         Args:
             reduction: 'sum', 'mean' or 'none'. This is how to reduce the matching
@@ -803,12 +828,12 @@ class BipartiteMatchingLoss(object):
         """
         super().__init__()
         self._reduction = reduction
-        assert reduction in ['mean', 'sum', 'none']
+        assert reduction in ["mean", "sum", "none"]
         self._name = name
 
-    def forward(self,
-                matching_cost_mat: torch.Tensor,
-                cost_mat: torch.Tensor = None):
+    def forward(
+        self, matching_cost_mat: torch.Tensor, cost_mat: torch.Tensor = None
+    ):
         """Compute the optimal matching loss.
 
         Args:
@@ -831,12 +856,11 @@ class BipartiteMatchingLoss(object):
 
         with torch.no_grad():
             B, N = matching_cost_mat.shape[:2]
-            max_cost = matching_cost_mat.max() + 1.
+            max_cost = matching_cost_mat.max() + 1.0
             # [B*N, B*N]
             # Subtract all diag entries by a max cost so that no off-diag matchings
             # will be optimal.
-            big_cost_mat = torch.block_diag(*list(matching_cost_mat -
-                                                  max_cost))
+            big_cost_mat = torch.block_diag(*list(matching_cost_mat - max_cost))
             np_big_cost_mat = big_cost_mat.cpu().numpy()
             # col_ind: [B*N]
             row_ind, col_ind = linear_sum_assignment(np_big_cost_mat)
@@ -846,9 +870,9 @@ class BipartiteMatchingLoss(object):
 
         # [B,N]
         optimal_loss = cost_mat.gather(dim=-1, index=col_ind).squeeze(-1)
-        if self._reduction == 'mean':
+        if self._reduction == "mean":
             optimal_loss = optimal_loss.mean(-1)
-        elif self._reduction == 'sum':
+        elif self._reduction == "sum":
             optimal_loss = optimal_loss.sum(-1)
         return optimal_loss, col_ind.squeeze(-1)
 

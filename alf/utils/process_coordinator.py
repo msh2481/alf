@@ -56,8 +56,7 @@ class Coordinator(object):
     """
 
     def __init__(self):
-        """Create a new Coordinator.
-        """
+        """Create a new Coordinator."""
         # Protects all attributes.
         self._lock = Lock()
         # Event set when processes must stop.
@@ -103,26 +102,34 @@ class Coordinator(object):
             if not self._stop_event.is_set():
                 if ex and self._exc_info_to_raise is None:
                     if isinstance(ex, tuple):
-                        logging.info("Error reported to Coordinator: %s",
-                                     str(ex[1]),
-                                     exc_info=ex)
+                        logging.info(
+                            "Error reported to Coordinator: %s",
+                            str(ex[1]),
+                            exc_info=ex,
+                        )
                         self._exc_info_to_raise = ex
                     else:
-                        logging.info("Error reported to Coordinator: %s, %s",
-                                     type(ex), str(ex))
+                        logging.info(
+                            "Error reported to Coordinator: %s, %s",
+                            type(ex),
+                            str(ex),
+                        )
                         self._exc_info_to_raise = sys.exc_info()
                     # self._exc_info_to_raise should contain a tuple containing exception
                     # (type, value, traceback)
-                    if (len(self._exc_info_to_raise) != 3
-                            or not self._exc_info_to_raise[0]
-                            or not self._exc_info_to_raise[1]):
+                    if (
+                        len(self._exc_info_to_raise) != 3
+                        or not self._exc_info_to_raise[0]
+                        or not self._exc_info_to_raise[1]
+                    ):
                         # Raise, catch and record the exception here so that error happens
                         # where expected.
                         try:
                             raise ValueError(
                                 "ex must be a tuple or sys.exc_info must "
-                                "return the current exception: %s" %
-                                self._exc_info_to_raise)
+                                "return the current exception: %s"
+                                % self._exc_info_to_raise
+                            )
                         except ValueError:
                             # Record this error so it kills the coordinator properly.
                             # NOTE(touts): As above, this is bogus if request_stop() is not
@@ -200,10 +207,12 @@ class Coordinator(object):
         with self._lock:
             self._registered_processes.add(process)
 
-    def join(self,
-             processes=None,
-             stop_grace_period_secs=120,
-             ignore_live_processes=False):
+    def join(
+        self,
+        processes=None,
+        stop_grace_period_secs=120,
+        ignore_live_processes=False,
+    ):
         """Wait for processes to terminate.
         This call blocks until a set of processes have terminated.  The set of process
         is the union of the processes passed in the `processes` argument and the list
@@ -238,8 +247,9 @@ class Coordinator(object):
             processes = list(processes)
 
         # Wait for all processes to stop or for request_stop() to be called.
-        while any(t.is_alive()
-                  for t in processes) and not self.wait_for_stop(1.0):
+        while any(t.is_alive() for t in processes) and not self.wait_for_stop(
+            1.0
+        ):
             pass
 
         # If any process is still alive, wait for the grace period to expire.
@@ -248,16 +258,19 @@ class Coordinator(object):
         # down without losing too many cycles.
         # The sleep duration is limited to the remaining grace duration.
         stop_wait_secs = 0.001
-        while any(t.is_alive()
-                  for t in processes) and stop_grace_period_secs >= 0.0:
+        while (
+            any(t.is_alive() for t in processes)
+            and stop_grace_period_secs >= 0.0
+        ):
             time.sleep(stop_wait_secs)
             stop_grace_period_secs -= stop_wait_secs
             stop_wait_secs = 2 * stop_wait_secs
             # Keep the waiting period within sane bounds.
             # The minimum value is to avoid decreasing stop_wait_secs to a value
             # that could cause stop_grace_period_secs to remain unchanged.
-            stop_wait_secs = max(min(stop_wait_secs, stop_grace_period_secs),
-                                 0.001)
+            stop_wait_secs = max(
+                min(stop_wait_secs, stop_grace_period_secs), 0.001
+            )
 
         # List the processes still alive after the grace period.
         stragglers = [t.name for t in processes if t.is_alive()]
@@ -272,11 +285,13 @@ class Coordinator(object):
                 if ignore_live_processes:
                     logging.info(
                         "Coordinator stopped with processes still running: %s",
-                        " ".join(stragglers))
+                        " ".join(stragglers),
+                    )
                 else:
                     raise RuntimeError(
                         "Coordinator stopped with processes still running: %s"
-                        % " ".join(stragglers))
+                        % " ".join(stragglers)
+                    )
 
     @property
     def joined(self):
@@ -290,8 +305,7 @@ class Coordinator(object):
 
 
 class Process(mp.Process):
-    """A coordinated process class to execute acting loops.
-    """
+    """A coordinated process class to execute acting loops."""
 
     def __init__(self, coord, target=None, args=(), kwargs={}):
         """Creates a process, running target in a loop, managed by coordinator.
@@ -304,8 +318,9 @@ class Process(mp.Process):
             kwargs (dict): optional keyword arguments for target callable.
         """
         if not isinstance(coord, Coordinator):
-            raise ValueError("'coord' argument must be a Coordinator: %s" %
-                             coord)
+            raise ValueError(
+                "'coord' argument must be a Coordinator: %s" % coord
+            )
         super().__init__()
         self._coord = coord
         # allow pass in target or overriding body

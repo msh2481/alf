@@ -25,14 +25,15 @@ actor_network_cls = dmc_conf.actor_distribution_network_cls
 critic_network_cls = partial(
     alf.networks.CriticNetwork,
     joint_fc_layer_params=dmc_conf.hidden_layers,
-    use_fc_ln=True)  # turning on critic layernorm is crucial for high utd
-
-alf.config('Agent',
-           optimizer=dmc_conf.optimizer,
-           rl_algorithm_cls=RlpdAlgorithm)
+    use_fc_ln=True,
+)  # turning on critic layernorm is crucial for high utd
 
 alf.config(
-    'RlpdAlgorithm',
+    "Agent", optimizer=dmc_conf.optimizer, rl_algorithm_cls=RlpdAlgorithm
+)
+
+alf.config(
+    "RlpdAlgorithm",
     actor_network_cls=actor_network_cls,
     critic_network_cls=critic_network_cls,
     num_critic_replicas=10,
@@ -40,19 +41,20 @@ alf.config(
     use_bootstrap_critics=False,  # turning to True might lead to larger variance
     bootstrap_mask_prob=0.8,
     actor_utd=3,
-    critic_utd=
-    10,  # the suggesting utd ratio between critic and actor is [2, 10]
+    critic_utd=10,  # the suggesting utd ratio between critic and actor is [2, 10]
     use_entropy_reward=True,
-    target_update_tau=0.005)
+    target_update_tau=0.005,
+)
 
-alf.config('calc_default_target_entropy', min_prob=0.184)
+alf.config("calc_default_target_entropy", min_prob=0.184)
 
 alf.config(
-    'TrainerConfig',
+    "TrainerConfig",
     algorithm_ctor=Agent,
     whole_replay_buffer_training=False,
     clear_replay_buffer=False,
     num_updates_per_train_iter=13,  # actor_utd + critic_utd
     summarize_gradient_noise_scale=False,
     summarize_action_distributions=False,
-    random_seed=0)
+    random_seed=0,
+)

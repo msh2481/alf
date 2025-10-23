@@ -22,7 +22,11 @@ import torch.nn as nn
 import alf
 import alf.nest as nest
 import alf.layers as layers
-from alf.networks import EncodingNetwork, LSTMEncodingNetwork, ParallelEncodingNetwork
+from alf.networks import (
+    EncodingNetwork,
+    LSTMEncodingNetwork,
+    ParallelEncodingNetwork,
+)
 from alf.networks import Network
 from alf.tensor_specs import TensorSpec, BoundedTensorSpec
 import alf.utils.math_ops as math_ops
@@ -36,13 +40,15 @@ class QNetworkBase(Network):
     different encoding network creators.
     """
 
-    def __init__(self,
-                 input_tensor_spec: alf.NestedTensorSpec,
-                 action_spec: BoundedTensorSpec,
-                 encoding_network_ctor: Callable,
-                 use_naive_parallel_network: bool = False,
-                 name: str = "QNetworkBase",
-                 **encoder_kwargs):
+    def __init__(
+        self,
+        input_tensor_spec: alf.NestedTensorSpec,
+        action_spec: BoundedTensorSpec,
+        encoding_network_ctor: Callable,
+        use_naive_parallel_network: bool = False,
+        name: str = "QNetworkBase",
+        **encoder_kwargs,
+    ):
         """
         Args:
             input_tensor_spec: the tensor spec of the input
@@ -62,25 +68,29 @@ class QNetworkBase(Network):
 
         assert len(nest.flatten(action_spec)) == 1, (
             "Currently only support a single discrete action! Use "
-            "CriticNetwork instead for multiple actions.")
+            "CriticNetwork instead for multiple actions."
+        )
 
         num_actions = action_spec.maximum - action_spec.minimum + 1
 
         self._use_naive_parallel_network = use_naive_parallel_network
-        self._output_spec = TensorSpec((num_actions, ))
+        self._output_spec = TensorSpec((num_actions,))
 
         self._encoding_net = encoding_network_ctor(
-            input_tensor_spec=input_tensor_spec, **encoder_kwargs)
+            input_tensor_spec=input_tensor_spec, **encoder_kwargs
+        )
 
-        last_kernel_initializer = functools.partial(torch.nn.init.uniform_, \
-                                    a=-0.003, b=0.003)
+        last_kernel_initializer = functools.partial(
+            torch.nn.init.uniform_, a=-0.003, b=0.003
+        )
 
         self._final_layer = layers.FC(
             self._encoding_net.output_spec.shape[0],
             num_actions,
             activation=math_ops.identity,
             kernel_initializer=last_kernel_initializer,
-            bias_init_value=-0.2)
+            bias_init_value=-0.2,
+        )
 
     def forward(self, observation, state=()):
         """Computes action values given an observation.
@@ -121,17 +131,19 @@ class QNetworkBase(Network):
 class QNetwork(QNetworkBase):
     """Create an instance of QNetwork."""
 
-    def __init__(self,
-                 input_tensor_spec: TensorSpec,
-                 action_spec: BoundedTensorSpec,
-                 input_preprocessors=None,
-                 preprocessing_combiner=None,
-                 conv_layer_params=None,
-                 fc_layer_params=None,
-                 activation=torch.relu_,
-                 kernel_initializer=None,
-                 use_naive_parallel_network=False,
-                 name="QNetwork"):
+    def __init__(
+        self,
+        input_tensor_spec: TensorSpec,
+        action_spec: BoundedTensorSpec,
+        input_preprocessors=None,
+        preprocessing_combiner=None,
+        conv_layer_params=None,
+        fc_layer_params=None,
+        activation=torch.relu_,
+        kernel_initializer=None,
+        use_naive_parallel_network=False,
+        name="QNetwork",
+    ):
         """Creates an instance of ``QNetwork`` for estimating action-value of
         discrete actions. The action-value is defined as the expected return
         starting from the given input observation and taking the given action.
@@ -184,7 +196,8 @@ class QNetwork(QNetworkBase):
             conv_layer_params=conv_layer_params,
             fc_layer_params=fc_layer_params,
             activation=activation,
-            kernel_initializer=kernel_initializer)
+            kernel_initializer=kernel_initializer,
+        )
 
 
 class ParallelQNetwork(Network):
@@ -198,12 +211,14 @@ class ParallelQNetwork(Network):
                 parameter initializations.
             name (str):
         """
-        super().__init__(input_tensor_spec=q_network.input_tensor_spec,
-                         name=name)
+        super().__init__(
+            input_tensor_spec=q_network.input_tensor_spec, name=name
+        )
         self._encoding_net = q_network._encoding_net.make_parallel(n, True)
         self._final_layer = q_network._final_layer.make_parallel(n)
-        self._output_spec = TensorSpec((n, ) +
-                                       tuple(q_network.output_spec.shape))
+        self._output_spec = TensorSpec(
+            (n,) + tuple(q_network.output_spec.shape)
+        )
 
     def forward(self, inputs, state=()):
         """Compute action values given an observation.
@@ -234,19 +249,21 @@ class ParallelQNetwork(Network):
 class QRNNNetwork(QNetworkBase):
     """Create a RNN-based that outputs temporally correlated q-values."""
 
-    def __init__(self,
-                 input_tensor_spec: TensorSpec,
-                 action_spec: BoundedTensorSpec,
-                 input_preprocessors=None,
-                 preprocessing_combiner=None,
-                 conv_layer_params=None,
-                 fc_layer_params=None,
-                 lstm_hidden_size=100,
-                 value_fc_layer_params=None,
-                 activation=torch.relu_,
-                 kernel_initializer=None,
-                 use_naive_parallel_network=False,
-                 name="QRNNNetwork"):
+    def __init__(
+        self,
+        input_tensor_spec: TensorSpec,
+        action_spec: BoundedTensorSpec,
+        input_preprocessors=None,
+        preprocessing_combiner=None,
+        conv_layer_params=None,
+        fc_layer_params=None,
+        lstm_hidden_size=100,
+        value_fc_layer_params=None,
+        activation=torch.relu_,
+        kernel_initializer=None,
+        use_naive_parallel_network=False,
+        name="QRNNNetwork",
+    ):
         """Creates an instance of `QRNNNetwork` for estimating action-value of
         discrete actions. The action-value is defined as the expected return
         starting from the given inputs (observation and state) and taking the
@@ -305,4 +322,5 @@ class QRNNNetwork(QNetworkBase):
             hidden_size=lstm_hidden_size,
             post_fc_layer_params=value_fc_layer_params,
             activation=activation,
-            kernel_initializer=kernel_initializer)
+            kernel_initializer=kernel_initializer,
+        )

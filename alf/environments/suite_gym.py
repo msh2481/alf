@@ -22,13 +22,15 @@ from alf.environments import alf_gym_wrapper, alf_wrappers, gym_wrappers
 
 
 @alf.configurable
-def load(environment_name,
-         env_id=None,
-         discount=1.0,
-         max_episode_steps=None,
-         gym_env_wrappers=(),
-         alf_env_wrappers=(),
-         image_channel_first=True):
+def load(
+    environment_name,
+    env_id=None,
+    discount=1.0,
+    max_episode_steps=None,
+    gym_env_wrappers=(),
+    alf_env_wrappers=(),
+    image_channel_first=True,
+):
     """Loads the selected environment and wraps it with the specified wrappers.
 
     Note that by default a TimeLimit wrapper is used to limit episode lengths
@@ -60,27 +62,31 @@ def load(environment_name,
         else:
             max_episode_steps = 0
 
-    return wrap_env(gym_env,
-                    env_id=env_id,
-                    discount=discount,
-                    max_episode_steps=max_episode_steps,
-                    gym_env_wrappers=gym_env_wrappers,
-                    alf_env_wrappers=alf_env_wrappers,
-                    image_channel_first=image_channel_first)
+    return wrap_env(
+        gym_env,
+        env_id=env_id,
+        discount=discount,
+        max_episode_steps=max_episode_steps,
+        gym_env_wrappers=gym_env_wrappers,
+        alf_env_wrappers=alf_env_wrappers,
+        image_channel_first=image_channel_first,
+    )
 
 
 @alf.configurable
-def wrap_env(gym_env,
-             env_id=None,
-             discount=1.0,
-             max_episode_steps=0,
-             gym_env_wrappers=(),
-             time_limit_wrapper=alf_wrappers.TimeLimit,
-             normalize_action=True,
-             clip_action=True,
-             alf_env_wrappers=(),
-             image_channel_first=True,
-             auto_reset=True):
+def wrap_env(
+    gym_env,
+    env_id=None,
+    discount=1.0,
+    max_episode_steps=0,
+    gym_env_wrappers=(),
+    time_limit_wrapper=alf_wrappers.TimeLimit,
+    normalize_action=True,
+    clip_action=True,
+    alf_env_wrappers=(),
+    image_channel_first=True,
+    auto_reset=True,
+):
     """Wraps given gym environment with AlfGymWrapper.
 
     Note that by default a TimeLimit wrapper is used to limit episode lengths

@@ -15,4 +15,4 @@
 import alf
 from alf.examples import ddpg_fetchreach_conf
 
-alf.config('create_environment', env_name='FetchSlide-v1')
+alf.config("create_environment", env_name="FetchSlide-v1")

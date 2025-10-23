@@ -26,6 +26,7 @@ from alf.initializers import variance_scaling_init
 from alf.networks import Network
 
 from .utils import make_DPLR_HiPPO, diag_ssm_forward
+
 """
 Implement the S5 networks described in
 
@@ -149,17 +150,21 @@ class S5SSM(Network):
 
     """
 
-    def __init__(self,
-                 data_dim,
-                 state_dim,
-                 num_blocks,
-                 dt_min: float = 0.001,
-                 dt_max: float = 0.1,
-                 step_rescale: float = 1.0,
-                 name="S5"):
-        super().__init__(input_tensor_spec=alf.TensorSpec((data_dim, )),
-                         state_spec=alf.TensorSpec((state_dim, )),
-                         name=name)
+    def __init__(
+        self,
+        data_dim,
+        state_dim,
+        num_blocks,
+        dt_min: float = 0.001,
+        dt_max: float = 0.1,
+        step_rescale: float = 1.0,
+        name="S5",
+    ):
+        super().__init__(
+            input_tensor_spec=alf.TensorSpec((data_dim,)),
+            state_spec=alf.TensorSpec((state_dim,)),
+            name=name,
+        )
         assert state_dim % 2 == 0
         assert state_dim // 2 % num_blocks == 0
         # dimension of the complex state
@@ -182,9 +187,7 @@ class S5SSM(Network):
         return self._data_dim
 
     def reset(self):
-        """
-
-        """
+        """ """
         block_size = self._state_dim // 2 // self._num_blocks
         Lambda, _, _, V, _ = make_DPLR_HiPPO(2 * block_size)
         Lambda = Lambda[:block_size]
@@ -214,8 +217,9 @@ class S5SSM(Network):
 
         torch.nn.init.normal_(self._D.data)
 
-        self._log_step.data.uniform_(math.log(self._dt_min),
-                                     math.log(self._dt_max))
+        self._log_step.data.uniform_(
+            math.log(self._dt_min), math.log(self._dt_max)
+        )
 
     def discretize(self):
         """
@@ -224,8 +228,9 @@ class S5SSM(Network):
             B_bar (torch.Tensor): real tensor with shape [state_dim, data_dim]
         """
         step = self._step_rescale * self._log_step.exp()
-        self._Lambda.data[:,
-                          0].clip_(max=-1e-4)  # clip real part to be negative
+        self._Lambda.data[:, 0].clip_(
+            max=-1e-4
+        )  # clip real part to be negative
         Lambda = torch.view_as_complex(self._Lambda)
         Lambda_bar = torch.exp(Lambda * step)
         B_tilde = torch.view_as_complex(self._B)
@@ -263,8 +268,7 @@ class S5SSM(Network):
 
 
 class BatchNorm1dChannelLast(nn.BatchNorm1d):
-    """Batch normalization layer for channel-last tensor
-    """
+    """Batch normalization layer for channel-last tensor"""
 
     def forward(self, x):
         """
@@ -330,21 +334,25 @@ class S5Block(Network):
             e.g. after training on a different resolution
     """
 
-    def __init__(self,
-                 ssm_ctor: Callable[..., nn.Module],
-                 dropout: float,
-                 activation: str = "half_glu2",
-                 prenorm: bool = False,
-                 batchnorm: bool = False,
-                 bn_momentum: float = 0.10,
-                 step_rescale: float = 1.0,
-                 name="S5Block"):
+    def __init__(
+        self,
+        ssm_ctor: Callable[..., nn.Module],
+        dropout: float,
+        activation: str = "half_glu2",
+        prenorm: bool = False,
+        batchnorm: bool = False,
+        bn_momentum: float = 0.10,
+        step_rescale: float = 1.0,
+        name="S5Block",
+    ):
 
         ssm = ssm_ctor(step_rescale=step_rescale)
         d_model = ssm.data_dim
-        super().__init__(input_tensor_spec=alf.TensorSpec((d_model, )),
-                         state_spec=ssm.state_spec,
-                         name=name)
+        super().__init__(
+            input_tensor_spec=alf.TensorSpec((d_model,)),
+            state_spec=ssm.state_spec,
+            name=name,
+        )
 
         if activation in ["full_glu"]:
             self._out1 = alf.layers.FC(d_model, d_model)
@@ -353,14 +361,15 @@ class S5Block(Network):
             self._out2 = alf.layers.FC(d_model, d_model)
 
         if batchnorm:
-            self._norm = BatchNorm1dChannelLast(num_features=d_model,
-                                                momentum=bn_momentum)
+            self._norm = BatchNorm1dChannelLast(
+                num_features=d_model, momentum=bn_momentum
+            )
         else:
             self._norm = nn.LayerNorm(d_model)
 
         # s5.layers.SequenceLayer uses shared dropout mask across time dimension
         # torch.nn.Dropout does not support this
-        self._drop3d = Dropout(dropout, broadcast_dims=(0, ))
+        self._drop3d = Dropout(dropout, broadcast_dims=(0,))
         self._drop2d = nn.Dropout(dropout)
 
         self._ssm = ssm
@@ -403,8 +412,9 @@ class S5Block(Network):
         elif self._activation == "gelu":
             x = drop(F.gelu(x))
         else:
-            raise NotImplementedError("Activation: {} not implemented".format(
-                self.activation))
+            raise NotImplementedError(
+                "Activation: {} not implemented".format(self.activation)
+            )
 
         x = input + x
         if not self._prenorm:
@@ -412,28 +422,33 @@ class S5Block(Network):
         return x, state
 
 
-def create_stacked_s5_encoder(data_dim,
-                              ssm_ctor: Callable[..., nn.Module],
-                              num_layers,
-                              dropout: float = 0.0,
-                              activation: str = "half_glu2",
-                              prenorm: bool = False,
-                              batchnorm: bool = False,
-                              bn_momentum: float = 0.10,
-                              step_rescale=1.0,
-                              name="StackedS5Encoder"):
+def create_stacked_s5_encoder(
+    data_dim,
+    ssm_ctor: Callable[..., nn.Module],
+    num_layers,
+    dropout: float = 0.0,
+    activation: str = "half_glu2",
+    prenorm: bool = False,
+    batchnorm: bool = False,
+    bn_momentum: float = 0.10,
+    step_rescale=1.0,
+    name="StackedS5Encoder",
+):
     """
     Corresponds to s5.seq_model.StackedEncoderModel
 
     """
     ssms = [
-        S5Block(ssm_ctor,
-                dropout=dropout,
-                activation=activation,
-                prenorm=prenorm,
-                batchnorm=batchnorm,
-                bn_momentum=bn_momentum,
-                step_rescale=step_rescale) for _ in range(num_layers)
+        S5Block(
+            ssm_ctor,
+            dropout=dropout,
+            activation=activation,
+            prenorm=prenorm,
+            batchnorm=batchnorm,
+            bn_momentum=bn_momentum,
+            step_rescale=step_rescale,
+        )
+        for _ in range(num_layers)
     ]
     encoder = alf.layers.FC(data_dim, ssms[0].d_model)
     return alf.networks.Sequential(encoder, *ssms, name=name)

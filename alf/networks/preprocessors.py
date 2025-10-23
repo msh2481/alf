@@ -43,14 +43,16 @@ class EmbeddingPreprocessor(Network):
     specified network hyperparameters.
     """
 
-    def __init__(self,
-                 input_tensor_spec,
-                 embedding_dim,
-                 conv_layer_params=None,
-                 fc_layer_params=None,
-                 activation=torch.relu_,
-                 last_activation=math_ops.identity,
-                 name="EmbeddingPreproc"):
+    def __init__(
+        self,
+        input_tensor_spec,
+        embedding_dim,
+        conv_layer_params=None,
+        fc_layer_params=None,
+        activation=torch.relu_,
+        last_activation=math_ops.identity,
+        name="EmbeddingPreproc",
+    ):
         """
         Args:
             input_tensor_spec (TensorSpec): the input spec
@@ -86,14 +88,16 @@ class EmbeddingPreprocessor(Network):
                 activation=activation,
                 last_layer_size=embedding_dim,
                 last_activation=last_activation,
-                name="preprocessor_embedding_net")
+                name="preprocessor_embedding_net",
+            )
 
     def _preprocess(self, tensor):
-        assert get_outer_rank(tensor, self._input_tensor_spec) == 1, \
-            "Only supports one outer rank (batch dim)!"
+        assert (
+            get_outer_rank(tensor, self._input_tensor_spec) == 1
+        ), "Only supports one outer rank (batch dim)!"
         ret = self._embedding_net(tensor)
         # EncodingNetwork returns a pair
-        return (ret if self._input_tensor_spec.is_discrete else ret[0])
+        return ret if self._input_tensor_spec.is_discrete else ret[0]
 
     def forward(self, inputs, state=()):
         """Preprocess either a tensor input or a TensorSpec.
@@ -105,8 +109,9 @@ class EmbeddingPreprocessor(Network):
             Tensor or TensorSpec: if ``Tensor``, the returned is the preprocessed
                 result; otherwise it's the tensor spec of the result.
         """
-        assert state is (), \
-            "The preprocessor is assumed to be stateless currently."
+        assert (
+            state is ()
+        ), "The preprocessor is assumed to be stateless currently."
 
         ret = self._preprocess(inputs)
         return ret, state
@@ -114,20 +119,19 @@ class EmbeddingPreprocessor(Network):
 
 @alf.configurable
 class CosineEmbeddingPreprocessor(Network):
-    """A preprocessor that converts the input to an embedding vector of 
+    """A preprocessor that converts the input to an embedding vector of
     cosine functions. It is suggested by the following IQN paper:
 
     ::
-        
+
         Dabney et al "Implicit Quantile Networks for Distributional Reinforcement Learning",
         arXiv:1806.06923
 
     """
 
-    def __init__(self,
-                 input_tensor_spec,
-                 embedding_dim,
-                 name="CosineEmbeddingNetwork"):
+    def __init__(
+        self, input_tensor_spec, embedding_dim, name="CosineEmbeddingNetwork"
+    ):
         """
         Args:
             input_tensor_spec (TensorSpec): the input spec

@@ -88,9 +88,9 @@ def _estimate_derivative_1(seq: np.ndarray, h: float = 0.1):
     return (seq[-1] - seq[-3]) / (2.0 * h)
 
 
-def _estimate_derivative_2(seq: np.ndarray,
-                           h: float = 0.1,
-                           is_angle: bool = False):
+def _estimate_derivative_2(
+    seq: np.ndarray, h: float = 0.1, is_angle: bool = False
+):
     """Estimate the second order derivative, with 1 delay
     .. math::
         f''(x) = \frac{f{x + h} - 2f(x) + f{x - h)}{h^2} + O(h^2)
@@ -101,9 +101,9 @@ def _estimate_derivative_2(seq: np.ndarray,
     return d / (h * h)
 
 
-def _estimate_derivative_3(seq: np.ndarray,
-                           h: float = 0.1,
-                           is_angle: bool = False):
+def _estimate_derivative_3(
+    seq: np.ndarray, h: float = 0.1, is_angle: bool = False
+):
     """Estimate the second order derivative, with 2 delay
     .. math::
         f'''(x) = \frac{f(x + 2h) - f(x - 2h) -2[f(x + h) - f(x - h)]}{2h^3} + O(h^2)
@@ -116,12 +116,14 @@ def _estimate_derivative_3(seq: np.ndarray,
     return d / (2.0 * h * h * h)
 
 
-def squared_jerk_cost(jerk: float,
-                      speed: float,
-                      jerk_deadband: float = 4.0,
-                      speed_deadband: float = 1.5,
-                      scale: float = 1e-3,
-                      cap: float = 0.8):
+def squared_jerk_cost(
+    jerk: float,
+    speed: float,
+    jerk_deadband: float = 4.0,
+    speed_deadband: float = 1.5,
+    scale: float = 1e-3,
+    cap: float = 0.8,
+):
     """Produce a cost based on the jerk.
 
     The function is a squared cost of the violation that only activate when the
@@ -146,12 +148,14 @@ def squared_jerk_cost(jerk: float,
     return min(diff * diff * scale, cap)
 
 
-def squared_brake_cost(lon_acc: float,
-                       speed: float,
-                       harsh_brake_limit: float = -1.2,
-                       speed_deadband: float = 2.0,
-                       scale: float = 2.0,
-                       cap: float = 1.0):
+def squared_brake_cost(
+    lon_acc: float,
+    speed: float,
+    harsh_brake_limit: float = -1.2,
+    speed_deadband: float = 2.0,
+    scale: float = 2.0,
+    cap: float = 1.0,
+):
     """Produce a cost based on the (harsh) brake.
 
     The function is a squared cost of the violation that only activate when the
@@ -179,9 +183,7 @@ def squared_brake_cost(lon_acc: float,
 
 
 def is_harsh_brake(lon_acc: float, speed: float):
-    """Simple empirical thresholds for harsh brake.
-
-    """
+    """Simple empirical thresholds for harsh brake."""
     if speed < 2.0:
         return False
     elif speed < 15.0:
@@ -206,10 +208,12 @@ class EgoKinematicReward(ExtraReward):
 
     """
 
-    def __init__(self,
-                 harsh_brake_cost_func=squared_brake_cost,
-                 lon_jerk_cost_func=squared_jerk_cost,
-                 lat_jerk_cost_func=squared_jerk_cost):
+    def __init__(
+        self,
+        harsh_brake_cost_func=squared_brake_cost,
+        lon_jerk_cost_func=squared_jerk_cost,
+        lat_jerk_cost_func=squared_jerk_cost,
+    ):
         super().__init__()
         self._harsh_brake_cost_func = harsh_brake_cost_func
         self._lon_jerk_cost_func = lon_jerk_cost_func
@@ -222,7 +226,8 @@ class EgoKinematicReward(ExtraReward):
 
     def evaluate(self, engine: BaseEngine):
         ego: BaseVehicle = engine.managers["agent_manager"].active_agents[
-            "default_agent"]
+            "default_agent"
+        ]
 
         self._history_heading = np.roll(self._history_heading, -1)
         self._history_heading[-1] = ego.heading_theta
@@ -236,8 +241,7 @@ class EgoKinematicReward(ExtraReward):
         lat_jerk = _estimate_derivative_3(self._history_heading, is_angle=True)
 
         speed = self._history_speed[-1]
-        lon_acc_cost = self._harsh_brake_cost_func(lon_acc=lon_acc,
-                                                   speed=speed)
+        lon_acc_cost = self._harsh_brake_cost_func(lon_acc=lon_acc, speed=speed)
         lon_jerk_cost = self._lon_jerk_cost_func(jerk=lon_jerk, speed=speed)
         lat_jerk_cost = self._lat_jerk_cost_func(jerk=lat_jerk, speed=speed)
 
@@ -248,22 +252,16 @@ class EgoKinematicReward(ExtraReward):
         }
 
         info = {
-            "MetaDrive/harsh_brake":
-                is_harsh_brake(lon_acc=lon_acc, speed=speed),
-            "MetaDrive/lon_acc":
-                lon_acc,
-            "MetaDrive/lon_jerk":
-                lon_jerk,
-            "MetaDrive/lat_acc":
-                lat_acc,
-            "MetaDrive/lat_jerk":
-                lat_jerk,
-            "MetaDrive/costs/lon_acc":
-                lon_acc_cost,
-            "MetaDrive/costs/lon_jerk":
-                lon_jerk_cost,
-            "MetaDrive/costs/lat_jerk":
-                lat_jerk_cost,
+            "MetaDrive/harsh_brake": is_harsh_brake(
+                lon_acc=lon_acc, speed=speed
+            ),
+            "MetaDrive/lon_acc": lon_acc,
+            "MetaDrive/lon_jerk": lon_jerk,
+            "MetaDrive/lat_acc": lat_acc,
+            "MetaDrive/lat_jerk": lat_jerk,
+            "MetaDrive/costs/lon_acc": lon_acc_cost,
+            "MetaDrive/costs/lon_jerk": lon_jerk_cost,
+            "MetaDrive/costs/lat_jerk": lat_jerk_cost,
         }
         return rewards, info
 
@@ -273,22 +271,20 @@ class EgoKinematicReward(ExtraReward):
 
     def env_info_spec(self):
         return {
-            "MetaDrive/harsh_brake":
-                TensorSpec(shape=(), dtype=torch.float32),
-            "MetaDrive/lon_acc":
-                TensorSpec(shape=(), dtype=torch.float32),
-            "MetaDrive/lon_jerk":
-                TensorSpec(shape=(), dtype=torch.float32),
-            "MetaDrive/lat_acc":
-                TensorSpec(shape=(), dtype=torch.float32),
-            "MetaDrive/lat_jerk":
-                TensorSpec(shape=(), dtype=torch.float32),
-            "MetaDrive/costs/lon_acc":
-                TensorSpec(shape=(), dtype=torch.float32),
-            "MetaDrive/costs/lon_jerk":
-                TensorSpec(shape=(), dtype=torch.float32),
-            "MetaDrive/costs/lat_jerk":
-                TensorSpec(shape=(), dtype=torch.float32),
+            "MetaDrive/harsh_brake": TensorSpec(shape=(), dtype=torch.float32),
+            "MetaDrive/lon_acc": TensorSpec(shape=(), dtype=torch.float32),
+            "MetaDrive/lon_jerk": TensorSpec(shape=(), dtype=torch.float32),
+            "MetaDrive/lat_acc": TensorSpec(shape=(), dtype=torch.float32),
+            "MetaDrive/lat_jerk": TensorSpec(shape=(), dtype=torch.float32),
+            "MetaDrive/costs/lon_acc": TensorSpec(
+                shape=(), dtype=torch.float32
+            ),
+            "MetaDrive/costs/lon_jerk": TensorSpec(
+                shape=(), dtype=torch.float32
+            ),
+            "MetaDrive/costs/lat_jerk": TensorSpec(
+                shape=(), dtype=torch.float32
+            ),
         }
 
 
@@ -313,11 +309,13 @@ class LaneKeepingReward(ExtraReward):
 
     def evaluate(self, engine: BaseEngine):
         ego: BaseVehicle = engine.managers["agent_manager"].active_agents[
-            "default_agent"]
+            "default_agent"
+        ]
 
         rewards = {
-            "on_broken_line":
+            "on_broken_line": (
                 -self._broken_line_cost if ego.on_broken_line else 0.0
+            )
         }
 
         info = {"MetaDrive/on_broken_line": float(ego.on_broken_line)}
@@ -326,8 +324,9 @@ class LaneKeepingReward(ExtraReward):
 
     def env_info_spec(self):
         return {
-            "MetaDrive/on_broken_line":
-                TensorSpec(shape=(), dtype=torch.float32)
+            "MetaDrive/on_broken_line": TensorSpec(
+                shape=(), dtype=torch.float32
+            )
         }
 
 
@@ -354,7 +353,8 @@ class CrashVehicleReward(ExtraReward):
 
     def evaluate(self, engine: BaseEngine):
         ego: BaseVehicle = engine.managers["agent_manager"].active_agents[
-            "default_agent"]
+            "default_agent"
+        ]
 
         rewards = {"crash_vehicle": -self._cost if ego.crash_vehicle else 0.0}
 
@@ -364,6 +364,5 @@ class CrashVehicleReward(ExtraReward):
 
     def env_info_spec(self):
         return {
-            "MetaDrive/crash_vehicle":
-                TensorSpec(shape=(), dtype=torch.float32)
+            "MetaDrive/crash_vehicle": TensorSpec(shape=(), dtype=torch.float32)
         }

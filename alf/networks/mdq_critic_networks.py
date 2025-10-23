@@ -37,19 +37,21 @@ class MdqCriticNetwork(Network):
     """Create an instance of MdqCriticNetwork for estimating action-value
     of continuous actions and action sampling used in the MDQ algorithm."""
 
-    def __init__(self,
-                 input_tensor_spec,
-                 action_qt: ActionQuantizer = None,
-                 num_critic_replicas=2,
-                 obs_encoding_layer_params=None,
-                 pre_encoding_layer_params=None,
-                 mid_encoding_layer_params=None,
-                 post_encoding_layer_params=None,
-                 free_form_fc_layer_params=None,
-                 activation=torch.relu_,
-                 kernel_initializer=None,
-                 debug_summaries=False,
-                 name="MdqCriticNetwork"):
+    def __init__(
+        self,
+        input_tensor_spec,
+        action_qt: ActionQuantizer = None,
+        num_critic_replicas=2,
+        obs_encoding_layer_params=None,
+        pre_encoding_layer_params=None,
+        mid_encoding_layer_params=None,
+        post_encoding_layer_params=None,
+        free_form_fc_layer_params=None,
+        activation=torch.relu_,
+        kernel_initializer=None,
+        debug_summaries=False,
+        name="MdqCriticNetwork",
+    ):
         """Creates an instance of `MdqCriticNetwork` for estimating action-value
         of continuous actions and action sampling.
 
@@ -126,7 +128,8 @@ class MdqCriticNetwork(Network):
         flat_action_spec = nest.flatten(action_spec)
         if len(flat_action_spec) > 1:
             raise ValueError(
-                'Only a single action is supported by this network')
+                "Only a single action is supported by this network"
+            )
 
         self._single_action_spec = flat_action_spec[0]
 
@@ -146,11 +149,13 @@ class MdqCriticNetwork(Network):
             self._num_critic_replicas,
             fc_layer_params=obs_encoding_layer_params,
             activation=activation,
-            kernel_initializer=kernel_initializer)
+            kernel_initializer=kernel_initializer,
+        )
 
         last_activation = math_ops.identity
-        last_kernel_initializer = functools.partial(torch.nn.init.uniform_, \
-                                a=-0.003, b=0.003)
+        last_kernel_initializer = functools.partial(
+            torch.nn.init.uniform_, a=-0.003, b=0.003
+        )
 
         in_size = self._action_dim
 
@@ -159,12 +164,18 @@ class MdqCriticNetwork(Network):
             # output_spec.shape: [n, d]
             self._pre_encoding_nets.append(
                 ParallelEncodingNetwork(
-                    TensorSpec((self._obs_encoding_net.output_spec.shape[-1] +
-                                in_size, )),
+                    TensorSpec(
+                        (
+                            self._obs_encoding_net.output_spec.shape[-1]
+                            + in_size,
+                        )
+                    ),
                     self._num_critic_replicas,
                     fc_layer_params=pre_encoding_layer_params,
                     activation=activation,
-                    kernel_initializer=kernel_initializer))
+                    kernel_initializer=kernel_initializer,
+                )
+            )
 
         # parallel along both critic and action dims without sharing parameters
         # for each action dimension.
@@ -173,11 +184,13 @@ class MdqCriticNetwork(Network):
         # splitting over networks
         self._pre_encoding_parallel_net = ParallelEncodingNetwork(
             TensorSpec(
-                (self._obs_encoding_net.output_spec.shape[-1] + in_size, )),
+                (self._obs_encoding_net.output_spec.shape[-1] + in_size,)
+            ),
             self._num_critic_replicas * self._action_dim,
             fc_layer_params=pre_encoding_layer_params,
             activation=activation,
-            kernel_initializer=kernel_initializer)
+            kernel_initializer=kernel_initializer,
+        )
 
         # parallel along both critic and action dims with sharing parameters
         # for each action dimension.
@@ -186,11 +199,13 @@ class MdqCriticNetwork(Network):
         # splitting over networks
         self._mid_shared_encoding_nets = ParallelEncodingNetwork(
             TensorSpec(
-                (self._pre_encoding_parallel_net.output_spec.shape[-1], )),
+                (self._pre_encoding_parallel_net.output_spec.shape[-1],)
+            ),
             self._num_critic_replicas,
             fc_layer_params=mid_encoding_layer_params,
             activation=activation,
-            kernel_initializer=kernel_initializer)
+            kernel_initializer=kernel_initializer,
+        )
         out_size = self._mid_shared_encoding_nets.output_spec.shape[-1]
 
         post_enc_out_size = self._action_qt.action_bins
@@ -199,14 +214,16 @@ class MdqCriticNetwork(Network):
         for i in range(self._action_dim):
             self._post_encoding_nets.append(
                 ParallelEncodingNetwork(
-                    TensorSpec((out_size, )),
+                    TensorSpec((out_size,)),
                     self._num_critic_replicas,
                     fc_layer_params=post_encoding_layer_params,
                     activation=activation,
                     kernel_initializer=kernel_initializer,
                     last_layer_size=post_enc_out_size,
                     last_activation=last_activation,
-                    last_kernel_initializer=last_kernel_initializer))
+                    last_kernel_initializer=last_kernel_initializer,
+                )
+            )
 
         # parallel along both critic and action dims without sharing parameters
         # for each action dimension.
@@ -214,36 +231,40 @@ class MdqCriticNetwork(Network):
         # output: [B, action_dim*n, d']: need to unstack over dim1 for
         # splitting over networks
         self._post_encoding_parallel_net = ParallelEncodingNetwork(
-            TensorSpec((out_size, )),
+            TensorSpec((out_size,)),
             self._num_critic_replicas * self._action_dim,
             fc_layer_params=post_encoding_layer_params,
             activation=activation,
             kernel_initializer=kernel_initializer,
             last_layer_size=post_enc_out_size,
             last_activation=last_activation,
-            last_kernel_initializer=last_kernel_initializer)
+            last_kernel_initializer=last_kernel_initializer,
+        )
 
         assert free_form_fc_layer_params is not None
 
         self._free_form_q_net = ParallelEncodingNetwork(
-            TensorSpec((observation_spec.shape[-1] + self._action_dim, )),
+            TensorSpec((observation_spec.shape[-1] + self._action_dim,)),
             self._num_critic_replicas,
             fc_layer_params=free_form_fc_layer_params,
             activation=activation,
             kernel_initializer=kernel_initializer,
             last_layer_size=1,
             last_activation=math_ops.identity,
-            last_kernel_initializer=last_kernel_initializer)
+            last_kernel_initializer=last_kernel_initializer,
+        )
 
         MdqCriticNetwork._parallel_to_individual_network_sync(
             self._pre_encoding_parallel_net,
             self._pre_encoding_nets,
-            step=self._num_critic_replicas)
+            step=self._num_critic_replicas,
+        )
 
         MdqCriticNetwork._parallel_to_individual_network_sync(
             self._post_encoding_parallel_net,
             self._post_encoding_nets,
-            step=self._num_critic_replicas)
+            step=self._num_critic_replicas,
+        )
 
         self._output_spec = TensorSpec(())
 
@@ -269,8 +290,11 @@ class MdqCriticNetwork(Network):
         observations = inputs
 
         # [B, n, d]
-        t_shape = (observations.shape[0], self._num_critic_replicas,
-                   self._action_dim)
+        t_shape = (
+            observations.shape[0],
+            self._num_critic_replicas,
+            self._action_dim,
+        )
 
         actions = torch.zeros(t_shape)
         log_pi_per_dim = torch.zeros(t_shape)
@@ -280,7 +304,8 @@ class MdqCriticNetwork(Network):
 
         if actions.ndim == 2:
             actions = tensor_utils.tensor_extend_new_dim(
-                actions, dim=1, n=self._num_critic_replicas)
+                actions, dim=1, n=self._num_critic_replicas
+            )
 
         action_padded = torch.zeros(t_shape)
 
@@ -291,9 +316,11 @@ class MdqCriticNetwork(Network):
             action_values_i, _ = self._net_forward_individual(joint, alpha, i)
 
             trans_action_values_i = self._transform_action_value(
-                action_values_i, alpha)
+                action_values_i, alpha
+            )
             sampled_indices, sampled_log_pi = self._sample_action_from_value(
-                trans_action_values_i / alpha, alpha, greedy)
+                trans_action_values_i / alpha, alpha, greedy
+            )
             # convert index to action
             actions[..., i] = self._action_qt.ind_to_action(sampled_indices)
             log_pi_per_dim[..., i] = sampled_log_pi
@@ -333,15 +360,23 @@ class MdqCriticNetwork(Network):
         if actions.ndim == 2:
             # [B, action_dim] -> [B, n, action_dim]
             actions = tensor_utils.tensor_extend_new_dim(
-                actions, dim=1, n=self._num_critic_replicas)
+                actions, dim=1, n=self._num_critic_replicas
+            )
 
         # [B, n, action_dim]
-        t_shape = (observations.shape[0], self._num_critic_replicas,
-                   self._action_dim)
+        t_shape = (
+            observations.shape[0],
+            self._num_critic_replicas,
+            self._action_dim,
+        )
 
         # [action_dim, B, n, 1]
-        Q_values = torch.zeros(self._action_dim, observations.shape[0],
-                               self._num_critic_replicas, 1)
+        Q_values = torch.zeros(
+            self._action_dim,
+            observations.shape[0],
+            self._num_critic_replicas,
+            1,
+        )
 
         joint = torch.empty(0)
         action_padded = torch.zeros(t_shape)
@@ -352,7 +387,8 @@ class MdqCriticNetwork(Network):
             action_padded[..., 0:i] = actions[..., 0:i]
             # concat (obs, action) for each action dimension
             inputs_per_dim.append(
-                torch.cat((encoded_obs, action_padded.detach()), dim=-1))
+                torch.cat((encoded_obs, action_padded.detach()), dim=-1)
+            )
 
         # concat per dim input batch to a joint batch along dim1
         # [B, action_dim*n, d]
@@ -361,22 +397,26 @@ class MdqCriticNetwork(Network):
         # forward the joint batch
         # action_values_per_dim: [action_dim, B, n, action_bin]
         action_values_per_dim, _ = self._net_forward_parallel(
-            joint, alpha, batch_size=observations.shape[0])
+            joint, alpha, batch_size=observations.shape[0]
+        )
 
         trans_action_values_per_dim = self._transform_action_value(
-            action_values_per_dim, alpha)
+            action_values_per_dim, alpha
+        )
 
         for i in range(self._action_dim):
             action_ind = self._action_qt.action_to_ind(actions[..., i])
             if i == 0:
                 action_value_i = self._batched_index_select(
-                    action_values_per_dim[i], -1, action_ind.long())
+                    action_values_per_dim[i], -1, action_ind.long()
+                )
                 Q_values[i] = action_value_i
                 # KL-divergence
                 Q_values[i] = Q_values[i] - alpha * self._log_pi_uniform_prior
             else:
                 selected_trans_action_value_i = self._batched_index_select(
-                    trans_action_values_per_dim[i], -1, action_ind.long())
+                    trans_action_values_per_dim[i], -1, action_ind.long()
+                )
                 Q_values[i] = Q_values[i - 1] + selected_trans_action_value_i
                 # KL-divergence
                 Q_values[i] = Q_values[i] - alpha * self._log_pi_uniform_prior
@@ -418,18 +458,22 @@ class MdqCriticNetwork(Network):
         action_values_pre, _ = self._pre_encoding_parallel_net(inputs)
         # [B, action_dim*n, d] -> [action_dim*B, n, d]
         action_values_pre = self._reshape_from_ensemble_to_batch(
-            action_values_pre, batch_size)
+            action_values_pre, batch_size
+        )
         action_values_mid, state = self._mid_shared_encoding_nets(
-            action_values_pre)
+            action_values_pre
+        )
         # [action_dim*B, n, d] -> [B, action_dim*n, d]
         action_values_mid = self._reshape_from_batch_to_ensemble(
-            action_values_mid, batch_size)
+            action_values_mid, batch_size
+        )
         action_values_final, _ = self._post_encoding_parallel_net(
-            action_values_mid)
+            action_values_mid
+        )
         # [B, action_dim*n, d]->  [B, action_dim, n, d] -> [action_dim, B, n, d]
-        action_values = action_values_final.view(batch_size, self._action_dim,
-                                                 self._num_critic_replicas,
-                                                 -1).transpose(0, 1)
+        action_values = action_values_final.view(
+            batch_size, self._action_dim, self._num_critic_replicas, -1
+        ).transpose(0, 1)
 
         return action_values, state
 
@@ -447,17 +491,21 @@ class MdqCriticNetwork(Network):
             reshaped_batch (torch.Tensor): a tensor of the shape
                 [B, action_dim*n, d]
         """
-        assert len(joint_batch.shape) == 3 and joint_batch.shape[:-1] == \
-                (self._action_dim * batch_size, self._num_critic_replicas)
+        assert len(joint_batch.shape) == 3 and joint_batch.shape[:-1] == (
+            self._action_dim * batch_size,
+            self._num_critic_replicas,
+        )
 
         d = joint_batch.shape[-1]
         # [action_dim*B, n, d] -> [action_dim, B, n, d]
-        reshaped_batch = joint_batch.view(self._action_dim, batch_size,
-                                          self._num_critic_replicas, d)
+        reshaped_batch = joint_batch.view(
+            self._action_dim, batch_size, self._num_critic_replicas, d
+        )
 
         #  [action_dim, B, n, d] ->  [B, action_dim, n, d] -> [B, action_dim*n, d]
         reshaped_batch = reshaped_batch.transpose(0, 1).reshape(
-            batch_size, -1, d)
+            batch_size, -1, d
+        )
         return reshaped_batch
 
     def _reshape_from_ensemble_to_batch(self, joint_batch, batch_size):
@@ -474,17 +522,21 @@ class MdqCriticNetwork(Network):
             reshaped_batch (torch.Tensor): a tensor of the shape
                 [action_dim*B, n, d]
         """
-        assert len(joint_batch.shape) == 3 and joint_batch.shape[:-1] == \
-                (batch_size, self._action_dim * self._num_critic_replicas)
+        assert len(joint_batch.shape) == 3 and joint_batch.shape[:-1] == (
+            batch_size,
+            self._action_dim * self._num_critic_replicas,
+        )
 
         d = joint_batch.shape[-1]
         # [B, action_dim*n, d] -> [B, action_dim, n, d]
-        reshaped_batch = joint_batch.view(batch_size, self._action_dim,
-                                          self._num_critic_replicas, d)
+        reshaped_batch = joint_batch.view(
+            batch_size, self._action_dim, self._num_critic_replicas, d
+        )
 
         # [B, action_dim, n, d] -> [action_dim, B, n, d] -> [action_dim*B, n, d]
         reshaped_batch = reshaped_batch.transpose(0, 1).reshape(
-            -1, self._num_critic_replicas, d)
+            -1, self._num_critic_replicas, d
+        )
         return reshaped_batch
 
     def _transform_action_value(self, action_values, alpha):
@@ -499,7 +551,8 @@ class MdqCriticNetwork(Network):
                 alpha * log_pi computed from input action_values
         """
         v_value = alpha * torch.logsumexp(
-            action_values / alpha, dim=-1, keepdim=True)
+            action_values / alpha, dim=-1, keepdim=True
+        )
         transformed_value = action_values - v_value
         return transformed_value
 
@@ -524,10 +577,11 @@ class MdqCriticNetwork(Network):
             # logits [B, n, d] -> [B*n, d]
             batched_logits = logits.reshape(-1, self._action_bins)
             dist = torch.distributions.categorical.Categorical(
-                logits=batched_logits)
+                logits=batched_logits
+            )
 
             # [1, B*n] -> [B, n]
-            sampled_ind = dist.sample((1, ))
+            sampled_ind = dist.sample((1,))
             sampled_log_pi = dist.log_prob(sampled_ind)
 
             sampled_ind = sampled_ind.view(batch_size, -1)
@@ -557,16 +611,20 @@ class MdqCriticNetwork(Network):
         split_num = len(np_net)
         for i in range(split_num):
             for ws, wt in zip(p_net.parameters(), np_net[i].parameters()):
-                wt.data.copy_(ws[i * step:(i + 1) * step])
+                wt.data.copy_(ws[i * step : (i + 1) * step])
 
     def get_uniform_prior_logpi(self):
         return self._log_pi_uniform_prior
 
     def sync_net(self):
         MdqCriticNetwork._parallel_to_individual_network_sync(
-            self._pre_encoding_parallel_net, self._pre_encoding_nets,
-            self._num_critic_replicas)
+            self._pre_encoding_parallel_net,
+            self._pre_encoding_nets,
+            self._num_critic_replicas,
+        )
 
         MdqCriticNetwork._parallel_to_individual_network_sync(
-            self._post_encoding_parallel_net, self._post_encoding_nets,
-            self._num_critic_replicas)
+            self._post_encoding_parallel_net,
+            self._post_encoding_nets,
+            self._num_critic_replicas,
+        )

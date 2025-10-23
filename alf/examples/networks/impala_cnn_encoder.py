@@ -24,8 +24,9 @@ from alf.utils.math_ops import identity
 
 
 def _create_residual_cnn_block(
-        input_tensor_spec,
-        kernel_initializer: Callable[[Tensor], None] = xavier_uniform_):
+    input_tensor_spec,
+    kernel_initializer: Callable[[Tensor], None] = xavier_uniform_,
+):
     """Create a CNN block with 2 Conv2D plus a residual connection
 
     It essentially performs
@@ -60,25 +61,28 @@ def _create_residual_cnn_block(
         torch.nn.ReLU(inplace=False),
         # TODO(breakds): Normalized initialization in openai's
         # original implementation
-        alf.layers.Conv2D(input_channels,
-                          input_channels,
-                          kernel_size=3,
-                          padding=1),
-        residual=alf.layers.Conv2D(input_channels,
-                                   input_channels,
-                                   kernel_size=3,
-                                   padding=1,
-                                   activation=identity,
-                                   kernel_initializer=kernel_initializer),
-        final=(('input', 'residual'), lambda x: x[0] + x[1]),
-        input_tensor_spec=input_tensor_spec)
+        alf.layers.Conv2D(
+            input_channels, input_channels, kernel_size=3, padding=1
+        ),
+        residual=alf.layers.Conv2D(
+            input_channels,
+            input_channels,
+            kernel_size=3,
+            padding=1,
+            activation=identity,
+            kernel_initializer=kernel_initializer,
+        ),
+        final=(("input", "residual"), lambda x: x[0] + x[1]),
+        input_tensor_spec=input_tensor_spec,
+    )
 
 
 def _create_downsampling_cnn_stack(
-        input_tensor_spec,
-        output_channels: int,
-        num_residual_blocks: int = 2,
-        kernel_initializer: Callable[[Tensor], None] = xavier_uniform_):
+    input_tensor_spec,
+    output_channels: int,
+    num_residual_blocks: int = 2,
+    kernel_initializer: Callable[[Tensor], None] = xavier_uniform_,
+):
     """Create a stack of Convolutional layers that also does downsampling
 
     It essentially performs one ``Conv2D`` that changes the number of channels,
@@ -109,32 +113,38 @@ def _create_downsampling_cnn_stack(
     # The output tensor spec is identical to the input tesnor spec except for
     # that the channel dimension is replaced by the output number of channels.
     output_tensor_spec = TensorSpec(
-        (output_channels, *input_tensor_spec.shape[1:]),
-        input_tensor_spec.dtype)
+        (output_channels, *input_tensor_spec.shape[1:]), input_tensor_spec.dtype
+    )
     return alf.nn.Sequential(
         # NOTE: this Conv2D layer does not have activation
-        alf.layers.Conv2D(input_channels,
-                          output_channels,
-                          kernel_size=3,
-                          padding=1,
-                          activation=identity,
-                          kernel_initializer=kernel_initializer),
+        alf.layers.Conv2D(
+            input_channels,
+            output_channels,
+            kernel_size=3,
+            padding=1,
+            activation=identity,
+            kernel_initializer=kernel_initializer,
+        ),
         # Downsample via a max pooling filter
         torch.nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
         *[
-            _create_residual_cnn_block(output_tensor_spec,
-                                       kernel_initializer=kernel_initializer)
+            _create_residual_cnn_block(
+                output_tensor_spec, kernel_initializer=kernel_initializer
+            )
             for _ in range(num_residual_blocks)
         ],
-        input_tensor_spec=input_tensor_spec)
+        input_tensor_spec=input_tensor_spec,
+    )
 
 
-def create(input_tensor_spec,
-           cnn_channel_list: List[int] = [16, 32, 32],
-           num_blocks_per_stack: int = 2,
-           flatten_output_size: Optional[int] = 256,
-           output_activation: Callable[[Tensor], Tensor] = torch.relu_,
-           kernel_initializer: Callable[[Tensor], None] = xavier_uniform_):
+def create(
+    input_tensor_spec,
+    cnn_channel_list: List[int] = [16, 32, 32],
+    num_blocks_per_stack: int = 2,
+    flatten_output_size: Optional[int] = 256,
+    output_activation: Callable[[Tensor], Tensor] = torch.relu_,
+    kernel_initializer: Callable[[Tensor], None] = xavier_uniform_,
+):
     """Create the Impala CNN Encoder
 
     Here the so called Impala CNN Encoder is essentially a series of CNN
@@ -182,10 +192,12 @@ def create(input_tensor_spec,
         scale_factor = 1.0 / 255.0
         stacks.append(alf.layers.Cast(dtype=torch.float32))
         stacks.append(lambda x: x * scale_factor)
-        last_output_spec = alf.BoundedTensorSpec(input_tensor_spec.shape,
-                                                 dtype=torch.float32,
-                                                 minimum=0.0,
-                                                 maximum=1.0)
+        last_output_spec = alf.BoundedTensorSpec(
+            input_tensor_spec.shape,
+            dtype=torch.float32,
+            minimum=0.0,
+            maximum=1.0,
+        )
     else:
         last_output_spec = input_tensor_spec
 
@@ -195,7 +207,9 @@ def create(input_tensor_spec,
                 last_output_spec,
                 output_channels,
                 num_blocks_per_stack,
-                kernel_initializer=kernel_initializer))
+                kernel_initializer=kernel_initializer,
+            )
+        )
         last_output_spec = stacks[-1].output_spec
     stack_output_spec = stacks[-1].output_spec
 
@@ -203,14 +217,17 @@ def create(input_tensor_spec,
         return alf.nn.Sequential(
             *stacks,
             # Flatten the images
-            alf.layers.Reshape((-1, )),
+            alf.layers.Reshape((-1,)),
             torch.nn.ReLU(inplace=True),
-            alf.layers.FC(input_size=stack_output_spec.numel,
-                          output_size=flatten_output_size,
-                          activation=output_activation,
-                          kernel_initializer=kernel_initializer),
-            input_tensor_spec=input_tensor_spec)
+            alf.layers.FC(
+                input_size=stack_output_spec.numel,
+                output_size=flatten_output_size,
+                activation=output_activation,
+                kernel_initializer=kernel_initializer,
+            ),
+            input_tensor_spec=input_tensor_spec,
+        )
     else:
-        return alf.nn.Sequential(*stacks,
-                                 output_activation,
-                                 input_tensor_spec=input_tensor_spec)
+        return alf.nn.Sequential(
+            *stacks, output_activation, input_tensor_spec=input_tensor_spec
+        )

@@ -64,14 +64,14 @@ def extract_sub_state_dict_from_checkpoint(checkpoint_prefix, checkpoint_path):
 
     # use ``cpu`` as the map location to avoid GPU RAM surge when loading a
     # model checkpoint.
-    map_location = torch.device('cpu')
+    map_location = torch.device("cpu")
     checkpoint = torch.load(checkpoint_path, map_location=map_location)
 
-    if checkpoint_prefix != '':
-        dict_key_and_prefix = checkpoint_prefix.split('.', maxsplit=1)
+    if checkpoint_prefix != "":
+        dict_key_and_prefix = checkpoint_prefix.split(".", maxsplit=1)
         if len(dict_key_and_prefix) == 1:
             dict_key = dict_key_and_prefix[0]
-            prefix = ''
+            prefix = ""
         else:
             dict_key, prefix = dict_key_and_prefix
 
@@ -79,15 +79,16 @@ def extract_sub_state_dict_from_checkpoint(checkpoint_prefix, checkpoint_path):
 
         def _remove_prefix(s, prefix):
             if s.startswith(prefix):
-                return s[len(prefix):]
+                return s[len(prefix) :]
             else:
                 return s
 
         # the case when the checkpoint is a subset of the full
         # checkpoint file filter
         checkpoint = {
-            _remove_prefix(k, prefix + '.'): v
-            for k, v in checkpoint.items() if k.startswith(prefix)
+            _remove_prefix(k, prefix + "."): v
+            for k, v in checkpoint.items()
+            if k.startswith(prefix)
         }
 
     return checkpoint
@@ -129,13 +130,15 @@ class Checkpointer(object):
         os.makedirs(self._ckpt_dir, exist_ok=True)
 
     @alf.configurable
-    def load(self,
-             global_step="latest",
-             ignored_parameter_prefixes=[],
-             including_optimizer=True,
-             including_replay_buffer=True,
-             including_data_transformers=True,
-             strict=True):
+    def load(
+        self,
+        global_step="latest",
+        ignored_parameter_prefixes=[],
+        including_optimizer=True,
+        including_replay_buffer=True,
+        including_data_transformers=True,
+        strict=True,
+    ):
         """Load checkpoint
         Args:
             global_step (int|str): the number of training steps which is used to
@@ -186,53 +189,63 @@ class Checkpointer(object):
             """
             d = {}
             for k, v in checkpoint.items():
-                if k.endswith('._linear.weight') or k.endswith(
-                        '._linear.bias'):
+                if k.endswith("._linear.weight") or k.endswith("._linear.bias"):
                     d[k] = v
-                elif k.endswith('._log_alpha') and v.shape == (1, ):
+                elif k.endswith("._log_alpha") and v.shape == (1,):
                     d[k] = v[0]
             for k, v in d.items():
                 del checkpoint[k]
                 logging.info("Converted legacy parameter %s" % k)
-                if k.endswith('.weight'):
-                    checkpoint[k[:-13] + 'weight'] = v
-                elif k.endswith('.bias'):
-                    checkpoint[k[:-11] + 'bias'] = v
+                if k.endswith(".weight"):
+                    checkpoint[k[:-13] + "weight"] = v
+                elif k.endswith(".bias"):
+                    checkpoint[k[:-11] + "bias"] = v
                 else:
                     checkpoint[k] = v
 
         def _load_one(module, checkpoint):
             if isinstance(module, nn.Module):
                 missing_keys, unexpected_keys = module.load_state_dict(
-                    checkpoint, strict=strict)
+                    checkpoint, strict=strict
+                )
             else:
                 module.load_state_dict(checkpoint)
                 missing_keys, unexpected_keys = [], []
 
             if not including_optimizer:
                 missing_keys = list(
-                    filter(lambda k: k.find('_optimizers.') < 0, missing_keys))
+                    filter(lambda k: k.find("_optimizers.") < 0, missing_keys)
+                )
             if not including_replay_buffer:
                 missing_keys = list(
-                    filter(lambda k: not k.startswith('_replay_buffer.'),
-                           missing_keys))
+                    filter(
+                        lambda k: not k.startswith("_replay_buffer."),
+                        missing_keys,
+                    )
+                )
             if strict:
                 error_msgs = []
                 if len(unexpected_keys) > 0:
                     error_msgs.insert(
-                        0, 'Unexpected key(s) in state_dict: {}. '.format(
-                            ', '.join('"{}"'.format(k)
-                                      for k in unexpected_keys)))
+                        0,
+                        "Unexpected key(s) in state_dict: {}. ".format(
+                            ", ".join('"{}"'.format(k) for k in unexpected_keys)
+                        ),
+                    )
                 if len(missing_keys) > 0:
                     error_msgs.insert(
-                        0, 'Missing key(s) in state_dict: {}. '.format(
-                            ', '.join('"{}"'.format(k) for k in missing_keys)))
+                        0,
+                        "Missing key(s) in state_dict: {}. ".format(
+                            ", ".join('"{}"'.format(k) for k in missing_keys)
+                        ),
+                    )
 
                 if len(error_msgs) > 0:
                     raise RuntimeError(
-                        'Error(s) in loading state_dict for {}:\n\t{}'.format(
-                            module.__class__.__name__,
-                            "\n\t".join(error_msgs)))
+                        "Error(s) in loading state_dict for {}:\n\t{}".format(
+                            module.__class__.__name__, "\n\t".join(error_msgs)
+                        )
+                    )
 
         def _merge_checkpoint(merged, new):
             for mk in self._modules.keys():
@@ -244,28 +257,34 @@ class Checkpointer(object):
         if global_step == "latest":
             global_step = self._get_latest_checkpoint_step()
         elif isinstance(global_step, str):
-            assert global_step == "best", "global_step must be int, 'latest' or 'best'"
+            assert (
+                global_step == "best"
+            ), "global_step must be int, 'latest' or 'best'"
 
         if global_step is None:
-            warnings.warn("There is no checkpoint in directory %s. "
-                          "Train from scratch" % self._ckpt_dir)
+            warnings.warn(
+                "There is no checkpoint in directory %s. "
+                "Train from scratch" % self._ckpt_dir
+            )
             return self._global_step
 
         f_path = os.path.join(self._ckpt_dir, "ckpt-{0}".format(global_step))
 
         # use ``cpu`` as the map location to avoid GPU RAM surge when loading a
         # model checkpoint.
-        map_location = torch.device('cpu')
+        map_location = torch.device("cpu")
 
         checkpoint = torch.load(f_path, map_location=map_location)
-        checkpoint['global_step'] = checkpoint['global_step'].numpy()
+        checkpoint["global_step"] = checkpoint["global_step"].numpy()
         if including_optimizer:
-            opt_checkpoint = torch.load(f_path + '-optimizer',
-                                        map_location=map_location)
+            opt_checkpoint = torch.load(
+                f_path + "-optimizer", map_location=map_location
+            )
             _merge_checkpoint(checkpoint, opt_checkpoint)
         if including_replay_buffer:
-            replay_buffer_checkpoint = torch.load(f_path + '-replay_buffer',
-                                                  map_location=map_location)
+            replay_buffer_checkpoint = torch.load(
+                f_path + "-replay_buffer", map_location=map_location
+            )
             _merge_checkpoint(checkpoint, replay_buffer_checkpoint)
 
         self._global_step = checkpoint["global_step"]
@@ -280,12 +299,14 @@ class Checkpointer(object):
                         "Skip loading checkpoints for metrics due to error. "
                         "This could be caused by num_parallel_environments "
                         "or metrics different from the previous trining. "
-                        "Error: %s" % e)
+                        "Error: %s" % e
+                    )
             else:
                 _load_one(self._modules[k], checkpoint[k])
 
         logging.info(
-            "Checkpoint 'ckpt-{}' is loaded successfully.".format(global_step))
+            "Checkpoint 'ckpt-{}' is loaded successfully.".format(global_step)
+        )
 
         return self._global_step
 
@@ -327,12 +348,15 @@ class Checkpointer(object):
         replay_buffer_state = {}
 
         for k, v in state.items():
-            if k.find('_optimizers.') >= 0 and isinstance(
-                    v, dict) and 'param_groups' in v:
+            if (
+                k.find("_optimizers.") >= 0
+                and isinstance(v, dict)
+                and "param_groups" in v
+            ):
                 optimizer_state[k] = v
-            elif k.startswith('_replay_buffer.'):
+            elif k.startswith("_replay_buffer."):
                 replay_buffer_state[k] = v
-            elif not k.startswith('_offline_replay_buffer.'):
+            elif not k.startswith("_offline_replay_buffer."):
                 model_state[k] = v
 
         return model_state, optimizer_state, replay_buffer_state
@@ -351,9 +375,11 @@ class Checkpointer(object):
 
         f_path = os.path.join(self._ckpt_dir, f"ckpt-{suffix}")
         state = {
-            k:
+            k: (
                 v.module.state_dict()
-                if type(v) == torch.nn.DataParallel else v.state_dict()
+                if type(v) == torch.nn.DataParallel
+                else v.state_dict()
+            )
             for k, v in self._modules.items()
         }
         model_state = {}
@@ -365,11 +391,11 @@ class Checkpointer(object):
             optimizer_state[k] = opts
             replay_buffer_state[k] = rs
 
-        model_state['global_step'] = torch.tensor(global_step)
+        model_state["global_step"] = torch.tensor(global_step)
 
         torch.save(model_state, f_path)
-        torch.save(optimizer_state, f_path + '-optimizer')
-        torch.save(replay_buffer_state, f_path + '-replay_buffer')
+        torch.save(optimizer_state, f_path + "-optimizer")
+        torch.save(replay_buffer_state, f_path + "-replay_buffer")
 
         if self._global_step == -1:
             # we only need to save the checkpoint structure once.``global_step``
@@ -390,27 +416,33 @@ class Checkpointer(object):
 
             # save all the state dictionary to json files, only retaining the
             # structures, replacing value with placeholders
-            with open(os.path.join(self._ckpt_dir, "ckpt-structure.json"),
-                      "w") as outfile:
-                json.dump(_use_placeholder_value(model_state),
-                          outfile,
-                          indent=4)
             with open(
-                    os.path.join(self._ckpt_dir,
-                                 "ckpt-structure-optimizer.json"),
-                    "w") as outfile:
-                json.dump(_use_placeholder_value(optimizer_state),
-                          outfile,
-                          indent=4)
+                os.path.join(self._ckpt_dir, "ckpt-structure.json"), "w"
+            ) as outfile:
+                json.dump(
+                    _use_placeholder_value(model_state), outfile, indent=4
+                )
             with open(
-                    os.path.join(self._ckpt_dir,
-                                 "ckpt-structure-replay_buffer.json"),
-                    "w") as outfile:
-                json.dump(_use_placeholder_value(replay_buffer_state),
-                          outfile,
-                          indent=4)
+                os.path.join(self._ckpt_dir, "ckpt-structure-optimizer.json"),
+                "w",
+            ) as outfile:
+                json.dump(
+                    _use_placeholder_value(optimizer_state), outfile, indent=4
+                )
+            with open(
+                os.path.join(
+                    self._ckpt_dir, "ckpt-structure-replay_buffer.json"
+                ),
+                "w",
+            ) as outfile:
+                json.dump(
+                    _use_placeholder_value(replay_buffer_state),
+                    outfile,
+                    indent=4,
+                )
 
         self._global_step = global_step
 
         logging.info(
-            "Checkpoint 'ckpt-{}' is saved successfully.".format(global_step))
+            "Checkpoint 'ckpt-{}' is saved successfully.".format(global_step)
+        )

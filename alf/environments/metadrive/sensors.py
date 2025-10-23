@@ -26,6 +26,7 @@ try:
     from metadrive.component.vehicle.base_vehicle import BaseVehicle
 except ImportError:
     from unittest.mock import Mock
+
     # create 'metadrive' as a mock to not break python argument type hints
     metadrive = Mock()
     pygame = Mock()
@@ -55,14 +56,16 @@ class VectorizedObservation(ObservationBase):
 
     """
 
-    def __init__(self,
-                 vehicle_config: metadrive.utils.Config,
-                 fov: FieldOfView = FieldOfView(),
-                 segment_resolution: float = 2.0,
-                 polyline_size: int = 4,
-                 polyline_limit: int = 64,
-                 history_window_size: int = 8,
-                 agent_limit: int = 16):
+    def __init__(
+        self,
+        vehicle_config: metadrive.utils.Config,
+        fov: FieldOfView = FieldOfView(),
+        segment_resolution: float = 2.0,
+        polyline_size: int = 4,
+        polyline_limit: int = 64,
+        history_window_size: int = 8,
+        agent_limit: int = 16,
+    ):
         """Construct a VectorizedObservation instance.
 
         Args:
@@ -94,15 +97,18 @@ class VectorizedObservation(ObservationBase):
             fov=fov,
             segment_resolution=segment_resolution,
             polyline_size=polyline_size,
-            polyline_limit=polyline_limit)
+            polyline_limit=polyline_limit,
+        )
 
         self._agent_perception = AgentPerception(
             fov=fov,
             history_window_size=history_window_size,
-            agent_limit=agent_limit)
+            agent_limit=agent_limit,
+        )
 
         self._position_history = Polyline(
-            point=np.zeros((history_window_size, 2), dtype=np.float32))
+            point=np.zeros((history_window_size, 2), dtype=np.float32)
+        )
 
         self.fov = fov
         self.history_window_size = history_window_size
@@ -128,18 +134,18 @@ class VectorizedObservation(ObservationBase):
     @property
     def observation_spec(self):
         return {
-            'map':
-                self._map_perception.observation_spec,
-            'map_mask':
-                TensorSpec(shape=(self.polyline_limit, ), dtype=torch.bool),
-            'ego':
-                TensorSpec(shape=((self._position_history.point.shape[0] - 1) *
-                                  6, ),
-                           dtype=torch.float32),
-            'agents':
-                self._agent_perception.observation_spec,
-            'agent_mask':
-                TensorSpec(shape=(self.agent_limit, ), dtype=torch.bool)
+            "map": self._map_perception.observation_spec,
+            "map_mask": TensorSpec(
+                shape=(self.polyline_limit,), dtype=torch.bool
+            ),
+            "ego": TensorSpec(
+                shape=((self._position_history.point.shape[0] - 1) * 6,),
+                dtype=torch.float32,
+            ),
+            "agents": self._agent_perception.observation_spec,
+            "agent_mask": TensorSpec(
+                shape=(self.agent_limit,), dtype=torch.bool
+            ),
         }
 
     def observe(self, vehicle: BaseVehicle):
@@ -157,7 +163,8 @@ class VectorizedObservation(ObservationBase):
 
         """
         map_feature, polyline_count = self._map_perception.observe(
-            vehicle.position, vehicle.heading_theta)
+            vehicle.position, vehicle.heading_theta
+        )
         map_mask = np.ones(map_feature.shape[0], dtype=bool)
         map_mask[polyline_count:] = False
 
@@ -166,28 +173,26 @@ class VectorizedObservation(ObservationBase):
         agent_mask[agent_count:] = False
 
         self._position_history.point[:-1, :] = self._position_history.point[
-            1:, :]
+            1:, :
+        ]
         self._position_history.point[-1, :] = vehicle.position
 
         return {
-            'map':
-                map_feature,
-            'map_mask':
-                map_mask,
-            'ego':
-                self._position_history.transformed(
-                    vehicle.position, vehicle.heading_theta).to_feature(),
-            'agents':
-                agent_feature,
-            'agent_mask':
-                agent_mask,
+            "map": map_feature,
+            "map_mask": map_mask,
+            "ego": self._position_history.transformed(
+                vehicle.position, vehicle.heading_theta
+            ).to_feature(),
+            "agents": agent_feature,
+            "agent_mask": agent_mask,
         }
 
     def reset(self, env, vehicle=None):
         # Initialize by generating all the polylines of map and navigation via the
         # MapPolylinePerception object.
-        self._map_perception.reset(env.current_map.road_network,
-                                   vehicle.navigation)
+        self._map_perception.reset(
+            env.current_map.road_network, vehicle.navigation
+        )
         self._agent_perception.reset(env.engine, vehicle)
         # Initialize the vehicle history buffer.
         self._position_history.point[:, :] = vehicle.position
@@ -206,50 +211,56 @@ class BirdEyeObservation(TopDownMultiChannel):
 
     """
 
-    def __init__(self,
-                 env_config: metadrive.utils.Config,
-                 velocity_steps: int = 1,
-                 velocity_normalization: float = 100.0):
+    def __init__(
+        self,
+        env_config: metadrive.utils.Config,
+        velocity_steps: int = 1,
+        velocity_normalization: float = 100.0,
+    ):
         """Construct a BirdEyeObservation instance.
 
         Args:
-            
+
             env_config: MetaDrive's environment configuration.
             velocity_steps: The number of historical steps for the velocity.
             velocity_normalization: The velocities (in m/s) will be normalized
                 by this factor before producing the feature.
 
         """
-        super().__init__(env_config["vehicle_config"],
-                         env_config["use_render"],
-                         env_config["rgb_clip"],
-                         frame_stack=env_config["frame_stack"],
-                         post_stack=env_config["post_stack"],
-                         frame_skip=env_config["frame_skip"],
-                         resolution=(env_config["resolution_size"],
-                                     env_config["resolution_size"]),
-                         max_distance=env_config["distance"])
+        super().__init__(
+            env_config["vehicle_config"],
+            env_config["use_render"],
+            env_config["rgb_clip"],
+            frame_stack=env_config["frame_stack"],
+            post_stack=env_config["post_stack"],
+            frame_skip=env_config["frame_skip"],
+            resolution=(
+                env_config["resolution_size"],
+                env_config["resolution_size"],
+            ),
+            max_distance=env_config["distance"],
+        )
 
         self._velocity_steps = velocity_steps
         self._velocity_normalization = velocity_normalization
-        self._velocity_history = np.zeros(self._velocity_steps,
-                                          dtype=np.float32)
+        self._velocity_history = np.zeros(
+            self._velocity_steps, dtype=np.float32
+        )
 
     @property
     def observation_spec(self):
         h, w, c = self.observation_space.shape
 
         return {
-            'bev':
-                BoundedTensorSpec(shape=(c, h, w),
-                                  dtype=torch.float32,
-                                  minimum=0.0,
-                                  maximum=1.0),
-            'vel':
-                BoundedTensorSpec(shape=(self._velocity_steps, ),
-                                  dtype=torch.float32,
-                                  minimum=0.0,
-                                  maximum=30.0)
+            "bev": BoundedTensorSpec(
+                shape=(c, h, w), dtype=torch.float32, minimum=0.0, maximum=1.0
+            ),
+            "vel": BoundedTensorSpec(
+                shape=(self._velocity_steps,),
+                dtype=torch.float32,
+                minimum=0.0,
+                maximum=30.0,
+            ),
         }
 
     def observe(self, vehicle: BaseVehicle):
@@ -267,6 +278,6 @@ class BirdEyeObservation(TopDownMultiChannel):
         self._velocity_history[-1] = vehicle.speed * 1000.0 / 3600.0
 
         return {
-            'bev': np.transpose(img, (2, 0, 1)),
-            'vel': self._velocity_history / self._velocity_normalization
+            "bev": np.transpose(img, (2, 0, 1)),
+            "vel": self._velocity_history / self._velocity_normalization,
         }

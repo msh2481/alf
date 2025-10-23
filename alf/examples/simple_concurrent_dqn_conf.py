@@ -43,16 +43,16 @@ q_network_cls = lambda input_tensor_spec, action_spec: QNetwork(
 alf.config(
     "DqnAlgorithm",
     q_network_cls=q_network_cls,
-    rollout_epsilon_greedy=LinearScheduler(progress_type="percent",
-                                           schedule=[(0, 0.9), (0.1, 0.1),
-                                                     (1.0, 0.05)]),
+    rollout_epsilon_greedy=LinearScheduler(
+        progress_type="percent", schedule=[(0, 0.9), (0.1, 0.1), (1.0, 0.05)]
+    ),
     q_optimizer=AdamTF(lr=1e-3),
 )
 
 # SimpleConcurrentAlgorithm configuration
-alf.config("SimpleConcurrentAlgorithm",
-           algorithm_ctor=DqnAlgorithm,
-           num_copies=2)  # 2 independent DQN copies
+alf.config(
+    "SimpleConcurrentAlgorithm", algorithm_ctor=DqnAlgorithm, num_copies=2
+)  # 2 independent DQN copies
 
 # Training configuration
 alf.config(

@@ -29,26 +29,37 @@ from alf.networks import ValueNetwork
 from alf.tensor_specs import TensorSpec, BoundedTensorSpec
 from alf.utils import common, dist_utils, math_ops
 
-IqlActionState = namedtuple("IqlActionState", ["actor_network", "critic"],
-                            default_value=())
+IqlActionState = namedtuple(
+    "IqlActionState", ["actor_network", "critic"], default_value=()
+)
 
 IqlCriticState = namedtuple("IqlCriticState", ["critics", "target_critics"])
 
-IqlState = namedtuple("IqlState", ["action", "actor", "critic"],
-                      default_value=())
+IqlState = namedtuple(
+    "IqlState", ["action", "actor", "critic"], default_value=()
+)
 
-IqlCriticInfo = namedtuple("IqlCriticInfo",
-                           ["critics", "target_value", "value"])
+IqlCriticInfo = namedtuple(
+    "IqlCriticInfo", ["critics", "target_value", "value"]
+)
 
 IqlActorInfo = namedtuple("IqlActorInfo", ["actor_loss"], default_value=())
 
-IqlInfo = namedtuple("IqlInfo", [
-    "reward", "step_type", "discount", "action", "action_distribution",
-    "actor", "critic"
-],
-                     default_value=())
+IqlInfo = namedtuple(
+    "IqlInfo",
+    [
+        "reward",
+        "step_type",
+        "discount",
+        "action",
+        "action_distribution",
+        "actor",
+        "critic",
+    ],
+    default_value=(),
+)
 
-IqlLossInfo = namedtuple('IqlLossInfo', ('actor', 'critic'))
+IqlLossInfo = namedtuple("IqlLossInfo", ("actor", "critic"))
 
 
 @alf.configurable
@@ -67,31 +78,33 @@ class IqlAlgorithm(OffPolicyAlgorithm):
         arXiv:2110.06169
     """
 
-    def __init__(self,
-                 observation_spec,
-                 action_spec: BoundedTensorSpec,
-                 reward_spec=TensorSpec(()),
-                 actor_network_cls=ActorDistributionNetwork,
-                 critic_network_cls=CriticNetwork,
-                 v_network_cls=ValueNetwork,
-                 reward_weights=None,
-                 epsilon_greedy=None,
-                 calculate_priority=False,
-                 num_critic_replicas=2,
-                 env=None,
-                 config: TrainerConfig = None,
-                 critic_loss_ctor=None,
-                 target_update_tau=0.05,
-                 target_update_period=1,
-                 temperature=1.0,
-                 actor_optimizer=None,
-                 critic_optimizer=None,
-                 value_optimizer=None,
-                 expectile=0.8,
-                 max_exp_advantage=100,
-                 checkpoint=None,
-                 debug_summaries=False,
-                 name="IqlAlgorithm"):
+    def __init__(
+        self,
+        observation_spec,
+        action_spec: BoundedTensorSpec,
+        reward_spec=TensorSpec(()),
+        actor_network_cls=ActorDistributionNetwork,
+        critic_network_cls=CriticNetwork,
+        v_network_cls=ValueNetwork,
+        reward_weights=None,
+        epsilon_greedy=None,
+        calculate_priority=False,
+        num_critic_replicas=2,
+        env=None,
+        config: TrainerConfig = None,
+        critic_loss_ctor=None,
+        target_update_tau=0.05,
+        target_update_period=1,
+        temperature=1.0,
+        actor_optimizer=None,
+        critic_optimizer=None,
+        value_optimizer=None,
+        expectile=0.8,
+        max_exp_advantage=100,
+        checkpoint=None,
+        debug_summaries=False,
+        name="IqlAlgorithm",
+    ):
         """
         Args:
             observation_spec (nested TensorSpec): representing the observations.
@@ -156,28 +169,38 @@ class IqlAlgorithm(OffPolicyAlgorithm):
         self._epsilon_greedy = epsilon_greedy
 
         critic_networks, actor_network, v_network = self._make_networks(
-            observation_spec, action_spec, reward_spec, actor_network_cls,
-            critic_network_cls, v_network_cls)
+            observation_spec,
+            action_spec,
+            reward_spec,
+            actor_network_cls,
+            critic_network_cls,
+            v_network_cls,
+        )
 
         action_state_spec = IqlActionState(
-            actor_network=actor_network.state_spec, critic=())
+            actor_network=actor_network.state_spec, critic=()
+        )
 
-        super().__init__(observation_spec=observation_spec,
-                         action_spec=action_spec,
-                         reward_spec=reward_spec,
-                         train_state_spec=IqlState(
-                             action=action_state_spec,
-                             actor=critic_networks.state_spec,
-                             critic=IqlCriticState(
-                                 critics=critic_networks.state_spec,
-                                 target_critics=critic_networks.state_spec)),
-                         predict_state_spec=IqlState(action=action_state_spec),
-                         reward_weights=reward_weights,
-                         env=env,
-                         config=config,
-                         checkpoint=checkpoint,
-                         debug_summaries=debug_summaries,
-                         name=name)
+        super().__init__(
+            observation_spec=observation_spec,
+            action_spec=action_spec,
+            reward_spec=reward_spec,
+            train_state_spec=IqlState(
+                action=action_state_spec,
+                actor=critic_networks.state_spec,
+                critic=IqlCriticState(
+                    critics=critic_networks.state_spec,
+                    target_critics=critic_networks.state_spec,
+                ),
+            ),
+            predict_state_spec=IqlState(action=action_state_spec),
+            reward_weights=reward_weights,
+            env=env,
+            config=config,
+            checkpoint=checkpoint,
+            debug_summaries=debug_summaries,
+            name=name,
+        )
 
         if actor_optimizer is not None and actor_network is not None:
             self.add_optimizer(actor_optimizer, [actor_network])
@@ -190,69 +213,88 @@ class IqlAlgorithm(OffPolicyAlgorithm):
         self._actor_network = actor_network
         self._critic_networks = critic_networks
         self._target_critic_networks = self._critic_networks.copy(
-            name='target_critic_networks')
+            name="target_critic_networks"
+        )
         self._v_network = v_network
 
         if critic_loss_ctor is None:
             critic_loss_ctor = OneStepTDLoss
-        critic_loss_ctor = functools.partial(critic_loss_ctor,
-                                             debug_summaries=debug_summaries)
+        critic_loss_ctor = functools.partial(
+            critic_loss_ctor, debug_summaries=debug_summaries
+        )
         # Have different names to separate their summary curves
         self._critic_losses = []
         for i in range(num_critic_replicas):
             self._critic_losses.append(
-                critic_loss_ctor(name="critic_loss%d" % (i + 1)))
+                critic_loss_ctor(name="critic_loss%d" % (i + 1))
+            )
 
         self._update_target = common.TargetUpdater(
             models=[self._critic_networks],
             target_models=[self._target_critic_networks],
             tau=target_update_tau,
-            period=target_update_period)
+            period=target_update_period,
+        )
 
         self._expectile = expectile
         self._max_exp_advantage = max_exp_advantage
 
-    def _make_networks(self, observation_spec, action_spec, reward_spec,
-                       continuous_actor_network_cls, critic_network_cls,
-                       v_network_cls):
+    def _make_networks(
+        self,
+        observation_spec,
+        action_spec,
+        reward_spec,
+        continuous_actor_network_cls,
+        critic_network_cls,
+        v_network_cls,
+    ):
 
         def _make_parallel(net):
-            return net.make_parallel(self._num_critic_replicas *
-                                     reward_spec.numel)
+            return net.make_parallel(
+                self._num_critic_replicas * reward_spec.numel
+            )
 
         def _check_spec_equal(spec1, spec2):
-            assert nest.flatten(spec1) == nest.flatten(spec2), (
-                "Unmatched action specs: {} vs. {}".format(spec1, spec2))
+            assert nest.flatten(spec1) == nest.flatten(
+                spec2
+            ), "Unmatched action specs: {} vs. {}".format(spec1, spec2)
 
         actor_network = continuous_actor_network_cls(
-            input_tensor_spec=observation_spec, action_spec=action_spec)
+            input_tensor_spec=observation_spec, action_spec=action_spec
+        )
 
         critic_network = critic_network_cls(
-            input_tensor_spec=(observation_spec, action_spec))
+            input_tensor_spec=(observation_spec, action_spec)
+        )
         critic_networks = _make_parallel(critic_network)
 
         v_network = v_network_cls(input_tensor_spec=observation_spec)
 
         return critic_networks, actor_network, v_network
 
-    def _predict_action(self,
-                        observation,
-                        state: IqlActionState,
-                        epsilon_greedy=None,
-                        eps_greedy_sampling=False,
-                        rollout=False):
+    def _predict_action(
+        self,
+        observation,
+        state: IqlActionState,
+        epsilon_greedy=None,
+        eps_greedy_sampling=False,
+        rollout=False,
+    ):
 
         new_state = IqlActionState()
 
         continuous_action_dist, actor_network_state = self._actor_network(
-            observation, state=state.actor_network)
+            observation, state=state.actor_network
+        )
         new_state = new_state._replace(actor_network=actor_network_state)
         if eps_greedy_sampling:
             continuous_action = dist_utils.epsilon_greedy_sample(
-                continuous_action_dist, epsilon_greedy)
+                continuous_action_dist, epsilon_greedy
+            )
         else:
             continuous_action = dist_utils.rsample_action_distribution(
-                continuous_action_dist)
+                continuous_action_dist
+            )
 
         action_dist = continuous_action_dist
         action = continuous_action
@@ -265,7 +307,8 @@ class IqlAlgorithm(OffPolicyAlgorithm):
             inputs.observation,
             state=state.action,
             epsilon_greedy=self._epsilon_greedy,
-            eps_greedy_sampling=True)
+            eps_greedy_sampling=True,
+        )
 
         return AlgStep(output=action, state=IqlState(action=action_state))
 
@@ -280,18 +323,25 @@ class IqlAlgorithm(OffPolicyAlgorithm):
             state=state.action,
             epsilon_greedy=1.0,
             eps_greedy_sampling=True,
-            rollout=True)
+            rollout=True,
+        )
 
         if self.need_full_rollout_state():
-            _, critics_state = self._compute_critics(self._critic_networks,
-                                                     inputs.observation,
-                                                     action,
-                                                     state.critic.critics)
+            _, critics_state = self._compute_critics(
+                self._critic_networks,
+                inputs.observation,
+                action,
+                state.critic.critics,
+            )
             _, target_critics_state = self._compute_critics(
-                self._target_critic_networks, inputs.observation, action,
-                state.critic.target_critics)
-            critic_state = IqlCriticState(critics=critics_state,
-                                          target_critics=target_critics_state)
+                self._target_critic_networks,
+                inputs.observation,
+                action,
+                state.critic.target_critics,
+            )
+            critic_state = IqlCriticState(
+                critics=critics_state, target_critics=target_critics_state
+            )
 
             actor_state = critics_state
 
@@ -299,21 +349,24 @@ class IqlAlgorithm(OffPolicyAlgorithm):
             actor_state = state.actor
             critic_state = state.critic
 
-        new_state = IqlState(action=action_state,
-                             actor=actor_state,
-                             critic=critic_state)
-        return AlgStep(output=action,
-                       state=new_state,
-                       info=IqlInfo(action=action,
-                                    action_distribution=action_dist))
+        new_state = IqlState(
+            action=action_state, actor=actor_state, critic=critic_state
+        )
+        return AlgStep(
+            output=action,
+            state=new_state,
+            info=IqlInfo(action=action, action_distribution=action_dist),
+        )
 
-    def _compute_critics(self,
-                         critic_net,
-                         observation,
-                         action,
-                         critics_state,
-                         replica_min=True,
-                         apply_reward_weights=True):
+    def _compute_critics(
+        self,
+        critic_net,
+        observation,
+        action,
+        critics_state,
+        replica_min=True,
+        apply_reward_weights=True,
+    ):
         observation = (observation, action)
 
         # critics shape [B, replicas]
@@ -324,9 +377,12 @@ class IqlAlgorithm(OffPolicyAlgorithm):
         # For scalar reward, do nothing
         if self.has_multidim_reward():
             remaining_shape = critics.shape[2:]
-            critics = critics.reshape(-1, self._num_critic_replicas,
-                                      *self._reward_spec.shape,
-                                      *remaining_shape)
+            critics = critics.reshape(
+                -1,
+                self._num_critic_replicas,
+                *self._reward_spec.shape,
+                *remaining_shape,
+            )
 
         if replica_min:
             if self.has_multidim_reward():
@@ -341,29 +397,41 @@ class IqlAlgorithm(OffPolicyAlgorithm):
 
         return critics, critics_state
 
-    def _actor_train_step(self, inputs: TimeStep, state, action_distribution,
-                          v_value, rollout_info):
+    def _actor_train_step(
+        self,
+        inputs: TimeStep,
+        state,
+        action_distribution,
+        v_value,
+        rollout_info,
+    ):
 
         # IQL uses target critic network for computing the value learning target
         q_value, critics_state = self._compute_critics(
-            self._target_critic_networks, inputs.observation,
-            rollout_info.action, state)
+            self._target_critic_networks,
+            inputs.observation,
+            rollout_info.action,
+            state,
+        )
 
         weight = torch.exp((q_value - v_value) / self._temperature)
         weight = torch.clamp(weight, max=self._max_exp_advantage)
 
         # log_pi_data: the log probability computed with the action from dataset
         log_pi_data = dist_utils.compute_log_probability(
-            action_distribution, rollout_info.action)
+            action_distribution, rollout_info.action
+        )
         weighted_log_pi = -weight.detach() * log_pi_data
         actor_loss = weighted_log_pi
 
-        actor_info = LossInfo(loss=actor_loss,
-                              extra=IqlActorInfo(actor_loss=actor_loss))
+        actor_info = LossInfo(
+            loss=actor_loss, extra=IqlActorInfo(actor_loss=actor_loss)
+        )
         return critics_state, actor_info
 
-    def _critic_train_step(self, inputs: TimeStep, state: IqlCriticState,
-                           rollout_info: IqlInfo):
+    def _critic_train_step(
+        self, inputs: TimeStep, state: IqlCriticState, rollout_info: IqlInfo
+    ):
 
         # use dataset action for Q learning
         critics, critics_state = self._compute_critics(
@@ -372,7 +440,8 @@ class IqlAlgorithm(OffPolicyAlgorithm):
             rollout_info.action,
             state.critics,
             replica_min=False,
-            apply_reward_weights=False)
+            apply_reward_weights=False,
+        )
 
         # use value network (there is no target value network), also no replica
         # use an upper quantile
@@ -380,8 +449,9 @@ class IqlAlgorithm(OffPolicyAlgorithm):
         # 1) used for constructing the the target value for q-learning
         # 2) used for training the value network using expectile loss over the
         # difference with respect to the prediction of target q-network
-        value, critics_state = self._v_network(inputs.observation,
-                                               state=critics_state)
+        value, critics_state = self._v_network(
+            inputs.observation, state=critics_state
+        )
         value = value.squeeze(-1)
 
         # use dataset state action pair for training
@@ -390,41 +460,51 @@ class IqlAlgorithm(OffPolicyAlgorithm):
             inputs.observation,
             rollout_info.action,
             state.target_critics,
-            apply_reward_weights=False)
+            apply_reward_weights=False,
+        )
 
-        state = IqlCriticState(critics=critics_state,
-                               target_critics=target_critics_state)
-        info = IqlCriticInfo(critics=critics,
-                             target_value=target_value,
-                             value=value)
+        state = IqlCriticState(
+            critics=critics_state, target_critics=target_critics_state
+        )
+        info = IqlCriticInfo(
+            critics=critics, target_value=target_value, value=value
+        )
 
         return state, info
 
-    def train_step(self, inputs: TimeStep, state: IqlState,
-                   rollout_info: IqlInfo):
+    def train_step(
+        self, inputs: TimeStep, state: IqlState, rollout_info: IqlInfo
+    ):
         self._training_started = True
 
-        (action_distribution, action,
-         action_state) = self._predict_action(inputs.observation,
-                                              state=state.action)
+        (action_distribution, action, action_state) = self._predict_action(
+            inputs.observation, state=state.action
+        )
 
         critic_state, critic_info = self._critic_train_step(
-            inputs, state.critic, rollout_info)
+            inputs, state.critic, rollout_info
+        )
 
         actor_state, actor_loss = self._actor_train_step(
-            inputs, state.actor, action_distribution, critic_info.value,
-            rollout_info)
+            inputs,
+            state.actor,
+            action_distribution,
+            critic_info.value,
+            rollout_info,
+        )
 
-        state = IqlState(action=action_state,
-                         actor=actor_state,
-                         critic=critic_state)
-        info = IqlInfo(reward=inputs.reward,
-                       step_type=inputs.step_type,
-                       discount=inputs.discount,
-                       action=rollout_info.action,
-                       action_distribution=action_distribution,
-                       actor=actor_loss,
-                       critic=critic_info)
+        state = IqlState(
+            action=action_state, actor=actor_state, critic=critic_state
+        )
+        info = IqlInfo(
+            reward=inputs.reward,
+            step_type=inputs.step_type,
+            discount=inputs.discount,
+            action=rollout_info.action,
+            action_distribution=action_distribution,
+            actor=actor_loss,
+            critic=critic_info,
+        )
         return AlgStep(action, state, info)
 
     def after_update(self, root_inputs, info: IqlInfo):
@@ -436,10 +516,11 @@ class IqlAlgorithm(OffPolicyAlgorithm):
 
         loss = math_ops.add_ignore_empty(actor_loss.loss, critic_loss.loss)
 
-        return LossInfo(loss=loss,
-                        priority=critic_loss.priority,
-                        extra=IqlLossInfo(actor=actor_loss.extra,
-                                          critic=critic_loss.extra))
+        return LossInfo(
+            loss=loss,
+            priority=critic_loss.priority,
+            extra=IqlLossInfo(actor=actor_loss.extra, critic=critic_loss.extra),
+        )
 
     def _calc_critic_loss(self, info: IqlInfo):
 
@@ -451,9 +532,11 @@ class IqlAlgorithm(OffPolicyAlgorithm):
         critic_losses = []
         for i, l in enumerate(self._critic_losses):
             critic_losses.append(
-                l(info=info,
-                  value=critic_info.critics[:, :, i, ...],
-                  target_value=critic_info.value.detach()).loss
+                l(
+                    info=info,
+                    value=critic_info.critics[:, :, i, ...],
+                    target_value=critic_info.value.detach(),
+                ).loss
             )  # use ``critic_info.value`` for constructing target value
 
         critic_loss = math_ops.add_n(critic_losses)
@@ -471,14 +554,15 @@ class IqlAlgorithm(OffPolicyAlgorithm):
         if self._calculate_priority:
             valid_masks = (info.step_type != StepType.LAST).to(torch.float32)
             valid_n = torch.clamp(valid_masks.sum(dim=0), min=1.0)
-            priority = ((critic_loss * valid_masks).sum(dim=0) /
-                        valid_n).sqrt()
+            priority = ((critic_loss * valid_masks).sum(dim=0) / valid_n).sqrt()
         else:
             priority = ()
 
-        return LossInfo(loss=critic_loss,
-                        priority=priority,
-                        extra=critic_loss / float(self._num_critic_replicas))
+        return LossInfo(
+            loss=critic_loss,
+            priority=priority,
+            extra=critic_loss / float(self._num_critic_replicas),
+        )
 
     def _trainable_attributes_to_ignore(self):
-        return ['_target_critic_networks']
+        return ["_target_critic_networks"]

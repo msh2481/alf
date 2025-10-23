@@ -34,11 +34,13 @@ from .network import Network, NetworkWrapper
 class PreprocessorNetwork(Network):
     """A base class for networks with input processing need."""
 
-    def __init__(self,
-                 input_tensor_spec,
-                 input_preprocessors=None,
-                 preprocessing_combiner=None,
-                 name="PreprocessorNetwork"):
+    def __init__(
+        self,
+        input_tensor_spec,
+        input_preprocessors=None,
+        preprocessing_combiner=None,
+        name="PreprocessorNetwork",
+    ):
         """
         Args:
             input_tensor_spec (nested TensorSpec): the (nested) tensor spec of
@@ -79,9 +81,11 @@ class PreprocessorNetwork(Network):
                     # allow None as a placeholder in the nest
                     return NetworkWrapper(lambda x: x, input_spec)
                 elif isinstance(preproc, Network):
-                    assert not nest.flatten(preproc.state_spec), (
-                        "stateful preprocessor is not supported: %s" %
-                        type(preproc))
+                    assert not nest.flatten(
+                        preproc.state_spec
+                    ), "stateful preprocessor is not supported: %s" % type(
+                        preproc
+                    )
                     preproc = preproc.copy()
                     self._input_preprocessor_modules.append(preproc)
                     return preproc
@@ -90,26 +94,33 @@ class PreprocessorNetwork(Network):
                     self._input_preprocessor_modules.append(preproc)
                 else:
                     raise ValueError(
-                        "Unsupported type in input_preprocessors: %s" %
-                        type(preproc))
+                        "Unsupported type in input_preprocessors: %s"
+                        % type(preproc)
+                    )
                 return preproc
 
             self._input_preprocessors = alf.nest.map_structure_up_to(
-                input_preprocessors, _return_or_copy_preprocessor,
-                input_preprocessors, input_tensor_spec)
+                input_preprocessors,
+                _return_or_copy_preprocessor,
+                input_preprocessors,
+                input_tensor_spec,
+            )
 
             input_tensor_spec = alf.nest.map_structure(
-                lambda net: net.output_spec, self._input_preprocessors)
+                lambda net: net.output_spec, self._input_preprocessors
+            )
 
         self._preprocessing_combiner = preprocessing_combiner
         if alf.nest.is_nested(input_tensor_spec):
-            assert preprocessing_combiner is not None, \
-                ("When a nested input tensor spec is provided, an input " +
-                "preprocessing combiner must also be provided!")
+            assert preprocessing_combiner is not None, (
+                "When a nested input tensor spec is provided, an input "
+                + "preprocessing combiner must also be provided!"
+            )
             input_tensor_spec = preprocessing_combiner(input_tensor_spec)
         else:
-            assert isinstance(input_tensor_spec, TensorSpec), \
-                "The spec must be an instance of TensorSpec!"
+            assert isinstance(
+                input_tensor_spec, TensorSpec
+            ), "The spec must be an instance of TensorSpec!"
             self._preprocessing_combiner = alf.layers.Identity()
 
         # This input spec is the final resulting spec after input preprocessors
@@ -131,18 +142,26 @@ class PreprocessorNetwork(Network):
             inputs = alf.nest.map_structure_up_to(
                 self._input_preprocessors,
                 lambda preproc, tensor: preproc(tensor)[0],
-                self._input_preprocessors, inputs)
+                self._input_preprocessors,
+                inputs,
+            )
 
         proc_inputs = self._preprocessing_combiner(inputs)
-        outer_rank = get_outer_rank(proc_inputs,
-                                    self._processed_input_tensor_spec)
-        assert min_outer_rank <= outer_rank <= max_outer_rank, \
-            ("Only supports {}<=outer_rank<={}! ".format(min_outer_rank, max_outer_rank)
+        outer_rank = get_outer_rank(
+            proc_inputs, self._processed_input_tensor_spec
+        )
+        assert min_outer_rank <= outer_rank <= max_outer_rank, (
+            "Only supports {}<=outer_rank<={}! ".format(
+                min_outer_rank, max_outer_rank
+            )
             + "After preprocessing: inputs size {} vs. input tensor spec {}".format(
-                proc_inputs.size(), self._processed_input_tensor_spec)
+                proc_inputs.size(), self._processed_input_tensor_spec
+            )
             + "\n Make sure that you have provided the right input preprocessors"
             + " and nest combiner!\n"
             + "Before preprocessing: inputs size {} vs. input tensor spec {}".format(
                 alf.nest.map_structure(lambda tensor: tensor.size(), inputs),
-                self._input_tensor_spec))
+                self._input_tensor_spec,
+            )
+        )
         return proc_inputs, state

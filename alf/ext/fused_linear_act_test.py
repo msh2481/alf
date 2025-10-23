@@ -26,34 +26,35 @@ from alf.tensor_specs import torch_dtype_to_str
 @unittest.skipIf(not torch.cuda.is_available(), "CUDA not available")
 class FusedLinearActTest(alf.test.TestCase, parameterized.TestCase):
 
-    def _do_one_test_fused_linear_act(self, m, n, k, transa, transb, act,
-                                      dtype):
+    def _do_one_test_fused_linear_act(
+        self, m, n, k, transa, transb, act, dtype
+    ):
         # Test the fused linear activation function
         if transa:
-            A = torch.randn(k, m, device='cuda', dtype=dtype)
+            A = torch.randn(k, m, device="cuda", dtype=dtype)
             A1 = A.clone().T
             A2 = A.clone().T
             A1.requires_grad = True
             A2.requires_grad = True
         else:
-            A = torch.randn(10, m, k, device='cuda', dtype=dtype)
+            A = torch.randn(10, m, k, device="cuda", dtype=dtype)
             A1 = A.clone()
             A2 = A.clone()
             A1.requires_grad = True
             A2.requires_grad = True
         if transb:
-            B = torch.randn(k, n, device='cuda', dtype=dtype)
+            B = torch.randn(k, n, device="cuda", dtype=dtype)
             B1 = B.clone().T
             B2 = B.clone().T
             B1.requires_grad = True
             B2.requires_grad = True
         else:
-            B = torch.randn(n, k, device='cuda', dtype=dtype)
+            B = torch.randn(n, k, device="cuda", dtype=dtype)
             B1 = B.clone()
             B2 = B.clone()
             B1.requires_grad = True
             B2.requires_grad = True
-        bias = torch.randn(n, device='cuda', dtype=dtype)
+        bias = torch.randn(n, device="cuda", dtype=dtype)
         bias1 = bias.clone()
         bias2 = bias1.clone()
         bias1.requires_grad = True
@@ -82,12 +83,12 @@ class FusedLinearActTest(alf.test.TestCase, parameterized.TestCase):
         self.assertEqual(B1.grad.shape, B2.shape)
         self.assertEqual(bias1.grad.shape, bias2.shape)
         # Check gradient input values
-        print("A grad max_diff",
-              torch.max(torch.abs(A1.grad - A2.grad)).item())
-        print("B grad max_diff",
-              torch.max(torch.abs(B1.grad - B2.grad)).item())
-        print("bias grad max_diff",
-              torch.max(torch.abs(bias1.grad - bias2.grad)).item())
+        print("A grad max_diff", torch.max(torch.abs(A1.grad - A2.grad)).item())
+        print("B grad max_diff", torch.max(torch.abs(B1.grad - B2.grad)).item())
+        print(
+            "bias grad max_diff",
+            torch.max(torch.abs(bias1.grad - bias2.grad)).item(),
+        )
         self.assertTrue(torch.allclose(A1.grad, A2.grad, atol=atol))
         self.assertTrue(torch.allclose(B1.grad, B2.grad, atol=atol))
         self.assertTrue(torch.allclose(bias1.grad, bias2.grad, atol=atol))
@@ -99,15 +100,16 @@ class FusedLinearActTest(alf.test.TestCase, parameterized.TestCase):
                     for transb in [False, True]:
                         for act in ["RELU", "NONE"]:
                             self._do_one_test_fused_linear_act(
-                                m, n, k, transa, transb, act, dtype)
+                                m, n, k, transa, transb, act, dtype
+                            )
 
     @parameterized.parameters(
-        (torch.float16, ),
-        (torch.float32, ),
+        (torch.float16,),
+        (torch.float32,),
     )
     def test_relu_backward(self, dtype):
         # Test the ReLU backward function
-        x = torch.randn(4, 8, device='cuda', dtype=dtype)
+        x = torch.randn(4, 8, device="cuda", dtype=dtype)
         grad_output = torch.randn_like(x)
         grad_input_torch = grad_output * (x > 0).float()
         grad_input = relu_backward(x, grad_output)
@@ -125,38 +127,41 @@ class FusedLinearActTest(alf.test.TestCase, parameterized.TestCase):
         )
         for dtype in [torch.float16, torch.bfloat16, torch.float32]:
             for act in ["RELU", "NONE"]:
-                for feature_shape, out_dim in [((256, 256), 256),
-                                               ((1024, 1024), 1024),
-                                               ((2048, 2048), 2048),
-                                               ((4096, 4096), 4096),
-                                               ((8192, 8192), 8192),
-                                               ((64000, 40, 64), 64),
-                                               ((64000, 40, 128), 128),
-                                               ((64000, 1024), 1024),
-                                               ((360000, 40, 64), 64),
-                                               ((360000, 40, 128), 128),
-                                               ((360000, 1024), 1024)]:
+                for feature_shape, out_dim in [
+                    ((256, 256), 256),
+                    ((1024, 1024), 1024),
+                    ((2048, 2048), 2048),
+                    ((4096, 4096), 4096),
+                    ((8192, 8192), 8192),
+                    ((64000, 40, 64), 64),
+                    ((64000, 40, 128), 128),
+                    ((64000, 1024), 1024),
+                    ((360000, 40, 64), 64),
+                    ((360000, 40, 128), 128),
+                    ((360000, 1024), 1024),
+                ]:
                     for backward in [False, True]:
                         if feature_shape[0] == 360000 and backward:
                             # Too large for backward
                             continue
-                        self.benchmark_one(feature_shape, out_dim, act, dtype,
-                                           backward)
+                        self.benchmark_one(
+                            feature_shape, out_dim, act, dtype, backward
+                        )
 
     def benchmark_one(self, feature_shape, out_dim, act, dtype, backward):
-        A = torch.randn(feature_shape,
-                        device='cuda',
-                        dtype=dtype,
-                        requires_grad=backward)
-        B = torch.randn(out_dim,
-                        feature_shape[-1],
-                        device='cuda',
-                        dtype=dtype,
-                        requires_grad=backward)
-        bias = torch.randn(out_dim,
-                           device='cuda',
-                           dtype=dtype,
-                           requires_grad=backward)
+        A = torch.randn(
+            feature_shape, device="cuda", dtype=dtype, requires_grad=backward
+        )
+        B = torch.randn(
+            out_dim,
+            feature_shape[-1],
+            device="cuda",
+            dtype=dtype,
+            requires_grad=backward,
+        )
+        bias = torch.randn(
+            out_dim, device="cuda", dtype=dtype, requires_grad=backward
+        )
 
         def fused_linear_act_func():
             C = fused_linear_act(A, B, bias, act)
@@ -183,7 +188,7 @@ class FusedLinearActTest(alf.test.TestCase, parameterized.TestCase):
                 C.sum().backward()
             return C
 
-        size = feature_shape + (out_dim, )
+        size = feature_shape + (out_dim,)
         flops = np.prod(size)
         if backward:
             flops *= 3
@@ -208,9 +213,11 @@ class FusedLinearActTest(alf.test.TestCase, parameterized.TestCase):
             f()
         torch.cuda.synchronize()
         t1 = perf_counter()
-        return num_iterations * flops / (t1 - t0) / 1e12, 1000 * (
-            t1 - t0) / num_iterations
+        return (
+            num_iterations * flops / (t1 - t0) / 1e12,
+            1000 * (t1 - t0) / num_iterations,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

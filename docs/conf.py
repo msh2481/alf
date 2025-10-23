@@ -27,13 +27,13 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath('../'))
+sys.path.insert(0, os.path.abspath("../"))
 
 # -- Project information -----------------------------------------------------
 
-project = 'Agent Learning Framework (ALF)'
-copyright = '2023, HorizonRobotics'
-author = 'HorizonRobotics'
+project = "Agent Learning Framework (ALF)"
+copyright = "2023, HorizonRobotics"
+author = "HorizonRobotics"
 
 # -- General configuration ---------------------------------------------------
 
@@ -41,34 +41,36 @@ author = 'HorizonRobotics'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc', 'sphinx.ext.viewcode', 'sphinxcontrib.napoleon',
-    'sphinx_autodoc_typehints'
+    "sphinx.ext.autodoc",
+    "sphinx.ext.viewcode",
+    "sphinxcontrib.napoleon",
+    "sphinx_autodoc_typehints",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'furo'
-html_theme_option = {'logo_only': True}
+html_theme = "furo"
+html_theme_option = {"logo_only": True}
 html_logo = "_static/logo.png"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
 # Concat the doctstrings of Class and __init__
-autoclass_content = 'both'
+autoclass_content = "both"
 
 # If true, the current module name will be prepended to all description
 # unit titles, e.g., alf.algorithms.algorithm.Algorithm
@@ -95,22 +97,22 @@ def run_apidoc(_):
     argv = [
         "--force",  # Overwrite output files
         "--follow-links",  # Follow symbolic links
-        #"--separate",  # Put each module file in its own page
+        # "--separate",  # Put each module file in its own page
         "--module-first",  # Put module documentation before submodule
         "--templatedir",
         "_templates",  # use our customized templates
         "-o",
         "api",  # Output path
-        "../alf"  # include path
+        "../alf",  # include path
     ] + ignore_paths
 
     apidoc.main(argv)
 
 
 def setup(app):
-    app.connect('builder-inited', run_apidoc)
+    app.connect("builder-inited", run_apidoc)
 
 
 # HACK: build penv before building html docs
-cur_dir = os.path.realpath(os.path.abspath('../'))
+cur_dir = os.path.realpath(os.path.abspath("../"))
 os.system(f"cd {cur_dir}/alf/environments; python3 make_penv.py")

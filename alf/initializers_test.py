@@ -27,8 +27,7 @@ class InitializerTest(alf.test.TestCase):
         self.assertTrue(_is_elementwise_op(torch.relu))
         self.assertTrue(_is_elementwise_op(torch.relu_))
         self.assertTrue(_is_elementwise_op(torch.sigmoid))
-        self.assertFalse(
-            _is_elementwise_op(lambda x: x * (x**2).sum().rsqrt()))
+        self.assertFalse(_is_elementwise_op(lambda x: x * (x**2).sum().rsqrt()))
 
 
 if __name__ == "__main__":

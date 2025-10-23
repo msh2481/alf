@@ -70,15 +70,17 @@ def _flatten_obs(obs):
 
 class DMCGYMWrapper(gym.core.Env):
 
-    def __init__(self,
-                 domain_name: str,
-                 task_name: str,
-                 visualize_reward: bool = True,
-                 from_pixels: bool = False,
-                 height: int = 84,
-                 width: int = 84,
-                 camera_id: int = 0,
-                 control_timestep: Optional[float] = None):
+    def __init__(
+        self,
+        domain_name: str,
+        task_name: str,
+        visualize_reward: bool = True,
+        from_pixels: bool = False,
+        height: int = 84,
+        width: int = 84,
+        camera_id: int = 0,
+        control_timestep: Optional[float] = None,
+    ):
         """A Gym env that wraps a ``dm_control`` environment.
 
         Args:
@@ -99,7 +101,7 @@ class DMCGYMWrapper(gym.core.Env):
                 actions. If None, the default control timstep defined by DM control
                 suite will be used.
         """
-        self.metadata.update({'render.modes': ["rgb_array"]})
+        self.metadata.update({"render.modes": ["rgb_array"]})
 
         self._from_pixels = from_pixels
         self._height = height
@@ -112,12 +114,14 @@ class DMCGYMWrapper(gym.core.Env):
             environment_kwargs = None
 
         # create task
-        self._env_fn = partial(suite.load,
-                               domain_name=domain_name,
-                               task_name=task_name,
-                               task_kwargs={"time_limit": float('inf')},
-                               environment_kwargs=environment_kwargs,
-                               visualize_reward=visualize_reward)
+        self._env_fn = partial(
+            suite.load,
+            domain_name=domain_name,
+            task_name=task_name,
+            task_kwargs={"time_limit": float("inf")},
+            environment_kwargs=environment_kwargs,
+            visualize_reward=visualize_reward,
+        )
         self._env = self._env_fn()
 
         self._action_space = _dmc_spec_to_box([self._env.action_spec()])
@@ -125,13 +129,13 @@ class DMCGYMWrapper(gym.core.Env):
         # create observation space
         if from_pixels:
             shape = [3, height, width]
-            self._observation_space = spaces.Box(low=0,
-                                                 high=255,
-                                                 shape=shape,
-                                                 dtype=np.uint8)
+            self._observation_space = spaces.Box(
+                low=0, high=255, shape=shape, dtype=np.uint8
+            )
         else:
             self._observation_space = _dmc_spec_to_box(
-                self._env.observation_spec().values())
+                self._env.observation_spec().values()
+            )
 
     def __getattr__(self, name):
         return getattr(self._env, name)
@@ -139,9 +143,11 @@ class DMCGYMWrapper(gym.core.Env):
     def _get_obs(self, time_step):
         if self._from_pixels:
             # this returns channels_last images
-            obs = self.render(height=self._height,
-                              width=self._width,
-                              camera_id=self._camera_id)
+            obs = self.render(
+                height=self._height,
+                width=self._width,
+                camera_id=self._camera_id,
+            )
             obs = obs.transpose(2, 0, 1).copy()
         else:
             obs = _flatten_obs(time_step.observation)
@@ -161,10 +167,9 @@ class DMCGYMWrapper(gym.core.Env):
         # Because dm_control seems not to provide an API for
         # seeding after an env is created, here we need to re-create
         # an env again.
-        self._env = self._env_fn(task_kwargs={
-            'random': seed,
-            "time_limit": float('inf')
-        })
+        self._env = self._env_fn(
+            task_kwargs={"random": seed, "time_limit": float("inf")}
+        )
 
     def step(self, action):
         assert self._action_space.contains(action)
@@ -178,15 +183,16 @@ class DMCGYMWrapper(gym.core.Env):
         obs = self._get_obs(time_step)
         return obs
 
-    def render(self, mode='rgb_array', height=None, width=None, camera_id=0):
+    def render(self, mode="rgb_array", height=None, width=None, camera_id=0):
         """Render an RGB image.
         Copied from https://github.com/denisyarats/dmc2gym
         """
-        assert mode == 'rgb_array', ('only support rgb_array mode, given %s' %
-                                     mode)
+        assert mode == "rgb_array", (
+            "only support rgb_array mode, given %s" % mode
+        )
         height = height or self._height
         width = width or self._width
         camera_id = camera_id or self._camera_id
-        return self._env.physics.render(height=height,
-                                        width=width,
-                                        camera_id=camera_id)
+        return self._env.physics.render(
+            height=height, width=width, camera_id=camera_id
+        )

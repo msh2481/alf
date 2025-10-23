@@ -38,6 +38,7 @@ import itertools
 import json
 from multiprocessing import Queue, Manager
 import os
+
 # `pathos.multiprocessing` provides a consistent interface with std lib `multiprocessing`
 # and it's more flexible
 from pathos import multiprocessing
@@ -68,23 +69,28 @@ def _slugify(value, allow_unicode=False):
     """
     value = str(value)
     if allow_unicode:
-        value = unicodedata.normalize('NFKC', value)
+        value = unicodedata.normalize("NFKC", value)
     else:
-        value = unicodedata.normalize('NFKD',
-                                      value).encode('ascii',
-                                                    'ignore').decode('ascii')
-    value = re.sub(r'[^\w\s-]', '', value)
-    return re.sub(r'[-\s]+', '-', value).strip('-_')
+        value = (
+            unicodedata.normalize("NFKD", value)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+        )
+    value = re.sub(r"[^\w\s-]", "", value)
+    return re.sub(r"[-\s]+", "-", value).strip("-_")
 
 
 def _define_flags():
     _train_define_flags()
-    flags.DEFINE_string('search_config', None,
-                        'Path to the grid search config file.')
+    flags.DEFINE_string(
+        "search_config", None, "Path to the grid search config file."
+    )
     flags.DEFINE_bool(
-        'snapshot_gridsearch_activated', False,
-        'Whether a snapshot has been generated for grid search. (ONLY '
-        'change this flag manually if you know what you are doing!')
+        "snapshot_gridsearch_activated",
+        False,
+        "Whether a snapshot has been generated for grid search. (ONLY "
+        "change this flag manually if you know what you are doing!",
+    )
 
 
 FLAGS = flags.FLAGS
@@ -134,8 +140,13 @@ class GridSearchConfig(object):
     """
 
     _all_keys_ = [
-        "desc", "comment", "use_gpu", "gpus", "max_worker_num", "repeats",
-        "parameters"
+        "desc",
+        "comment",
+        "use_gpu",
+        "gpus",
+        "max_worker_num",
+        "repeats",
+        "parameters",
     ]
 
     def __init__(self, conf_file):
@@ -158,10 +169,10 @@ class GridSearchConfig(object):
         for k in conf.keys():
             assert k in self._all_keys_, "Invalid conf key: %s" % k
 
-        self._desc = conf.get('desc', "Grid search")
+        self._desc = conf.get("desc", "Grid search")
         self._param_keys = param_keys
         self._param_values = param_values
-        self._max_worker_num = conf.get('max_worker_num', 1)
+        self._max_worker_num = conf.get("max_worker_num", 1)
         self._use_gpu = conf.get("use_gpu", False)
         self._gpus = conf.get("gpus", [0])
         self._repeats = conf.get("repeats", 1)
@@ -225,12 +236,9 @@ class GridSearch(object):
             device_queue.put(self._conf.gpus[idx])
         return device_queue
 
-    def _generate_run_name(self,
-                           parameters,
-                           id,
-                           repeat,
-                           token_len=20,
-                           max_len=50):
+    def _generate_run_name(
+        self, parameters, id, repeat, token_len=20, max_len=50
+    ):
         """Generate a run name by writing abbr parameter key-value pairs in it,
         for an easy comparison between different search runs without going
         into Tensorboard 'text' for run details.
@@ -251,9 +259,9 @@ class GridSearch(object):
         def _abbr_single(x, l):
 
             def _initials(t):
-                words = [w for w in t.split('_') if w]
+                words = [w for w in t.split("_") if w]
                 len_per_word = max(l // len(words), 1)
-                return _slugify('_'.join([w[:len_per_word] for w in words]))
+                return _slugify("_".join([w[:len_per_word] for w in words]))
 
             if isinstance(x, str):
                 tokens = x.replace("/", "_").split(".")
@@ -298,22 +306,26 @@ class GridSearch(object):
         param_values = self._conf.param_values
         max_worker_num = self._conf.max_worker_num
 
-        process_pool = multiprocessing.Pool(processes=max_worker_num,
-                                            maxtasksperchild=1)
+        process_pool = multiprocessing.Pool(
+            processes=max_worker_num, maxtasksperchild=1
+        )
         device_queue = self._init_device_queue(max_worker_num)
 
         for repeat in range(self._conf.repeats):
             for task_count, values in enumerate(
-                    itertools.product(*param_values)):
+                itertools.product(*param_values)
+            ):
                 parameters = dict(zip(param_keys, values))
-                root_dir = "%s/%s" % (FLAGS.root_dir,
-                                      self._generate_run_name(
-                                          parameters, task_count, repeat))
+                root_dir = "%s/%s" % (
+                    FLAGS.root_dir,
+                    self._generate_run_name(parameters, task_count, repeat),
+                )
                 root_dir = common.abs_path(root_dir)
                 process_pool.apply_async(
                     func=self._worker,
                     args=[root_dir, parameters, device_queue],
-                    error_callback=lambda e: logging.error(e))
+                    error_callback=lambda e: logging.error(e),
+                )
 
         process_pool.close()
         process_pool.join()
@@ -332,8 +344,10 @@ class GridSearch(object):
 
             # We still need to keep a snapshot of ALF repo at ``<root_dir>``
             # for playing individual searching job later
-            os.system(f"mkdir -p {root_dir}; "
-                      f"cp {FLAGS.root_dir}/*.tar.gz {root_dir}/")
+            os.system(
+                f"mkdir -p {root_dir}; "
+                f"cp {FLAGS.root_dir}/*.tar.gz {root_dir}/"
+            )
 
             device = device_queue.get()
             if self._conf.use_gpu:
@@ -347,19 +361,22 @@ class GridSearch(object):
 
             logging.info("Search parameters %s" % parameters)
 
-            if conf_file.endswith('.gin'):
+            if conf_file.endswith(".gin"):
                 common.parse_conf_file(conf_file)
                 # re-bind gin conf params
                 with gin.unlock_config():
                     gin.parse_config(
-                        ['%s=%s' % (k, v) for k, v in parameters.items()])
+                        ["%s=%s" % (k, v) for k, v in parameters.items()]
+                    )
                     gin.parse_config(
-                        "TrainerConfig.confirm_checkpoint_upon_crash=False")
+                        "TrainerConfig.confirm_checkpoint_upon_crash=False"
+                    )
             else:
                 # need to first pre_config before parsing the conf file
                 confs = copy.copy(parameters)
                 confs.update(
-                    {'TrainerConfig.confirm_checkpoint_upon_crash': False})
+                    {"TrainerConfig.confirm_checkpoint_upon_crash": False}
+                )
                 alf.pre_config(confs)
                 common.parse_conf_file(conf_file)
 
@@ -380,7 +397,8 @@ class GridSearch(object):
 def search():
     FLAGS.alsologtostderr = True
     logging.get_absl_handler().use_absl_log_file(
-        log_dir=os.path.expanduser(FLAGS.root_dir))
+        log_dir=os.path.expanduser(FLAGS.root_dir)
+    )
     GridSearch(FLAGS.search_config).run()
 
 
@@ -395,7 +413,7 @@ def launch_snapshot_gridsearch():
     # write the current conf file as
     # ``<root_dir>/alf_config.py`` or ``<root_dir>/configured.gin``
     conf_file = common.get_conf_file()
-    if conf_file.endswith('.gin'):
+    if conf_file.endswith(".gin"):
         # for gin, we need to parse it first. Otherwise, configured.gin will be
         # empty
         common.parse_conf_file(conf_file)
@@ -413,24 +431,26 @@ def launch_snapshot_gridsearch():
     skip_flag = False
     for f in sys.argv[1:]:
         if not skip_flag:
-            if f in ('--conf', '--gin_file'):
+            if f in ("--conf", "--gin_file"):
                 skip_flag = True  # skip the next flag which is the file path
-            elif f.startswith(('--conf=', '--gin_file=')):
+            elif f.startswith(("--conf=", "--gin_file=")):
                 pass
             else:
                 flags.append(f)
         else:
             skip_flag = False
-    flags.append('--snapshot_gridsearch_activated')
+    flags.append("--snapshot_gridsearch_activated")
 
-    args = ['python', '-m', 'alf.bin.grid_search'] + flags
+    args = ["python", "-m", "alf.bin.grid_search"] + flags
 
     try:
-        subprocess.check_call(" ".join(args),
-                              env=env_vars,
-                              stdout=sys.stdout,
-                              stderr=sys.stdout,
-                              shell=True)
+        subprocess.check_call(
+            " ".join(args),
+            env=env_vars,
+            stdout=sys.stdout,
+            stderr=sys.stdout,
+            shell=True,
+        )
     except subprocess.CalledProcessError:
         # No need to output anything
         pass
@@ -443,9 +463,9 @@ def main(_):
         launch_snapshot_gridsearch()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     _define_flags()
     logging.set_verbosity(logging.INFO)
-    flags.mark_flag_as_required('root_dir')
-    flags.mark_flag_as_required('search_config')
+    flags.mark_flag_as_required("root_dir")
+    flags.mark_flag_as_required("search_config")
     app.run(main)

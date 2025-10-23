@@ -33,28 +33,29 @@ class TrustedUpdaterTest(alf.test.TestCase):
         v2.data.add_(torch.ones(8))
 
         def _change_f1():
-            logging.info('v1=%s v2=%s' % (v1, v2))
+            logging.info("v1=%s v2=%s" % (v1, v2))
             sum_v1 = v1.sum()
             sum_v2 = v2.sum()
             return sum_v1 - old_sum_v1, sum_v2 - old_sum_v2
 
         # Test for correctly adjusting the variables
-        changes, steps = updater.adjust_step(_change_f1, (1., 2.))
-        self.assertEqual(changes[0].detach().cpu().numpy(), 2.)
-        self.assertEqual(changes[1].detach().cpu().numpy(), 8.)
+        changes, steps = updater.adjust_step(_change_f1, (1.0, 2.0))
+        self.assertEqual(changes[0].detach().cpu().numpy(), 2.0)
+        self.assertEqual(changes[1].detach().cpu().numpy(), 8.0)
         self.assertEqual(1, steps)
 
         changes = _change_f1()
-        self.assertLess(changes[0].detach().cpu().numpy(), 1.)
-        self.assertLess(changes[1].detach().cpu().numpy(), 2.)
+        self.assertLess(changes[0].detach().cpu().numpy(), 1.0)
+        self.assertLess(changes[1].detach().cpu().numpy(), 2.0)
 
         def _change_f2():
-            return (torch.tensor(8.), torch.tensor(8.))
+            return (torch.tensor(8.0), torch.tensor(8.0))
 
         # Test for detecting that change cannot be reduced
-        self.assertRaises(AssertionError, updater.adjust_step, _change_f2,
-                          (1., 2.))
+        self.assertRaises(
+            AssertionError, updater.adjust_step, _change_f2, (1.0, 2.0)
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

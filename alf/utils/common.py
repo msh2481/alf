@@ -61,8 +61,9 @@ from . import dist_utils, gin_utils
 def orig_tf_gfile_context():
     from alf.summary.summary_ops import TB_IO_GFILE, TF_IO_GFILE
 
-    assert (TF_IO_GFILE is not None
-            ), "Tensorflow is not installed, this function should not be used."
+    assert (
+        TF_IO_GFILE is not None
+    ), "Tensorflow is not installed, this function should not be used."
     import tensorflow as tf
 
     try:
@@ -254,11 +255,13 @@ class TargetUpdater(nn.Module):
         super().__init__()
         models = as_list(models)
         target_models = as_list(target_models)
-        assert len(models) == len(
-            target_models
-        ), "The length of models and " "target_models are different: %s vs. %s" % (
-            len(models),
-            len(target_models),
+        assert len(models) == len(target_models), (
+            "The length of models and "
+            "target_models are different: %s vs. %s"
+            % (
+                len(models),
+                len(target_models),
+            )
         )
         for model, target_model in zip(models, target_models):
             self._validate(model, target_model)
@@ -266,7 +269,8 @@ class TargetUpdater(nn.Module):
         self._target_models = target_models
         if delayed_update:
             self._recent_models = list(
-                map(self._make_copy, models, target_models))
+                map(self._make_copy, models, target_models)
+            )
         self._tau = as_scheduler(tau)
         self._period = as_scheduler(period)
         self._delayed_update = delayed_update
@@ -298,27 +302,32 @@ class TargetUpdater(nn.Module):
     def _validate(self, s, t):
 
         def _error_msg(ns, nt):
-            return ("The corresponding parameter/buffer of the source model "
-                    "and the target model have different name: %s vs %s" %
-                    (ns, nt))
+            return (
+                "The corresponding parameter/buffer of the source model "
+                "and the target model have different name: %s vs %s" % (ns, nt)
+            )
 
         def _warning_msg(n):
             warning(
                 "The corresponding parameter/buffer %s of the source model "
                 "and the target model are same object. They will be ignored by "
-                "TargetUpdater." % n)
+                "TargetUpdater." % n
+            )
 
         if isinstance(s, nn.Parameter):
             if id(s) == id(t):
-                warning("target and the source parameter are same object. It "
-                        "will be ignored by the TargetUpdater.")
+                warning(
+                    "target and the source parameter are same object. It "
+                    "will be ignored by the TargetUpdater."
+                )
         else:
             sparams = list(s.named_parameters())
             tparams = list(t.named_parameters())
             assert len(sparams) == len(tparams), (
                 "The source model and the "
                 "target models have different number of parameters: %s vs. %s"
-                % (len(sparams), len(tparams)))
+                % (len(sparams), len(tparams))
+            )
             for (ns, ws), (nt, wt) in zip(sparams, tparams):
                 assert ns == nt, _error_msg(ns, nt)
                 if id(ws) == id(wt):
@@ -327,8 +336,9 @@ class TargetUpdater(nn.Module):
             tbuffers = list(t.named_buffers())
             assert len(sbuffers) == len(tbuffers), (
                 "The source model and the "
-                "target models have different number of buffers: %s vs. %s" %
-                (len(sbuffers), len(tbuffers)))
+                "target models have different number of buffers: %s vs. %s"
+                % (len(sbuffers), len(tbuffers))
+            )
             for (ns, ws), (nt, wt) in zip(sbuffers, tbuffers):
                 assert ns == nt, _error_msg(ns, nt)
                 if id(ws) == id(wt):
@@ -364,25 +374,30 @@ class TargetUpdater(nn.Module):
         tau = self._tau()
         if self._counter >= period:
             if self._delayed_update:
-                for model, target_model in zip(self._recent_models,
-                                               self._target_models):
+                for model, target_model in zip(
+                    self._recent_models, self._target_models
+                ):
                     self._copy_model_or_parameter(model, target_model)
             elif tau != 1.0:
-                for model, target_model in zip(self._models,
-                                               self._target_models):
+                for model, target_model in zip(
+                    self._models, self._target_models
+                ):
                     self._lerp_model_or_parameter(model, target_model, tau)
             else:
-                for model, target_model in zip(self._models,
-                                               self._target_models):
+                for model, target_model in zip(
+                    self._models, self._target_models
+                ):
                     self._copy_model_or_parameter(model, target_model)
         if self._delayed_update:
             if tau != 1.0:
-                for model, target_model in zip(self._models,
-                                               self._recent_models):
+                for model, target_model in zip(
+                    self._models, self._recent_models
+                ):
                     self._lerp_model_or_parameter(model, target_model, tau)
             elif self._counter >= period:
-                for model, target_model in zip(self._models,
-                                               self._recent_models):
+                for model, target_model in zip(
+                    self._models, self._recent_models
+                ):
                     self._copy_model_or_parameter(model, target_model)
 
         if self._counter >= period:
@@ -436,7 +451,8 @@ class PeriodicReset(nn.Module):
         # record the initial values of torch.nn.Parameter instances in ``models``
         self._init_param_values = {
             id(p): p.data.clone()
-            for p in models if isinstance(p, torch.nn.Parameter)
+            for p in models
+            if isinstance(p, torch.nn.Parameter)
         }
 
     def _copy_model_or_parameter(self, s, t):
@@ -463,7 +479,8 @@ class PeriodicReset(nn.Module):
                         self._copy_model_or_parameter(m.copy(), m)
                 elif isinstance(m, torch.nn.Parameter):
                     self._copy_model_or_parameter(
-                        self._init_param_values[id(m)], m)
+                        self._init_param_values[id(m)], m
+                    )
             for c in self._post_processings:
                 c()
 
@@ -489,7 +506,7 @@ def expand_dims_as(x, y, end=True):
         return x
     else:
         if end:
-            assert x.shape == y.shape[:x.ndim]
+            assert x.shape == y.shape[: x.ndim]
             return x.reshape(*x.shape, *([1] * k))
         else:
             assert x.shape == y.shape[k:]
@@ -508,8 +525,9 @@ def reset_state_if_necessary(state, initial_state, reset_mask):
     """
     if torch.any(reset_mask):
         return alf.nest.map_structure(
-            lambda i_s, s: torch.where(expand_dims_as(reset_mask, i_s),
-                                       i_s.to(s.dtype), s),
+            lambda i_s, s: torch.where(
+                expand_dims_as(reset_mask, i_s), i_s.to(s.dtype), s
+            ),
             initial_state,
             state,
         )
@@ -543,14 +561,14 @@ def run_under_record_context(
     # For DDP training, we only do summary on one of the ranks.
     # Since rank-0 does more work than other rank (e.g. Evaluation),
     # we do summary on rank-1 to reduce the load of rank-0
-    if PerProcessContext().is_distributed and PerProcessContext(
-    ).ddp_rank != 1:
+    if PerProcessContext().is_distributed and PerProcessContext().ddp_rank != 1:
         func()
         return
 
     summary_dir = os.path.expanduser(summary_dir)
     summary_writer = alf.summary.create_summary_writer(
-        summary_dir, flush_secs=flush_secs, max_queue=summary_max_queue)
+        summary_dir, flush_secs=flush_secs, max_queue=summary_max_queue
+    )
     global_step = alf.summary.get_global_counter()
 
     def _cond():
@@ -558,7 +576,8 @@ def run_under_record_context(
         # because there might be important changes at the beginning.
         return alf.summary.is_summary_enabled() and (
             (global_step < summary_interval and summarize_first_interval)
-            or global_step % summary_interval == 0)
+            or global_step % summary_interval == 0
+        )
 
     with alf.summary.push_summary_writer(summary_writer):
         with alf.summary.record_if(_cond):
@@ -610,9 +629,9 @@ def image_scale_transformer(observation, fields=None, min=-1.0, max=1.0):
 
     fields = fields or [None]
     for field in fields:
-        observation = nest.transform_nest(nested=observation,
-                                          field=field,
-                                          func=_transform_image)
+        observation = nest.transform_nest(
+            nested=observation, field=field, func=_transform_image
+        )
     return observation
 
 
@@ -761,8 +780,7 @@ def get_conf_file(root_dir=None):
     gin_file = glob.glob(os.path.join(root_dir, "*.gin"))
     if not gin_file:
         return None
-    assert len(
-        gin_file) == 1, "Multiple *.gin files are found in %s" % root_dir
+    assert len(gin_file) == 1, "Multiple *.gin files are found in %s" % root_dir
     return gin_file[0]
 
 
@@ -814,8 +832,9 @@ def summarize_config():
     inoperative_configs = alf.get_inoperative_configs()
     alf.summary.text("config/operative_config", _format(operative_configs))
     if inoperative_configs:
-        alf.summary.text("config/inoperative_config",
-                         _format(inoperative_configs))
+        alf.summary.text(
+            "config/inoperative_config", _format(inoperative_configs)
+        )
 
 
 def read_conf_file(root_dir: str) -> str:
@@ -899,7 +918,9 @@ def get_raw_observation_spec(field=None):
     Returns:
         nested TensorSpec: a spec that describes the observation.
     """
-    assert _env, "set a global env by `set_global_env` before using the function"
+    assert (
+        _env
+    ), "set a global env by `set_global_env` before using the function"
     specs = _env.observation_spec()
     if field:
         for f in field.split("."):
@@ -949,9 +970,12 @@ def get_states_shape():
       ``torch.Size``. We don't raise error so this code can serve to check
       whether ``env`` has states input.
     """
-    assert _env, "set a global env by `set_global_env` before using the function"
-    if isinstance(_env.observation_spec(),
-                  dict) and ("states" in _env.observation_spec()):
+    assert (
+        _env
+    ), "set a global env by `set_global_env` before using the function"
+    if isinstance(_env.observation_spec(), dict) and (
+        "states" in _env.observation_spec()
+    ):
         return _env.observation_spec()["states"].shape
     else:
         return 0
@@ -966,7 +990,9 @@ def get_action_spec():
         nested TensorSpec: a spec that describes the shape and dtype of each tensor
         expected by ``step()``.
     """
-    assert _env, "set a global env by `set_global_env` before using the function"
+    assert (
+        _env
+    ), "set a global env by `set_global_env` before using the function"
     return _env.action_spec()
 
 
@@ -977,12 +1003,16 @@ def get_reward_spec():
         nested TensorSpec: a spec that describes the shape and dtype of each reward
         tensor.
     """
-    assert _env, "set a global env by `set_global_env` before using the function"
+    assert (
+        _env
+    ), "set a global env by `set_global_env` before using the function"
     return _env.reward_spec()
 
 
 def get_env():
-    assert _env, "set a global env by `set_global_env` before using the function"
+    assert (
+        _env
+    ), "set a global env by `set_global_env` before using the function"
     return _env
 
 
@@ -995,9 +1025,12 @@ def get_vocab_size():
         language is not part of observation. We don't raise error so this code
         can serve to check whether the env has language input
     """
-    assert _env, "set a global env by `set_global_env` before using the function"
-    if isinstance(_env.observation_spec(),
-                  dict) and ("sentence" in _env.observation_spec()):
+    assert (
+        _env
+    ), "set a global env by `set_global_env` before using the function"
+    if isinstance(_env.observation_spec(), dict) and (
+        "sentence" in _env.observation_spec()
+    ):
         # return _env.observation_spec()['sentence'].shape[0]
         # is the sequence length of the sentence.
         return _env.observation_spec()["sentence"].maximum + 1
@@ -1031,7 +1064,8 @@ def active_action_target_entropy(active_action_portion=0.2, min_entropy=0.3):
     assert active_action_portion <= 1.0 and active_action_portion > 0
     action_spec = get_action_spec()
     assert action_spec.is_discrete(
-        action_spec), "only support discrete actions!"
+        action_spec
+    ), "only support discrete actions!"
     num_actions = action_spec.maximum - action_spec.minimum + 1
     return max(math.log(num_actions * active_action_portion), min_entropy)
 
@@ -1078,8 +1112,9 @@ def warning_once(msg, *args):
     """
     caller = logging.get_absl_logger().findCaller()
     count = logging._get_next_log_count_per_token(caller)
-    logging.log_if(logging.WARNING, "\033[1;31m" + msg + "\033[1;0m",
-                   count == 0, *args)
+    logging.log_if(
+        logging.WARNING, "\033[1;31m" + msg + "\033[1;0m", count == 0, *args
+    )
 
 
 @logging.skip_log_prefix
@@ -1114,8 +1149,9 @@ def info_once(msg, *args):
     """
     caller = logging.get_absl_logger().findCaller()
     count = logging._get_next_log_count_per_token(caller)
-    logging.log_if(logging.INFO, "\033[1;34m" + msg + "\033[1;0m", count == 0,
-                   *args)
+    logging.log_if(
+        logging.INFO, "\033[1;34m" + msg + "\033[1;0m", count == 0, *args
+    )
 
 
 def set_random_seed(seed):
@@ -1139,8 +1175,9 @@ def set_random_seed(seed):
     else:
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-        force_torch_deterministic = getattr(flags.FLAGS,
-                                            "force_torch_deterministic", True)
+        force_torch_deterministic = getattr(
+            flags.FLAGS, "force_torch_deterministic", True
+        )
         # causes RuntimeError: scatter_add_cuda_kernel does not have a deterministic implementation
         torch.use_deterministic_algorithms(force_torch_deterministic)
     seed %= 2**32
@@ -1457,12 +1494,15 @@ def check_numerics(nested):
         nested (nested Tensor): nested Tensor to be checked.
     """
     nested_finite = alf.nest.map_structure(
-        lambda x: torch.all(torch.isfinite(x)), nested)
+        lambda x: torch.all(torch.isfinite(x)), nested
+    )
     if not all(alf.nest.flatten(nested_finite)):
-        bad = alf.nest.map_structure(lambda x, finite: ()
-                                     if finite else x, nested, nested_finite)
+        bad = alf.nest.map_structure(
+            lambda x, finite: () if finite else x, nested, nested_finite
+        )
         assert all(alf.nest.flatten(nested_finite)), (
-            "Some tensor in nested is not finite: %s" % bad)
+            "Some tensor in nested is not finite: %s" % bad
+        )
 
 
 def get_all_parameters(obj):
@@ -1507,8 +1547,8 @@ def get_all_parameters(obj):
             # The keys of a generic dict are not necessarily str, and cannot be
             # handled by nest.extract_fields_from_nest.
             for (
-                    name,
-                    value,
+                name,
+                value,
             ) in obj.items():
                 if id(value) not in memo:
                     unprocessed.append((value, path + str(name)))
@@ -1573,7 +1613,8 @@ def snapshot_repo_roots() -> Dict[str, str]:
         for p in pairs:
             assert "=" in p, (
                 "Each repo str must be in the format '<module>=<repo_root>'! "
-                f"Got {p}")
+                f"Got {p}"
+            )
             module, repo_root = p.split("=")
             repo_roots[module] = str(pathlib.Path(repo_root).absolute())
     return repo_roots
@@ -1607,10 +1648,9 @@ def generate_alf_snapshot(alf_root: str, conf_file: str, dest_path: str):
         args += ["--exclude=*"]
         args += [src, target]
         # shell=True preserves string arguments
-        subprocess.check_call(" ".join(args),
-                              stdout=sys.stdout,
-                              stderr=sys.stdout,
-                              shell=True)
+        subprocess.check_call(
+            " ".join(args), stdout=sys.stdout, stderr=sys.stdout, shell=True
+        )
 
     includes = [
         "*.py",
@@ -1633,14 +1673,17 @@ def generate_alf_snapshot(alf_root: str, conf_file: str, dest_path: str):
     repo_roots = {**snapshot_repo_roots(), **{"alf": alf_root}}
     for name, root in repo_roots.items():
         assert not _is_subdir(dest_path, root), (
-            "Snapshot path '%s' is not allowed under any repo root '%s'! " %
-            (dest_path, root) + "Use a different one!")
+            "Snapshot path '%s' is not allowed under any repo root '%s'! "
+            % (dest_path, root)
+            + "Use a different one!"
+        )
         # Only copy the module dir because the root dir might contain many
         # other modules in the case where repo is pip installed in 'site-packages'.
         rsync(root + f"/{name}", dest_path, includes, excludes)
         # compress the snapshot repo into a ".tar.gz" file
         os.system(
-            f"cd {dest_path}; tar -czf {name}.tar.gz {name}; rm -rf {name}")
+            f"cd {dest_path}; tar -czf {name}.tar.gz {name}; rm -rf {name}"
+        )
         info(f"Generated a snapshot {name}@{root}")
 
 
@@ -1670,9 +1713,10 @@ def get_alf_snapshot_env_vars(root_dir):
     python_path = os.environ.get("PYTHONPATH", "")
     for name in module_names:
         assert not is_repo_root(os.getcwd(), name), (
-            "Using a snapshot is not allowed under a valid repo root: " +
-            "'%s' (contains '%s')!" % (os.getcwd(), name) +
-            " Try running the command in a different directory.")
+            "Using a snapshot is not allowed under a valid repo root: "
+            + "'%s' (contains '%s')!" % (os.getcwd(), name)
+            + " Try running the command in a different directory."
+        )
         root = root_dir
         if name == "alf":
             legacy_alf_root = os.path.join(root, "alf")
@@ -1747,9 +1791,11 @@ def compute_summary_or_eval_interval(config, summary_or_eval_calls=100):
         assert config.num_env_steps
         # the rollout env is always created with ``nonparallel=False``
         num_envs = alf.get_config_value(
-            "create_environment.num_parallel_environments")
-        num_iterations = config.num_env_steps / (num_envs *
-                                                 config.unroll_length)
+            "create_environment.num_parallel_environments"
+        )
+        num_iterations = config.num_env_steps / (
+            num_envs * config.unroll_length
+        )
 
     interval = math.ceil(num_iterations / summary_or_eval_calls)
     info_once("A summary or eval interval=%d is calculated" % interval)
@@ -1779,7 +1825,8 @@ def get_unused_port(start, end=65536, n=1):
     try:
         for port in range(start, end):
             process_locks.append(
-                InterProcessLock(path="/tmp/socialbot/{}.lock".format(port)))
+                InterProcessLock(path="/tmp/socialbot/{}.lock".format(port))
+            )
             if not process_locks[-1].acquire(blocking=False):
                 process_locks[-1].lockfile.close()
                 process_locks.pop()
@@ -1832,14 +1879,17 @@ def prune_exp_replay_state(
         exp = exp._replace(state=())
     elif id(rollout_state_spec) != id(train_state_spec):
         # Prune exp's state (rollout_state) according to the train state spec
-        exp = exp._replace(state=alf.nest.prune_nest_like(
-            exp.state, train_state_spec, value_to_match=()))
+        exp = exp._replace(
+            state=alf.nest.prune_nest_like(
+                exp.state, train_state_spec, value_to_match=()
+            )
+        )
     return exp
 
 
 def prune_exp_replay_env_info(
-        exp: "Experience",
-        env_info_spec: Optional[alf.NestedTensorSpec] = None) -> "Experience":
+    exp: "Experience", env_info_spec: Optional[alf.NestedTensorSpec] = None
+) -> "Experience":
     """Prune an experience's env_info according to the ``env_info_spec``.
 
     Args:
@@ -1853,18 +1903,19 @@ def prune_exp_replay_env_info(
         env_info_spec = {}
 
     env_info = exp.time_step.env_info
-    pruned_env_info = alf.nest.prune_nest_like(env_info,
-                                               env_info_spec,
-                                               value_to_match=())
+    pruned_env_info = alf.nest.prune_nest_like(
+        env_info, env_info_spec, value_to_match=()
+    )
 
-    exp = exp.update_time_step_field(field="env_info",
-                                     new_value=pruned_env_info)
+    exp = exp.update_time_step_field(
+        field="env_info", new_value=pruned_env_info
+    )
     return exp
 
 
-def save_video(frames: List[np.ndarray],
-               output_file: str = "output.mp4",
-               fps: int = 30):
+def save_video(
+    frames: List[np.ndarray], output_file: str = "output.mp4", fps: int = 30
+):
     """
     Saves a list of RGB NumPy arrays as a video file.
 
@@ -1889,8 +1940,9 @@ def save_video(frames: List[np.ndarray],
 
     # Write frames to the video file
     for frame in frames:
-        out.write(cv2.cvtColor(
-            frame, cv2.COLOR_RGB2BGR))  # Convert RGB to BGR for OpenCV
+        out.write(
+            cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        )  # Convert RGB to BGR for OpenCV
 
     # Release the writer
     out.release()
@@ -1928,7 +1980,8 @@ class LazyExtention(object):
                 build_directory = self._kwargs.get(
                     "build_directory",
                     torch.utils.cpp_extension._get_build_directory(
-                        self._name, verbose=False),
+                        self._name, verbose=False
+                    ),
                 )
                 torch_lock_file = os.path.join(build_directory, "lock")
                 if os.path.exists(torch_lock_file):
@@ -1937,11 +1990,13 @@ class LazyExtention(object):
                     # Need to remove the lock file so that we can load the extension.
                     logging.warning(
                         f"Removing stale lock file {torch_lock_file} to load "
-                        f"extension {self._name}.")
+                        f"extension {self._name}."
+                    )
                     os.remove(torch_lock_file)
                 logging.info(f"Loading extension {self._name}...")
-                self._ext = torch.utils.cpp_extension.load(name=self._name,
-                                                           **self._kwargs)
+                self._ext = torch.utils.cpp_extension.load(
+                    name=self._name, **self._kwargs
+                )
                 logging.info(f"Extension {self._name} loaded.")
 
         f = getattr(self._ext, name)

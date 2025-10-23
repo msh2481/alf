@@ -30,7 +30,7 @@ LagInfo = namedtuple("LagInfo", ["rollout_reward"], default_value=())
 
 
 def _inv_softplus(tensor):
-    return torch.where(tensor > 20., tensor, tensor.expm1().log())
+    return torch.where(tensor > 20.0, tensor, tensor.expm1().log())
 
 
 @alf.configurable(blacklist=["reward_spec"])
@@ -55,16 +55,18 @@ class LagrangianRewardWeightAlgorithm(Algorithm):
         reward is always assumed to be the higher the better.
     """
 
-    def __init__(self,
-                 reward_spec,
-                 reward_thresholds,
-                 optimizer,
-                 init_weights=1.,
-                 max_weight=None,
-                 reward_weight_normalization=True,
-                 lambda_transform=F.softplus,
-                 debug_summaries=False,
-                 name="LagrangianRewardWeightAlgorithm"):
+    def __init__(
+        self,
+        reward_spec,
+        reward_thresholds,
+        optimizer,
+        init_weights=1.0,
+        max_weight=None,
+        reward_weight_normalization=True,
+        lambda_transform=F.softplus,
+        debug_summaries=False,
+        name="LagrangianRewardWeightAlgorithm",
+    ):
         """
         Args:
             reward_spec (TensorSpec): a rank-1 tensor spec representing multi-dim
@@ -85,32 +87,40 @@ class LagrangianRewardWeightAlgorithm(Algorithm):
             debug_summaries (bool):
             name (str):
         """
-        super(LagrangianRewardWeightAlgorithm,
-              self).__init__(debug_summaries=debug_summaries, name=name)
+        super(LagrangianRewardWeightAlgorithm, self).__init__(
+            debug_summaries=debug_summaries, name=name
+        )
 
         self._reward_spec = reward_spec
 
-        assert reward_spec.numel > 1, (
-            "Only multi-dim reward needs this algorithm!")
-        assert (isinstance(
-            reward_thresholds,
-            (list, tuple)) and len(reward_thresholds) == reward_spec.numel), (
-                "Mismatch between len(reward_weights)=%s and reward_dim=%s" %
-                (len(reward_thresholds), reward_spec.numel))
+        assert (
+            reward_spec.numel > 1
+        ), "Only multi-dim reward needs this algorithm!"
+        assert (
+            isinstance(reward_thresholds, (list, tuple))
+            and len(reward_thresholds) == reward_spec.numel
+        ), "Mismatch between len(reward_weights)=%s and reward_dim=%s" % (
+            len(reward_thresholds),
+            reward_spec.numel,
+        )
 
         self._reward_training_mask = torch.tensor(
-            [t is not None for t in reward_thresholds], dtype=torch.float32)
+            [t is not None for t in reward_thresholds], dtype=torch.float32
+        )
         self._reward_thresholds = torch.tensor(
-            [0. if t is None else t for t in reward_thresholds])
+            [0.0 if t is None else t for t in reward_thresholds]
+        )
 
         self._reward_weight_normalization = reward_weight_normalization
 
         lambda_init = torch.tensor(init_weights)
         if lambda_init.ndim == 0:
             lambda_init = tensor_utils.tensor_extend_new_dim(
-                lambda_init, 0, reward_spec.numel)
+                lambda_init, 0, reward_spec.numel
+            )
         assert torch.all(
-            lambda_init >= 0.), "Initial weights must be non-negative!"
+            lambda_init >= 0.0
+        ), "Initial weights must be non-negative!"
 
         inv_mapping = dict()
         inv_mapping[F.softplus] = _inv_softplus
@@ -123,11 +133,12 @@ class LagrangianRewardWeightAlgorithm(Algorithm):
         self._lambdas = nn.Parameter(self._inv_lambda_transform(lambda_init))
         if max_weight is not None:
             self._max_lambda = self._inv_lambda_transform(
-                torch.tensor(max_weight))
+                torch.tensor(max_weight)
+            )
         else:
             self._max_lambda = None
         self._optimizer = optimizer
-        self._optimizer.add_param_group({'params': self._lambdas})
+        self._optimizer.add_param_group({"params": self._lambdas})
 
     @property
     def reward_weights(self):
@@ -145,8 +156,7 @@ class LagrangianRewardWeightAlgorithm(Algorithm):
         return AlgStep()
 
     def rollout_step(self, inputs, state=None):
-        return AlgStep(info=LagInfo(
-            rollout_reward=inputs.untransformed.reward))
+        return AlgStep(info=LagInfo(rollout_reward=inputs.untransformed.reward))
 
     def _calc_loss(self, train_info: LagInfo):
         """Retrieve *untransformed* rollout rewards from ``train_info``
@@ -155,8 +165,8 @@ class LagrangianRewardWeightAlgorithm(Algorithm):
         # [T, B, reward_dim]
         reward_weights = self._lambda_transform(self._lambdas)
         loss = (
-            (train_info.rollout_reward - self._reward_thresholds).detach() *
-            (reward_weights * self._reward_training_mask))
+            train_info.rollout_reward - self._reward_thresholds
+        ).detach() * (reward_weights * self._reward_training_mask)
         loss = loss.sum(dim=-1).mean()
         return LossInfo(scalar_loss=loss, extra=reward_weights)
 
@@ -172,14 +182,16 @@ class LagrangianRewardWeightAlgorithm(Algorithm):
         # capped at the upper limit
         if self._max_lambda is not None:
             self._lambdas.data.copy_(
-                torch.minimum(self._lambdas, self._max_lambda))
+                torch.minimum(self._lambdas, self._max_lambda)
+            )
 
         if self._debug_summaries:
             with alf.summary.scope(self._name):
                 alf.summary.scalar("cost", loss)
                 for i in range(len(self._reward_thresholds)):
-                    alf.summary.scalar("reward_threshold/%d" % i,
-                                       self._reward_thresholds[i])
+                    alf.summary.scalar(
+                        "reward_threshold/%d" % i, self._reward_thresholds[i]
+                    )
                     alf.summary.scalar("lambda/%d" % i, reward_weights[i])
 
 
@@ -201,17 +213,18 @@ class LagrangianPredRewardWeightAlgorithm(LagrangianRewardWeightAlgorithm):
         This algorithm asserts ``TrainerConfig.evaluate=True``.
     """
 
-    def __init__(self,
-                 reward_spec,
-                 reward_thresholds,
-                 optimizer,
-                 init_weights=1.,
-                 max_weight=None,
-                 reward_weight_normalization=True,
-                 pred_rewards_averager_ctor=partial(EMAverager,
-                                                    update_rate=1e-4),
-                 debug_summaries=False,
-                 name="LagrangianPredRewardWeightAlgorithm"):
+    def __init__(
+        self,
+        reward_spec,
+        reward_thresholds,
+        optimizer,
+        init_weights=1.0,
+        max_weight=None,
+        reward_weight_normalization=True,
+        pred_rewards_averager_ctor=partial(EMAverager, update_rate=1e-4),
+        debug_summaries=False,
+        name="LagrangianPredRewardWeightAlgorithm",
+    ):
         """
         Args:
             reward_spec (TensorSpec): a rank-1 tensor spec representing multi-dim
@@ -233,8 +246,9 @@ class LagrangianPredRewardWeightAlgorithm(LagrangianRewardWeightAlgorithm):
             debug_summaries (bool):
             name (str):
         """
-        assert alf.get_config_value('TrainerConfig.evaluate'), (
-            "This algorithm must have the evaluation mode turned on!")
+        assert alf.get_config_value(
+            "TrainerConfig.evaluate"
+        ), "This algorithm must have the evaluation mode turned on!"
 
         super(LagrangianPredRewardWeightAlgorithm, self).__init__(
             reward_spec=reward_spec,
@@ -244,10 +258,12 @@ class LagrangianPredRewardWeightAlgorithm(LagrangianRewardWeightAlgorithm):
             max_weight=max_weight,
             reward_weight_normalization=reward_weight_normalization,
             debug_summaries=debug_summaries,
-            name=name)
+            name=name,
+        )
 
-        assert not alf.get_config_value("TrainerConfig.async_eval"), (
-            "This algorithm doesn't support async evaluation!")
+        assert not alf.get_config_value(
+            "TrainerConfig.async_eval"
+        ), "This algorithm doesn't support async evaluation!"
         self._pred_rewards_averager = pred_rewards_averager_ctor(reward_spec)
 
     def predict_step(self, inputs, state=None):
@@ -261,13 +277,15 @@ class LagrangianPredRewardWeightAlgorithm(LagrangianRewardWeightAlgorithm):
         # [T, B, reward_dim]
         reward_weights = self._lambda_transform(self._lambdas)
         pred_rewards = self._pred_rewards_averager.get()
-        loss = ((pred_rewards - self._reward_thresholds).detach() *
-                (reward_weights * self._reward_training_mask))
+        loss = (pred_rewards - self._reward_thresholds).detach() * (
+            reward_weights * self._reward_training_mask
+        )
         loss = loss.sum()
 
         if self._debug_summaries:
             with alf.summary.scope(self._name):
                 for i in range(len(self._reward_thresholds)):
-                    alf.summary.scalar("average_pred_reward/%d" % i,
-                                       pred_rewards[i])
+                    alf.summary.scalar(
+                        "average_pred_reward/%d" % i, pred_rewards[i]
+                    )
         return LossInfo(scalar_loss=loss, extra=reward_weights)

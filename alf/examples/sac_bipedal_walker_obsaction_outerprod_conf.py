@@ -16,5 +16,6 @@ import alf
 from alf.examples import sac_bipedal_walker_conf
 
 alf.config(
-    'CriticNetwork',
-    observation_action_combiner=alf.layers.NestOuterProduct(padding=True))
+    "CriticNetwork",
+    observation_action_combiner=alf.layers.NestOuterProduct(padding=True),
+)

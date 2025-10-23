@@ -22,8 +22,8 @@ class SimpleActionEncoderTest(alf.test.TestCase):
 
     def test_simple_action_encoder(self):
         action_spec = [
-            alf.BoundedTensorSpec((3, )),
-            alf.BoundedTensorSpec((), dtype=torch.int32, minimum=0, maximum=3)
+            alf.BoundedTensorSpec((3,)),
+            alf.BoundedTensorSpec((), dtype=torch.int32, minimum=0, maximum=3),
         ]
         encoder = SimpleActionEncoder(action_spec)
 
@@ -37,12 +37,13 @@ class SimpleActionEncoderTest(alf.test.TestCase):
         y = encoder(x)[0]
         self.assertEqual(
             y,
-            torch.tensor([[0.5, 1.5, 2.5, 0, 0, 0, 1], [1, 2, 3, 0, 0, 1, 0]]))
+            torch.tensor([[0.5, 1.5, 2.5, 0, 0, 0, 1], [1, 2, 3, 0, 0, 1, 0]]),
+        )
 
         # test unsupported spec
         action_spec = [
-            alf.BoundedTensorSpec((3, )),
-            alf.BoundedTensorSpec((), dtype=torch.int32, minimum=1, maximum=3)
+            alf.BoundedTensorSpec((3,)),
+            alf.BoundedTensorSpec((), dtype=torch.int32, minimum=1, maximum=3),
         ]
 
         self.assertRaises(AssertionError, SimpleActionEncoder, action_spec)

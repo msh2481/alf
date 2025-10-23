@@ -27,34 +27,39 @@ class ConfigTest(alf.test.TestCase):
 
         # Test simple function
         self.assertEqual(test(1), (1, 123))
-        alf.config({'test.a': 3})
+        alf.config({"test.a": 3})
         self.assertEqual(test(), (3, 123))
         # Test config after the value has been used
-        self.assertRaisesRegex(ValueError, "test.b' has already been used",
-                               alf.config, {'test.b': None})
+        self.assertRaisesRegex(
+            ValueError,
+            "test.b' has already been used",
+            alf.config,
+            {"test.b": None},
+        )
 
         # Test class
         obj = Test(1, 2)
         self.assertEqual(obj(), (1, 2, 10))
-        alf.config({'Test.b': 5})
+        alf.config({"Test.b": 5})
         obj = Test(1)
         self.assertEqual(obj(), (1, 5, 10))
 
-        self.assertRaises(ValueError, alf.config1, 'c', 32)
+        self.assertRaises(ValueError, alf.config1, "c", 32)
 
         # Test class member function
         # Test whitelist
-        alf.config({'Test.func.c': 30})
+        alf.config({"Test.func.c": 30})
         # Test whitelist
-        self.assertRaises(ValueError, alf.config1, 'Test.func.b', 32)
+        self.assertRaises(ValueError, alf.config1, "Test.func.b", 32)
         self.assertEqual(obj.func(1, 2, 3), (1, 2, 3))
         self.assertEqual(obj.func(3, 5), (3, 5, 30))
-        self.assertRaisesRegex(TypeError, "missing 1 required positional",
-                               obj.func)
+        self.assertRaisesRegex(
+            TypeError, "missing 1 required positional", obj.func
+        )
 
         # Test blacklist
-        self.assertRaises(ValueError, alf.config1, 'test_func.b', 30)
-        alf.config1('test_func.c', 15)
+        self.assertRaises(ValueError, alf.config1, "test_func.b", 30)
+        alf.config1("test_func.c", 15)
         self.assertEqual(test_func(10, 20), (10, 20, 15))
 
         # Test explicit name for function
@@ -63,35 +68,44 @@ class ConfigTest(alf.test.TestCase):
 
         # Test name conflict: long vs. short
         self.assertRaisesRegex(
-            ValueError, "'A.Test.FancyTest.arg' conflicts "
+            ValueError,
+            "'A.Test.FancyTest.arg' conflicts "
             "with existing config name 'Test.FancyTest.arg'",
-            alf.configurable("A.Test.FancyTest"), test_func5)
+            alf.configurable("A.Test.FancyTest"),
+            test_func5,
+        )
 
         # Test name conflict: short vs. long
         alf.configurable("A.B.C.D.test")(test_func6)
         self.assertRaisesRegex(
-            ValueError, "'B.C.D.test.arg' conflicts "
+            ValueError,
+            "'B.C.D.test.arg' conflicts "
             "with existing config name 'A.B.C.D.test.arg'",
-            alf.configurable("B.C.D.test"), test_func7)
-        alf.config('D.test', arg=5)
+            alf.configurable("B.C.D.test"),
+            test_func7,
+        )
+        alf.config("D.test", arg=5)
 
         # Test name conflict: same
-        self.assertRaisesRegex(ValueError,
-                               "'A.B.C.D.test.arg' has already been defined.",
-                               alf.configurable("A.B.C.D.test"), test_func5)
+        self.assertRaisesRegex(
+            ValueError,
+            "'A.B.C.D.test.arg' has already been defined.",
+            alf.configurable("A.B.C.D.test"),
+            test_func5,
+        )
 
         # Test duplicated config
         with self.assertLogs() as ctx:
-            alf.config1('test_func2.c', 15)
-            alf.config1('test_func2.c', 16)
+            alf.config1("test_func2.c", 15)
+            alf.config1("test_func2.c", 16)
             warning_message = ctx.records[0]
             self.assertTrue("replaced" in str(warning_message))
         self.assertEqual(test_func2(1), (1, 100, 16))
 
         # Test mutable
-        alf.config1('test_func3.c', 15, mutable=False)
+        alf.config1("test_func3.c", 15, mutable=False)
         with self.assertLogs() as ctx:
-            alf.config1('test_func3.c', 16)
+            alf.config1("test_func3.c", 16)
             warning_message = ctx.records[0]
             self.assertTrue("ignored" in str(warning_message))
         self.assertEqual(test_func3(1), (1, 100, 15))
@@ -105,34 +119,41 @@ class ConfigTest(alf.test.TestCase):
         self.assertEqual(obj3(), (0, 0, 7))
 
         # test pre_config for config not defined yet
-        alf.pre_config({'test_func8.c': 10})
-        self.assertRaisesRegex(ValueError,
-                               "A pre-config 'test_func8.c' was not handled",
-                               alf.validate_pre_configs)
+        alf.pre_config({"test_func8.c": 10})
+        self.assertRaisesRegex(
+            ValueError,
+            "A pre-config 'test_func8.c' was not handled",
+            alf.validate_pre_configs,
+        )
         func11 = alf.configurable(test_func11)
         # test pre_config for config already defined
-        alf.pre_config({'test_func11.a': 5})
+        alf.pre_config({"test_func11.a": 5})
         func8 = alf.configurable(test_func8)
         alf.validate_pre_configs()
         self.assertEqual(func8(), (1, 2, 10))
         self.assertEqual(func11(), (5, 2, 3))
 
         # test ambiguous pre_config
-        alf.pre_config({'test_f.a': 10})
+        alf.pre_config({"test_f.a": 10})
         func9 = alf.configurable("ModuleA.test_f")(test_func9)
         func10 = alf.configurable("ModuleB.test_f")(test_func10)
-        self.assertRaisesRegex(ValueError,
-                               "config name 'test_f.a' is ambiguous",
-                               alf.validate_pre_configs)
+        self.assertRaisesRegex(
+            ValueError,
+            "config name 'test_f.a' is ambiguous",
+            alf.validate_pre_configs,
+        )
 
         operative_configs = alf.get_operative_configs()
-        logging.info("get_operative_configs(): \n%s" %
-                     pprint.pformat(operative_configs))
-        self.assertTrue('Test.FancyTest.arg' in dict(operative_configs))
+        logging.info(
+            "get_operative_configs(): \n%s" % pprint.pformat(operative_configs)
+        )
+        self.assertTrue("Test.FancyTest.arg" in dict(operative_configs))
         inoperative_configs = alf.get_inoperative_configs()
-        logging.info("get_inoperative_configs(): \n%s" %
-                     pprint.pformat(inoperative_configs))
-        self.assertTrue('A.B.C.D.test.arg' in dict(inoperative_configs))
+        logging.info(
+            "get_inoperative_configs(): \n%s"
+            % pprint.pformat(inoperative_configs)
+        )
+        self.assertTrue("A.B.C.D.test.arg" in dict(inoperative_configs))
 
     def test_sole_config(self):
         # Test sole_init protection against future config calls
@@ -197,13 +218,16 @@ class ConfigTest(alf.test.TestCase):
         def override_on_immutable_and_sole_init(x):
             pass
 
-        alf.config("override_on_immutable_and_sole_init",
-                   x=0,
-                   sole_init=True,
-                   mutable=False)
+        alf.config(
+            "override_on_immutable_and_sole_init",
+            x=0,
+            sole_init=True,
+            mutable=False,
+        )
         alf.override_sole_config("override_on_immutable_and_sole_init", x=1)
         self.assertEqual(
-            alf.get_config_value("override_on_immutable_and_sole_init.x"), 0)
+            alf.get_config_value("override_on_immutable_and_sole_init.x"), 0
+        )
 
         # Test that pre_config calls work before a sole_init config call
         @alf.configurable
@@ -239,7 +263,8 @@ class ConfigTest(alf.test.TestCase):
         with self.assertRaises(RuntimeError) as context:
             alf.config("override_no_affect_sole_init", x=3)
         self.assertEqual(
-            alf.get_config_value("override_no_affect_sole_init.x"), 2)
+            alf.get_config_value("override_no_affect_sole_init.x"), 2
+        )
 
     def test_repr_wrapper(self):
         a = MyClass(1, 2)
@@ -247,18 +272,19 @@ class ConfigTest(alf.test.TestCase):
         a = MyClass(3, 5, d=300)
         self.assertEqual(repr(a), "MyClass(3, 5, d=300)")
         b = MySubClass(6)
-        self.assertEqual(repr(b), 'MySubClass(6)')
+        self.assertEqual(repr(b), "MySubClass(6)")
 
     def test_load_config(self):
         alf.reset_configs()
         dir = os.path.dirname(__file__)
         conf_file = os.path.join(dir, "test_configs/conf_dir/test_conf.py")
-        self.assertRaisesRegex(ValueError, "Cannot find conf file",
-                               alf.load_config, conf_file)
+        self.assertRaisesRegex(
+            ValueError, "Cannot find conf file", alf.load_config, conf_file
+        )
 
         alf.reset_configs()
         alf.pre_config({"test_func.a": 12345})
-        os.environ['ALF_CONFIG_PATH'] = os.path.join(dir, "test_configs")
+        os.environ["ALF_CONFIG_PATH"] = os.path.join(dir, "test_configs")
         alf.load_config(conf_file)
         self.assertEqual(alf.get_config_value("test_func.a"), 12345)
         self.assertEqual(alf.get_config_value("test_func2.a"), 21)
@@ -280,21 +306,22 @@ class ConfigTest(alf.test.TestCase):
             os.path.exists(os.path.join(temp_dir, "configs", "test_conf.py"))
             os.path.exists(os.path.join(temp_dir, "configs", "base_conf.py"))
             os.path.exists(
-                os.path.join(temp_dir, "configs", "base", "base_conf.py"))
+                os.path.join(temp_dir, "configs", "base", "base_conf.py")
+            )
 
     def test_config_only_args(self):
 
-        @alf.configurable(config_only_args=['y'])
+        @alf.configurable(config_only_args=["y"])
         def func_test(y=0, z=0):
             pass
 
-        @alf.configurable(config_only_args=['y'])
+        @alf.configurable(config_only_args=["y"])
         class TestClass:
 
             def __init__(self, y=0, z=0):
                 pass
 
-        @alf.configurable(config_only_args=['y'], whitelist=['y'])
+        @alf.configurable(config_only_args=["y"], whitelist=["y"])
         class TestClassWhiteList:
 
             def __init__(self, y=0, z=0):
@@ -315,13 +342,13 @@ class ConfigTest(alf.test.TestCase):
 
         with self.assertRaises(ValueError) as context:
 
-            @alf.configurable(config_only_args=['y'], blacklist=['y'])
+            @alf.configurable(config_only_args=["y"], blacklist=["y"])
             class TestClassBlackList:
 
                 def __init__(self, y=0, z=0):
                     pass
 
-        @alf.configurable(config_only_args=['x'])
+        @alf.configurable(config_only_args=["x"])
         class TestPositionalArgs:
 
             def __init__(self, x, y, z=0):
@@ -343,5 +370,5 @@ class ConfigTest(alf.test.TestCase):
         test_partial()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

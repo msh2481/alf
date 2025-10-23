@@ -24,9 +24,11 @@ from alf.algorithms.algorithm import Algorithm
 from alf.utils.dist_utils import Beta
 from alf.utils import losses
 
-FlowMatchingInfo = namedtuple('FlowMatchingInfo',
-                              ['loss', 'denoise_vec', 'pred_denoise_vec'],
-                              default_value=())
+FlowMatchingInfo = namedtuple(
+    "FlowMatchingInfo",
+    ["loss", "denoise_vec", "pred_denoise_vec"],
+    default_value=(),
+)
 
 
 class FlowMatchingAlgorithm(Algorithm):
@@ -68,17 +70,19 @@ class FlowMatchingAlgorithm(Algorithm):
     conditioned on robot observations).
     """
 
-    def __init__(self,
-                 output_tensor_spec: alf.TensorSpec,
-                 noise_tensor_spec: Optional[alf.TensorSpec] = None,
-                 cond_input_tensor_spec: alf.NestedTensorSpec = None,
-                 vector_field_network_ctor: Callable = EncodingNetwork,
-                 tau_beta_paras: Tuple[float] = (1., 1.),
-                 noise_std: float = 1.,
-                 integration_steps: int = 10,
-                 integration_type: str = 'euler',
-                 loss_fn: Callable = losses.element_wise_huber_loss,
-                 name: str = "FlowMatchingAlgorithm"):
+    def __init__(
+        self,
+        output_tensor_spec: alf.TensorSpec,
+        noise_tensor_spec: Optional[alf.TensorSpec] = None,
+        cond_input_tensor_spec: alf.NestedTensorSpec = None,
+        vector_field_network_ctor: Callable = EncodingNetwork,
+        tau_beta_paras: Tuple[float] = (1.0, 1.0),
+        noise_std: float = 1.0,
+        integration_steps: int = 10,
+        integration_type: str = "euler",
+        loss_fn: Callable = losses.element_wise_huber_loss,
+        name: str = "FlowMatchingAlgorithm",
+    ):
         """
         Args:
             output_tensor_spec: the tensor spec for the output to be denoised. It
@@ -109,41 +113,50 @@ class FlowMatchingAlgorithm(Algorithm):
             name: the name of the algorithm.
         """
         super().__init__(name=name)
-        self._tau_beta = Beta(torch.tensor(tau_beta_paras[0]),
-                              torch.tensor(tau_beta_paras[1]))
+        self._tau_beta = Beta(
+            torch.tensor(tau_beta_paras[0]), torch.tensor(tau_beta_paras[1])
+        )
         self._int_steps = integration_steps
-        assert integration_type in ('euler', 'midpoint')
+        assert integration_type in ("euler", "midpoint")
         self._int_type = integration_type
         self._noise_spec = noise_tensor_spec or output_tensor_spec
         self._noise_std = noise_std
         self._output_spec = output_tensor_spec
-        assert (len(self._noise_spec.shape) == len(self._output_spec.shape)
-                and self._noise_spec.shape[0] == self._output_spec.shape[0])
+        assert (
+            len(self._noise_spec.shape) == len(self._output_spec.shape)
+            and self._noise_spec.shape[0] == self._output_spec.shape[0]
+        )
         tau_spec = alf.TensorSpec(shape=(), dtype=torch.float32)
         net_input_spec = (output_tensor_spec, tau_spec)
         if cond_input_tensor_spec is not None:
-            net_input_spec += (cond_input_tensor_spec, )
+            net_input_spec += (cond_input_tensor_spec,)
         self._vector_field_net = vector_field_network_ctor(
-            input_tensor_spec=net_input_spec)
+            input_tensor_spec=net_input_spec
+        )
         self._loss_fn = loss_fn
 
     def _get_random_noise(self, batch_size):
         # Sample a random noise at t=0
-        noise = self._noise_spec.randn(
-            outer_dims=(batch_size, )) * self._noise_std
+        noise = (
+            self._noise_spec.randn(outer_dims=(batch_size,)) * self._noise_std
+        )
         return self._resize_noise(noise)
 
     def _resize_noise(self, noise):
         if self._noise_spec is not self._output_spec:
             # TODO: might be incompatible with TensorRT
             noise = torch.nn.functional.interpolate(
-                noise, size=self._output_spec.shape[1:], mode='bilinear')
+                noise, size=self._output_spec.shape[1:], mode="bilinear"
+            )
         return noise
 
-    def train_step(self,
-                   inputs: Union[Tuple[alf.nest.NestedTensor, torch.Tensor],
-                                 alf.nest.NestedTensor],
-                   state=()):
+    def train_step(
+        self,
+        inputs: Union[
+            Tuple[alf.nest.NestedTensor, torch.Tensor], alf.nest.NestedTensor
+        ],
+        state=(),
+    ):
         """Perform a training step of the flow matching algorithm.
 
         Args:
@@ -158,7 +171,7 @@ class FlowMatchingAlgorithm(Algorithm):
 
         # Construct corrupted output
         noise = self._get_random_noise(batch_size)
-        tau = self._tau_beta.sample((batch_size, ))
+        tau = self._tau_beta.sample((batch_size,))
         tau_ = tau.reshape(-1, *([1] * (output.ndim - 1)))
         noisy_output = output * tau_ + noise * (1 - tau_)
         # Cmpute the vector field
@@ -169,20 +182,25 @@ class FlowMatchingAlgorithm(Algorithm):
             tau,
         )
         if cond_input is not None:
-            inputs += (cond_input, )
+            inputs += (cond_input,)
         pred_denoising_vec = self._vector_field_net(inputs)[0]
 
         loss = self._loss_fn(denoising_vec, pred_denoising_vec)
         loss = loss.sum(list(range(1, loss.ndim)))
         return AlgStep(
-            info=FlowMatchingInfo(loss=loss,
-                                  denoise_vec=denoising_vec,
-                                  pred_denoise_vec=pred_denoising_vec))
+            info=FlowMatchingInfo(
+                loss=loss,
+                denoise_vec=denoising_vec,
+                pred_denoise_vec=pred_denoising_vec,
+            )
+        )
 
-    def generate(self,
-                 cond_input: alf.nest.NestedTensor = None,
-                 batch_size: int = 1,
-                 return_intermediate_steps: bool = False):
+    def generate(
+        self,
+        cond_input: alf.nest.NestedTensor = None,
+        batch_size: int = 1,
+        return_intermediate_steps: bool = False,
+    ):
         """Generate new outputs.
 
         Args:
@@ -197,22 +215,22 @@ class FlowMatchingAlgorithm(Algorithm):
             batch_size = alf.nest.get_nest_batch_size(cond_input)
         output = self._get_random_noise(batch_size)
         outputs = [output]
-        delta = 1. / self._int_steps
+        delta = 1.0 / self._int_steps
 
         def _time_forward(x0, x, t, dt):
-            """Compute x' = x0 + v(x, t)dt
-            """
+            """Compute x' = x0 + v(x, t)dt"""
             inputs = (x, t)
             if cond_input is not None:
-                inputs += (cond_input, )
+                inputs += (cond_input,)
             return x0 + dt * self._vector_field_net(inputs)[0]
 
         for t in np.arange(0, 1, delta):
-            tau = torch.full((batch_size, ), t)
-            if self._int_type == 'midpoint':
+            tau = torch.full((batch_size,), t)
+            if self._int_type == "midpoint":
                 output_mid = _time_forward(output, output, tau, delta / 2)
-                output = _time_forward(output, output_mid, tau + delta / 2,
-                                       delta)
+                output = _time_forward(
+                    output, output_mid, tau + delta / 2, delta
+                )
             else:
                 output = _time_forward(output, output, tau, delta)
             outputs.append(output)

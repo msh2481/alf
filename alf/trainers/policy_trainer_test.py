@@ -36,10 +36,12 @@ class TrainerTest(alf.test.TestCase):
     def test_rl_trainer(self):
         with tempfile.TemporaryDirectory() as root_dir:
             alf.config("create_environment", env_load_fn=env_load)
-            conf = TrainerConfig(algorithm_ctor=MyAlg,
-                                 root_dir=root_dir,
-                                 unroll_length=5,
-                                 num_iterations=100)
+            conf = TrainerConfig(
+                algorithm_ctor=MyAlg,
+                root_dir=root_dir,
+                unroll_length=5,
+                num_iterations=100,
+            )
 
             # test train
             trainer = RLTrainer(conf)
@@ -52,7 +54,7 @@ class TrainerTest(alf.test.TestCase):
             time_step = common.get_initial_time_step(env)
             state = alg.get_initial_predict_state(env.batch_size)
             policy_step = alg.rollout_step(time_step, state)
-            logits = policy_step.info['dist'].logits
+            logits = policy_step.info["dist"].logits
             print("logits: ", logits)
             self.assertTrue(torch.all(logits[:, 1] > logits[:, 0]))
             self.assertTrue(torch.all(logits[:, 1] > logits[:, 2]))
@@ -65,7 +67,7 @@ class TrainerTest(alf.test.TestCase):
             time_step = common.get_initial_time_step(env)
             state = alg.get_initial_predict_state(env.batch_size)
             policy_step = alg.rollout_step(time_step, state)
-            logits = policy_step.info['dist'].logits
+            logits = policy_step.info["dist"].logits
             self.assertTrue(torch.all(logits[:, 1] > logits[:, 0]))
             self.assertTrue(torch.all(logits[:, 1] > logits[:, 2]))
 
@@ -76,18 +78,21 @@ class TrainerTest(alf.test.TestCase):
 
     def test_sl_trainer(self):
         with tempfile.TemporaryDirectory() as root_dir:
-            conf = TrainerConfig(algorithm_ctor=functools.partial(
-                HyperNetwork,
-                data_creator=datagen.load_test,
-                hidden_layers=None,
-                loss_type='regression',
-                num_train_classes=1,
-                optimizer=alf.optimizers.Adam(lr=1e-4, weight_decay=1e-4)),
-                                 root_dir=root_dir,
-                                 num_checkpoints=1,
-                                 evaluate=True,
-                                 eval_interval=1,
-                                 num_iterations=1)
+            conf = TrainerConfig(
+                algorithm_ctor=functools.partial(
+                    HyperNetwork,
+                    data_creator=datagen.load_test,
+                    hidden_layers=None,
+                    loss_type="regression",
+                    num_train_classes=1,
+                    optimizer=alf.optimizers.Adam(lr=1e-4, weight_decay=1e-4),
+                ),
+                root_dir=root_dir,
+                num_checkpoints=1,
+                evaluate=True,
+                eval_interval=1,
+                num_iterations=1,
+            )
 
             # test train
             trainer = SLTrainer(conf)
@@ -96,18 +101,21 @@ class TrainerTest(alf.test.TestCase):
             self.assertEqual(SLTrainer.progress(), 1)
 
             # test checkpoint
-            conf2 = TrainerConfig(algorithm_ctor=functools.partial(
-                HyperNetwork,
-                data_creator=datagen.load_test,
-                hidden_layers=None,
-                loss_type='regression',
-                num_train_classes=1,
-                optimizer=alf.optimizers.Adam(lr=1e-4, weight_decay=1e-4)),
-                                  root_dir=root_dir,
-                                  num_checkpoints=1,
-                                  evaluate=True,
-                                  eval_interval=1,
-                                  num_iterations=2)
+            conf2 = TrainerConfig(
+                algorithm_ctor=functools.partial(
+                    HyperNetwork,
+                    data_creator=datagen.load_test,
+                    hidden_layers=None,
+                    loss_type="regression",
+                    num_train_classes=1,
+                    optimizer=alf.optimizers.Adam(lr=1e-4, weight_decay=1e-4),
+                ),
+                root_dir=root_dir,
+                num_checkpoints=1,
+                evaluate=True,
+                eval_interval=1,
+                num_iterations=2,
+            )
 
             new_trainer = SLTrainer(conf2)
             new_trainer._restore_checkpoint()

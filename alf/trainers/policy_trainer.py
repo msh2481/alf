@@ -82,15 +82,17 @@ class TrainerProgress(nn.Module):
         if env_steps is not None:
             self._env_steps.fill_(env_steps)
 
-        assert not (self._num_iterations is None
-                    and self._num_env_steps is None
-                    ), "You must first call set_terimination_criterion()!"
+        assert not (
+            self._num_iterations is None and self._num_env_steps is None
+        ), "You must first call set_terimination_criterion()!"
         if self._num_iterations > 0:
             self._progress = float(
-                self._iter_num.to(torch.float64) / self._num_iterations)
+                self._iter_num.to(torch.float64) / self._num_iterations
+            )
         else:
             self._progress = float(
-                self._env_steps.to(torch.float64) / self._num_env_steps)
+                self._env_steps.to(torch.float64) / self._num_env_steps
+            )
 
         # Always update iterations and evn_steps so that in the case of the progress
         # is loaded from a checkpoint, they are still updated by update() without
@@ -129,7 +131,8 @@ def _visualize_alf_tree(module: Algorithm):
         import graphviz
     except ImportError:
         logging.warn(
-            'Need "graphviz" installed if you want to visualize modules')
+            'Need "graphviz" installed if you want to visualize modules'
+        )
         return None
 
     def _is_layer(node):
@@ -177,7 +180,8 @@ def _visualize_alf_tree(module: Algorithm):
             # "built-in method" or "function".
             res = re.match(
                 r"<(bound method|built-in method|function) (\S+) .*>",
-                match_obj.group())
+                match_obj.group(),
+            )
             if res is None:
                 # In case there is an outlier, return "NOT_PARSED" instead.
                 return "NOT_PARSED"
@@ -197,8 +201,10 @@ def _visualize_alf_tree(module: Algorithm):
         """A set of rules to filter out certain components in the rendered graph."""
         conditions = [
             # Every Algorithm will contain a default identity transformer.
-            (field == "_data_transformer"
-             and isinstance(child, IdentityDataTransformer)),
+            (
+                field == "_data_transformer"
+                and isinstance(child, IdentityDataTransformer)
+            ),
         ]
         return any(conditions)
 
@@ -227,9 +233,9 @@ def _visualize_alf_tree(module: Algorithm):
             edge = (f"{node_index}:{field}", f"{child_idx}:caption")
             edges.append(edge)
 
-        dot.node(str(node_index),
-                 label="|".join(node_records),
-                 **_visual_style(node))
+        dot.node(
+            str(node_index), label="|".join(node_records), **_visual_style(node)
+        )
 
         if isinstance(node, Algorithm):
             # NOTE: the subgraph name needs to begin with 'cluster' (all lowercase)
@@ -285,13 +291,15 @@ class Trainer(object):
 
         if config.num_evals is not None:
             self._eval_interval = common.compute_summary_or_eval_interval(
-                config, config.num_evals)
+                config, config.num_evals
+            )
         else:
             self._eval_interval = config.eval_interval
 
         if config.num_summaries is not None:
             self._summary_interval = common.compute_summary_or_eval_interval(
-                config, config.num_summaries)
+                config, config.num_summaries
+            )
         else:
             self._summary_interval = config.summary_interval
 
@@ -305,16 +313,23 @@ class Trainer(object):
         self._pid = None
         # Run server in a separate thread
         if self._rank <= 0 and hasattr(flags.FLAGS, "port"):
-            self._server_thread = threading.Thread(target=partial(
-                start_server, port=flags.FLAGS.port),
-                                                   daemon=True)
+            self._server_thread = threading.Thread(
+                target=partial(start_server, port=flags.FLAGS.port), daemon=True
+            )
             logging.info(
-                f"Server port for request handling : {flags.FLAGS.port}.")
+                f"Server port for request handling : {flags.FLAGS.port}."
+            )
             self._server_thread.start()
-            register_endpoint("/checkpoint", self.handle_checkpoint_request,
-                              "Request a checkpoint")
-            register_endpoint("/evaluation", self.handle_evaluation_request,
-                              "Request evaluation")
+            register_endpoint(
+                "/checkpoint",
+                self.handle_checkpoint_request,
+                "Request a checkpoint",
+            )
+            register_endpoint(
+                "/evaluation",
+                self.handle_evaluation_request,
+                "Request evaluation",
+            )
 
     def train(self):
         """Perform training."""
@@ -330,8 +345,9 @@ class Trainer(object):
             signal.signal(signal.SIGUSR2, self._request_checkpoint)
             # kill -12 PID
             logging.info(
-                "Use `kill -%s %s` to request checkpoint during training." %
-                (int(signal.SIGUSR2), self._pid))
+                "Use `kill -%s %s` to request checkpoint during training."
+                % (int(signal.SIGUSR2), self._pid)
+            )
 
         self._video_clip_requested = False
         if threading.current_thread() == threading.main_thread():
@@ -341,22 +357,30 @@ class Trainer(object):
             if platform.system() == "Linux" and hasattr(signal, "SIGRTMIN"):
                 signal.signal(signal.SIGRTMIN, self._request_video_clip)
                 # kill -34 PID
-                logging.info((
-                    "Use `kill -%s %s` to request video-clip during training. "
-                    f"The videos will be saved at `{self._train_dir}/train/video/"
-                ) % (int(signal.SIGRTMIN), self._pid))
+                logging.info(
+                    (
+                        "Use `kill -%s %s` to request video-clip during training. "
+                        f"The videos will be saved at `{self._train_dir}/train/video/"
+                    )
+                    % (int(signal.SIGRTMIN), self._pid)
+                )
             else:
                 logging.info(
-                    "Video clip requests not available on this platform")
+                    "Video clip requests not available on this platform"
+                )
 
-        if (threading.current_thread() == threading.main_thread()
-                and PerProcessContext().ddp_rank <= 0):
+        if (
+            threading.current_thread() == threading.main_thread()
+            and PerProcessContext().ddp_rank <= 0
+        ):
             # Debugging in subprocesses is not supported because they don't have
             # stdin.
             # kill -10 PID
             signal.signal(signal.SIGUSR1, self._request_debug)
-            logging.info("Use `kill -%s %s` to request debugging." %
-                         (int(signal.SIGUSR1), self._pid))
+            logging.info(
+                "Use `kill -%s %s` to request debugging."
+                % (int(signal.SIGUSR1), self._pid)
+            )
 
         checkpoint_saved = False
         try:
@@ -390,11 +414,17 @@ class Trainer(object):
             self._save_checkpoint()
             checkpoint_saved = True
         finally:
-            if (self._config.save_checkpoint_upon_crash
-                    and not checkpoint_saved and self._rank <= 0):
+            if (
+                self._config.save_checkpoint_upon_crash
+                and not checkpoint_saved
+                and self._rank <= 0
+            ):
                 self._save_checkpoint()
-            elif (self._config.confirm_checkpoint_upon_crash
-                  and not checkpoint_saved and self._rank <= 0):
+            elif (
+                self._config.confirm_checkpoint_upon_crash
+                and not checkpoint_saved
+                and self._rank <= 0
+            ):
                 # Prompts for checkpoint only when running single process
                 # training (rank is -1) or master process of DDP training (rank
                 # is 0).
@@ -442,13 +472,14 @@ class Trainer(object):
 
             def _markdownify(paragraph):
                 return "    ".join(
-                    (os.linesep + paragraph).splitlines(keepends=True))
+                    (os.linesep + paragraph).splitlines(keepends=True)
+                )
 
             common.summarize_config()
             alf.summary.text("commandline", " ".join(sys.argv))
             alf.summary.text(
-                "optimizers",
-                _markdownify(self._algorithm.get_optimizer_info()))
+                "optimizers", _markdownify(self._algorithm.get_optimizer_info())
+            )
             alf.summary.text(
                 "unoptimized_parameters",
                 _markdownify(self._algorithm.get_unoptimized_parameter_info()),
@@ -456,24 +487,23 @@ class Trainer(object):
 
             repo_roots = {
                 **common.snapshot_repo_roots(),
-                **{
-                    "alf": common.alf_root()
-                }
+                **{"alf": common.alf_root()},
             }
             for name, root in repo_roots.items():
-                alf.summary.text(f"{name}/revision",
-                                 git_utils.get_revision(f"{root}/{name}"))
+                alf.summary.text(
+                    f"{name}/revision", git_utils.get_revision(f"{root}/{name}")
+                )
                 alf.summary.text(
                     f"{name}/diff",
-                    _markdownify(git_utils.get_diff(f"{root}/{name}")))
+                    _markdownify(git_utils.get_diff(f"{root}/{name}")),
+                )
 
             alf.summary.text("seed", str(self._random_seed))
 
             # Save a rendered directed graph of the algorithm to the root
             # directory.
             if self._config.visualize_alf_tree:
-                algorithm_structure_graph = _visualize_alf_tree(
-                    self._algorithm)
+                algorithm_structure_graph = _visualize_alf_tree(self._algorithm)
                 if algorithm_structure_graph is not None:
                     import graphviz
 
@@ -487,28 +517,29 @@ class Trainer(object):
                         # graphviz will treat any warning in the rendering as error
                         # and panic. We should just warn instead.
                         logging.warn(f"Graphviz rendering: {str(e)}")
-                    image_path = Path(self._root_dir,
-                                      "algorithm_sturcture.png")
+                    image_path = Path(self._root_dir, "algorithm_sturcture.png")
                     if image_path.exists():
                         img = np.array(Image.open(image_path))
-                        alf.summary.images("algorithm_structure",
-                                           img,
-                                           dataformat="HWC",
-                                           step=0)
+                        alf.summary.images(
+                            "algorithm_structure", img, dataformat="HWC", step=0
+                        )
 
             if self._config.code_snapshots is not None:
                 for f in self._config.code_snapshots:
                     path = os.path.join(
-                        os.path.abspath(os.path.dirname(__file__)), "..", f)
+                        os.path.abspath(os.path.dirname(__file__)), "..", f
+                    )
                     if not os.path.isfile(path):
                         common.warning_once(
-                            "The code file '%s' for summary is invalid" % path)
+                            "The code file '%s' for summary is invalid" % path
+                        )
                         continue
                     with open(path, "r") as fin:
                         code = fin.read()
                         # adding "<pre>" will make TB show raw text instead of MD
-                        alf.summary.text("code/%s" % f,
-                                         "<pre>" + code + "</pre>")
+                        alf.summary.text(
+                            "code/%s" % f, "<pre>" + code + "</pre>"
+                        )
 
     def _request_checkpoint(self, signum, frame):
         self._checkpoint_requested = True
@@ -548,8 +579,9 @@ class Trainer(object):
                 # save video
                 logging.info("Saving video clip...")
                 global_step = alf.summary.get_global_counter()
-                output_file = os.path.join(video_dir,
-                                           f"{name}_{global_step}.mp4")
+                output_file = os.path.join(
+                    video_dir, f"{name}_{global_step}.mp4"
+                )
 
                 common.save_video(frames=frames, output_file=output_file)
                 self._video_clip_requested = False
@@ -570,12 +602,15 @@ class Trainer(object):
             self._trainer_progress.update()
         except RuntimeError as e:
             raise RuntimeError(
-                ("Checkpoint loading failed from the provided root_dir={}. "
-                 "Typically this is caused by using a wrong checkpoint. \n"
-                 "Please make sure the root_dir is set correctly. "
-                 "Use a new value for it if "
-                 "planning to train from scratch. \n"
-                 "Detailed error message: {}").format(self._root_dir, e))
+                (
+                    "Checkpoint loading failed from the provided root_dir={}. "
+                    "Typically this is caused by using a wrong checkpoint. \n"
+                    "Please make sure the root_dir is set correctly. "
+                    "Use a new value for it if "
+                    "planning to train from scratch. \n"
+                    "Detailed error message: {}"
+                ).format(self._root_dir, e)
+            )
         if recovered_global_step != -1:
             alf.summary.set_global_counter(recovered_global_step)
 
@@ -606,36 +641,46 @@ class RLTrainer(Trainer):
 
         self._num_env_steps = config.num_env_steps
         self._num_iterations = config.num_iterations
-        assert (self._num_iterations + self._num_env_steps
-                > 0), "Must provide #iterations or #env_steps for training!"
+        assert (
+            self._num_iterations + self._num_env_steps > 0
+        ), "Must provide #iterations or #env_steps for training!"
         if self._num_iterations > 0 and self._num_env_steps > 0:
             num_envs = alf.get_config_value(
-                "create_environment.num_parallel_environments")
+                "create_environment.num_parallel_environments"
+            )
             num_iterations_with_env_interations = config.num_env_steps / (
-                num_envs * config.unroll_length)
-            pure_train_iters = (self._num_iterations -
-                                num_iterations_with_env_interations)
+                num_envs * config.unroll_length
+            )
+            pure_train_iters = (
+                self._num_iterations - num_iterations_with_env_interations
+            )
             assert pure_train_iters >= 0, (
                 f"num_iterations={self._num_iterations} is not enough for "
-                f"num_env_steps={self._num_env_steps}")
-            logging.info("There is no environmental interaction in the last"
-                         f"{pure_train_iters} iterations")
+                f"num_env_steps={self._num_env_steps}"
+            )
+            logging.info(
+                "There is no environmental interaction in the last"
+                f"{pure_train_iters} iterations"
+            )
         self._trainer_progress.set_termination_criterion(
-            self._num_iterations, self._num_env_steps)
+            self._num_iterations, self._num_env_steps
+        )
 
         self._num_eval_episodes = config.num_eval_episodes
         alf.summary.should_summarize_output(config.summarize_output)
 
         env = alf.get_env()
-        logging.info("observation_spec=\n%s" %
-                     pformat_pycolor(env.observation_spec())),
+        logging.info(
+            "observation_spec=\n%s" % pformat_pycolor(env.observation_spec())
+        ),
         logging.info("action_spec=\n%s" % pformat_pycolor(env.action_spec()))
 
         # for offline buffer construction
         untransformed_observation_spec = env.observation_spec()
 
         data_transformer = create_data_transformer(
-            config.data_transformer_ctor, untransformed_observation_spec)
+            config.data_transformer_ctor, untransformed_observation_spec
+        )
         self._config.data_transformer = data_transformer
 
         # keep compatibility with previous gin based config
@@ -643,12 +688,15 @@ class RLTrainer(Trainer):
 
         observation_spec = data_transformer.transformed_observation_spec
         common.set_transformed_observation_spec(observation_spec)
-        logging.info("transformed_observation_spec=%s" %
-                     pformat_pycolor(observation_spec))
+        logging.info(
+            "transformed_observation_spec=%s"
+            % pformat_pycolor(observation_spec)
+        )
 
         if algorithm_wrapper_ctor is not None:
-            self._algorithm_ctor = partial(algorithm_wrapper_ctor,
-                                           self._algorithm_ctor)
+            self._algorithm_ctor = partial(
+                algorithm_wrapper_ctor, self._algorithm_ctor
+            )
 
         self._algorithm = self._algorithm_ctor(
             observation_spec=observation_spec,
@@ -659,16 +707,23 @@ class RLTrainer(Trainer):
             debug_summaries=self._debug_summaries,
         )
 
-        logging.info("predict_state_spec=\n%s" %
-                     pformat_pycolor(self._algorithm.predict_state_spec))
-        logging.info("rollout_state_spec=\n%s" %
-                     pformat_pycolor(self._algorithm.rollout_state_spec))
-        logging.info("train_state_spec=\n%s" %
-                     pformat_pycolor(self._algorithm.train_state_spec))
+        logging.info(
+            "predict_state_spec=\n%s"
+            % pformat_pycolor(self._algorithm.predict_state_spec)
+        )
+        logging.info(
+            "rollout_state_spec=\n%s"
+            % pformat_pycolor(self._algorithm.rollout_state_spec)
+        )
+        logging.info(
+            "train_state_spec=\n%s"
+            % pformat_pycolor(self._algorithm.train_state_spec)
+        )
 
         # recover offline buffer
         self._algorithm.load_offline_replay_buffer(
-            untransformed_observation_spec, ddp_rank)
+            untransformed_observation_spec, ddp_rank
+        )
 
         self._algorithm.set_path("")
         if ddp_rank >= 0:
@@ -678,7 +733,8 @@ class RLTrainer(Trainer):
             # https://pytorch.org/docs/stable/generated/torch.nn.SyncBatchNorm.html#torch.nn.SyncBatchNorm
             # This conversion needs to be performed before wrapping modules with DDP.
             self._algorithm = torch.nn.SyncBatchNorm.convert_sync_batchnorm(
-                self._algorithm)
+                self._algorithm
+            )
 
         # Create a thread env to expose subprocess gin/alf configurations
         # which otherwise will be marked as "inoperative". Only created when
@@ -687,8 +743,8 @@ class RLTrainer(Trainer):
 
         def _env_in_subprocess(e):
             if isinstance(
-                    e,
-                    alf.environments.alf_wrappers.AlfEnvironmentBaseWrapper):
+                e, alf.environments.alf_wrappers.AlfEnvironmentBaseWrapper
+            ):
                 return _env_in_subprocess(e.wrapped_env())
             # TODO: One special case is alf_wrappers.MultitaskWrapper which is
             #       an alf wrapper but not a subclass of AlfEnvironmentBaseWrapper.
@@ -696,10 +752,8 @@ class RLTrainer(Trainer):
             return isinstance(
                 e,
                 (
-                    alf.environments.parallel_environment.
-                    ParallelAlfEnvironment,
-                    alf.environments.fast_parallel_environment.
-                    FastParallelEnvironment,
+                    alf.environments.parallel_environment.ParallelAlfEnvironment,
+                    alf.environments.fast_parallel_environment.FastParallelEnvironment,
                 ),
             )
 
@@ -730,13 +784,18 @@ class RLTrainer(Trainer):
         training_setting_summarized = False
 
         checkpoint_interval = math.ceil(
-            (self._num_iterations or self._num_env_steps) /
-            self._num_checkpoints)
+            (self._num_iterations or self._num_env_steps)
+            / self._num_checkpoints
+        )
 
         if self._num_iterations:
-            time_to_checkpoint = self._trainer_progress._iter_num + checkpoint_interval
+            time_to_checkpoint = (
+                self._trainer_progress._iter_num + checkpoint_interval
+            )
         else:
-            time_to_checkpoint = self._trainer_progress._env_steps + checkpoint_interval
+            time_to_checkpoint = (
+                self._trainer_progress._env_steps + checkpoint_interval
+            )
 
         if self._evaluate and iter_num == 0:
             self._eval()
@@ -745,8 +804,9 @@ class RLTrainer(Trainer):
             if self._config.num_evals is None:
                 self._num_evals_performed = iter_num // self._eval_interval
             else:
-                self._num_evals_performed = int(self.progress() *
-                                                self._config.num_evals)
+                self._num_evals_performed = int(
+                    self.progress() * self._config.num_evals
+                )
 
         while True:
             t0 = time.time()
@@ -757,7 +817,8 @@ class RLTrainer(Trainer):
             t = time.time() - t0
             logging.log_every_n_seconds(
                 logging.INFO,
-                "%s [pid: %s] %s -> %s: %s time=%.3f throughput=%0.2f" % (
+                "%s [pid: %s] %s -> %s: %s time=%.3f throughput=%0.2f"
+                % (
                     "" if self._rank == -1 else f"[rank {self._rank:02d}] ",
                     self._pid,
                     common.get_conf_file(),
@@ -785,12 +846,15 @@ class RLTrainer(Trainer):
             if self.progress() >= 1:
                 break
 
-            self._check_dpp_paras_consistency(iter_num,
-                                              training_setting_summarized)
+            self._check_dpp_paras_consistency(
+                iter_num, training_setting_summarized
+            )
 
             if (self._num_iterations and iter_num >= time_to_checkpoint) or (
-                    not self._num_iterations and self._num_env_steps
-                    and total_time_steps >= time_to_checkpoint):
+                not self._num_iterations
+                and self._num_env_steps
+                and total_time_steps >= time_to_checkpoint
+            ):
                 self._save_checkpoint()
                 time_to_checkpoint += checkpoint_interval
             elif self._checkpoint_requested:
@@ -822,11 +886,14 @@ class RLTrainer(Trainer):
             return True
         elif self._config.num_evals is None:
             return iter_num % self._eval_interval == 0
-        return self.progress(
-        ) * self._config.num_evals > self._num_evals_performed + 1
+        return (
+            self.progress() * self._config.num_evals
+            > self._num_evals_performed + 1
+        )
 
-    def _check_dpp_paras_consistency(self, iter_num: int,
-                                     training_started: bool):
+    def _check_dpp_paras_consistency(
+        self, iter_num: int, training_started: bool
+    ):
         """Periodically check the consistency of model parameters of different
         DDP processes.
 
@@ -853,12 +920,14 @@ class RLTrainer(Trainer):
             return
 
         proc_cxt = PerProcessContext()
-        if not (proc_cxt.is_distributed
-                and self._config.ddp_paras_check_interval > 0
-                # Assume that DDP will make sure that this modulo check won't
-                # cause a dead lock, i.e., all workers have the same ``iter_num``
-                # at any moment.
-                and iter_num % self._config.ddp_paras_check_interval == 0):
+        if not (
+            proc_cxt.is_distributed
+            and self._config.ddp_paras_check_interval > 0
+            # Assume that DDP will make sure that this modulo check won't
+            # cause a dead lock, i.e., all workers have the same ``iter_num``
+            # at any moment.
+            and iter_num % self._config.ddp_paras_check_interval == 0
+        ):
             return
 
         with alf.summary.record_if(lambda: True):
@@ -876,27 +945,32 @@ class RLTrainer(Trainer):
                     for i in range(proc_cxt.num_processes - 1):
                         their_paras_stat = queue.get()
                         is_close = map_structure(
-                            partial(np.isclose, atol=1e-6), paras_stat,
-                            their_paras_stat)
+                            partial(np.isclose, atol=1e-6),
+                            paras_stat,
+                            their_paras_stat,
+                        )
                         for k, v in is_close.items():
                             if not np.all(v):
                                 consistent = False
                                 common.warning(
                                     "Found inconsistent parameter '%s' across "
-                                    "DDP processes: %s vs. %s" %
-                                    (k, paras_stat[k], their_paras_stat[k]))
+                                    "DDP processes: %s vs. %s"
+                                    % (k, paras_stat[k], their_paras_stat[k])
+                                )
 
                     if not consistent:
                         common.warning(
                             "Your model parameters are not consistent across"
                             " DDP processes. Please make sure to check if there"
                             " is any computation that relies on local-batch "
-                            "statistics in the algorithm.")
+                            "statistics in the algorithm."
+                        )
                     else:
                         common.info("Model parameters are consistent")
 
-                    alf.summary.scalar("DDP/para_consistency",
-                                       torch.tensor(float(consistent)))
+                    alf.summary.scalar(
+                        "DDP/para_consistency", torch.tensor(float(consistent))
+                    )
 
     def _close(self):
         """Closing operations after training."""
@@ -932,7 +1006,9 @@ class SLTrainer(Trainer):
         """
         super().__init__(config)
 
-        assert config.num_iterations > 0, "Must provide num_iterations for training!"
+        assert (
+            config.num_iterations > 0
+        ), "Must provide num_iterations for training!"
 
         self._num_epochs = config.num_iterations
         self._trainer_progress.set_termination_criterion(self._num_epochs)
@@ -943,8 +1019,9 @@ class SLTrainer(Trainer):
         begin_epoch_num = int(self._trainer_progress._iter_num)
         epoch_num = begin_epoch_num
 
-        checkpoint_interval = math.ceil(self._num_epochs /
-                                        self._num_checkpoints)
+        checkpoint_interval = math.ceil(
+            self._num_epochs / self._num_checkpoints
+        )
         time_to_checkpoint = begin_epoch_num + checkpoint_interval
 
         logging.info("==> Begin Training")
@@ -956,7 +1033,8 @@ class SLTrainer(Trainer):
             t = time.time() - t0
             logging.log_every_n_seconds(
                 logging.INFO,
-                "%s -> %s: %s time=%.3f throughput=%0.2f" % (
+                "%s -> %s: %s time=%.3f throughput=%0.2f"
+                % (
                     common.get_conf_file(),
                     os.path.basename(self._root_dir.strip("/")),
                     epoch_num,
@@ -1062,12 +1140,12 @@ def _step(
         time_step.is_first(),
     )
     transformed_time_step, trans_state = algorithm.transform_timestep(
-        time_step, trans_state)
+        time_step, trans_state
+    )
     policy_step = algorithm.predict_step(transformed_time_step, policy_state)
 
     if recorder and selective_criteria_func is None:
-        recorder.capture_frame(policy_step.info,
-                               torch.all(time_step.is_last()))
+        recorder.capture_frame(policy_step.info, torch.all(time_step.is_last()))
 
     elif recorder and selective_criteria_func is not None:
         env_frame = recorder.capture_env_frame()
@@ -1075,13 +1153,10 @@ def _step(
 
         if time_step.is_last():
             if selective_criteria_func(
-                    map_structure(lambda x: x.cpu().numpy(),
-                                  metrics[1].latest()),
-                    map_structure(lambda x: x.cpu().numpy(),
-                                  metrics[3].latest()),
+                map_structure(lambda x: x.cpu().numpy(), metrics[1].latest()),
+                map_structure(lambda x: x.cpu().numpy(), metrics[3].latest()),
             ):
-                logging.info(
-                    "+++++++++ Selective Case Discovered! +++++++++++")
+                logging.info("+++++++++ Selective Case Discovered! +++++++++++")
                 recorder.generate_video_from_cache()
             else:
                 recorder.clear_cache()
@@ -1193,15 +1268,18 @@ def play(
         alf.get_config_value("TrainerConfig.num_env_steps"),
     )
     Trainer.get_trainer_progress().update()
-    logging.info("global_step=%s TrainerProgress=%s" %
-                 (recovered_global_step, Trainer.progress()))
+    logging.info(
+        "global_step=%s TrainerProgress=%s"
+        % (recovered_global_step, Trainer.progress())
+    )
 
     batch_size = env.batch_size
     recorder = None
     if record_file is not None:
         # TODO: support for batched environments
-        assert (batch_size == 1 or env.batched
-                ), "video recording is not supported for parallel play"
+        assert (
+            batch_size == 1 or env.batched
+        ), "video recording is not supported for parallel play"
         # Note that ``VideoRecorder`` will import ``matplotlib`` which might have
         # some side effects on xserver (if its backend needs graphics).
         # This is incompatible with RLBench parallel envs >1 (or other
@@ -1234,20 +1312,26 @@ def play(
     total_steps = 0
     metrics = [
         alf.metrics.NumberOfEpisodes(),
-        alf.metrics.AverageReturnMetric(buffer_size=num_episodes,
-                                        example_time_step=time_step),
-        alf.metrics.AverageEpisodeLengthMetric(example_time_step=time_step,
-                                               buffer_size=num_episodes),
-        alf.metrics.AverageEnvInfoMetric(example_time_step=time_step,
-                                         buffer_size=num_episodes),
-        alf.metrics.AverageDiscountedReturnMetric(buffer_size=num_episodes,
-                                                  example_time_step=time_step),
+        alf.metrics.AverageReturnMetric(
+            buffer_size=num_episodes, example_time_step=time_step
+        ),
+        alf.metrics.AverageEpisodeLengthMetric(
+            example_time_step=time_step, buffer_size=num_episodes
+        ),
+        alf.metrics.AverageEnvInfoMetric(
+            example_time_step=time_step, buffer_size=num_episodes
+        ),
+        alf.metrics.AverageDiscountedReturnMetric(
+            buffer_size=num_episodes, example_time_step=time_step
+        ),
     ]
 
     if selective_mode:
         # Below is an example selective criteria based on return.
         # This should be adjusted according to the particular task.
-        selective_criteria_func = lambda return_value, env_info: return_value < 500
+        selective_criteria_func = (
+            lambda return_value, env_info: return_value < 500
+        )
     else:
         selective_criteria_func = None
 
@@ -1267,8 +1351,9 @@ def play(
         # extra episodes from each environment.
         invalid = env_episodes >= episodes_per_env
         # Ignore the episodes that end at the first step
-        invalid = invalid | ((episode_length == 0) &
-                             (time_step.step_type == StepType.LAST))
+        invalid = invalid | (
+            (episode_length == 0) & (time_step.step_type == StepType.LAST)
+        )
         # Force the step_type of the invalid episodes to be StepType.FIRST so that
         # these time steps do not affect metrics as the metrics are only updated
         # at StepType.LAST. The metric computation uses cpu version of time_step.
@@ -1300,8 +1385,9 @@ def play(
             if time_step.step_type[i] == StepType.LAST:
                 if episode_length[i] > 0:
                     logging.info(
-                        "episode_length=%s episode_reward=%s" %
-                        (episode_length[i].item(), episode_reward[i].item()))
+                        "episode_length=%s episode_reward=%s"
+                        % (episode_length[i].item(), episode_reward[i].item())
+                    )
                     env_episodes[i] += 1
                     episodes += 1
                     common.log_metrics(metrics)

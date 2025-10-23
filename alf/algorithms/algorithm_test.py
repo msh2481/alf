@@ -29,34 +29,38 @@ import alf.utils.checkpoint_utils as ckpt_utils
 
 class MyAlg(Algorithm):
 
-    def __init__(self,
-                 optimizer=None,
-                 sub_algs=[],
-                 params=[],
-                 checkpoint=None,
-                 name="MyAlg"):
+    def __init__(
+        self,
+        optimizer=None,
+        sub_algs=[],
+        params=[],
+        checkpoint=None,
+        name="MyAlg",
+    ):
         super().__init__(optimizer=optimizer, checkpoint=checkpoint, name=name)
         self._module_list = nn.ModuleList(sub_algs)
         self._param_list = nn.ParameterList(params)
 
     def calc_loss(self):
-        loss = torch.tensor(0.)
+        loss = torch.tensor(0.0)
         for p in self.parameters():
             loss = loss + torch.sum(p)
         return LossInfo(loss=loss)
 
     def _trainable_attributes_to_ignore(self):
-        return ['ignored_param']
+        return ["ignored_param"]
 
 
 class ComposedAlg(Algorithm):
 
-    def __init__(self,
-                 optimizer=None,
-                 sub_alg1=None,
-                 sub_alg2=None,
-                 params=[],
-                 name="ComposedAlg"):
+    def __init__(
+        self,
+        optimizer=None,
+        sub_alg1=None,
+        sub_alg2=None,
+        params=[],
+        name="ComposedAlg",
+    ):
 
         super().__init__(
             optimizer=optimizer,
@@ -78,19 +82,19 @@ class AlgorithmTest(alf.test.TestCase):
         pb = nn.Parameter()
         pc = nn.Parameter()
         pd = nn.Parameter()
-        nest = nn.ModuleDict({
-            'a': a,
-            'b': b,
-            'list': nn.ModuleList([c, d]),
-            'plist': nn.ParameterList([pa, pb]),
-            'pdict': nn.ParameterDict({
-                'pc': pc,
-                'pd': pd
-            })
-        })
+        nest = nn.ModuleDict(
+            {
+                "a": a,
+                "b": b,
+                "list": nn.ModuleList([c, d]),
+                "plist": nn.ParameterList([pa, pb]),
+                "pdict": nn.ParameterDict({"pc": pc, "pd": pd}),
+            }
+        )
         flattened = alf.algorithms.algorithm._flatten_module(nest)
-        self.assertEqual(set(map(id, flattened)),
-                         set(map(id, [a, b, c, d, pa, pb, pc, pd])))
+        self.assertEqual(
+            set(map(id, flattened)), set(map(id, [a, b, c, d, pa, pb, pc, pd]))
+        )
 
     def test_get_optimizer_info(self):
         param_1 = nn.Parameter(torch.tensor([1.0]))
@@ -98,56 +102,70 @@ class AlgorithmTest(alf.test.TestCase):
         param_2 = nn.Parameter(torch.tensor([2.0]))
         alg_2 = MyAlg(params=[param_2], name="alg_2")
 
-        alg_root = MyAlg(optimizer=alf.optimizers.Adam(lr=0.25),
-                         sub_algs=[alg_1],
-                         name="root")
+        alg_root = MyAlg(
+            optimizer=alf.optimizers.Adam(lr=0.25),
+            sub_algs=[alg_1],
+            name="root",
+        )
         info = json.loads(alg_root.get_optimizer_info())
         self.assertEqual(len(info), 1)
-        self.assertEqual(info[0]['parameters'],
-                         [alg_root.get_param_name(param_1)])
+        self.assertEqual(
+            info[0]["parameters"], [alg_root.get_param_name(param_1)]
+        )
 
         alg_1 = MyAlg(params=[param_1, param_1], name="alg_1")
-        alg_root = MyAlg(optimizer=alf.optimizers.Adam(lr=0.25),
-                         sub_algs=[alg_1, alg_1],
-                         name="root")
+        alg_root = MyAlg(
+            optimizer=alf.optimizers.Adam(lr=0.25),
+            sub_algs=[alg_1, alg_1],
+            name="root",
+        )
         info = json.loads(alg_root.get_optimizer_info())
         self.assertEqual(len(info), 1)
-        self.assertEqual(info[0]['parameters'],
-                         [alg_root.get_param_name(param_1)])
+        self.assertEqual(
+            info[0]["parameters"], [alg_root.get_param_name(param_1)]
+        )
 
-        alg_root = MyAlg(optimizer=alf.optimizers.Adam(lr=0.25),
-                         sub_algs=[alg_1, alg_2],
-                         name="root")
+        alg_root = MyAlg(
+            optimizer=alf.optimizers.Adam(lr=0.25),
+            sub_algs=[alg_1, alg_2],
+            name="root",
+        )
         alg_root.add_optimizer(alf.optimizers.Adam(lr=0.5), [alg_2])
         info = json.loads(alg_root.get_optimizer_info())
         logging.info(pprint.pformat(info))
         self.assertEqual(len(info), 2)
-        self.assertTrue(info[0]['hypers']['lr'] == 0.25
-                        or info[1]['hypers']['lr'] == 0.25)
-        self.assertTrue(info[0]['hypers']['lr'] == 0.5
-                        or info[1]['hypers']['lr'] == 0.5)
+        self.assertTrue(
+            info[0]["hypers"]["lr"] == 0.25 or info[1]["hypers"]["lr"] == 0.25
+        )
+        self.assertTrue(
+            info[0]["hypers"]["lr"] == 0.5 or info[1]["hypers"]["lr"] == 0.5
+        )
 
-        if info[0]['hypers']['lr'] == 0.25:
+        if info[0]["hypers"]["lr"] == 0.25:
             opt_default = info[0]
             opt_2 = info[1]
         else:
             opt_default = info[1]
             opt_2 = info[0]
 
-        self.assertEqual(opt_default['parameters'],
-                         [alg_root.get_param_name(param_1)])
-        self.assertEqual(opt_2['parameters'],
-                         [alg_root.get_param_name(param_2)])
+        self.assertEqual(
+            opt_default["parameters"], [alg_root.get_param_name(param_1)]
+        )
+        self.assertEqual(
+            opt_2["parameters"], [alg_root.get_param_name(param_2)]
+        )
 
         alg_root = MyAlg(sub_algs=[alg_1, alg_2], name="root")
         alg_root.add_optimizer(alf.optimizers.Adam(lr=0.5), [alg_2])
         info = json.loads(alg_root.get_optimizer_info())
         self.assertEqual(len(info), 2)
-        self.assertEqual(info[0]['optimizer'], 'None')
-        self.assertEqual(info[0]['parameters'],
-                         [alg_root.get_param_name(param_1)])
-        self.assertEqual(info[1]['parameters'],
-                         [alg_root.get_param_name(param_2)])
+        self.assertEqual(info[0]["optimizer"], "None")
+        self.assertEqual(
+            info[0]["parameters"], [alg_root.get_param_name(param_1)]
+        )
+        self.assertEqual(
+            info[1]["parameters"], [alg_root.get_param_name(param_2)]
+        )
 
         # Test cycle detection
         alg_2.root = alg_root
@@ -164,10 +182,12 @@ class AlgorithmTest(alf.test.TestCase):
         alg_2.ignored_param = param_1
         info = json.loads(alg_root.get_optimizer_info())
         self.assertEqual(len(info), 2)
-        self.assertEqual(info[0]['parameters'],
-                         [alg_root.get_param_name(param_2)])
-        self.assertEqual(info[1]['parameters'],
-                         [alg_root.get_param_name(param_1)])
+        self.assertEqual(
+            info[0]["parameters"], [alg_root.get_param_name(param_2)]
+        )
+        self.assertEqual(
+            info[1]["parameters"], [alg_root.get_param_name(param_1)]
+        )
 
         # test __repr__
         logging.info("\n" + repr(alg_root))
@@ -181,15 +201,19 @@ class AlgorithmTest(alf.test.TestCase):
         param_2 = nn.Parameter(torch.tensor([2.0]))
         alg_2 = MyAlg(params=[param_2], name="alg_2")
         alg_2.layer = layer
-        alg_root = MyAlg(sub_algs=[alg_1, alg_2],
-                         optimizer=alf.optimizers.Adam(lr=0.25),
-                         name="root")
+        alg_root = MyAlg(
+            sub_algs=[alg_1, alg_2],
+            optimizer=alf.optimizers.Adam(lr=0.25),
+            name="root",
+        )
         info = json.loads(alg_root.get_optimizer_info())
         self.assertEqual(
-            set(info[0]['parameters']),
+            set(info[0]["parameters"]),
             set(
                 alg_root.get_param_name(p)
-                for p in [param_1, param_2] + list(layer.parameters())))
+                for p in [param_1, param_2] + list(layer.parameters())
+            ),
+        )
 
     def test_optimizer_params(self):
         # test that the order of parameters is deterministic
@@ -222,9 +246,10 @@ class AlgorithmTest(alf.test.TestCase):
         optimizer1 = alf.optimizers.Adam(lr=0.25)
         sub_algorithm = MyAlg(optimizer=optimizer1)
         my_algorithm = MyAlg(sub_algs=[sub_algorithm])
-        self.assertTrue('_optimizers.0' in sub_algorithm.state_dict())
+        self.assertTrue("_optimizers.0" in sub_algorithm.state_dict())
         self.assertTrue(
-            '_module_list.0._optimizers.0' in my_algorithm.state_dict())
+            "_module_list.0._optimizers.0" in my_algorithm.state_dict()
+        )
 
     def test_update_with_gradient(self):
         param_1 = nn.Parameter(torch.tensor([1.0]))
@@ -237,15 +262,17 @@ class AlgorithmTest(alf.test.TestCase):
         loss = alg_root.calc_loss()
         self.assertRaises(AssertionError, alg_root.update_with_gradient, loss)
 
-        alg_root = MyAlg(optimizer=alf.optimizers.Adam(lr=0.25),
-                         sub_algs=[alg_1, alg_2],
-                         name="root")
+        alg_root = MyAlg(
+            optimizer=alf.optimizers.Adam(lr=0.25),
+            sub_algs=[alg_1, alg_2],
+            name="root",
+        )
         alg_root.add_optimizer(alf.optimizers.Adam(lr=0.5), [alg_2])
         loss_info, params = alg_root.update_with_gradient(alg_root.calc_loss())
         self.assertEqual(set(params), set(alg_root.named_parameters()))
         for param in alg_root.parameters():
             self.assertTrue(torch.all(param.grad == 1.0))
-        self.assertEqual(loss_info.loss, 3.)
+        self.assertEqual(loss_info.loss, 3.0)
 
     def test_full_checkpoint_preloading(self):
         # test the case where the checkpoint directly matches with the algorithm
@@ -257,12 +284,13 @@ class AlgorithmTest(alf.test.TestCase):
             ckpt_mngr = ckpt_utils.Checkpointer(ckpt_dir, alg=alg_1)
             ckpt_mngr.save(0)
 
-            ckpt_path = ckpt_dir + '/ckpt-0'
+            ckpt_path = ckpt_dir + "/ckpt-0"
 
             # 2) construct a seoncd algorithm instance with different parameter
             # values, without in-algorithm checkpoint pre-loading
-            new_alg = MyAlg(params=[nn.Parameter(torch.tensor([-10.0]))],
-                            name="new_alg")
+            new_alg = MyAlg(
+                params=[nn.Parameter(torch.tensor([-10.0]))], name="new_alg"
+            )
 
             # 3) new_alg's state_dict should be different from alg_1's state dict
             self.assertTrue(new_alg.state_dict() != alg_1.state_dict())
@@ -273,7 +301,8 @@ class AlgorithmTest(alf.test.TestCase):
             new_alg = MyAlg(
                 params=[nn.Parameter(torch.tensor([-10.0]))],
                 checkpoint=ckpt_path,  # an example where the prefix is omitted
-                name="new_alg")
+                name="new_alg",
+            )
 
             # 5) new_alg's state_dict should match with alg_1's state dict
             self.assertTrue(new_alg.state_dict() == alg_1.state_dict())
@@ -290,34 +319,37 @@ class AlgorithmTest(alf.test.TestCase):
 
             param_2 = nn.Parameter(torch.tensor([2.0]))
             optimizer_2 = alf.optimizers.Adam(lr=0.2)
-            alg_2 = MyAlg(params=[param_2],
-                          optimizer=optimizer_2,
-                          name="alg_2")
+            alg_2 = MyAlg(params=[param_2], optimizer=optimizer_2, name="alg_2")
 
             optimizer_root = alf.optimizers.Adam(lr=0.1)
             param_root = nn.Parameter(torch.tensor([0.0]))
 
-            alg_composed = ComposedAlg(params=[param_root],
-                                       optimizer=optimizer_root,
-                                       sub_alg1=alg_1,
-                                       sub_alg2=alg_2,
-                                       name="root")
+            alg_composed = ComposedAlg(
+                params=[param_root],
+                optimizer=optimizer_root,
+                sub_alg1=alg_1,
+                sub_alg2=alg_2,
+                name="root",
+            )
 
             # 2）save a checkpoint for the composed algorithm
-            ckpt_dir_composed = ckpt_dir + '/alg_composed/'
+            ckpt_dir_composed = ckpt_dir + "/alg_composed/"
             os.mkdir(ckpt_dir_composed)
 
-            ckpt_mngr_composed = ckpt_utils.Checkpointer(ckpt_dir_composed,
-                                                         alg=alg_composed)
+            ckpt_mngr_composed = ckpt_utils.Checkpointer(
+                ckpt_dir_composed, alg=alg_composed
+            )
             ckpt_mngr_composed.save(0)
 
-            ckpt_path = ckpt_dir_composed + '/ckpt-0'
+            ckpt_path = ckpt_dir_composed + "/ckpt-0"
 
             # 3）test checkpoint loading with prefix
             # construct another MyAlg instance, which is a sub-alg
             # of alg_composed
-            new_alg_1 = MyAlg(params=[nn.Parameter(torch.tensor([-200.0]))],
-                              checkpoint="alg._sub_alg1@" + ckpt_path)
+            new_alg_1 = MyAlg(
+                params=[nn.Parameter(torch.tensor([-200.0]))],
+                checkpoint="alg._sub_alg1@" + ckpt_path,
+            )
 
             # 4) test new_alg_1 loaded successfully from the composed checkpoint
             self.assertTrue(new_alg_1.state_dict() == old_alg_1_state_dict)
@@ -334,11 +366,11 @@ class AlgorithmTest(alf.test.TestCase):
             # 1) construct sub-algorithm alg_1 and save a checkpoint
             param_1 = nn.Parameter(torch.tensor([1.0]))
             alg_1 = MyAlg(params=[param_1], name="alg_1")
-            ckpt_dir_1 = ckpt_dir + '/alg_1/'
+            ckpt_dir_1 = ckpt_dir + "/alg_1/"
             os.mkdir(ckpt_dir_1)
             ckpt_mngr_1 = ckpt_utils.Checkpointer(ckpt_dir_1, alg=alg_1)
             ckpt_mngr_1.save(0)
-            ckpt_path = ckpt_dir_1 + '/ckpt-0'
+            ckpt_path = ckpt_dir_1 + "/ckpt-0"
 
             # 2) construct a composed algorithm, where alg_1's parameter value
             # is updated; then save the composed checkpoint
@@ -346,23 +378,24 @@ class AlgorithmTest(alf.test.TestCase):
 
             param_2 = nn.Parameter(torch.tensor([2.0]))
             optimizer_2 = alf.optimizers.Adam(lr=0.2)
-            alg_2 = MyAlg(params=[param_2],
-                          optimizer=optimizer_2,
-                          name="alg_2")
+            alg_2 = MyAlg(params=[param_2], optimizer=optimizer_2, name="alg_2")
             optimizer_root = alf.optimizers.Adam(lr=0.1)
             param_root = nn.Parameter(torch.tensor([0.0]))
 
-            alg_composed = ComposedAlg(params=[param_root],
-                                       optimizer=optimizer_root,
-                                       sub_alg1=alg_1,
-                                       sub_alg2=alg_2,
-                                       name="root")
+            alg_composed = ComposedAlg(
+                params=[param_root],
+                optimizer=optimizer_root,
+                sub_alg1=alg_1,
+                sub_alg2=alg_2,
+                name="root",
+            )
 
-            ckpt_dir_composed = ckpt_dir + '/alg_composed/'
+            ckpt_dir_composed = ckpt_dir + "/alg_composed/"
             os.mkdir(ckpt_dir_composed)
 
-            ckpt_mngr_composed = ckpt_utils.Checkpointer(ckpt_dir_composed,
-                                                         alg=alg_composed)
+            ckpt_mngr_composed = ckpt_utils.Checkpointer(
+                ckpt_dir_composed, alg=alg_composed
+            )
             ckpt_mngr_composed.save(0)
 
             # 3) construct a new sub-algorithm instance new_alg_1, with initial
@@ -370,7 +403,8 @@ class AlgorithmTest(alf.test.TestCase):
             # checkpoint
             new_alg_1 = MyAlg(
                 params=[nn.Parameter(torch.tensor([-200.0]))],
-                checkpoint=ckpt_path)  # an example where the prefix is omitted
+                checkpoint=ckpt_path,
+            )  # an example where the prefix is omitted
 
             # 4) construct a new composed algorithm alg_composed_new using new_alg_1
             alg_composed_new = ComposedAlg(
@@ -378,18 +412,22 @@ class AlgorithmTest(alf.test.TestCase):
                 optimizer=alf.optimizers.Adam(lr=0.1),
                 sub_alg1=new_alg_1,
                 sub_alg2=alg_2,
-                name="root")
+                name="root",
+            )
 
             # 5) load the composed checkpoint for alg_composed_new using the
             # checkpoint manager (simulating the case in policy trainer)
-            ckpt_mngr_composed = ckpt_utils.Checkpointer(ckpt_dir_composed,
-                                                         alg=alg_composed_new)
+            ckpt_mngr_composed = ckpt_utils.Checkpointer(
+                ckpt_dir_composed, alg=alg_composed_new
+            )
             ckpt_mngr_composed.load()
 
             # 6) test checkpoint manager's loading won't overwrite in-algorithm
             # loading
-            self.assertTrue(alg_composed_new.state_dict()
-                            ['_sub_alg1._param_list.0'] == torch.tensor([1.0]))
+            self.assertTrue(
+                alg_composed_new.state_dict()["_sub_alg1._param_list.0"]
+                == torch.tensor([1.0])
+            )
 
     def test_mismatch_checkpoint(self):
         # test can detect the case when there is mismatch between
@@ -401,28 +439,29 @@ class AlgorithmTest(alf.test.TestCase):
 
             param_2 = nn.Parameter(torch.tensor([2.0]))
             optimizer_2 = alf.optimizers.Adam(lr=0.2)
-            alg_2 = MyAlg(params=[param_2],
-                          optimizer=optimizer_2,
-                          name="alg_2")
+            alg_2 = MyAlg(params=[param_2], optimizer=optimizer_2, name="alg_2")
 
             optimizer_root = alf.optimizers.Adam(lr=0.1)
             param_root = nn.Parameter(torch.tensor([0.0]))
 
-            alg_composed = ComposedAlg(params=[param_root],
-                                       optimizer=optimizer_root,
-                                       sub_alg1=alg_1,
-                                       sub_alg2=alg_2,
-                                       name="root")
+            alg_composed = ComposedAlg(
+                params=[param_root],
+                optimizer=optimizer_root,
+                sub_alg1=alg_1,
+                sub_alg2=alg_2,
+                name="root",
+            )
 
             # 2）save a checkpoint for the composed algorithm
-            ckpt_dir_composed = ckpt_dir + '/alg_composed/'
+            ckpt_dir_composed = ckpt_dir + "/alg_composed/"
             os.mkdir(ckpt_dir_composed)
 
-            ckpt_mngr_composed = ckpt_utils.Checkpointer(ckpt_dir_composed,
-                                                         alg=alg_composed)
+            ckpt_mngr_composed = ckpt_utils.Checkpointer(
+                ckpt_dir_composed, alg=alg_composed
+            )
             ckpt_mngr_composed.save(0)
 
-            ckpt_path = ckpt_dir_composed + '/ckpt-0'
+            ckpt_path = ckpt_dir_composed + "/ckpt-0"
 
             # 3）Checkpoint loading with a missing key case by specifying
             # a wrong prefix (``alg._sub_alg3``). Test Exception will be raised
@@ -430,9 +469,12 @@ class AlgorithmTest(alf.test.TestCase):
             with self.assertRaises(AssertionError) as context:
                 new_alg_1 = MyAlg(
                     params=[nn.Parameter(torch.tensor([-200.0]))],
-                    checkpoint="alg._sub_alg3@" + ckpt_path)
+                    checkpoint="alg._sub_alg3@" + ckpt_path,
+                )
 
-            ckpt_check_msg = "(keys in model but not in checkpoint): ['_param_list.0']"
+            ckpt_check_msg = (
+                "(keys in model but not in checkpoint): ['_param_list.0']"
+            )
             self.assertTrue(ckpt_check_msg in str(context.exception))
 
             # 4) test can detect the case when there is dimension mismatch between
@@ -440,15 +482,17 @@ class AlgorithmTest(alf.test.TestCase):
             with self.assertRaises(RuntimeError) as context:
                 new_alg_2 = MyAlg(
                     params=[nn.Parameter(torch.tensor([1.0, 1.0]))],
-                    checkpoint="alg._sub_alg1@" + ckpt_path)
+                    checkpoint="alg._sub_alg1@" + ckpt_path,
+                )
             ckpt_check_msg = (
                 "size mismatch for _param_list.0: copying a param "
                 "with shape torch.Size([1]) from checkpoint, the shape in current "
-                "model is torch.Size([2])")
+                "model is torch.Size([2])"
+            )
             self.assertTrue(ckpt_check_msg in str(context.exception))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.use_absl_handler()
     logging.set_verbosity(logging.INFO)
     alf.test.main()

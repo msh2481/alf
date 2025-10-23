@@ -27,7 +27,7 @@ def _is_elementwise_op(op):
     x = torch.randn(10, 20)
     x1 = x.clone().reshape(20, 10)
     y = op(x)
-    y1 = [op(x1[5 * i:5 * i + 5, :]) for i in range(4)]
+    y1 = [op(x1[5 * i : 5 * i + 5, :]) for i in range(4)]
     y1 = torch.stack(y1, dim=0).reshape(10, 20)
     # for some unknown reason y is not always exactly same as y1 for some
     # op (e.g. torch.sigmoid). So we cannot use (y==y1).all()
@@ -58,8 +58,9 @@ def _numerical_calculate_gain(nonlinearity, dz=0.01, r=5.0):
         logging.warning(
             "It seems that nonlinearity (%s) is not an elementwise operation."
             "Calculating the gain of non-elementwise op is not supported. "
-            "Will use 1 as its gain" % str(nonlinearity))
-        return 1.
+            "Will use 1 as its gain" % str(nonlinearity)
+        )
+        return 1.0
 
     dist = torch.distributions.normal.Normal(0, 1)
     z = torch.arange(-r, r, dz)
@@ -94,13 +95,15 @@ def _calculate_gain(nonlinearity, nonlinearity_param=0.01):
 
 
 @alf.configurable
-def variance_scaling_init(tensor,
-                          gain=1.0,
-                          mode="fan_in",
-                          distribution="truncated_normal",
-                          calc_gain_after_activation=True,
-                          nonlinearity=math_ops.identity,
-                          transposed=False):
+def variance_scaling_init(
+    tensor,
+    gain=1.0,
+    mode="fan_in",
+    distribution="truncated_normal",
+    calc_gain_after_activation=True,
+    nonlinearity=math_ops.identity,
+    transposed=False,
+):
     """Implements TensorFlow's `VarianceScaling` initializer.
 
     `<https://github.com/tensorflow/tensorflow/blob/e5bf8de410005de06a7ff5393fafdf832ef1d4ad/tensorflow/python/ops/init_ops.py#L437>`_
@@ -151,8 +154,9 @@ def variance_scaling_init(tensor,
     if transposed:
         fan_in, fan_out = fan_out, fan_in
 
-    assert mode in ["fan_in", "fan_out", "fan_avg"], \
+    assert mode in ["fan_in", "fan_out", "fan_avg"], (
         "Unrecognized mode %s!" % mode
+    )
     if mode == "fan_in":
         size = max(1.0, fan_in)
     elif mode == "fan_out":
@@ -160,7 +164,7 @@ def variance_scaling_init(tensor,
     else:
         size = max(1.0, (fan_in + fan_out) / 2.0)
 
-    if (calc_gain_after_activation and mode == "fan_in"):
+    if calc_gain_after_activation and mode == "fan_in":
         gain *= _numerical_calculate_gain(nonlinearity)
 
     std = gain / math.sqrt(size)

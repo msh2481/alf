@@ -16,7 +16,13 @@ import torch
 
 import alf
 from alf.algorithms.algorithm import Algorithm
-from alf.data_structures import TimeStep, namedtuple, AlgStep, LossInfo, StepType
+from alf.data_structures import (
+    TimeStep,
+    namedtuple,
+    AlgStep,
+    LossInfo,
+    StepType,
+)
 from alf.networks import EncodingNetwork
 from alf.nest.utils import NestConcat
 from alf.tensor_specs import TensorSpec
@@ -36,17 +42,19 @@ class ICMAlgorithm(Algorithm):
     See Pathak et al "Curiosity-driven Exploration by Self-supervised Prediction"
     """
 
-    def __init__(self,
-                 action_spec,
-                 observation_spec=None,
-                 hidden_size=256,
-                 reward_adapt_speed=8.0,
-                 encoding_net: EncodingNetwork = None,
-                 forward_net: EncodingNetwork = None,
-                 inverse_net: EncodingNetwork = None,
-                 activation=torch.relu_,
-                 optimizer=None,
-                 name="ICMAlgorithm"):
+    def __init__(
+        self,
+        action_spec,
+        observation_spec=None,
+        hidden_size=256,
+        reward_adapt_speed=8.0,
+        encoding_net: EncodingNetwork = None,
+        forward_net: EncodingNetwork = None,
+        inverse_net: EncodingNetwork = None,
+        activation=torch.relu_,
+        optimizer=None,
+        name="ICMAlgorithm",
+    ):
         """Create an ICMAlgorithm.
 
         Args
@@ -81,24 +89,29 @@ class ICMAlgorithm(Algorithm):
         else:
             feature_spec = observation_spec
 
-        super(ICMAlgorithm, self).__init__(train_state_spec=feature_spec,
-                                           predict_state_spec=(),
-                                           optimizer=optimizer,
-                                           name=name)
+        super(ICMAlgorithm, self).__init__(
+            train_state_spec=feature_spec,
+            predict_state_spec=(),
+            optimizer=optimizer,
+            name=name,
+        )
 
         flat_action_spec = alf.nest.flatten(action_spec)
-        assert len(
-            flat_action_spec) == 1, "ICM doesn't support nested action_spec"
+        assert (
+            len(flat_action_spec) == 1
+        ), "ICM doesn't support nested action_spec"
 
         flat_feature_spec = alf.nest.flatten(feature_spec)
-        assert len(
-            flat_feature_spec) == 1, "ICM doesn't support nested feature_spec"
+        assert (
+            len(flat_feature_spec) == 1
+        ), "ICM doesn't support nested feature_spec"
 
         action_spec = flat_action_spec[0]
 
         if action_spec.is_discrete:
-            self._num_actions = int(action_spec.maximum - action_spec.minimum +
-                                    1)
+            self._num_actions = int(
+                action_spec.maximum - action_spec.minimum + 1
+            )
         else:
             self._num_actions = action_spec.shape[-1]
 
@@ -106,18 +119,20 @@ class ICMAlgorithm(Algorithm):
         self._observation_normalizer = None
         if observation_spec is not None:
             self._observation_normalizer = AdaptiveNormalizer(
-                tensor_spec=observation_spec)
+                tensor_spec=observation_spec
+            )
 
         feature_dim = flat_feature_spec[0].shape[-1]
 
         self._encoding_net = encoding_net
 
         if isinstance(hidden_size, int):
-            hidden_size = (hidden_size, )
+            hidden_size = (hidden_size,)
 
         if forward_net is None:
-            encoded_action_spec = TensorSpec((self._num_actions, ),
-                                             dtype=torch.float32)
+            encoded_action_spec = TensorSpec(
+                (self._num_actions,), dtype=torch.float32
+            )
             forward_net = EncodingNetwork(
                 name="forward_net",
                 input_tensor_spec=[feature_spec, encoded_action_spec],
@@ -125,7 +140,8 @@ class ICMAlgorithm(Algorithm):
                 fc_layer_params=hidden_size,
                 activation=activation,
                 last_layer_size=feature_dim,
-                last_activation=math_ops.identity)
+                last_activation=math_ops.identity,
+            )
 
         self._forward_net = forward_net
 
@@ -138,17 +154,20 @@ class ICMAlgorithm(Algorithm):
                 activation=activation,
                 last_layer_size=self._num_actions,
                 last_activation=math_ops.identity,
-                last_kernel_initializer=torch.nn.init.zeros_)
+                last_kernel_initializer=torch.nn.init.zeros_,
+            )
 
         self._inverse_net = inverse_net
 
         self._reward_normalizer = ScalarAdaptiveNormalizer(
-            speed=reward_adapt_speed)
+            speed=reward_adapt_speed
+        )
 
     def _encode_action(self, action):
         if self._action_spec.is_discrete:
             return torch.nn.functional.one_hot(action, self._num_actions).to(
-                torch.float32)
+                torch.float32
+            )
         else:
             return action
 
@@ -178,33 +197,41 @@ class ICMAlgorithm(Algorithm):
         prev_feature = state
 
         forward_pred, _ = self._forward_net(
-            [prev_feature.detach(),
-             self._encode_action(prev_action)])
+            [prev_feature.detach(), self._encode_action(prev_action)]
+        )
         # nn.MSELoss doesn't support reducing along a dim
         forward_loss = 0.5 * torch.mean(
-            math_ops.square(forward_pred - feature.detach()), dim=-1)
+            math_ops.square(forward_pred - feature.detach()), dim=-1
+        )
 
         action_pred, _ = self._inverse_net([prev_feature, feature])
 
         if self._action_spec.is_discrete:
-            inverse_loss = torch.nn.CrossEntropyLoss(reduction='none')(
-                input=action_pred, target=prev_action.to(torch.int64))
+            inverse_loss = torch.nn.CrossEntropyLoss(reduction="none")(
+                input=action_pred, target=prev_action.to(torch.int64)
+            )
         else:
             # nn.MSELoss doesn't support reducing along a dim
             inverse_loss = 0.5 * torch.mean(
-                math_ops.square(action_pred - prev_action), dim=-1)
+                math_ops.square(action_pred - prev_action), dim=-1
+            )
 
         intrinsic_reward = ()
         if calc_rewards:
             intrinsic_reward = forward_loss.detach()
             intrinsic_reward = self._reward_normalizer.normalize(
-                intrinsic_reward)
+                intrinsic_reward
+            )
 
-        return AlgStep(output=intrinsic_reward,
-                       state=feature,
-                       info=ICMInfo(step_type=time_step.step_type,
-                                    forward_loss=forward_loss,
-                                    inverse_loss=inverse_loss))
+        return AlgStep(
+            output=intrinsic_reward,
+            state=feature,
+            info=ICMInfo(
+                step_type=time_step.step_type,
+                forward_loss=forward_loss,
+                inverse_loss=inverse_loss,
+            ),
+        )
 
     def predict_step(self, inputs: TimeStep, state):
         return self._step(inputs, state)
@@ -219,6 +246,7 @@ class ICMAlgorithm(Algorithm):
         mask = (info.step_type != StepType.FIRST).to(torch.float32)
         forward_loss = (info.forward_loss * mask).mean()
         inverse_loss = (info.inverse_loss * mask).mean()
-        return LossInfo(scalar_loss=forward_loss + inverse_loss,
-                        extra=dict(forward_loss=forward_loss,
-                                   inverse_loss=inverse_loss))
+        return LossInfo(
+            scalar_loss=forward_loss + inverse_loss,
+            extra=dict(forward_loss=forward_loss, inverse_loss=inverse_loss),
+        )

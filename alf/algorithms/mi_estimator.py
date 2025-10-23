@@ -101,17 +101,19 @@ class MIEstimator(Algorithm):
     an example.
     """
 
-    def __init__(self,
-                 x_spec,
-                 y_spec,
-                 model=None,
-                 fc_layers=(256, ),
-                 sampler='buffer',
-                 buffer_size=65536,
-                 optimizer: torch.optim.Optimizer = None,
-                 estimator_type='DV',
-                 averager: EMAverager = None,
-                 name="MIEstimator"):
+    def __init__(
+        self,
+        x_spec,
+        y_spec,
+        model=None,
+        fc_layers=(256,),
+        sampler="buffer",
+        buffer_size=65536,
+        optimizer: torch.optim.Optimizer = None,
+        estimator_type="DV",
+        averager: EMAverager = None,
+        name="MIEstimator",
+    ):
         """
 
         Args:
@@ -134,18 +136,20 @@ class MIEstimator(Algorithm):
                 a ScalarAdaptiveAverager will be created.
             name (str): name of this estimator
         """
-        assert estimator_type in ['ML', 'DV', 'KLD', 'JSD'
-                                  ], "Wrong estimator_type %s" % estimator_type
+        assert estimator_type in ["ML", "DV", "KLD", "JSD"], (
+            "Wrong estimator_type %s" % estimator_type
+        )
         super().__init__(train_state_spec=(), optimizer=optimizer, name=name)
         self._x_spec = x_spec
         self._y_spec = y_spec
         if model is None:
-            if estimator_type == 'ML':
+            if estimator_type == "ML":
                 model = EncodingNetwork(
                     name="MIEstimator",
                     input_tensor_spec=x_spec,
                     fc_layer_params=fc_layers,
-                    preprocessing_combiner=NestConcat(dim=-1))
+                    preprocessing_combiner=NestConcat(dim=-1),
+                )
             else:
                 model = EncodingNetwork(
                     name="MIEstimator",
@@ -153,46 +157,49 @@ class MIEstimator(Algorithm):
                     preprocessing_combiner=NestConcat(dim=-1),
                     fc_layer_params=fc_layers,
                     last_layer_size=1,
-                    last_activation=math_ops.identity)
+                    last_activation=math_ops.identity,
+                )
         self._model = model
         self._type = estimator_type
-        if sampler == 'buffer':
+        if sampler == "buffer":
             self._y_buffer = DataBuffer(y_spec, capacity=buffer_size)
             self._sampler = self._buffer_sampler
-        elif sampler == 'double_buffer':
+        elif sampler == "double_buffer":
             self._x_buffer = DataBuffer(x_spec, capacity=buffer_size)
             self._y_buffer = DataBuffer(y_spec, capacity=buffer_size)
             self._sampler = self._double_buffer_sampler
-        elif sampler == 'shuffle':
+        elif sampler == "shuffle":
             self._sampler = self._shuffle_sampler
-        elif sampler == 'shift':
+        elif sampler == "shift":
             self._sampler = self._shift_sampler
         else:
             raise TypeError("Wrong type for sampler %s" % sampler)
 
-        if estimator_type == 'DV':
+        if estimator_type == "DV":
             if averager is None:
                 averager = ScalarAdaptiveAverager()
             self._mean_averager = averager
-        if estimator_type == 'ML':
-            assert isinstance(
-                y_spec,
-                alf.TensorSpec), ("Currently, 'ML' does "
-                                  "not support nested y_spec: %s" % y_spec)
-            assert y_spec.is_continuous, ("Currently, 'ML' does "
-                                          "not support discreted y_spec: %s" %
-                                          y_spec)
+        if estimator_type == "ML":
+            assert isinstance(y_spec, alf.TensorSpec), (
+                "Currently, 'ML' does " "not support nested y_spec: %s" % y_spec
+            )
+            assert y_spec.is_continuous, (
+                "Currently, 'ML' does "
+                "not support discreted y_spec: %s" % y_spec
+            )
             hidden_size = self._model.output_spec.shape[-1]
             self._delta_loc_layer = alf.layers.FC(
                 hidden_size,
                 y_spec.shape[-1],
                 kernel_initializer=torch.nn.init.zeros_,
-                bias_init_value=0.0)
+                bias_init_value=0.0,
+            )
             self._delta_scale_layer = alf.layers.FC(
                 hidden_size,
                 y_spec.shape[-1],
                 kernel_initializer=torch.nn.init.zeros_,
-                bias_init_value=math.log(math.e - 1))
+                bias_init_value=math.log(math.e - 1),
+            )
 
     def _buffer_sampler(self, x, y):
         batch_size = get_nest_batch_size(y)
@@ -242,7 +249,7 @@ class MIEstimator(Algorithm):
         """
         x, y = inputs
 
-        if self._type == 'ML':
+        if self._type == "ML":
             return self._ml_step(x, y, y_distribution)
 
         num_outer_dims = get_outer_rank(x, self._x_spec)
@@ -259,8 +266,8 @@ class MIEstimator(Algorithm):
         log_ratio = self._model([x, y])[0].squeeze(-1)
         t1 = self._model([x1, y1])[0].squeeze(-1)
 
-        if self._type == 'DV':
-            ratio = torch.min(t1, torch.tensor(20.)).exp()
+        if self._type == "DV":
+            ratio = torch.min(t1, torch.tensor(20.0)).exp()
             mean = ratio.mean().detach()
             if self._mean_averager:
                 self._mean_averager.update(mean)
@@ -273,11 +280,11 @@ class MIEstimator(Algorithm):
             # of the variance of the MI estimator
             mi = log_ratio - (mean.log() + ratio / mean - 1)
             loss = ratio / unbiased_mean - log_ratio
-        elif self._type == 'KLD':
-            ratio = torch.min(t1, torch.tensor(20.)).exp()
+        elif self._type == "KLD":
+            ratio = torch.min(t1, torch.tensor(20.0)).exp()
             mi = log_ratio - ratio + 1
             loss = -mi
-        elif self._type == 'JSD':
+        elif self._type == "JSD":
             mi = -F.softplus(-log_ratio) - F.softplus(t1) + math.log(4)
             loss = -mi
         mi = batch_squash.unflatten(mi)
@@ -296,7 +303,8 @@ class MIEstimator(Algorithm):
         delta_scale = batch_squash.unflatten(delta_scale)
         y_given_x_dist = DiagMultivariateNormal(
             loc=y_distribution.mean + delta_loc,
-            scale=y_distribution.stddev * delta_scale)
+            scale=y_distribution.stddev * delta_scale,
+        )
 
         pmi = y_given_x_dist.log_prob(y) - y_distribution.log_prob(y).detach()
         return pmi
@@ -322,12 +330,13 @@ class MIEstimator(Algorithm):
         Returns:
             Tensor: pointwise mutual information between ``x`` and ``y``.
         """
-        if self._type == 'ML':
-            assert isinstance(y_distribution, DiagMultivariateNormal), (
-                "y_distribution should be a DiagMultivariateNormal")
+        if self._type == "ML":
+            assert isinstance(
+                y_distribution, DiagMultivariateNormal
+            ), "y_distribution should be a DiagMultivariateNormal"
             return self._ml_pmi(x, y, y_distribution)
         log_ratio = self._model([x, y])[0]
         log_ratio = torch.squeeze(log_ratio, dim=-1)
-        if self._type == 'DV':
+        if self._type == "DV":
             log_ratio -= self._mean_averager.get().log()
         return log_ratio

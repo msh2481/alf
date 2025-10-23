@@ -22,11 +22,13 @@ default_return = -1000
 use_mc_return = True
 mini_batch_length = 2  # set to a value > 2 for multi-step learning
 
-alf.config("ReplayBuffer",
-           keep_episodic_info=True,
-           record_episodic_return=True,
-           default_return=default_return)
+alf.config(
+    "ReplayBuffer",
+    keep_episodic_info=True,
+    record_episodic_return=True,
+    default_return=default_return,
+)
 alf.config("TDLoss", default_return=default_return)
 alf.config("SacAlgorithm", use_mc_return=use_mc_return)
 
-alf.config('TrainerConfig', mini_batch_length=mini_batch_length)
+alf.config("TrainerConfig", mini_batch_length=mini_batch_length)

@@ -34,21 +34,35 @@ from alf.networks import ActorNetwork, CriticNetwork
 from alf.tensor_specs import TensorSpec, BoundedTensorSpec
 from alf.utils import losses, common, dist_utils, math_ops, spec_utils
 
-DdpgCriticState = namedtuple("DdpgCriticState",
-                             ['critics', 'target_actor', 'target_critics'],
-                             default_value=())
-DdpgCriticInfo = namedtuple("DdpgCriticInfo", ["q_values", "target_q_values"],
-                            default_value=())
-DdpgActorState = namedtuple("DdpgActorState", ['actor', 'critics'],
-                            default_value=())
-DdpgState = namedtuple("DdpgState", ['actor', 'critics', 'noise'],
-                       default_value=())
-DdpgInfo = namedtuple("DdpgInfo", [
-    "reward", "step_type", "discount", "action", "action_distribution",
-    "actor_loss", "critic", "discounted_return"
-],
-                      default_value=())
-DdpgLossInfo = namedtuple('DdpgLossInfo', ('actor', 'critic'))
+DdpgCriticState = namedtuple(
+    "DdpgCriticState",
+    ["critics", "target_actor", "target_critics"],
+    default_value=(),
+)
+DdpgCriticInfo = namedtuple(
+    "DdpgCriticInfo", ["q_values", "target_q_values"], default_value=()
+)
+DdpgActorState = namedtuple(
+    "DdpgActorState", ["actor", "critics"], default_value=()
+)
+DdpgState = namedtuple(
+    "DdpgState", ["actor", "critics", "noise"], default_value=()
+)
+DdpgInfo = namedtuple(
+    "DdpgInfo",
+    [
+        "reward",
+        "step_type",
+        "discount",
+        "action",
+        "action_distribution",
+        "actor_loss",
+        "critic",
+        "discounted_return",
+    ],
+    default_value=(),
+)
+DdpgLossInfo = namedtuple("DdpgLossInfo", ("actor", "critic"))
 
 
 @alf.configurable
@@ -60,31 +74,33 @@ class DdpgAlgorithm(OffPolicyAlgorithm):
     https://arxiv.org/abs/1509.02971
     """
 
-    def __init__(self,
-                 observation_spec,
-                 action_spec: BoundedTensorSpec,
-                 reward_spec=TensorSpec(()),
-                 actor_network_ctor=ActorNetwork,
-                 critic_network_ctor=CriticNetwork,
-                 reward_weights=None,
-                 epsilon_greedy=None,
-                 calculate_priority=False,
-                 env=None,
-                 config: TrainerConfig = None,
-                 ou_stddev=0.2,
-                 ou_damping=0.15,
-                 critic_loss_ctor=None,
-                 num_critic_replicas=1,
-                 target_update_tau=0.05,
-                 target_update_period=1,
-                 rollout_random_action=0.,
-                 dqda_clipping=None,
-                 action_l2=0,
-                 actor_optimizer=None,
-                 critic_optimizer=None,
-                 checkpoint=None,
-                 debug_summaries=False,
-                 name="DdpgAlgorithm"):
+    def __init__(
+        self,
+        observation_spec,
+        action_spec: BoundedTensorSpec,
+        reward_spec=TensorSpec(()),
+        actor_network_ctor=ActorNetwork,
+        critic_network_ctor=CriticNetwork,
+        reward_weights=None,
+        epsilon_greedy=None,
+        calculate_priority=False,
+        env=None,
+        config: TrainerConfig = None,
+        ou_stddev=0.2,
+        ou_damping=0.15,
+        critic_loss_ctor=None,
+        num_critic_replicas=1,
+        target_update_tau=0.05,
+        target_update_period=1,
+        rollout_random_action=0.0,
+        dqda_clipping=None,
+        action_l2=0,
+        actor_optimizer=None,
+        critic_optimizer=None,
+        checkpoint=None,
+        debug_summaries=False,
+        name="DdpgAlgorithm",
+    ):
         """
         Args:
             observation_spec (nested TensorSpec): representing the observations.
@@ -154,43 +170,55 @@ class DdpgAlgorithm(OffPolicyAlgorithm):
 
         critic_network = critic_network_ctor(
             input_tensor_spec=(observation_spec, action_spec),
-            output_tensor_spec=reward_spec)
-        actor_network = actor_network_ctor(input_tensor_spec=observation_spec,
-                                           action_spec=action_spec)
+            output_tensor_spec=reward_spec,
+        )
+        actor_network = actor_network_ctor(
+            input_tensor_spec=observation_spec, action_spec=action_spec
+        )
 
         critic_networks = critic_network.make_parallel(num_critic_replicas)
 
         self._action_l2 = action_l2
 
-        noise_process = alf.networks.OUProcess(state_spec=action_spec,
-                                               damping=ou_damping,
-                                               stddev=ou_stddev)
+        noise_process = alf.networks.OUProcess(
+            state_spec=action_spec, damping=ou_damping, stddev=ou_stddev
+        )
         noise_state = noise_process.state_spec
 
-        predict_state_spec = DdpgState(noise=noise_state,
-                                       actor=DdpgActorState(
-                                           actor=actor_network.state_spec,
-                                           critics=critic_networks.state_spec),
-                                       critics=DdpgCriticState())
+        predict_state_spec = DdpgState(
+            noise=noise_state,
+            actor=DdpgActorState(
+                actor=actor_network.state_spec,
+                critics=critic_networks.state_spec,
+            ),
+            critics=DdpgCriticState(),
+        )
 
         train_state_spec = DdpgState(
             noise=noise_state,
-            actor=DdpgActorState(actor=actor_network.state_spec,
-                                 critics=critic_networks.state_spec),
-            critics=DdpgCriticState(critics=critic_networks.state_spec,
-                                    target_actor=actor_network.state_spec,
-                                    target_critics=critic_networks.state_spec))
-        super().__init__(observation_spec=observation_spec,
-                         action_spec=action_spec,
-                         reward_spec=reward_spec,
-                         predict_state_spec=predict_state_spec,
-                         train_state_spec=train_state_spec,
-                         reward_weights=reward_weights,
-                         env=env,
-                         config=config,
-                         checkpoint=checkpoint,
-                         debug_summaries=debug_summaries,
-                         name=name)
+            actor=DdpgActorState(
+                actor=actor_network.state_spec,
+                critics=critic_networks.state_spec,
+            ),
+            critics=DdpgCriticState(
+                critics=critic_networks.state_spec,
+                target_actor=actor_network.state_spec,
+                target_critics=critic_networks.state_spec,
+            ),
+        )
+        super().__init__(
+            observation_spec=observation_spec,
+            action_spec=action_spec,
+            reward_spec=reward_spec,
+            predict_state_spec=predict_state_spec,
+            train_state_spec=train_state_spec,
+            reward_weights=reward_weights,
+            env=env,
+            config=config,
+            checkpoint=checkpoint,
+            debug_summaries=debug_summaries,
+            name=name,
+        )
 
         if actor_optimizer is not None:
             self.add_optimizer(actor_optimizer, [actor_network])
@@ -202,39 +230,46 @@ class DdpgAlgorithm(OffPolicyAlgorithm):
         self._critic_networks = critic_networks
 
         self._target_actor_network = actor_network.copy(
-            name='target_actor_networks')
+            name="target_actor_networks"
+        )
         self._target_critic_networks = critic_networks.copy(
-            name='target_critic_networks')
+            name="target_critic_networks"
+        )
 
         self._rollout_random_action = float(rollout_random_action)
 
         if critic_loss_ctor is None:
             critic_loss_ctor = OneStepTDLoss
-        critic_loss_ctor = functools.partial(critic_loss_ctor,
-                                             debug_summaries=debug_summaries)
+        critic_loss_ctor = functools.partial(
+            critic_loss_ctor, debug_summaries=debug_summaries
+        )
         self._critic_losses = [None] * num_critic_replicas
         for i in range(num_critic_replicas):
-            self._critic_losses[i] = critic_loss_ctor(name=("critic_loss" +
-                                                            str(i)))
+            self._critic_losses[i] = critic_loss_ctor(
+                name=("critic_loss" + str(i))
+            )
 
         self._noise_process = noise_process
 
         self._update_target = common.TargetUpdater(
             models=[self._actor_network, self._critic_networks],
             target_models=[
-                self._target_actor_network, self._target_critic_networks
+                self._target_actor_network,
+                self._target_critic_networks,
             ],
             tau=target_update_tau,
-            period=target_update_period)
+            period=target_update_period,
+        )
 
         self._dqda_clipping = dqda_clipping
 
     def predict_step(self, inputs: TimeStep, state):
         return self._predict_step(inputs, state, self._epsilon_greedy)
 
-    def _predict_step(self, time_step: TimeStep, state, epsilon_greedy=1.):
-        action, actor_state = self._actor_network(time_step.observation,
-                                                  state=state.actor.actor)
+    def _predict_step(self, time_step: TimeStep, state, epsilon_greedy=1.0):
+        action, actor_state = self._actor_network(
+            time_step.observation, state=state.actor.actor
+        )
         empty_state = nest.map_structure(lambda x: (), self.rollout_state_spec)
 
         def _sample(a, noise):
@@ -249,42 +284,52 @@ class DdpgAlgorithm(OffPolicyAlgorithm):
 
         noise, noise_state = self._noise_process(state.noise)
         noisy_action = nest.map_structure(_sample, action, noise)
-        noisy_action = nest.map_structure(spec_utils.clip_to_spec,
-                                          noisy_action, self._action_spec)
-        state = empty_state._replace(noise=noise_state,
-                                     actor=DdpgActorState(actor=actor_state,
-                                                          critics=()))
+        noisy_action = nest.map_structure(
+            spec_utils.clip_to_spec, noisy_action, self._action_spec
+        )
+        state = empty_state._replace(
+            noise=noise_state,
+            actor=DdpgActorState(actor=actor_state, critics=()),
+        )
 
-        return AlgStep(output=noisy_action,
-                       state=state,
-                       info=DdpgInfo(action=noisy_action,
-                                     action_distribution=action))
+        return AlgStep(
+            output=noisy_action,
+            state=state,
+            info=DdpgInfo(action=noisy_action, action_distribution=action),
+        )
 
     def rollout_step(self, time_step: TimeStep, state: DdpgState = None):
         if self.need_full_rollout_state():
-            raise NotImplementedError("Storing RNN state to replay buffer "
-                                      "is not supported by DdpgAlgorithm")
+            raise NotImplementedError(
+                "Storing RNN state to replay buffer "
+                "is not supported by DdpgAlgorithm"
+            )
 
         def _update_random_action(spec, noisy_action):
             random_action = spec_utils.scale_to_spec(
-                torch.rand_like(noisy_action) * 2 - 1, spec)
+                torch.rand_like(noisy_action) * 2 - 1, spec
+            )
             ind = torch.where(
-                torch.rand(noisy_action.shape[:1]) <
-                self._rollout_random_action)
+                torch.rand(noisy_action.shape[:1]) < self._rollout_random_action
+            )
             noisy_action[ind[0], :] = random_action[ind[0], :]
 
         pred_step = self._predict_step(time_step, state, epsilon_greedy=1.0)
         if self._rollout_random_action > 0:
-            nest.map_structure(_update_random_action, self._action_spec,
-                               pred_step.output)
+            nest.map_structure(
+                _update_random_action, self._action_spec, pred_step.output
+            )
         return pred_step
 
-    def _critic_train_step(self, inputs: TimeStep, state: DdpgCriticState,
-                           rollout_info: DdpgInfo):
+    def _critic_train_step(
+        self, inputs: TimeStep, state: DdpgCriticState, rollout_info: DdpgInfo
+    ):
         target_action, target_actor_state = self._target_actor_network(
-            inputs.observation, state=state.target_actor)
+            inputs.observation, state=state.target_actor
+        )
         target_q_values, target_critic_states = self._target_critic_networks(
-            (inputs.observation, target_action), state=state.target_critics)
+            (inputs.observation, target_action), state=state.target_critics
+        )
 
         if self.has_multidim_reward():
             sign = self.reward_weights.sign()
@@ -293,23 +338,29 @@ class DdpgAlgorithm(OffPolicyAlgorithm):
             target_q_values = target_q_values.min(dim=1)[0]
 
         q_values, critic_states = self._critic_networks(
-            (inputs.observation, rollout_info.action), state=state.critics)
+            (inputs.observation, rollout_info.action), state=state.critics
+        )
 
-        state = DdpgCriticState(critics=critic_states,
-                                target_actor=target_actor_state,
-                                target_critics=target_critic_states)
+        state = DdpgCriticState(
+            critics=critic_states,
+            target_actor=target_actor_state,
+            target_critics=target_critic_states,
+        )
 
-        info = DdpgCriticInfo(q_values=q_values,
-                              target_q_values=target_q_values)
+        info = DdpgCriticInfo(
+            q_values=q_values, target_q_values=target_q_values
+        )
 
         return state, info
 
     def _actor_train_step(self, inputs: TimeStep, state: DdpgActorState):
-        action, actor_state = self._actor_network(inputs.observation,
-                                                  state=state.actor)
+        action, actor_state = self._actor_network(
+            inputs.observation, state=state.actor
+        )
 
         q_values, critic_states = self._critic_networks(
-            (inputs.observation, action), state=state.critics)
+            (inputs.observation, action), state=state.critics
+        )
         if self.has_multidim_reward():
             # Multidimensional reward: [B, replicas, reward_dim]
             q_values = q_values * self.reward_weights
@@ -321,10 +372,12 @@ class DdpgAlgorithm(OffPolicyAlgorithm):
 
         def actor_loss_fn(dqda, action):
             if self._dqda_clipping:
-                dqda = torch.clamp(dqda, -self._dqda_clipping,
-                                   self._dqda_clipping)
+                dqda = torch.clamp(
+                    dqda, -self._dqda_clipping, self._dqda_clipping
+                )
             loss = 0.5 * losses.element_wise_squared_loss(
-                (dqda + action).detach(), action)
+                (dqda + action).detach(), action
+            )
             if self._action_l2 > 0:
                 assert action.requires_grad
                 loss += self._action_l2 * (action**2)
@@ -336,21 +389,27 @@ class DdpgAlgorithm(OffPolicyAlgorithm):
         info = LossInfo(loss=sum(nest.flatten(actor_loss)), extra=actor_loss)
         return AlgStep(output=action, state=state, info=info)
 
-    def train_step(self, inputs: TimeStep, state: DdpgState,
-                   rollout_info: DdpgInfo):
+    def train_step(
+        self, inputs: TimeStep, state: DdpgState, rollout_info: DdpgInfo
+    ):
         critic_states, critic_info = self._critic_train_step(
-            inputs=inputs, state=state.critics, rollout_info=rollout_info)
+            inputs=inputs, state=state.critics, rollout_info=rollout_info
+        )
         policy_step = self._actor_train_step(inputs=inputs, state=state.actor)
         return policy_step._replace(
-            state=state._replace(actor=policy_step.state,
-                                 critics=critic_states),
-            info=DdpgInfo(reward=inputs.reward,
-                          step_type=inputs.step_type,
-                          discount=inputs.discount,
-                          action_distribution=policy_step.output,
-                          critic=critic_info,
-                          actor_loss=policy_step.info,
-                          discounted_return=rollout_info.discounted_return))
+            state=state._replace(
+                actor=policy_step.state, critics=critic_states
+            ),
+            info=DdpgInfo(
+                reward=inputs.reward,
+                step_type=inputs.step_type,
+                discount=inputs.discount,
+                action_distribution=policy_step.output,
+                critic=critic_info,
+                actor_loss=policy_step.info,
+                discounted_return=rollout_info.discounted_return,
+            ),
+        )
 
     def calc_loss(self, info: DdpgInfo):
         critic_losses = [None] * self._num_critic_replicas
@@ -358,27 +417,28 @@ class DdpgAlgorithm(OffPolicyAlgorithm):
             critic_losses[i] = self._critic_losses[i](
                 info=info,
                 value=info.critic.q_values[:, :, i, ...],
-                target_value=info.critic.target_q_values).loss
+                target_value=info.critic.target_q_values,
+            ).loss
 
         critic_loss = math_ops.add_n(critic_losses)
 
         if self._calculate_priority:
             valid_masks = (info.step_type != StepType.LAST).to(torch.float32)
             valid_n = torch.clamp(valid_masks.sum(dim=0), min=1.0)
-            priority = ((critic_loss * valid_masks).sum(dim=0) /
-                        valid_n).sqrt()
+            priority = ((critic_loss * valid_masks).sum(dim=0) / valid_n).sqrt()
         else:
             priority = ()
 
         actor_loss = info.actor_loss
 
-        return LossInfo(loss=critic_loss + actor_loss.loss,
-                        priority=priority,
-                        extra=DdpgLossInfo(critic=critic_loss,
-                                           actor=actor_loss.extra))
+        return LossInfo(
+            loss=critic_loss + actor_loss.loss,
+            priority=priority,
+            extra=DdpgLossInfo(critic=critic_loss, actor=actor_loss.extra),
+        )
 
     def after_update(self, root_inputs, info: DdpgInfo):
         self._update_target()
 
     def _trainable_attributes_to_ignore(self):
-        return ['_target_actor_network', '_target_critic_networks']
+        return ["_target_actor_network", "_target_critic_networks"]

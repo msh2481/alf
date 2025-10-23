@@ -36,9 +36,11 @@ from alf.trainers import policy_trainer
 from alf.utils.schedulers import Scheduler, as_scheduler
 from collections import namedtuple
 
-EvalJob = namedtuple("EvalJob",
-                     ["type", "global_counter", "step_metrics", "state_dict"],
-                     defaults=[None] * 4)
+EvalJob = namedtuple(
+    "EvalJob",
+    ["type", "global_counter", "step_metrics", "state_dict"],
+    defaults=[None] * 4,
+)
 
 
 class Evaluator(object):
@@ -59,29 +61,39 @@ class Evaluator(object):
         # The following line is needed for avoiding
         # "RuntimeError: unable to open shared memory object"
         # See https://github.com/facebookresearch/maskrcnn-benchmark/issues/103#issuecomment-785815218
-        mp.set_sharing_strategy('file_system')
+        mp.set_sharing_strategy("file_system")
         self._async = config.async_eval
-        if conf_file.endswith('.gin'):
+        if conf_file.endswith(".gin"):
             assert not self._async, "async_eval is not supported for gin_file"
         num_envs = config.num_eval_environments
         seed = config.random_seed
         if self._async:
-            ctx = mp.get_context('spawn')
+            ctx = mp.get_context("spawn")
             self._job_queue = ctx.Queue()
             self._done_queue = ctx.Queue()
             pre_configs = dict(alf.get_handled_pre_configs())
-            self._worker = ctx.Process(target=_worker,
-                                       args=(self._job_queue, self._done_queue,
-                                             conf_file, pre_configs, num_envs,
-                                             config.root_dir, seed))
+            self._worker = ctx.Process(
+                target=_worker,
+                args=(
+                    self._job_queue,
+                    self._done_queue,
+                    conf_file,
+                    pre_configs,
+                    num_envs,
+                    config.root_dir,
+                    seed,
+                ),
+            )
             self._worker.start()
 
             # Need this to avoid "pidfd_getfd: Operation not permitted"
             common.allow_child_to_ptrace(self._worker.pid)
         else:
-            self._env = create_environment(for_evaluation=True,
-                                           num_parallel_environments=num_envs,
-                                           seed=seed)
+            self._env = create_environment(
+                for_evaluation=True,
+                num_parallel_environments=num_envs,
+                seed=seed,
+            )
             self._evaluator = SyncEvaluator(self._env, config)
 
     def eval(self, algorithm: RLAlgorithm, step_metric_values: Dict[str, int]):
@@ -104,11 +116,12 @@ class Evaluator(object):
         with alf.summary.record_if(lambda: True):
             with record_time("time/evaluation"):
                 if self._async:
-                    job = EvalJob(type="eval",
-                                  step_metrics=step_metric_values,
-                                  global_counter=int(
-                                      alf.summary.get_global_counter()),
-                                  state_dict=algorithm.state_dict())
+                    job = EvalJob(
+                        type="eval",
+                        step_metrics=step_metric_values,
+                        global_counter=int(alf.summary.get_global_counter()),
+                        state_dict=algorithm.state_dict(),
+                    )
                     logging.info("Sending evaluation job...")
                     self._job_queue.put(job)
                     self._done_queue.get()
@@ -134,10 +147,10 @@ class Evaluator(object):
 
 
 def _define_flags():
-    flags.DEFINE_string('gin_file', None, 'Path to the gin-config file.')
-    flags.DEFINE_multi_string('gin_param', None, 'Gin binding parameters.')
-    flags.DEFINE_string('conf', None, 'Path to the alf config file.')
-    flags.DEFINE_multi_string('conf_param', None, 'Config binding parameters.')
+    flags.DEFINE_string("gin_file", None, "Path to the gin-config file.")
+    flags.DEFINE_multi_string("gin_param", None, "Gin binding parameters.")
+    flags.DEFINE_string("conf", None, "Path to the alf config file.")
+    flags.DEFINE_multi_string("conf_param", None, "Config binding parameters.")
 
 
 FLAGS = flags.FLAGS
@@ -196,19 +209,23 @@ class SyncEvaluator(object):
         num_eval_episodes = config.num_eval_episodes
         num_eval_steps = config.num_eval_steps
 
-        assert num_eval_episodes == 0 or num_eval_steps(
-        ) == 0, "should use at most one eval mode"
+        assert (
+            num_eval_episodes == 0 or num_eval_steps() == 0
+        ), "should use at most one eval mode"
 
         self._env = env
         self._config = config
-        eval_dir = os.path.join(config.root_dir, 'eval')
+        eval_dir = os.path.join(config.root_dir, "eval")
         self._summary_writer = alf.summary.create_summary_writer(
-            eval_dir, flush_secs=config.summaries_flush_secs)
+            eval_dir, flush_secs=config.summaries_flush_secs
+        )
 
-    def eval(self,
-             algorithm: RLAlgorithm,
-             step_metric_values: Dict[str, int],
-             job_queue: Optional[PeekableQueue] = None):
+    def eval(
+        self,
+        algorithm: RLAlgorithm,
+        step_metric_values: Dict[str, int],
+        job_queue: Optional[PeekableQueue] = None,
+    ):
         """Do one round of evaluation.
 
         This function will return after finishing the evaluation.
@@ -228,28 +245,36 @@ class SyncEvaluator(object):
         """
         with alf.summary.push_summary_writer(self._summary_writer):
             logging.info("Start evaluation")
-            metrics = evaluate(self._env, algorithm,
-                               self._config.num_eval_episodes,
-                               self._config.num_eval_steps, job_queue)
+            metrics = evaluate(
+                self._env,
+                algorithm,
+                self._config.num_eval_episodes,
+                self._config.num_eval_steps,
+                job_queue,
+            )
             if metrics is None:
                 return
             common.log_metrics(metrics)
             for metric in metrics:
                 metric.gen_summaries(
                     train_step=alf.summary.get_global_counter(),
-                    other_steps=step_metric_values)
-            if (self._config.save_checkpoint_for_best_eval is not None
-                    and self._config.save_checkpoint_for_best_eval(metrics)):
+                    other_steps=step_metric_values,
+                )
+            if (
+                self._config.save_checkpoint_for_best_eval is not None
+                and self._config.save_checkpoint_for_best_eval(metrics)
+            ):
                 logging.info("Saving the best checkpoint")
                 checkpointer = Checkpointer(
-                    ckpt_dir=os.path.join(self._config.root_dir, 'train',
-                                          'algorithm'),
+                    ckpt_dir=os.path.join(
+                        self._config.root_dir, "train", "algorithm"
+                    ),
                     algorithm=algorithm,
                     metrics=nn.ModuleList(algorithm.get_metrics()),
-                    trainer_progress=policy_trainer.Trainer.
-                    get_trainer_progress())
+                    trainer_progress=policy_trainer.Trainer.get_trainer_progress(),
+                )
 
-                checkpointer.save(alf.summary.get_global_counter(), 'best')
+                checkpointer.save(alf.summary.get_global_counter(), "best")
 
 
 class BestEvalChecker(object):
@@ -265,10 +290,10 @@ class BestEvalChecker(object):
             the result using this name. Default is None.
     """
 
-    def __init__(self,
-                 metric_type=alf.metrics.AverageReturnMetric,
-                 metric_name=None):
-        self._best_metric = -float('inf')
+    def __init__(
+        self, metric_type=alf.metrics.AverageReturnMetric, metric_name=None
+    ):
+        self._best_metric = -float("inf")
         self._metric_type = metric_type
         self._metric_name = metric_name
 
@@ -291,17 +316,20 @@ class BestEvalChecker(object):
                         return True
                     else:
                         return False
-            raise ValueError("No metric of type %s found in the metrics" %
-                             self._metric_type)
+            raise ValueError(
+                "No metric of type %s found in the metrics" % self._metric_type
+            )
 
 
-def _worker(job_queue: mp.Queue,
-            done_queue: mp.Queue,
-            conf_file: str,
-            pre_configs: Dict,
-            num_parallel_envs: int,
-            root_dir: str,
-            seed: Optional[int] = None):
+def _worker(
+    job_queue: mp.Queue,
+    done_queue: mp.Queue,
+    conf_file: str,
+    pre_configs: Dict,
+    num_parallel_envs: int,
+    root_dir: str,
+    seed: Optional[int] = None,
+):
     try:
         _define_flags()
         FLAGS(sys.argv, known_only=True)
@@ -318,11 +346,13 @@ def _worker(job_queue: mp.Queue,
             # seed the environments differently from the training
             seed = seed + 13579
         common.set_random_seed(seed)
-        alf.config('TrainerConfig', mutable=False, random_seed=seed)
-        alf.config('create_environment',
-                   for_evaluation=True,
-                   num_parallel_environments=num_parallel_envs,
-                   mutable=False)
+        alf.config("TrainerConfig", mutable=False, random_seed=seed)
+        alf.config(
+            "create_environment",
+            for_evaluation=True,
+            num_parallel_environments=num_parallel_envs,
+            mutable=False,
+        )
         try:
             alf.pre_config(pre_configs)
             common.parse_conf_file(conf_file)
@@ -335,7 +365,8 @@ def _worker(job_queue: mp.Queue,
         env = alf.get_env()
         env.reset()
         data_transformer = create_data_transformer(
-            config.data_transformer_ctor, env.observation_spec())
+            config.data_transformer_ctor, env.observation_spec()
+        )
         config.data_transformer = data_transformer
         # keep compatibility with previous gin based config
         common.set_global_env(env)
@@ -343,14 +374,16 @@ def _worker(job_queue: mp.Queue,
         common.set_transformed_observation_spec(observation_spec)
 
         algorithm_ctor = config.algorithm_ctor
-        algorithm = algorithm_ctor(observation_spec=observation_spec,
-                                   action_spec=env.action_spec(),
-                                   reward_spec=env.reward_spec(),
-                                   config=config)
-        algorithm.set_path('')
-        policy_trainer.Trainer.get_trainer_progress(
-        ).set_termination_criterion(config.num_iterations,
-                                    config.num_env_steps)
+        algorithm = algorithm_ctor(
+            observation_spec=observation_spec,
+            action_spec=env.action_spec(),
+            reward_spec=env.reward_spec(),
+            config=config,
+        )
+        algorithm.set_path("")
+        policy_trainer.Trainer.get_trainer_progress().set_termination_criterion(
+            config.num_iterations, config.num_env_steps
+        )
         alf.summary.enable_summary()
         evaluator = SyncEvaluator(env, config)
         job_queue = PeekableQueue(job_queue)
@@ -364,7 +397,8 @@ def _worker(job_queue: mp.Queue,
                 alf.summary.set_global_counter(job.global_counter)
                 env_steps = job.step_metrics["EnvironmentSteps"]
                 policy_trainer.Trainer.get_trainer_progress().update(
-                    job.global_counter, env_steps)
+                    job.global_counter, env_steps
+                )
                 algorithm.load_state_dict(job.state_dict)
                 done_queue.put(None)
                 evaluator.eval(algorithm, job.step_metrics, job_queue)
@@ -373,24 +407,25 @@ def _worker(job_queue: mp.Queue,
             elif job.type == "wait":
                 done_queue.put(None)
             else:
-                raise KeyError('Received message of unknown type {}'.format(
-                    job.type))
+                raise KeyError(
+                    "Received message of unknown type {}".format(job.type)
+                )
 
         env.close()
         done_queue.put(None)
     except KeyboardInterrupt:
         alf.get_env().close()
     except Exception as e:
-        logging.exception(f'{mp.current_process().name} - {e}')
+        logging.exception(f"{mp.current_process().name} - {e}")
 
 
 @common.mark_eval
 def evaluate(
-        env: AlfEnvironment,
-        algorithm: RLAlgorithm,
-        num_episodes: int,
-        num_steps: Union[int, Scheduler] = 0,
-        job_queue: Optional[PeekableQueue] = None
+    env: AlfEnvironment,
+    algorithm: RLAlgorithm,
+    num_episodes: int,
+    num_steps: Union[int, Scheduler] = 0,
+    job_queue: Optional[PeekableQueue] = None,
 ) -> List[alf.metrics.StepMetric]:
     """Perform one round of evaluation.
 
@@ -416,18 +451,24 @@ def evaluate(
 
     buffer_size = max(num_episodes, 1)
     metrics = [
-        alf.metrics.AverageReturnMetric(buffer_size=buffer_size,
-                                        example_time_step=time_step),
-        alf.metrics.AverageEpisodeLengthMetric(example_time_step=time_step,
-                                               buffer_size=buffer_size),
-        alf.metrics.AverageEnvInfoMetric(example_time_step=time_step,
-                                         buffer_size=buffer_size),
-        alf.metrics.AverageDiscountedReturnMetric(buffer_size=buffer_size,
-                                                  example_time_step=time_step),
+        alf.metrics.AverageReturnMetric(
+            buffer_size=buffer_size, example_time_step=time_step
+        ),
+        alf.metrics.AverageEpisodeLengthMetric(
+            example_time_step=time_step, buffer_size=buffer_size
+        ),
+        alf.metrics.AverageEnvInfoMetric(
+            example_time_step=time_step, buffer_size=buffer_size
+        ),
+        alf.metrics.AverageDiscountedReturnMetric(
+            buffer_size=buffer_size, example_time_step=time_step
+        ),
         alf.metrics.EpisodicStartAverageDiscountedReturnMetric(
-            example_time_step=time_step, buffer_size=buffer_size),
-        alf.metrics.AverageRewardMetric(example_time_step=time_step,
-                                        buffer_size=buffer_size),
+            example_time_step=time_step, buffer_size=buffer_size
+        ),
+        alf.metrics.AverageRewardMetric(
+            example_time_step=time_step, buffer_size=buffer_size
+        ),
     ]
 
     counter = 0
@@ -463,8 +504,9 @@ def evaluate(
         else:
             # env step mode
             if counter + batch_size >= total_num:
-                time_step.cpu().step_type[torch.arange(
-                    batch_size)] = StepType.LAST
+                time_step.cpu().step_type[
+                    torch.arange(batch_size)
+                ] = StepType.LAST
                 time_step.step_type[torch.arange(batch_size)] = StepType.LAST
 
         next_time_step, policy_step, trans_state = policy_trainer._step(
@@ -473,7 +515,8 @@ def evaluate(
             time_step=time_step,
             policy_state=policy_state,
             trans_state=trans_state,
-            metrics=metrics)
+            metrics=metrics,
+        )
 
         if episode_mode:
             time_step.step_type[invalid] = StepType.FIRST

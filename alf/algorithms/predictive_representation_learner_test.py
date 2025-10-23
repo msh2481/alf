@@ -19,8 +19,10 @@ import torch
 import alf
 import alf.data_structures as ds
 from alf.algorithms.predictive_representation_learner import (
-    PredictiveRepresentationLearner, PredictiveRepresentationLearnerInfo,
-    SimpleDecoder)
+    PredictiveRepresentationLearner,
+    PredictiveRepresentationLearnerInfo,
+    SimpleDecoder,
+)
 from alf.experience_replayers.replay_buffer import ReplayBuffer, BatchInfo
 from alf.networks import EncodingNetwork, LSTMEncodingNetwork
 from alf.utils import common, dist_utils
@@ -47,51 +49,60 @@ class PredictiveRepresentationLearnerTest(alf.test.TestCase):
         batch_size = 2
         obs_dim = 3
         observation_spec = alf.TensorSpec([obs_dim])
-        action_spec = alf.BoundedTensorSpec((1, ),
-                                            minimum=0,
-                                            maximum=1,
-                                            dtype=torch.float32)
+        action_spec = alf.BoundedTensorSpec(
+            (1,), minimum=0, maximum=1, dtype=torch.float32
+        )
         reward_spec = alf.TensorSpec(())
-        time_step_spec = ds.time_step_spec(observation_spec, action_spec,
-                                           reward_spec)
+        time_step_spec = ds.time_step_spec(
+            observation_spec, action_spec, reward_spec
+        )
 
         repr_learner = PredictiveRepresentationLearner(
             observation_spec,
             action_spec,
             num_unroll_steps=num_unroll_steps,
-            decoder_ctor=partial(SimpleDecoder,
-                                 target_field='reward',
-                                 decoder_net_ctor=partial(
-                                     EncodingNetwork, fc_layer_params=(4, ))),
+            decoder_ctor=partial(
+                SimpleDecoder,
+                target_field="reward",
+                decoder_net_ctor=partial(EncodingNetwork, fc_layer_params=(4,)),
+            ),
             encoding_net_ctor=LSTMEncodingNetwork,
-            dynamics_net_ctor=LSTMEncodingNetwork)
+            dynamics_net_ctor=LSTMEncodingNetwork,
+        )
 
         time_step = common.zero_tensor_from_nested_spec(
-            time_step_spec, batch_size)
+            time_step_spec, batch_size
+        )
         state = repr_learner.get_initial_predict_state(batch_size)
         alg_step = repr_learner.rollout_step(time_step, state)
-        alg_step = alg_step._replace(output=torch.tensor([[1.], [0.]]))
+        alg_step = alg_step._replace(output=torch.tensor([[1.0], [0.0]]))
         alg_step_spec = dist_utils.extract_spec(alg_step)
 
         experience = ds.make_experience(time_step, alg_step, state)
-        experience_spec = ds.make_experience(time_step_spec, alg_step_spec,
-                                             repr_learner.train_state_spec)
-        replay_buffer = ReplayBuffer(data_spec=experience_spec,
-                                     num_environments=batch_size,
-                                     max_length=16,
-                                     keep_episodic_info=True)
+        experience_spec = ds.make_experience(
+            time_step_spec, alg_step_spec, repr_learner.train_state_spec
+        )
+        replay_buffer = ReplayBuffer(
+            data_spec=experience_spec,
+            num_environments=batch_size,
+            max_length=16,
+            keep_episodic_info=True,
+        )
 
         #             01234567890123
-        step_type0 = 'FMMMLFMMLFMMMM'
-        step_type1 = 'FMMMMMLFMMMMLF'
+        step_type0 = "FMMMLFMMLFMMMM"
+        step_type1 = "FMMMMMLFMMMMLF"
 
         prev_action = time_step.prev_action
 
         for i in range(len(step_type0)):
             step_type = [step_type0[i], step_type1[i]]
             step_type = [
-                ds.StepType.MID if c == 'M' else
-                (ds.StepType.FIRST if c == 'F' else ds.StepType.LAST)
+                (
+                    ds.StepType.MID
+                    if c == "M"
+                    else (ds.StepType.FIRST if c == "F" else ds.StepType.LAST)
+                )
                 for c in step_type
             ]
             step_type = torch.tensor(step_type, dtype=torch.int32)
@@ -99,29 +110,40 @@ class PredictiveRepresentationLearnerTest(alf.test.TestCase):
             time_step = time_step._replace(
                 discount=(step_type != ds.StepType.LAST).to(torch.float32),
                 step_type=step_type,
-                observation=torch.tensor([[i, i + 1, i], [i + 1, i, i]],
-                                         dtype=torch.float32),
+                observation=torch.tensor(
+                    [[i, i + 1, i], [i + 1, i, i]], dtype=torch.float32
+                ),
                 reward=reward,
                 prev_action=prev_action,
-                env_id=torch.arange(batch_size, dtype=torch.int32))
+                env_id=torch.arange(batch_size, dtype=torch.int32),
+            )
             alg_step = repr_learner.rollout_step(time_step, state)
-            alg_step = alg_step._replace(output=i + torch.tensor([[1.], [0.]]))
+            alg_step = alg_step._replace(
+                output=i + torch.tensor([[1.0], [0.0]])
+            )
             prev_action = alg_step.output
             experience = ds.make_experience(time_step, alg_step, state)
             replay_buffer.add_batch(experience)
             state = alg_step.state
 
         env_ids = torch.tensor([0] * 14 + [1] * 14, dtype=torch.int64)
-        positions = torch.tensor(list(range(14)) + list(range(14)),
-                                 dtype=torch.int64)
-        experience = replay_buffer.get_field(None,
-                                             env_ids.unsqueeze(-1).cpu(),
-                                             positions.unsqueeze(-1).cpu())
-        processed_experience, processed_rollout_info = repr_learner.preprocess_experience(
-            experience, experience.rollout_info,
-            BatchInfo(env_ids=env_ids,
-                      positions=positions,
-                      replay_buffer=replay_buffer))
+        positions = torch.tensor(
+            list(range(14)) + list(range(14)), dtype=torch.int64
+        )
+        experience = replay_buffer.get_field(
+            None, env_ids.unsqueeze(-1).cpu(), positions.unsqueeze(-1).cpu()
+        )
+        processed_experience, processed_rollout_info = (
+            repr_learner.preprocess_experience(
+                experience,
+                experience.rollout_info,
+                BatchInfo(
+                    env_ids=env_ids,
+                    positions=positions,
+                    replay_buffer=replay_buffer,
+                ),
+            )
+        )
         pprint.pprint(processed_rollout_info)
 
         # yapf: disable
@@ -215,9 +237,12 @@ class PredictiveRepresentationLearnerTest(alf.test.TestCase):
                 [[13., 13., 13., 13., 13.]]]))
         # yapf: enable
 
-        alf.nest.map_structure(lambda x, y: self.assertEqual(x, y),
-                               processed_rollout_info, expected)
+        alf.nest.map_structure(
+            lambda x, y: self.assertEqual(x, y),
+            processed_rollout_info,
+            expected,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

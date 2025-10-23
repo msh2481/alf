@@ -24,32 +24,35 @@ from .disjoint_policy_value_network import DisjointPolicyValueNetwork
 # Data structure to store the information produced by agent
 # interacting with the environment.
 PPGRolloutInfo = namedtuple(
-    'PPGRolloutInfo',
+    "PPGRolloutInfo",
     [
         # produced by the policy head
-        'action_distribution',
+        "action_distribution",
         # Sampled from the action distribution produced by the policy head
-        'action',
+        "action",
         # Log probability of the action at the rollout time
-        'log_prob',
+        "log_prob",
         # estimated value function by the value head
-        'value',
+        "value",
         # estimated value function by the auxiliary value head
-        'aux',
-        'step_type',
-        'discount',
-        'reward',
-        'reward_weights',
+        "aux",
+        "step_type",
+        "discount",
+        "reward",
+        "reward_weights",
     ],
-    default_value=())
+    default_value=(),
+)
 
 
 class PPGTrainInfo(
-        namedtuple('PPGTrainInfo',
-                   PPGRolloutInfo._fields +
-                   ('rollout_action_distribution', 'rollout_value',
-                    'rollout_log_prob'),
-                   default_value=())):
+    namedtuple(
+        "PPGTrainInfo",
+        PPGRolloutInfo._fields
+        + ("rollout_action_distribution", "rollout_value", "rollout_log_prob"),
+        default_value=(),
+    )
+):
     """Data structure that stores extra derived information for training
     in addition to the original rollout information.
 
@@ -89,18 +92,21 @@ class PPGTrainInfo(
             action_distribution=rollout_info.action_distribution,
             value=rollout_info.value,
             aux=rollout_info.aux,
-            reward_weights=rollout_info.reward_weights)
+            reward_weights=rollout_info.reward_weights,
+        )
 
 
-def ppg_network_forward(network: DisjointPolicyValueNetwork,
-                        inputs: TimeStep,
-                        state,
-                        require_aux: bool = True,
-                        epsilon_greedy: Optional[float] = None) -> AlgStep:
+def ppg_network_forward(
+    network: DisjointPolicyValueNetwork,
+    inputs: TimeStep,
+    state,
+    require_aux: bool = True,
+    epsilon_greedy: Optional[float] = None,
+) -> AlgStep:
     """Evaluates the network forward pass for roll out or training
     The signature mimics ``rollout_step()`` of ``Algorithm`` completedly.
     Args:
-    
+
         network: the network whose forward pass is to be performed.
         inputs: carries the observation that is needed as input to the
             network.
@@ -114,26 +120,32 @@ def ppg_network_forward(network: DisjointPolicyValueNetwork,
             float value determines the chance of action sampling
             instead of taking argmax.
     """
-    (action_distribution, value, aux), state = network(inputs.observation,
-                                                       state=state,
-                                                       require_aux=require_aux)
+    (action_distribution, value, aux), state = network(
+        inputs.observation, state=state, require_aux=require_aux
+    )
 
     if epsilon_greedy is not None:
-        action = dist_utils.epsilon_greedy_sample(action_distribution,
-                                                  epsilon_greedy)
+        action = dist_utils.epsilon_greedy_sample(
+            action_distribution, epsilon_greedy
+        )
         log_prob = ()
     else:
         action, log_prob = dist_utils.sample_action_distribution(
-            action_distribution, return_log_prob=True)
+            action_distribution, return_log_prob=True
+        )
 
-    return AlgStep(output=action,
-                   state=state,
-                   info=PPGRolloutInfo(action_distribution=action_distribution,
-                                       action=common.detach(action),
-                                       log_prob=common.detach(log_prob),
-                                       value=value,
-                                       aux=aux,
-                                       step_type=inputs.step_type,
-                                       discount=inputs.discount,
-                                       reward=inputs.reward,
-                                       reward_weights=()))
+    return AlgStep(
+        output=action,
+        state=state,
+        info=PPGRolloutInfo(
+            action_distribution=action_distribution,
+            action=common.detach(action),
+            log_prob=common.detach(log_prob),
+            value=value,
+            aux=aux,
+            step_type=inputs.step_type,
+            discount=inputs.discount,
+            reward=inputs.reward,
+            reward_weights=(),
+        ),
+    )

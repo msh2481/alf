@@ -39,8 +39,9 @@ class TrajOptimizer(object):
 
 class RandomOptimizer(TrajOptimizer):
 
-    def __init__(self, solution_dim, population_size, cost_func, upper_bound,
-                 lower_bound):
+    def __init__(
+        self, solution_dim, population_size, cost_func, upper_bound, lower_bound
+    ):
         """Random Trajectory Optimizer
 
         This module conducts trajectory optimization via random-shooting-based
@@ -71,9 +72,11 @@ class RandomOptimizer(TrajOptimizer):
             observation (Tensor): the initial observation for cost calculation
         """
         batch_size = observation.shape[0]
-        solutions = torch.rand(
-            batch_size, self._population_size, self._solution_dim) * (
-                self._upper_bound - self._lower_bound) + self._lower_bound
+        solutions = (
+            torch.rand(batch_size, self._population_size, self._solution_dim)
+            * (self._upper_bound - self._lower_bound)
+            + self._lower_bound
+        )
         costs = self._cost_func(observation, solutions)
         min_ind = torch.argmin(costs, dim=-1).long()
         # solutions [B, pop_size, sol_dim] -> [B, sol_dim]
@@ -83,17 +86,19 @@ class RandomOptimizer(TrajOptimizer):
 
 class CEMOptimizer(TrajOptimizer):
 
-    def __init__(self,
-                 solution_dim,
-                 population_size,
-                 cost_func,
-                 upper_bound,
-                 lower_bound,
-                 elite_size=50,
-                 max_iter_num=5,
-                 epsilon=0.01,
-                 tau=0.9,
-                 min_var=1e-5):
+    def __init__(
+        self,
+        solution_dim,
+        population_size,
+        cost_func,
+        upper_bound,
+        lower_bound,
+        elite_size=50,
+        max_iter_num=5,
+        epsilon=0.01,
+        tau=0.9,
+        min_var=1e-5,
+    ):
         """Creates a CEM Optimizer
 
         This module optimizes a given cost function via the `Cross-Enrtopy
@@ -157,14 +162,20 @@ class CEMOptimizer(TrajOptimizer):
         batch_size = observation.shape[0]
         if init_mean is None:
             # [B, 1, solution_dim]
-            init_mean = torch.ones(batch_size, 1, self._solution_dim) * \
-                    (self._upper_bound + self._lower_bound) / 2.
+            init_mean = (
+                torch.ones(batch_size, 1, self._solution_dim)
+                * (self._upper_bound + self._lower_bound)
+                / 2.0
+            )
         else:
             assert init_mean.shape == (batch_size, 1, self._solution_dim)
 
         if init_var is None:
-            init_var = torch.ones(batch_size, 1, self._solution_dim) * \
-                    (self._upper_bound - self._lower_bound) / 2.
+            init_var = (
+                torch.ones(batch_size, 1, self._solution_dim)
+                * (self._upper_bound - self._lower_bound)
+                / 2.0
+            )
         else:
             assert init_var.shape == (batch_size, 1, self._solution_dim)
 
@@ -177,12 +188,12 @@ class CEMOptimizer(TrajOptimizer):
 
         while i < self._max_iter_num and pop_var.max() > self._epsilon:
             pop_var = pop_var.clamp(min=self._min_var)
-            samples = torch.randn(samples_size) * torch.sqrt(
-                pop_var) + pop_mean
+            samples = torch.randn(samples_size) * torch.sqrt(pop_var) + pop_mean
 
             # use bounded samples for evaluation
-            bounded_samples = samples.clamp(min=self._lower_bound,
-                                            max=self._upper_bound)
+            bounded_samples = samples.clamp(
+                min=self._lower_bound, max=self._upper_bound
+            )
             costs = self._cost_func(observation, bounded_samples)
 
             # select elite set from the population

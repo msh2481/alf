@@ -23,7 +23,10 @@ from alf.algorithms.algorithm import Algorithm
 from alf.data_structures import namedtuple, AlgStep, LossInfo, StepType
 from alf.summary import should_record_summaries
 from alf.utils.averager import ScalarWindowAverager
-from alf.utils.dist_utils import calc_default_target_entropy, entropy_with_fallback
+from alf.utils.dist_utils import (
+    calc_default_target_entropy,
+    entropy_with_fallback,
+)
 from alf.utils.schedulers import ConstantScheduler
 
 EntropyTargetLossInfo = namedtuple("EntropyTargetLossInfo", ["neg_entropy"])
@@ -70,19 +73,21 @@ class EntropyTargetAlgorithm(Algorithm):
     times of the learning rate for temperature.
     """
 
-    def __init__(self,
-                 action_spec,
-                 initial_alpha=0.1,
-                 skip_free_stage=False,
-                 max_entropy=None,
-                 target_entropy=None,
-                 very_slow_update_rate=0.001,
-                 slow_update_rate=0.01,
-                 fast_update_rate=np.log(2),
-                 min_alpha=1e-4,
-                 average_window=2,
-                 debug_summaries=False,
-                 name="EntropyTargetAlgorithm"):
+    def __init__(
+        self,
+        action_spec,
+        initial_alpha=0.1,
+        skip_free_stage=False,
+        max_entropy=None,
+        target_entropy=None,
+        very_slow_update_rate=0.001,
+        slow_update_rate=0.01,
+        fast_update_rate=np.log(2),
+        min_alpha=1e-4,
+        average_window=2,
+        debug_summaries=False,
+        name="EntropyTargetAlgorithm",
+    ):
         """
         Args:
             action_spec (nested BoundedTensorSpec): representing the actions.
@@ -111,23 +116,25 @@ class EntropyTargetAlgorithm(Algorithm):
         super().__init__(debug_summaries=debug_summaries, name=name)
 
         self.register_buffer(
-            '_log_alpha',
-            torch.tensor(np.log(initial_alpha), dtype=torch.float32))
-        self.register_buffer('_stage', torch.tensor(-2, dtype=torch.int32))
+            "_log_alpha",
+            torch.tensor(np.log(initial_alpha), dtype=torch.float32),
+        )
+        self.register_buffer("_stage", torch.tensor(-2, dtype=torch.int32))
         self._avg_entropy = ScalarWindowAverager(average_window)
         self.register_buffer(
-            "_update_rate", torch.tensor(fast_update_rate,
-                                         dtype=torch.float32))
+            "_update_rate", torch.tensor(fast_update_rate, dtype=torch.float32)
+        )
         self._action_spec = action_spec
-        self._min_log_alpha = -100.
-        if min_alpha >= 0.:
+        self._min_log_alpha = -100.0
+        if min_alpha >= 0.0:
             self._min_log_alpha = np.log(min_alpha)
         self._min_log_alpha = torch.tensor(self._min_log_alpha)
 
         flat_action_spec = alf.nest.flatten(self._action_spec)
         if target_entropy is None:
             target_entropy = np.sum(
-                list(map(calc_default_target_entropy, flat_action_spec)))
+                list(map(calc_default_target_entropy, flat_action_spec))
+            )
             logging.info("target_entropy=%s" % target_entropy)
 
         if not isinstance(target_entropy, Callable):
@@ -135,14 +142,16 @@ class EntropyTargetAlgorithm(Algorithm):
 
         if max_entropy is None:
             # max_entropy will be estimated in the first `average_window` steps.
-            max_entropy = 0.
+            max_entropy = 0.0
             self._stage.fill_(-2 - average_window)
         else:
             assert target_entropy() <= max_entropy, (
                 "Target entropy %s should be less or equal than max entropy %s!"
-                % (target_entropy(), max_entropy))
-        self.register_buffer("_max_entropy",
-                             torch.tensor(max_entropy, dtype=torch.float32))
+                % (target_entropy(), max_entropy)
+            )
+        self.register_buffer(
+            "_max_entropy", torch.tensor(max_entropy, dtype=torch.float32)
+        )
 
         if skip_free_stage:
             self._stage.fill_(1)
@@ -154,10 +163,12 @@ class EntropyTargetAlgorithm(Algorithm):
         # as required by the `torch.where` function later. This was not needed
         # in lower version of pytorch (e.g. 1.4) as it will cast a np.float64
         # to torch.float32.
-        self._slow_update_rate = torch.tensor(slow_update_rate,
-                                              dtype=torch.float32)
-        self._fast_update_rate = torch.tensor(fast_update_rate,
-                                              dtype=torch.float32)
+        self._slow_update_rate = torch.tensor(
+            slow_update_rate, dtype=torch.float32
+        )
+        self._fast_update_rate = torch.tensor(
+            fast_update_rate, dtype=torch.float32
+        )
 
     def predict_step(self, distribution_and_step_type, state):
         return AlgStep()
@@ -180,10 +191,9 @@ class EntropyTargetAlgorithm(Algorithm):
         else:
             return AlgStep()
 
-    def train_step(self,
-                   distribution_and_step_type,
-                   state=None,
-                   rollout_info=None):
+    def train_step(
+        self, distribution_and_step_type, state=None, rollout_info=None
+    ):
         """Train step.
 
         Args:
@@ -195,13 +205,17 @@ class EntropyTargetAlgorithm(Algorithm):
         """
         distribution, step_type = distribution_and_step_type
         entropy, entropy_for_gradient = entropy_with_fallback(distribution)
-        return AlgStep(output=(),
-                       state=(),
-                       info=EntropyTargetInfo(step_type=step_type,
-                                              loss=LossInfo(
-                                                  loss=-entropy_for_gradient,
-                                                  extra=EntropyTargetLossInfo(
-                                                      neg_entropy=-entropy))))
+        return AlgStep(
+            output=(),
+            state=(),
+            info=EntropyTargetInfo(
+                step_type=step_type,
+                loss=LossInfo(
+                    loss=-entropy_for_gradient,
+                    extra=EntropyTargetLossInfo(neg_entropy=-entropy),
+                ),
+            ),
+        )
 
     def calc_loss(self, info: EntropyTargetInfo, valid_mask=None):
         """Calculate loss.
@@ -224,7 +238,8 @@ class EntropyTargetAlgorithm(Algorithm):
         entropy2 = torch.sum(entropy**2) / num
         entropy = torch.sum(entropy) / num
         entropy_std = torch.sqrt(
-            torch.max(torch.tensor(0.0), entropy2 - entropy * entropy))
+            torch.max(torch.tensor(0.0), entropy2 - entropy * entropy)
+        )
 
         if not_empty:
             self.adjust_alpha(entropy)
@@ -255,7 +270,8 @@ class EntropyTargetAlgorithm(Algorithm):
 
         def _init_entropy():
             self._max_entropy.fill_(
-                torch.min(0.8 * avg_entropy, avg_entropy / 0.8))
+                torch.min(0.8 * avg_entropy, avg_entropy / 0.8)
+            )
             self._stage.add_(1)
 
         def _init():
@@ -265,7 +281,8 @@ class EntropyTargetAlgorithm(Algorithm):
             update_rate = (-1 + 1.5 * decreasing) * self._very_slow_update_rate
             self._stage.add_(below.type(torch.int32))
             self._log_alpha.fill_(
-                torch.max(self._log_alpha + update_rate, self._min_log_alpha))
+                torch.max(self._log_alpha + update_rate, self._min_log_alpha)
+            )
 
         def _free():
             crossing = avg_entropy < target_entropy
@@ -279,16 +296,22 @@ class EntropyTargetAlgorithm(Algorithm):
             update_rate = self._update_rate
             update_rate = torch.where(crossing, 0.9 * update_rate, update_rate)
             update_rate = torch.max(update_rate, self._slow_update_rate)
-            update_rate = torch.where(entropy < fast_stage_thresh,
-                                      self._fast_update_rate, update_rate)
+            update_rate = torch.where(
+                entropy < fast_stage_thresh, self._fast_update_rate, update_rate
+            )
             self._update_rate.fill_(update_rate)
             above = above.type(torch.float32)
             below = 1 - above
             decreasing = (avg_entropy < prev_avg_entropy).type(torch.float32)
             increasing = 1 - decreasing
-            log_alpha = self._log_alpha + (
-                (below + 0.5 * above) * decreasing -
-                (above + 0.5 * below) * increasing) * update_rate
+            log_alpha = (
+                self._log_alpha
+                + (
+                    (below + 0.5 * above) * decreasing
+                    - (above + 0.5 * below) * increasing
+                )
+                * update_rate
+            )
             log_alpha = torch.max(log_alpha, self._min_log_alpha)
             self._log_alpha.fill_(log_alpha)
 
@@ -325,19 +348,21 @@ class NestedEntropyTargetAlgorithm(Algorithm):
     See ``EntropyTargetAlgorithm`` for how it works.
     """
 
-    def __init__(self,
-                 action_spec,
-                 initial_alpha=0.1,
-                 skip_free_stage=False,
-                 max_entropy=None,
-                 target_entropy=None,
-                 very_slow_update_rate=0.001,
-                 slow_update_rate=0.01,
-                 fast_update_rate=np.log(2),
-                 min_alpha=1e-4,
-                 average_window=2,
-                 debug_summaries=False,
-                 name="EntropyTargetAlgorithm"):
+    def __init__(
+        self,
+        action_spec,
+        initial_alpha=0.1,
+        skip_free_stage=False,
+        max_entropy=None,
+        target_entropy=None,
+        very_slow_update_rate=0.001,
+        slow_update_rate=0.01,
+        fast_update_rate=np.log(2),
+        min_alpha=1e-4,
+        average_window=2,
+        debug_summaries=False,
+        name="EntropyTargetAlgorithm",
+    ):
         """
         Args:
             action_spec (nested BoundedTensorSpec): representing the actions.
@@ -381,25 +406,29 @@ class NestedEntropyTargetAlgorithm(Algorithm):
         """
 
         kwargs = copy.copy(locals())
-        del kwargs['self']
-        del kwargs['__class__']
+        del kwargs["self"]
+        del kwargs["__class__"]
         super().__init__(debug_summaries=debug_summaries, name=name)
 
         def _create_et(path, action_spec, target_entropy, max_entropy):
-            kwargs.update(action_spec=action_spec,
-                          target_entropy=target_entropy,
-                          max_entropy=max_entropy,
-                          name=name + "/" + path)
+            kwargs.update(
+                action_spec=action_spec,
+                target_entropy=target_entropy,
+                max_entropy=max_entropy,
+                name=name + "/" + path,
+            )
             return EntropyTargetAlgorithm(**kwargs)
 
         alf.nest.assert_same_structure(target_entropy, action_spec)
         if alf.nest.is_nested(max_entropy):
             alf.nest.assert_same_structure(max_entropy, action_spec)
         else:
-            max_entropy = alf.nest.map_structure(lambda x: max_entropy,
-                                                 action_spec)
-        algs = alf.nest.py_map_structure_with_path(_create_et, action_spec,
-                                                   target_entropy, max_entropy)
+            max_entropy = alf.nest.map_structure(
+                lambda x: max_entropy, action_spec
+            )
+        algs = alf.nest.py_map_structure_with_path(
+            _create_et, action_spec, target_entropy, max_entropy
+        )
         self._algs = algs
         self._algs_flattened = alf.nest.flatten(algs)
         if alf.nest.is_nested(algs):
@@ -414,15 +443,17 @@ class NestedEntropyTargetAlgorithm(Algorithm):
         else:
             return AlgStep()
 
-    def train_step(self,
-                   distribution_and_step_type,
-                   state=None,
-                   rollout_info=None):
+    def train_step(
+        self, distribution_and_step_type, state=None, rollout_info=None
+    ):
         distribution, step_type = distribution_and_step_type
         infos = alf.nest.map_structure(
-            lambda alg, dist: alg.train_step(
-                (dist, step_type)).info._replace(step_type=()), self._algs,
-            distribution)
+            lambda alg, dist: alg.train_step((dist, step_type)).info._replace(
+                step_type=()
+            ),
+            self._algs,
+            distribution,
+        )
         return AlgStep(output=(), state=(), info=(step_type, infos))
 
     def calc_loss(self, info: EntropyTargetInfo, valid_mask=None):
@@ -431,11 +462,16 @@ class NestedEntropyTargetAlgorithm(Algorithm):
         loss_infos = list(
             map(
                 lambda alg, inf: alg.calc_loss(
-                    inf._replace(step_type=step_type), valid_mask),
-                self._algs_flattened, info_flattened))
+                    inf._replace(step_type=step_type), valid_mask
+                ),
+                self._algs_flattened,
+                info_flattened,
+            )
+        )
         loss = sum(loss_info.loss for loss_info in loss_infos)
         extra = alf.nest.pack_sequence_as(
-            self._algs, [loss_info.extra for loss_info in loss_infos])
+            self._algs, [loss_info.extra for loss_info in loss_infos]
+        )
         return LossInfo(loss=loss, extra=extra)
 
 
@@ -445,14 +481,16 @@ class SGDEntropyTargetAlgorithm(Algorithm):
     the way of SAC.
     """
 
-    def __init__(self,
-                 action_spec: alf.tensor_specs.TensorSpec,
-                 initial_alpha: float = 0.1,
-                 target_entropy: Union[Callable[[], float], float] = None,
-                 window_size: int = 1,
-                 optimizer: torch.optim.Optimizer = None,
-                 debug_summaries: bool = False,
-                 name: str = "SGDEntropyTargetAlgorithm"):
+    def __init__(
+        self,
+        action_spec: alf.tensor_specs.TensorSpec,
+        initial_alpha: float = 0.1,
+        target_entropy: Union[Callable[[], float], float] = None,
+        window_size: int = 1,
+        optimizer: torch.optim.Optimizer = None,
+        debug_summaries: bool = False,
+        name: str = "SGDEntropyTargetAlgorithm",
+    ):
         """
         Args:
             action_spec: nested tensor spec for the action
@@ -466,18 +504,20 @@ class SGDEntropyTargetAlgorithm(Algorithm):
             name: name of the class
         """
 
-        super().__init__(optimizer=optimizer,
-                         debug_summaries=debug_summaries,
-                         name=name)
+        super().__init__(
+            optimizer=optimizer, debug_summaries=debug_summaries, name=name
+        )
 
         self._log_alpha = torch.nn.Parameter(
-            torch.tensor(np.log(initial_alpha), dtype=torch.float32))
+            torch.tensor(np.log(initial_alpha), dtype=torch.float32)
+        )
 
         self._action_spec = action_spec
         flat_action_spec = alf.nest.flatten(self._action_spec)
         if target_entropy is None:
             target_entropy = np.sum(
-                list(map(calc_default_target_entropy, flat_action_spec)))
+                list(map(calc_default_target_entropy, flat_action_spec))
+            )
             logging.info("target_entropy=%s" % target_entropy)
 
         if not isinstance(target_entropy, Callable):
@@ -517,13 +557,17 @@ class SGDEntropyTargetAlgorithm(Algorithm):
         """
         distribution, _ = distribution_and_step_type
         entropy, entropy_for_gradient = entropy_with_fallback(distribution)
-        return AlgStep(output=(),
-                       state=(),
-                       info=EntropyTargetInfo(step_type=(),
-                                              loss=LossInfo(
-                                                  loss=-entropy_for_gradient,
-                                                  extra=EntropyTargetLossInfo(
-                                                      neg_entropy=-entropy))))
+        return AlgStep(
+            output=(),
+            state=(),
+            info=EntropyTargetInfo(
+                step_type=(),
+                loss=LossInfo(
+                    loss=-entropy_for_gradient,
+                    extra=EntropyTargetLossInfo(neg_entropy=-entropy),
+                ),
+            ),
+        )
 
     def calc_loss(self, info: EntropyTargetInfo):
         """Calculate the losses for training. It will compute two losses, one for
@@ -532,9 +576,11 @@ class SGDEntropyTargetAlgorithm(Algorithm):
         """
         loss_info = info.loss
         avg_entropy = self._entropy_averager.average(
-            -loss_info.extra.neg_entropy)
-        alpha_loss = ((avg_entropy - self._target_entropy()).detach() *
-                      self._log_alpha)
+            -loss_info.extra.neg_entropy
+        )
+        alpha_loss = (
+            avg_entropy - self._target_entropy()
+        ).detach() * self._log_alpha
         alpha = torch.exp(self._log_alpha).detach()
         entropy_loss = loss_info.loss * alpha
 
@@ -543,7 +589,11 @@ class SGDEntropyTargetAlgorithm(Algorithm):
                 alf.summary.scalar("alpha", alpha)
                 alf.summary.scalar("target_entropy", self._target_entropy())
 
-        return LossInfo(loss=alpha_loss + entropy_loss,
-                        extra=dict(neg_entropy=loss_info.extra.neg_entropy,
-                                   alpha_loss=alpha_loss,
-                                   entropy_loss=entropy_loss))
+        return LossInfo(
+            loss=alpha_loss + entropy_loss,
+            extra=dict(
+                neg_entropy=loss_info.extra.neg_entropy,
+                alpha_loss=alpha_loss,
+                entropy_loss=entropy_loss,
+            ),
+        )

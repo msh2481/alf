@@ -48,14 +48,20 @@ class _LeanFunction(torch.autograd.Function):
         ctx.parameters = args[:num_parameters]
         args = args[num_parameters:]
         tensors = tuple(arg for arg in args if isinstance(arg, torch.Tensor))
-        ctx.args = tuple((isinstance(arg, torch.Tensor),
-                          None if isinstance(arg, torch.Tensor) else arg)
-                         for arg in args)
+        ctx.args = tuple(
+            (
+                isinstance(arg, torch.Tensor),
+                None if isinstance(arg, torch.Tensor) else arg,
+            )
+            for arg in args
+        )
         assert num_parameters > 0 or len(tensors) > 0, (
-            "No Tensor input for %s" % func)
+            "No Tensor input for %s" % func
+        )
         ctx.device = _infer_device_type(*tensors, *ctx.parameters)
-        ctx.device_autocast_kwargs, ctx.cpu_autocast_kwargs = _get_autocast_kwargs(
-            ctx.device)
+        ctx.device_autocast_kwargs, ctx.cpu_autocast_kwargs = (
+            _get_autocast_kwargs(ctx.device)
+        )
         ctx.save_for_backward(*tensors)
         func._inside_lean_function = True
         if keywords:
@@ -76,33 +82,42 @@ class _LeanFunction(torch.autograd.Function):
         if isinstance(func, Network):
             ret = tuple(flatten(ret))
         elif isinstance(ret, tuple):
-            assert all(isinstance(t, torch.Tensor) for t in ret), (
-                "The return value of func must be a Tensor or a tuple of Tensors"
-            )
+            assert all(
+                isinstance(t, torch.Tensor) for t in ret
+            ), "The return value of func must be a Tensor or a tuple of Tensors"
         else:
-            assert isinstance(ret, torch.Tensor), (
-                "The return value of func must be a Tensor or a tuple of Tensors"
-            )
+            assert isinstance(
+                ret, torch.Tensor
+            ), "The return value of func must be a Tensor or a tuple of Tensors"
         return ret
 
     @staticmethod
     def backward(ctx, grad_output):
         device_module = _get_device_module(ctx.device)
-        device_autocast_ctx = device_module.amp.autocast(
-            **ctx.device_autocast_kwargs) if _supports_autocast(
-                ctx.device) else contextlib.nullcontext()
+        device_autocast_ctx = (
+            device_module.amp.autocast(**ctx.device_autocast_kwargs)
+            if _supports_autocast(ctx.device)
+            else contextlib.nullcontext()
+        )
 
-        with torch.enable_grad(), device_autocast_ctx, \
-                 torch.cpu.amp.autocast(**ctx.cpu_autocast_kwargs):
+        with (
+            torch.enable_grad(),
+            device_autocast_ctx,
+            torch.cpu.amp.autocast(**ctx.cpu_autocast_kwargs),
+        ):
             # saved_tensors is the tensors passed for ctx.save_for_backward
             tensors = list(ctx.saved_tensors)
             func = ctx.func
             parameters = ctx.parameters
             num_parameters = len(parameters)
             args = tuple(
-                tensors.pop(0) if arg[0] else arg[1] for arg in ctx.args)
-            tensors = tuple(arg for i, arg in enumerate(args)
-                            if ctx.needs_input_grad[3 + num_parameters + i])
+                tensors.pop(0) if arg[0] else arg[1] for arg in ctx.args
+            )
+            tensors = tuple(
+                arg
+                for i, arg in enumerate(args)
+                if ctx.needs_input_grad[3 + num_parameters + i]
+            )
             keywords = ctx.keywords
             func._inside_lean_function = True
             if keywords:
@@ -116,9 +131,11 @@ class _LeanFunction(torch.autograd.Function):
         if isinstance(func, Network):
             out = tuple(flatten(out))
         grads = list(
-            torch.autograd.grad(out, parameters + tensors, grad_output))
+            torch.autograd.grad(out, parameters + tensors, grad_output)
+        )
         grads = tuple(
-            grads.pop(0) if need else None for need in ctx.needs_input_grad)
+            grads.pop(0) if need else None for need in ctx.needs_input_grad
+        )
         return grads
 
 
@@ -215,8 +232,14 @@ def lean_function(func: Callable) -> Callable:
         parameters = tuple(self.parameters())
         # Function.apply does not allow keyword arguments, so we have to convert
         # all keyword arguments to positional arguments
-        ret = _LeanFunction.apply(self, len(parameters), tuple(kwargs.keys()),
-                                  *parameters, *args, *tuple(kwargs.values()))
+        ret = _LeanFunction.apply(
+            self,
+            len(parameters),
+            tuple(kwargs.keys()),
+            *parameters,
+            *args,
+            *tuple(kwargs.values()),
+        )
         if isinstance(self, Network):
             ret = pack_sequence_as(specs, ret)
         return ret
@@ -224,8 +247,9 @@ def lean_function(func: Callable) -> Callable:
     def _wrapped_func(func, *args, **kwargs):
         # Function.apply does not allow keyword arguments, so we have to convert
         # all keyword arguments to positional arguments
-        ret = _LeanFunction.apply(func, 0, tuple(kwargs.keys()), *args,
-                                  *tuple(kwargs.values()))
+        ret = _LeanFunction.apply(
+            func, 0, tuple(kwargs.keys()), *args, *tuple(kwargs.values())
+        )
         return ret
 
     if isinstance(func, nn.Module):
@@ -271,9 +295,10 @@ def _get_autocast_kwargs(device="cuda"):
 
 def _supports_autocast(device):
     device_module = _get_device_module(device)
-    return device == "cuda" or (hasattr(device_module, "is_autocast_enabled")
-                                and hasattr(device_module,
-                                            "get_autocast_dtype"))
+    return device == "cuda" or (
+        hasattr(device_module, "is_autocast_enabled")
+        and hasattr(device_module, "get_autocast_dtype")
+    )
 
 
 def _get_device_module(device="cuda"):
@@ -282,11 +307,13 @@ def _get_device_module(device="cuda"):
 
 
 def _infer_device_type(*args):
-    device_types = list({
-        arg.device.type
-        for arg in args
-        if isinstance(arg, torch.Tensor) and not arg.device.type == "cpu"
-    })
+    device_types = list(
+        {
+            arg.device.type
+            for arg in args
+            if isinstance(arg, torch.Tensor) and not arg.device.type == "cpu"
+        }
+    )
     if len(device_types) > 1:
         logging.warning(
             "Tensor arguments, excluding CPU tensors, are detected on at least two types of devices. "
@@ -343,14 +370,17 @@ class SplitBatchRunner(torch.nn.Module):
         batch_size = alf.nest.get_nest_batch_size((args, kwargs))
         if self._max_batch_size <= 0 or batch_size <= self._max_batch_size:
             return self._model._original_forward_for_lean_function(
-                *args, **kwargs, **non_batched_inputs)
+                *args, **kwargs, **non_batched_inputs
+            )
 
         outputs = []
         for i in range(0, batch_size, self._max_batch_size):
             batch_args, batch_kwargs = alf.nest.map_structure(
-                lambda x: x[i:i + self._max_batch_size], (args, kwargs))
+                lambda x: x[i : i + self._max_batch_size], (args, kwargs)
+            )
             outputs.append(
-                self._model(*batch_args, **batch_kwargs, **non_batched_inputs))
+                self._model(*batch_args, **batch_kwargs, **non_batched_inputs)
+            )
 
         return alf.nest.map_structure(lambda *x: torch.cat(x, dim=0), *outputs)
 

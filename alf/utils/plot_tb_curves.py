@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
+from tensorboard.backend.event_processing.event_accumulator import (
+    EventAccumulator,
+)
 import numpy as np
 import os
 import glob
@@ -21,8 +23,9 @@ from scipy.signal import savgol_filter
 
 import matplotlib
 import matplotlib.pyplot as plt
+
 # Style gallery: https://tonysyu.github.io/raw_content/matplotlib-style-gallery/gallery.html
-plt.style.use('seaborn-dark')
+plt.style.use("seaborn-dark")
 
 import alf.nest as nest
 from alf.data_structures import namedtuple
@@ -65,10 +68,12 @@ def _compute_y_interval(interval_mode, ys):
 
 
 class MeanCurve(
-        namedtuple(
-            "MeanCurve",
-            ['x', 'y', 'min_y', 'max_y', 'ay', 'min_ay', 'max_ay', 'name'],
-            default_value=None)):
+    namedtuple(
+        "MeanCurve",
+        ["x", "y", "min_y", "max_y", "ay", "min_ay", "max_ay", "name"],
+        default_value=None,
+    )
+):
 
     @classmethod
     def from_curves(cls, x, ys, interval_mode="std", name="MeanCurve"):
@@ -90,20 +95,24 @@ class MeanCurve(
         ays = [np.mean(y, keepdims=True) for y in ys]
         # mean average_y, lower and upper average_y
         # average_y can be used to indicate the changing trend of y
-        ay, min_ay, max_ay = map(lambda z: z.squeeze(-1),
-                                 _compute_y_interval(interval_mode, ays))
-        return cls(x=x,
-                   y=y,
-                   min_y=min_y,
-                   max_y=max_y,
-                   ay=ay,
-                   min_ay=min_ay,
-                   max_ay=max_ay,
-                   name=name)
+        ay, min_ay, max_ay = map(
+            lambda z: z.squeeze(-1), _compute_y_interval(interval_mode, ays)
+        )
+        return cls(
+            x=x,
+            y=y,
+            min_y=min_y,
+            max_y=max_y,
+            ay=ay,
+            min_ay=min_ay,
+            max_ay=max_ay,
+            name=name,
+        )
 
     def final_y(self, N=1):
         return tuple(
-            map(lambda y: np.mean(y[-N:]), (self.y, self.min_y, self.max_y)))
+            map(lambda y: np.mean(y[-N:]), (self.y, self.min_y, self.max_y))
+        )
 
 
 class MeanCurveReader(object):
@@ -122,12 +131,14 @@ class MeanCurveReader(object):
     def y_label(self):
         raise NotImplementedError()
 
-    def __init__(self,
-                 event_file,
-                 x_steps=None,
-                 name="MeanCurveReader",
-                 smoothing=None,
-                 interval_mode="std"):
+    def __init__(
+        self,
+        event_file,
+        x_steps=None,
+        name="MeanCurveReader",
+        smoothing=None,
+        interval_mode="std",
+    ):
         """
         Args:
             event_file (str|list[str]): a string or a list of strings where
@@ -186,8 +197,9 @@ class MeanCurveReader(object):
                 min_x = max(min_x, steps[0])
                 # In case we always summarize every step in the first interval,
                 # len(steps) is much bigger than we expected. So we need to calculate.
-                num_steps = max(num_steps, (steps[-1] - steps[0]) //
-                                (steps[-1] - steps[-2]))
+                num_steps = max(
+                    num_steps, (steps[-1] - steps[0]) // (steps[-1] - steps[-2])
+                )
             # calculate x_steps by evenly dividing (min_x, max_x)
             assert max_x > min_x and num_steps > 1
             delta_x = (max_x - min_x) / (num_steps - 1)
@@ -196,14 +208,14 @@ class MeanCurveReader(object):
         for scalar_events in scalar_events_list:
             steps, values = zip(*[(se.step, se.value) for se in scalar_events])
             y = self._interpolate_and_smooth_if_necessary(
-                steps, values, x_steps, smoothing)
+                steps, values, x_steps, smoothing
+            )
             ys.append(np.array(y))
 
         x = x_steps
-        self._mean_curve = MeanCurve.from_curves(x=x,
-                                                 ys=ys,
-                                                 interval_mode=interval_mode,
-                                                 name=name)
+        self._mean_curve = MeanCurve.from_curves(
+            x=x, ys=ys, interval_mode=interval_mode, name=name
+        )
         self._name = name
 
     @property
@@ -213,12 +225,9 @@ class MeanCurveReader(object):
     def __call__(self):
         return self._mean_curve
 
-    def _interpolate_and_smooth_if_necessary(self,
-                                             steps,
-                                             values,
-                                             output_x,
-                                             smoothing=None,
-                                             kind="linear"):
+    def _interpolate_and_smooth_if_necessary(
+        self, steps, values, output_x, smoothing=None, kind="linear"
+    ):
         """First interpolate the ``(steps, values)`` pair to get a
         function. Then for the range ``(min_step, max_step)``,
         compute the values using the fitted function. Lastly apply a smoothing
@@ -245,11 +254,14 @@ class MeanCurveReader(object):
                 interpolated and smoothed y values.
         """
         # a rouch check to make sure the interpolation won't be too much
-        assert abs(steps[-1] - output_x[-1]) / output_x[-1] < 0.05, (
-            "Inconsistent final steps! actual %d output %d" %
-            (steps[-1], output_x[-1]))
+        assert (
+            abs(steps[-1] - output_x[-1]) / output_x[-1] < 0.05
+        ), "Inconsistent final steps! actual %d output %d" % (
+            steps[-1],
+            output_x[-1],
+        )
 
-        func = interp1d(steps, values, kind=kind, fill_value='extrapolate')
+        func = interp1d(steps, values, kind=kind, fill_value="extrapolate")
         new_values = func(output_x)
 
         if isinstance(smoothing, int):
@@ -261,7 +273,7 @@ class MeanCurveReader(object):
         return new_values
 
 
-def ema_smooth(scalars, weight=0.6, speed=64., adaptive=False, mode="forward"):
+def ema_smooth(scalars, weight=0.6, speed=64.0, adaptive=False, mode="forward"):
     r"""EMA smoothing, following TB's official implementation:
     https://github.com/tensorflow/tensorboard/blob/master/tensorboard/components/vz_line_chart2/line-chart.ts#L695
 
@@ -302,9 +314,9 @@ def ema_smooth(scalars, weight=0.6, speed=64., adaptive=False, mode="forward"):
     smoothed_forward = _smooth_one_pass(scalars)
     if mode != "forward":
         smoothed_backward = _smooth_one_pass(scalars[::-1])
-        smoothed = np.mean(np.array(
-            [smoothed_forward, smoothed_backward[::-1]]),
-                           axis=0)
+        smoothed = np.mean(
+            np.array([smoothed_forward, smoothed_backward[::-1]]), axis=0
+        )
     else:
         smoothed = smoothed_forward
     return smoothed
@@ -381,10 +393,12 @@ class MeanCurveGroupReader(object):
     The aggregation is simply averaging the statistics of individual ``MeanCurve``.
     """
 
-    def __init__(self,
-                 mean_curve_readers,
-                 task_performance_ranges=None,
-                 name="MeanCurveGroupReader"):
+    def __init__(
+        self,
+        mean_curve_readers,
+        task_performance_ranges=None,
+        name="MeanCurveGroupReader",
+    ):
         """
         Args:
             mean_curve_readers (list[MeanCurveReader]): a list of
@@ -401,7 +415,7 @@ class MeanCurveGroupReader(object):
             return (y - y0) / (y1 - y0)
 
         if task_performance_ranges is None:
-            task_performance_ranges = [(0., 1.)] * len(mean_curve_readers)
+            task_performance_ranges = [(0.0, 1.0)] * len(mean_curve_readers)
 
         assert len(mean_curve_readers) == len(task_performance_ranges)
         curves = [reader() for reader in mean_curve_readers]
@@ -416,9 +430,9 @@ class MeanCurveGroupReader(object):
         for key, val in agg_vals.items():
             agg_vals[key] = np.mean(val, axis=0)
 
-        self._mean_curve = MeanCurve(x=curves[0].x,
-                                     name=curves[0].name,
-                                     **agg_vals)
+        self._mean_curve = MeanCurve(
+            x=curves[0].x, name=curves[0].name, **agg_vals
+        )
 
         self._x_label = mean_curve_readers[0].x_label
         self._name = name
@@ -449,27 +463,29 @@ class CurvesPlotter(object):
     its ``x`` determines the x-axis range.
     """
 
-    def __init__(self,
-                 mean_curves,
-                 y_clipping=None,
-                 x_range=None,
-                 y_range=None,
-                 x_ticks=None,
-                 x_label=None,
-                 y_label=None,
-                 x_scaled_and_aligned=False,
-                 figsize=(4, 4),
-                 dpi=100,
-                 linestyle='-',
-                 linewidth=2,
-                 std_alpha=0.2,
-                 colors=None,
-                 markers=None,
-                 bg_color='white',
-                 grid_color='#e6e5e3',
-                 plot_mean_only=False,
-                 legend_kwargs=dict(loc="best"),
-                 title=None):
+    def __init__(
+        self,
+        mean_curves,
+        y_clipping=None,
+        x_range=None,
+        y_range=None,
+        x_ticks=None,
+        x_label=None,
+        y_label=None,
+        x_scaled_and_aligned=False,
+        figsize=(4, 4),
+        dpi=100,
+        linestyle="-",
+        linewidth=2,
+        std_alpha=0.2,
+        colors=None,
+        markers=None,
+        bg_color="white",
+        grid_color="#e6e5e3",
+        plot_mean_only=False,
+        legend_kwargs=dict(loc="best"),
+        title=None,
+    ):
         r"""
         Args:
             mean_curves (MeanCurve|list[MeanCurve]): each ``MeanCurve`` should
@@ -537,14 +553,14 @@ class CurvesPlotter(object):
             mean_curves = [mean_curves]
 
         if colors is None:
-            colors = ['C%d' % i for i in range(10)]
+            colors = ["C%d" % i for i in range(10)]
 
         if markers is None:
-            markers = [''] * len(mean_curves)
+            markers = [""] * len(mean_curves)
 
         if x_scaled_and_aligned:
             if x_range is None:
-                x_range = (0., 1.)
+                x_range = (0.0, 1.0)
             scaled_x = []
             # determine the lower and upper bounds of actual x
             min_x, max_x = int(1e15), 0
@@ -554,8 +570,9 @@ class CurvesPlotter(object):
 
             def _scale(x):
                 # compute a scaled x according to the bounds
-                return ((x - min_x) / (max_x - min_x) *
-                        (x_range[-1] - x_range[0]) + x_range[0])
+                return (x - min_x) / (max_x - min_x) * (
+                    x_range[-1] - x_range[0]
+                ) + x_range[0]
 
             for mc in mean_curves:
                 x0, x1 = _scale(mc.x[0]), _scale(mc.x[-1])
@@ -563,8 +580,7 @@ class CurvesPlotter(object):
                 scaled_x.append(np.arange(len(mc.y)) * delta_x + x0)
 
         def _clip_y(y):
-            return np.clip(y, y_clipping[0],
-                           y_clipping[1]) if y_clipping else y
+            return np.clip(y, y_clipping[0], y_clipping[1]) if y_clipping else y
 
         if not isinstance(linestyle, list):
             linestyle = [linestyle] * len(mean_curves)
@@ -573,29 +589,33 @@ class CurvesPlotter(object):
 
         for i, c in enumerate(mean_curves):
             color = colors[i % len(colors)]
-            x = (scaled_x[i] if x_scaled_and_aligned else c.x)
-            ax.plot(x,
-                    _clip_y(c.y),
-                    color=color,
-                    marker=markers[i],
-                    lw=linewidth,
-                    linestyle=linestyle[i],
-                    label=c.name)
+            x = scaled_x[i] if x_scaled_and_aligned else c.x
+            ax.plot(
+                x,
+                _clip_y(c.y),
+                color=color,
+                marker=markers[i],
+                lw=linewidth,
+                linestyle=linestyle[i],
+                label=c.name,
+            )
             if not plot_mean_only:
-                ax.fill_between(x,
-                                _clip_y(c.max_y),
-                                _clip_y(c.min_y),
-                                facecolor=color,
-                                alpha=std_alpha)
+                ax.fill_between(
+                    x,
+                    _clip_y(c.max_y),
+                    _clip_y(c.min_y),
+                    facecolor=color,
+                    alpha=std_alpha,
+                )
 
         if legend_kwargs is not None:
             ax.legend(**legend_kwargs)
         if bg_color is not None:
             ax.set_facecolor(bg_color)
         if grid_color is not None:
-            ax.grid(linestyle='--', color=grid_color)
+            ax.grid(linestyle="--", color=grid_color)
         else:
-            ax.grid(linestyle='-')
+            ax.grid(linestyle="-")
         if x_ticks is not None:
             ax.set_xticks(x_ticks)
         ax.ticklabel_format(axis="x", style="sci", scilimits=(0, 0))
@@ -621,10 +641,9 @@ class CurvesPlotter(object):
             close_fig (bool): whether to close/release this figure after plotting.
                 If ``False``, the user has to close it manually.
         """
-        self._fig.savefig(output_path,
-                          dpi=dpi,
-                          transparent=transparent,
-                          bbox_inches='tight')
+        self._fig.savefig(
+            output_path, dpi=dpi, transparent=transparent, bbox_inches="tight"
+        )
         if close_fig:
             plt.close(self._fig)
 
@@ -638,27 +657,34 @@ if __name__ == "__main__":
     methods = ["sac", "ddpg"]
     tasks = ["kickball", "navigation"]
 
-    curve_readers = [[
-        EnvironmentStepsReturnReader(event_file=glob.glob(
-            _get_curve_path("%s_%s/*/eval" % (m, t))),
-                                     x_steps=np.arange(0, 5000000, 10000),
-                                     name="%s_%s" % (m, t),
-                                     smoothing=3) for t in tasks
-    ] for m in methods]
+    curve_readers = [
+        [
+            EnvironmentStepsReturnReader(
+                event_file=glob.glob(_get_curve_path("%s_%s/*/eval" % (m, t))),
+                x_steps=np.arange(0, 5000000, 10000),
+                name="%s_%s" % (m, t),
+                smoothing=3,
+            )
+            for t in tasks
+        ]
+        for m in methods
+    ]
 
     # Scale and align x-axis of SAC and DDPG on task "kickball"
-    plotter = CurvesPlotter([cr[0]() for cr in curve_readers],
-                            x_label=curve_readers[0][0].x_label,
-                            y_label=curve_readers[0][0].y_label,
-                            y_range=(0, 1.0),
-                            x_range=(0, 5000000))
+    plotter = CurvesPlotter(
+        [cr[0]() for cr in curve_readers],
+        x_label=curve_readers[0][0].x_label,
+        y_label=curve_readers[0][0].y_label,
+        y_range=(0, 1.0),
+        x_range=(0, 5000000),
+    )
     plotter.plot(output_path="/tmp/kickball.pdf")
 
     # Now, to compare SAC with DDPG on navigation and kickball at the same time,
     # we use the normalized score.
     # [kickball, navigation]
-    random_return = [0., -10.]  # obtained by evaluating a random policy
-    sac_trained_return = [100., 50.]  # obtained by evaluating trained SAC
+    random_return = [0.0, -10.0]  # obtained by evaluating a random policy
+    sac_trained_return = [100.0, 50.0]  # obtained by evaluating trained SAC
     task_performance_ranges = list(zip(random_return, sac_trained_return))
 
     curve_group_readers = [
@@ -666,8 +692,10 @@ if __name__ == "__main__":
         for m, cr in zip(methods, curve_readers)
     ]
 
-    plotter = CurvesPlotter([cgr() for cgr in curve_group_readers],
-                            x_range=(0, 5000000),
-                            x_label=curve_group_readers[0].x_label,
-                            y_label=curve_group_readers[0].y_label)
+    plotter = CurvesPlotter(
+        [cgr() for cgr in curve_group_readers],
+        x_range=(0, 5000000),
+        x_label=curve_group_readers[0].x_label,
+        y_label=curve_group_readers[0].y_label,
+    )
     plotter.plot(output_path="/tmp/normalized_score.pdf")

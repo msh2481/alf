@@ -23,6 +23,7 @@ try:
     from metadrive.component.lane.metadrive_lane import MetaDriveLane
 except ImportError:
     from unittest.mock import Mock
+
     # create 'metadrive' as a mock to not break python argument type hints
     metadrive = Mock()
 
@@ -34,10 +35,9 @@ class FieldOfView(object):
 
     """
 
-    def __init__(self,
-                 front: float = 60.0,
-                 rear: float = 40.0,
-                 lateral: float = 30.0):
+    def __init__(
+        self, front: float = 60.0, rear: float = 40.0, lateral: float = 30.0
+    ):
         """Construct a FieldOfView object by specifying the relative metrics. Note that
         this is in car-body coordinate frame, where (1, 0) points to the car's
         orientation direction.
@@ -49,8 +49,14 @@ class FieldOfView(object):
             lateral: Defines how far away are visible to the left and right of the car.
 
         """
-        self._bbox = np.array([[-rear, -lateral], [front, -lateral],
-                               [front, lateral], [-rear, lateral]])
+        self._bbox = np.array(
+            [
+                [-rear, -lateral],
+                [front, -lateral],
+                [front, lateral],
+                [-rear, lateral],
+            ]
+        )
 
     @property
     def bbox(self):
@@ -66,21 +72,22 @@ class FieldOfView(object):
                 batch of input 2D points.
 
         Returns:
-            
+
             A (n-1)-d tensor with shape ``points.shape[:-1]``. Each
             cell in the result is True (the point is within the FOV)
             or False (the point is not within the FOV).
 
         """
         assert points.shape[-1] == 2
-        return np.all(np.logical_and(points >= self._bbox[0], points
-                                     <= self._bbox[2]),
-                      axis=-1)
+        return np.all(
+            np.logical_and(points >= self._bbox[0], points <= self._bbox[2]),
+            axis=-1,
+        )
 
 
 class CategoryEncoder(object):
-    """A category encoder can 
-       
+    """A category encoder can
+
     1. Convert integer categories into their corresponding one-hot encoding.
     2. Translate the type of driving scenario objects into its integer category.
 
@@ -163,12 +170,18 @@ class Polyline(NamedTuple):
     polyline(s) within it, and to extract features from it.
 
     """
+
     point: np.ndarray  # [B, S + 1, 2] or [S + 1, 2], float32
     category: Optional[np.ndarray] = None  # when not None, [B,] or [], int32
 
     @staticmethod
-    def from_lane(lane: MetaDriveLane, lateral: float, category: int,
-                  segment_resolution: float, polyline_size: int) -> Polyline:
+    def from_lane(
+        lane: MetaDriveLane,
+        lateral: float,
+        category: int,
+        segment_resolution: float,
+        polyline_size: int,
+    ) -> Polyline:
         """Constructs a Polyline instance from a MetaDrive lane.
 
         The constructed Polyline instance will contain a set of polylines. The
@@ -216,11 +229,12 @@ class Polyline(NamedTuple):
         num_polylines = int(np.ceil(lane.length / polyline_length))
         seg_len = lane.length / (num_polylines * polyline_size)
 
-        result = Polyline(point=np.zeros((num_polylines, polyline_size + 1, 2),
-                                         dtype=np.float32),
-                          category=np.full((num_polylines, ),
-                                           category,
-                                           dtype=np.int32))
+        result = Polyline(
+            point=np.zeros(
+                (num_polylines, polyline_size + 1, 2), dtype=np.float32
+            ),
+            category=np.full((num_polylines,), category, dtype=np.int32),
+        )
 
         # Here is the distance of the sampled point along the curve, from the
         # starting point of the curve.
@@ -266,8 +280,9 @@ class Polyline(NamedTuple):
 
         return Polyline(point=transformed, category=self.category)
 
-    def transformed_within_fov(self, position: np.ndarray, heading: float,
-                               fov: FieldOfView) -> Polyline:
+    def transformed_within_fov(
+        self, position: np.ndarray, heading: float, fov: FieldOfView
+    ) -> Polyline:
         """Transform the polylines into the car-body coordinate frame defined by the
         car's position and heading, and filtered out the polylines that are not
         within the field of view.
@@ -289,8 +304,10 @@ class Polyline(NamedTuple):
         within_bbox = fov.within(transformed.point)  # Shape is [B, S]
         within_bbox = np.any(within_bbox, axis=1)  # Shape is now [B,]
 
-        return Polyline(point=transformed.point[within_bbox],
-                        category=self.category[within_bbox])
+        return Polyline(
+            point=transformed.point[within_bbox],
+            category=self.category[within_bbox],
+        )
 
     def keep_closest_n(self, n: int) -> Polyline:
         """Filter the polylines so that only the closest ``n`` polylines are kept. The
@@ -300,14 +317,16 @@ class Polyline(NamedTuple):
         if self.point.shape[0] > n:
             distances = np.min(np.linalg.norm(self.point, axis=-1), axis=-1)
             closest = np.argpartition(distances, n)[:n]
-            return Polyline(point=self.point[closest],
-                            category=self.category[closest])
+            return Polyline(
+                point=self.point[closest], category=self.category[closest]
+            )
         return self
 
     def to_feature(
-            self,
-            required_batch_size: Optional[int] = None,
-            category_encoder: Optional[CategoryEncoder] = None) -> np.ndarray:
+        self,
+        required_batch_size: Optional[int] = None,
+        category_encoder: Optional[CategoryEncoder] = None,
+    ) -> np.ndarray:
         """Convert the polyline(s) to their corresponding feature vectors.
 
         Suppose there are B polylines, each with S segments (and therefore S + 1
@@ -347,8 +366,9 @@ class Polyline(NamedTuple):
         assert (size is None) == (required_batch_size is None)
         if required_batch_size is not None:
             assert size <= required_batch_size, (
-                f'batch size ({size}) should not exceed '
-                f'required_batch_size ({required_batch_size})')
+                f"batch size ({size}) should not exceed "
+                f"required_batch_size ({required_batch_size})"
+            )
 
         # S = polyline size
         S = self.point.shape[-2] - 1
@@ -364,22 +384,24 @@ class Polyline(NamedTuple):
         # TODO(breakds): Merge those almost identical duplicate code below if
         # there is a good way that does not hurt readability.
         if size is not None:
-            feature = np.zeros((required_batch_size, 6 * S + category_size),
-                               dtype=np.float32)
-            feature[:size, :(S * 2)] = mid_points.reshape(-1, S * 2)
-            feature[:size, (S * 2):(S * 4)] = vecs.reshape(-1, S * 2)
-            feature[:size, (S * 4):(S * 5)] = r.squeeze(axis=-1)
-            feature[:size, (S * 5):(S * 6)] = d.squeeze(axis=-1)
+            feature = np.zeros(
+                (required_batch_size, 6 * S + category_size), dtype=np.float32
+            )
+            feature[:size, : (S * 2)] = mid_points.reshape(-1, S * 2)
+            feature[:size, (S * 2) : (S * 4)] = vecs.reshape(-1, S * 2)
+            feature[:size, (S * 4) : (S * 5)] = r.squeeze(axis=-1)
+            feature[:size, (S * 5) : (S * 6)] = d.squeeze(axis=-1)
             if category_encoder is not None and self.category is not None:
-                feature[:size,
-                        (S * 6):] = category_encoder.get_codes(self.category)
+                feature[:size, (S * 6) :] = category_encoder.get_codes(
+                    self.category
+                )
         else:
             feature = np.zeros(6 * S, dtype=np.float32)
-            feature[:(S * 2)] = mid_points.reshape(S * 2)
-            feature[(S * 2):(S * 4)] = vecs.reshape(S * 2)
-            feature[(S * 4):(S * 5)] = r.squeeze(axis=-1)
-            feature[(S * 5):(S * 6)] = d.squeeze(axis=-1)
+            feature[: (S * 2)] = mid_points.reshape(S * 2)
+            feature[(S * 2) : (S * 4)] = vecs.reshape(S * 2)
+            feature[(S * 4) : (S * 5)] = r.squeeze(axis=-1)
+            feature[(S * 5) : (S * 6)] = d.squeeze(axis=-1)
             if category_encoder is not None and self.category is not None:
-                feature[(S * 6):] = category_encoder.get_codes(self.category)
+                feature[(S * 6) :] = category_encoder.get_codes(self.category)
 
         return feature

@@ -25,12 +25,15 @@ def gen_penv():
     try:
         import pybind11
     except:
-        assert os.system(
-            "pip install pybind11") == 0, "Fail to pip install pybind11"
+        assert (
+            os.system("pip install pybind11") == 0
+        ), "Fail to pip install pybind11"
     python = f"python{sys.version_info.major}.{sys.version_info.minor}"
-    cmd = (f"g++ -O3 -Wall -shared -std=c++17 -fPIC -fvisibility=hidden "
-           f"`{python} -m pybind11 --includes` parallel_environment.cpp "
-           f"-o _penv`{python}-config --extension-suffix` -lrt")
+    cmd = (
+        f"g++ -O3 -Wall -shared -std=c++17 -fPIC -fvisibility=hidden "
+        f"`{python} -m pybind11 --includes` parallel_environment.cpp "
+        f"-o _penv`{python}-config --extension-suffix` -lrt"
+    )
     ret = subprocess.run(["/bin/bash", "-c", cmd])
     assert ret.returncode == 0, "Fail to execute " + cmd
 

@@ -32,7 +32,8 @@ def _make_alg_experience(experience, name):
         rollout_info = getattr(experience.rollout_info, name)
     return experience._replace(
         rollout_info=rollout_info,
-        rollout_info_field=experience.rollout_info_field + '.' + name)
+        rollout_info_field=experience.rollout_info_field + "." + name,
+    )
 
 
 class AgentHelper(object):
@@ -59,26 +60,33 @@ class AgentHelper(object):
         self._alg_to_field_mapping[alg] = alg_field
         if alg_field in self._train_state_spec._fields:
             self._train_state_spec = self._train_state_spec._replace(
-                **{alg_field: alg.train_state_spec})
+                **{alg_field: alg.train_state_spec}
+            )
             self._rollout_state_spec = self._rollout_state_spec._replace(
-                **{alg_field: alg.rollout_state_spec})
+                **{alg_field: alg.rollout_state_spec}
+            )
             self._predict_state_spec = self._predict_state_spec._replace(
-                **{alg_field: alg.predict_state_spec})
+                **{alg_field: alg.predict_state_spec}
+            )
 
     def _get_algorithm_field(self, alg):
-        assert alg in self._alg_to_field_mapping, \
-                "Should first register this algorithm %s!" % alg.name
+        assert alg in self._alg_to_field_mapping, (
+            "Should first register this algorithm %s!" % alg.name
+        )
         return self._alg_to_field_mapping[alg]
 
     def state_specs(self):
         """Return the state specs collected from child algorithms."""
-        return dict(train_state_spec=self._train_state_spec,
-                    rollout_state_spec=self._rollout_state_spec,
-                    predict_state_spec=self._predict_state_spec)
+        return dict(
+            train_state_spec=self._train_state_spec,
+            rollout_state_spec=self._rollout_state_spec,
+            predict_state_spec=self._predict_state_spec,
+        )
 
     @staticmethod
-    def accumulate_algorithm_rewards(rewards, weights, names, summary_prefix,
-                                     summarize_fn):
+    def accumulate_algorithm_rewards(
+        rewards, weights, names, summary_prefix, summarize_fn
+    ):
         """Sum a list of rewards by their weights. Also summarize the rewards
         statistics given their names.
 
@@ -104,11 +112,9 @@ class AgentHelper(object):
             summarize_fn(os.path.join(summary_prefix, "overall"), reward)
         return reward
 
-    def accumulate_loss_info(self,
-                             algorithms,
-                             train_info,
-                             offline=False,
-                             pre_train=False):
+    def accumulate_loss_info(
+        self, algorithms, train_info, offline=False, pre_train=False
+    ):
         """Given an overall Agent training info that contains various training infos
         for different algorithms, compute the accumulated loss info for updating
         parameters.
@@ -136,17 +142,19 @@ class AgentHelper(object):
             else:
                 new_loss_info = algorithm.calc_loss_offline(info, pre_train)
             if loss_info is None:
-                return new_loss_info._replace(
-                    extra={name: new_loss_info.extra})
+                return new_loss_info._replace(extra={name: new_loss_info.extra})
             else:
                 loss_info.extra[name] = new_loss_info.extra
                 return LossInfo(
                     loss=add_ignore_empty(loss_info.loss, new_loss_info.loss),
-                    scalar_loss=add_ignore_empty(loss_info.scalar_loss,
-                                                 new_loss_info.scalar_loss),
+                    scalar_loss=add_ignore_empty(
+                        loss_info.scalar_loss, new_loss_info.scalar_loss
+                    ),
                     extra=loss_info.extra,
-                    priority=add_ignore_empty(loss_info.priority,
-                                              new_loss_info.priority))
+                    priority=add_ignore_empty(
+                        loss_info.priority, new_loss_info.priority
+                    ),
+                )
 
         loss_info = None
         for alg in algorithms:
@@ -187,14 +195,15 @@ class AgentHelper(object):
         """
         for alg in algorithms:
             field = self._get_algorithm_field(alg)
-            info = (None if rollout_info is None else getattr(
-                rollout_info, field))
+            info = (
+                None if rollout_info is None else getattr(rollout_info, field)
+            )
             alg.after_train_iter(root_inputs, info)
 
     def set_path(self, path):
         """Set the path for the sub-algorithms."""
         prefix = path
         if path:
-            prefix = prefix + '.'
+            prefix = prefix + "."
         for alg, name in self._alg_to_field_mapping.items():
             alg.set_path(path + name)

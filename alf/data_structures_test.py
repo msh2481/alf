@@ -62,12 +62,14 @@ class TimeStepTest(unittest.TestCase):
         observation = torch.tensor(-1)
         prev_action = torch.tensor(-1)
         env_id = torch.tensor(0, dtype=torch.int32)
-        time_step = TimeStep(step_type=step_type,
-                             reward=reward,
-                             discount=discount,
-                             observation=observation,
-                             prev_action=prev_action,
-                             env_id=env_id)
+        time_step = TimeStep(
+            step_type=step_type,
+            reward=reward,
+            discount=discount,
+            observation=observation,
+            prev_action=prev_action,
+            env_id=env_id,
+        )
         self.assertEqual(StepType.FIRST, time_step.step_type)
         self.assertEqual(reward, time_step.reward)
         self.assertEqual(discount, time_step.discount)
@@ -83,14 +85,14 @@ class ExperienceTest(alf.test.TestCase):
         func = lambda x: x + 1
         res = map_structure(func, exp)
 
-        map_structure(lambda x, y: self.assertTensorClose(func(x), y), exp,
-                      res)
+        map_structure(lambda x, y: self.assertTensorClose(func(x), y), exp, res)
 
         flat_exp = flatten(exp)
         flat_res = map_structure(func, flat_exp)
-        map_structure(lambda x, y: self.assertTensorClose(x, y), flatten(res),
-                      flat_res)
+        map_structure(
+            lambda x, y: self.assertTensorClose(x, y), flatten(res), flat_res
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

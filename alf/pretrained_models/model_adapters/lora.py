@@ -47,11 +47,13 @@ class LoRA(nn.Module):
     will differ for different modules.
     """
 
-    def __init__(self,
-                 m: nn.Module,
-                 rank: int = 16,
-                 weight: float = 1.,
-                 name: str = 'LoRA'):
+    def __init__(
+        self,
+        m: nn.Module,
+        rank: int = 16,
+        weight: float = 1.0,
+        name: str = "LoRA",
+    ):
         """
         Args:
             m: the module to be adapted
@@ -114,9 +116,10 @@ class LoRA(nn.Module):
 
         After this, ``m.forward()`` will be computed with the adapter weights.
         """
-        assert not hasattr(m, '_forward0'), (
+        assert not hasattr(m, "_forward0"), (
             "The module has already been adapted! You need to first remove the "
-            "adapter.")
+            "adapter."
+        )
         forward0 = m.forward
         adapter_forward = self.forward
 
@@ -173,8 +176,7 @@ class LoRA(nn.Module):
 
     @classmethod
     def can_adapt(cls, m: nn.Module) -> bool:
-        """Check if the adapter class can adapt a given module.
-        """
+        """Check if the adapter class can adapt a given module."""
         raise NotImplementedError()
 
     @classmethod
@@ -196,8 +198,7 @@ class LoRA(nn.Module):
 
 @alf.configurable
 class EmbeddingAdapter(LoRA):
-    """Adapter for embedding layers.
-    """
+    """Adapter for embedding layers."""
 
     @classmethod
     def can_adapt(cls, m: nn.Module) -> bool:
@@ -213,8 +214,15 @@ class EmbeddingAdapter(LoRA):
             embedding_table = self._wB
         else:
             embedding_table = self._wA
-        input = F.embedding(input, embedding_table, m.padding_idx, m.max_norm,
-                            m.norm_type, m.scale_grad_by_freq, m.sparse)
+        input = F.embedding(
+            input,
+            embedding_table,
+            m.padding_idx,
+            m.max_norm,
+            m.norm_type,
+            m.scale_grad_by_freq,
+            m.sparse,
+        )
         if self._wB is not None:
             input = input @ self._wA
         return input * self.scaling
@@ -222,8 +230,7 @@ class EmbeddingAdapter(LoRA):
 
 @alf.configurable
 class LinearAdapter(LoRA):
-    """Adapter for linear layers.
-    """
+    """Adapter for linear layers."""
 
     @classmethod
     def can_adapt(cls, m: nn.Module) -> bool:
@@ -283,25 +290,29 @@ class Conv2dAdapter(LoRA):
             # 2. m.padding is a string: torch will compute paddings on the fly,
             #    so we won't know its values in advance.
             # 3. low-rank decomposition is not available
-            return F.conv2d(input,
-                            self._adapter_weight(),
-                            stride=m.stride,
-                            padding=m.padding,
-                            dilation=m.dilation,
-                            groups=m.groups)
+            return F.conv2d(
+                input,
+                self._adapter_weight(),
+                stride=m.stride,
+                padding=m.padding,
+                dilation=m.dilation,
+                groups=m.groups,
+            )
         else:
-            input = F.conv2d(input,
-                             self._wA.reshape(self._r, m.in_channels, 1,
-                                              m.kernel_size[1]),
-                             stride=(1, m.stride[1]),
-                             padding=(0, m.padding[1]),
-                             dilation=(1, m.dilation[1]))
-            output = F.conv2d(input,
-                              self._wB.reshape(m.out_channels, self._r,
-                                               m.kernel_size[0], 1),
-                              stride=(m.stride[0], 1),
-                              padding=(m.padding[0], 0),
-                              dilation=(m.dilation[0], 1))
+            input = F.conv2d(
+                input,
+                self._wA.reshape(self._r, m.in_channels, 1, m.kernel_size[1]),
+                stride=(1, m.stride[1]),
+                padding=(0, m.padding[1]),
+                dilation=(1, m.dilation[1]),
+            )
+            output = F.conv2d(
+                input,
+                self._wB.reshape(m.out_channels, self._r, m.kernel_size[0], 1),
+                stride=(m.stride[0], 1),
+                padding=(m.padding[0], 0),
+                dilation=(m.dilation[0], 1),
+            )
             return output * self.scaling
 
     def _adapter_weight(self):
@@ -311,8 +322,9 @@ class Conv2dAdapter(LoRA):
         else:
             # This weight tensor has to be consistent with the two-stage conv in
             # ``self.forward()``
-            wa = self._wA.reshape(self._r, m.in_channels // m.groups,
-                                  m.kernel_size[1])
+            wa = self._wA.reshape(
+                self._r, m.in_channels // m.groups, m.kernel_size[1]
+            )
             wb = self._wB.reshape(m.out_channels, self._r, m.kernel_size[0])
-            w = torch.einsum('rik,org->oigk', wa, wb)
+            w = torch.einsum("rik,org->oigk", wa, wb)
         return w * self.scaling

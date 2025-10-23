@@ -26,18 +26,21 @@ def _gammaincinv(a, y):
     # pytorch does not have a native implementation of gammaincinv, so we
     # have to use scipy.
     return convert_device(
-        torch.as_tensor(scipy.special.gammaincinv(a.cpu().numpy(),
-                                                  y.cpu().numpy()),
-                        device='cpu'))
+        torch.as_tensor(
+            scipy.special.gammaincinv(a.cpu().numpy(), y.cpu().numpy()),
+            device="cpu",
+        )
+    )
 
 
 class _CategoricalSeedSamplerBase(alf.nn.Network):
     # The reason of separate _CategoricalSeedSamplerBase from CategoricalSeedSampler
     # is for easier unittest.
     def __init__(self, num_classes, new_noise_prob=0.01, concentration=1):
-        input_tensor_spec = alf.TensorSpec((num_classes, ))
-        super().__init__(input_tensor_spec=input_tensor_spec,
-                         state_spec=input_tensor_spec)
+        input_tensor_spec = alf.TensorSpec((num_classes,))
+        super().__init__(
+            input_tensor_spec=input_tensor_spec, state_spec=input_tensor_spec
+        )
         self._concentration = concentration
         self._new_noise_prob = new_noise_prob
 
@@ -85,10 +88,12 @@ class CategoricalSeedSampler(_CategoricalSeedSamplerBase):
             tends to generate :math:`\tilde{\pi}` closer to :math:`\pi`.
     """
 
-    def __init__(self,
-                 num_classes: int,
-                 new_noise_prob: float = 0.01,
-                 concentration: float = 1):
+    def __init__(
+        self,
+        num_classes: int,
+        new_noise_prob: float = 0.01,
+        concentration: float = 1,
+    ):
         super().__init__(num_classes, new_noise_prob, concentration)
 
     def forward(self, input: torch.Tensor, state: torch.Tensor):
@@ -137,8 +142,7 @@ class EpsilonGreedySampler(nn.Module):
 
 @alf.repr_wrapper
 class MultinomialSampler(nn.Module):
-    """Sample actions according to the given multinomial distribution.
-    """
+    """Sample actions according to the given multinomial distribution."""
 
     def __init__(self):
         super().__init__()

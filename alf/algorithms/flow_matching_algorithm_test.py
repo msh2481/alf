@@ -31,8 +31,9 @@ class _VectorFieldNetwork(alf.networks.Network):
     """
 
     def __init__(self, input_tensor_spec):
-        super().__init__(input_tensor_spec=input_tensor_spec,
-                         name="VectorFieldNetwork")
+        super().__init__(
+            input_tensor_spec=input_tensor_spec, name="VectorFieldNetwork"
+        )
         self._img_spec = input_tensor_spec[0]
         label_spec = None
         in_channels = self._img_spec.shape[0] + 1
@@ -40,14 +41,16 @@ class _VectorFieldNetwork(alf.networks.Network):
             label_spec = input_tensor_spec[-1]
         if label_spec is not None:
             self._label_embedding = torch.nn.Embedding(
-                num_embeddings=label_spec.maximum + 1, embedding_dim=4)
+                num_embeddings=label_spec.maximum + 1, embedding_dim=4
+            )
             in_channels += 4
         self._unet_input_resize = Resize((32, 32))
-        self._unet = MoNetUNet(input_tensor_spec=alf.TensorSpec(
-            (in_channels, 32, 32)),
-                               filters=(32, 64, 64, 128, 256),
-                               nonskip_fc_layers=(512, ),
-                               output_channels=self._img_spec.shape[0])
+        self._unet = MoNetUNet(
+            input_tensor_spec=alf.TensorSpec((in_channels, 32, 32)),
+            filters=(32, 64, 64, 128, 256),
+            nonskip_fc_layers=(512,),
+            output_channels=self._img_spec.shape[0],
+        )
         self._unet_output_resize = Resize(self._img_spec.shape[-2:])
 
     def forward(self, inputs, state=()):
@@ -60,8 +63,9 @@ class _VectorFieldNetwork(alf.networks.Network):
         if label is not None:
             # [B] -> [B,4]
             label = self._label_embedding(label)
-            label = label[..., None, None].expand(-1, -1, H,
-                                                  W)  # [B,4] -> [B,4,H,W]
+            label = label[..., None, None].expand(
+                -1, -1, H, W
+            )  # [B,4] -> [B,4,H,W]
             inputs = torch.cat([img, tau, label], dim=1)
         else:
             inputs = torch.cat([img, tau], dim=1)
@@ -89,17 +93,17 @@ class FlowMatchingAlgorithmTest(alf.test.TestCase):
         device = alf.get_default_device()
         flow_match_alg = FlowMatchingAlgorithm(
             output_tensor_spec=image_spec,
-            cond_input_tensor_spec=alf.BoundedTensorSpec((),
-                                                         maximum=9,
-                                                         dtype=torch.int64),
+            cond_input_tensor_spec=alf.BoundedTensorSpec(
+                (), maximum=9, dtype=torch.int64
+            ),
             vector_field_network_ctor=_VectorFieldNetwork,
-            tau_beta_paras=(1., 1.5),
-            noise_std=2.,
-            integration_steps=30)
+            tau_beta_paras=(1.0, 1.5),
+            noise_std=2.0,
+            integration_steps=30,
+        )
 
         # Train
-        optimizer = torch.optim.Adam(list(flow_match_alg.parameters()),
-                                     lr=1e-2)
+        optimizer = torch.optim.Adam(list(flow_match_alg.parameters()), lr=1e-2)
         if name == "mnist":
             train_loader, test_loader = load_mnist(train_bs=128)
         else:
@@ -112,9 +116,9 @@ class FlowMatchingAlgorithmTest(alf.test.TestCase):
                 try:
                     # No good way to let the data loader directly load CUDA tensors,
                     # so we have to manually set the device.
-                    alf.set_default_device('cpu')
+                    alf.set_default_device("cpu")
                     img, label = next(data_iter)
-                    if device != 'cpu':
+                    if device != "cpu":
                         img, label = img.cuda(), label.cuda()
                 except StopIteration:
                     break
@@ -135,8 +139,9 @@ class FlowMatchingAlgorithmTest(alf.test.TestCase):
             classes = torch.tensor(list(range(10)), dtype=torch.int64)
             classes = torch.repeat_interleave(classes, samples_per_class)
             # [B,1,H,W]
-            imgs = flow_match_alg.generate(classes,
-                                           return_intermediate_steps=True)
+            imgs = flow_match_alg.generate(
+                classes, return_intermediate_steps=True
+            )
             # take the denoising steps every two
             imgs = imgs[::2]
 

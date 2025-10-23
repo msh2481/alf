@@ -15,4 +15,4 @@
 import alf
 from alf.examples import sac_bipedal_walker_conf
 
-alf.config('SacAlgorithm', parameter_reset_period=7e4)
+alf.config("SacAlgorithm", parameter_reset_period=7e4)

@@ -19,17 +19,17 @@ import alf
 from alf.algorithms.agent import Agent
 from alf.algorithms.ppo_algorithm import PPOAlgorithm, PPOLoss
 
-alf.config('Agent',
-           rl_algorithm_cls=PPOAlgorithm,
-           enforce_entropy_target=False)
+alf.config("Agent", rl_algorithm_cls=PPOAlgorithm, enforce_entropy_target=False)
 
-alf.config('EntropyTargetAlgorithm', initial_alpha=1.)
+alf.config("EntropyTargetAlgorithm", initial_alpha=1.0)
 
-alf.config('PPOLoss', entropy_regularization=None, normalize_advantages=True)
+alf.config("PPOLoss", entropy_regularization=None, normalize_advantages=True)
 
-alf.config('PPOAlgorithm', loss_class=PPOLoss)
+alf.config("PPOAlgorithm", loss_class=PPOLoss)
 
-alf.config('TrainerConfig',
-           algorithm_ctor=Agent,
-           whole_replay_buffer_training=True,
-           clear_replay_buffer=True)
+alf.config(
+    "TrainerConfig",
+    algorithm_ctor=Agent,
+    whole_replay_buffer_training=True,
+    clear_replay_buffer=True,
+)

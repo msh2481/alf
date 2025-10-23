@@ -28,8 +28,13 @@ from alf.utils.common import expand_dims_as, is_eval
 from .network import Network, wrap_as_network
 
 __all__ = [
-    'LSTMCell', 'GRUCell', 'NoisyFC', 'Residue', 'TemporalPool', 'Delay',
-    'AMPWrapper'
+    "LSTMCell",
+    "GRUCell",
+    "NoisyFC",
+    "Residue",
+    "TemporalPool",
+    "Delay",
+    "AMPWrapper",
 ]
 
 
@@ -50,19 +55,22 @@ class LSTMCell(Network):
     where :math:`\sigma` is the sigmoid function, and :math:`*` is the Hadamard product.
     """
 
-    def __init__(self, input_size, hidden_size, name='LSTMCell'):
+    def __init__(self, input_size, hidden_size, name="LSTMCell"):
         """
         Args:
             input_size (int): The number of expected features in the input `x`
             hidden_size (int): The number of features in the hidden state `h`
         """
-        state_spec = (alf.TensorSpec(
-            (hidden_size, )), alf.TensorSpec((hidden_size, )))
-        super().__init__(input_tensor_spec=alf.TensorSpec((input_size, )),
-                         state_spec=state_spec,
-                         name=name)
-        self._cell = nn.LSTMCell(input_size=input_size,
-                                 hidden_size=hidden_size)
+        state_spec = (
+            alf.TensorSpec((hidden_size,)),
+            alf.TensorSpec((hidden_size,)),
+        )
+        super().__init__(
+            input_tensor_spec=alf.TensorSpec((input_size,)),
+            state_spec=state_spec,
+            name=name,
+        )
+        self._cell = nn.LSTMCell(input_size=input_size, hidden_size=hidden_size)
 
     def forward(self, input, state):
         h_state, c_state = self._cell(input, state)
@@ -84,15 +92,17 @@ class GRUCell(Network):
     where :math:`\sigma` is the sigmoid function, and :math:`*` is the Hadamard product.
     """
 
-    def __init__(self, input_size, hidden_size, name='GRUCell'):
+    def __init__(self, input_size, hidden_size, name="GRUCell"):
         """
         Args:
             input_size (int): The number of expected features in the input `x`
             hidden_size (int): The number of features in the hidden state `h`
         """
-        super().__init__(input_tensor_spec=alf.TensorSpec((input_size, )),
-                         state_spec=alf.TensorSpec((hidden_size, )),
-                         name=name)
+        super().__init__(
+            input_tensor_spec=alf.TensorSpec((input_size,)),
+            state_spec=alf.TensorSpec((hidden_size,)),
+            name=name,
+        )
         self._cell = nn.GRUCell(input_size, hidden_size)
 
     def forward(self, input, state):
@@ -106,11 +116,13 @@ class Residue(Network):
     It performs ``y = activation(x + block(x))``.
     """
 
-    def __init__(self,
-                 block,
-                 input_tensor_spec=None,
-                 activation=torch.relu_,
-                 name='Residue'):
+    def __init__(
+        self,
+        block,
+        input_tensor_spec=None,
+        activation=torch.relu_,
+        name="Residue",
+    ):
         """
         Args:
             block (Callable):
@@ -119,9 +131,11 @@ class Residue(Network):
             activation (Callable): activation function
         """
         block = wrap_as_network(block, input_tensor_spec)
-        super().__init__(input_tensor_spec=block.input_tensor_spec,
-                         state_spec=block.state_spec,
-                         name='Residue')
+        super().__init__(
+            input_tensor_spec=block.input_tensor_spec,
+            state_spec=block.state_spec,
+            name="Residue",
+        )
         self._block = block
         self._activation = activation
 
@@ -179,13 +193,15 @@ class TemporalPool(Network):
 
     """
 
-    def __init__(self,
-                 input_size,
-                 stack_size,
-                 pooling_size=1,
-                 dtype=torch.float32,
-                 mode='skip',
-                 name='TemporalPool'):
+    def __init__(
+        self,
+        input_size,
+        stack_size,
+        pooling_size=1,
+        dtype=torch.float32,
+        mode="skip",
+        name="TemporalPool",
+    ):
         """
         Args:
             input_size (int|tuple[int]): shape of the input
@@ -207,21 +223,21 @@ class TemporalPool(Network):
         if isinstance(input_size, typing.Iterable):
             input_size = tuple(input_size)
         else:
-            input_size = (input_size, )
-        shape = (stack_size, ) + input_size
+            input_size = (input_size,)
+        shape = (stack_size,) + input_size
         input_tensor_spec = alf.TensorSpec(input_size, dtype=dtype)
         self._pooling_size = pooling_size
         if pooling_size == 1:
-            state_spec = alf.TensorSpec((stack_size - 1, ) + input_size, dtype)
-        elif mode == 'skip':
+            state_spec = alf.TensorSpec((stack_size - 1,) + input_size, dtype)
+        elif mode == "skip":
             self._pool_func = self._skip_pool
             pool_state_spec = ()
             self._update_step = 1
-        elif mode == 'avg':
+        elif mode == "avg":
             self._pool_func = self._avg_pool
             pool_state_spec = input_tensor_spec
             self._update_step = 0
-        elif mode == 'max':
+        elif mode == "max":
             self._pool_func = self._max_pool
             pool_state_spec = input_tensor_spec
             self._update_step = 0
@@ -229,9 +245,11 @@ class TemporalPool(Network):
             raise ValueError("Unknown mode '%s'" % mode)
 
         if pooling_size > 1:
-            state_spec = (alf.TensorSpec(shape, input_tensor_spec.dtype),
-                          pool_state_spec, alf.TensorSpec((),
-                                                          dtype=torch.int64))
+            state_spec = (
+                alf.TensorSpec(shape, input_tensor_spec.dtype),
+                pool_state_spec,
+                alf.TensorSpec((), dtype=torch.int64),
+            )
         super().__init__(input_tensor_spec, state_spec=state_spec, name=name)
 
     def forward(self, x, state):
@@ -245,22 +263,25 @@ class TemporalPool(Network):
             step = step % self._pooling_size
             output = torch.where(
                 expand_dims_as(step == self._update_step, output),
-                torch.cat(
-                    [output[:, 1:, ...], pool.unsqueeze(1)], dim=1), output)
+                torch.cat([output[:, 1:, ...], pool.unsqueeze(1)], dim=1),
+                output,
+            )
             return output, (output, pool_state, step)
 
     def _skip_pool(self, x, state, step):
         return x, ()
 
     def _avg_pool(self, x, state, step):
-        w = expand_dims_as(1. / step.to(torch.float32), x)
-        state = torch.where(expand_dims_as(step == 1, x), x,
-                            torch.lerp(state, x, w))
+        w = expand_dims_as(1.0 / step.to(torch.float32), x)
+        state = torch.where(
+            expand_dims_as(step == 1, x), x, torch.lerp(state, x, w)
+        )
         return state, state
 
     def _max_pool(self, x, state, step):
-        state = torch.where(expand_dims_as(step == 1, x), x,
-                            torch.max(x, state))
+        state = torch.where(
+            expand_dims_as(step == 1, x), x, torch.max(x, state)
+        )
         return state, state
 
 
@@ -272,7 +293,7 @@ class Delay(Network):
         delay (int): if 0, there is no delay and the output is same as the input.
     """
 
-    def __init__(self, input_tensor_spec, delay=1, name='Delay'):
+    def __init__(self, input_tensor_spec, delay=1, name="Delay"):
         if delay == 0:
             state_spec = ()
             self._forward = lambda i, s: (i, ())
@@ -280,12 +301,14 @@ class Delay(Network):
             state_spec = input_tensor_spec
             self._forward = lambda i, s: (s, i)
         else:
-            state_spec = (input_tensor_spec, ) * delay
-            self._forward = lambda i, s: (s[0], s[1:] + (i, ))
+            state_spec = (input_tensor_spec,) * delay
+            self._forward = lambda i, s: (s[0], s[1:] + (i,))
 
-        super().__init__(input_tensor_spec=input_tensor_spec,
-                         state_spec=state_spec,
-                         name=name)
+        super().__init__(
+            input_tensor_spec=input_tensor_spec,
+            state_spec=state_spec,
+            name=name,
+        )
 
     def forward(self, input, state):
         return self._forward(input, state)
@@ -300,12 +323,12 @@ class AMPWrapper(Network):
     """
 
     def __init__(self, enabled: bool, net: Network):
-        super().__init__(net.input_tensor_spec,
-                         state_spec=net.state_spec,
-                         name=net.name)
+        super().__init__(
+            net.input_tensor_spec, state_spec=net.state_spec, name=net.name
+        )
         self._net = net
         self._enabled = enabled
-        self._amp_dtype = alf.get_config_value('TrainerConfig.amp_dtype')
+        self._amp_dtype = alf.get_config_value("TrainerConfig.amp_dtype")
 
     def forward(self, input, state):
         if torch.is_autocast_enabled() and not self._enabled:
@@ -366,25 +389,30 @@ class NoisyFC(Network):
             optimizer arguments for bias_sigma.
     """
 
-    def __init__(self,
-                 input_size: int,
-                 output_size: int,
-                 std_init: float = 0.5,
-                 new_noise_prob: float = 0.01,
-                 activation: Callable = identity,
-                 use_bn: bool = False,
-                 use_ln: bool = False,
-                 bn_ctor: Callable = nn.BatchNorm1d,
-                 kernel_initializer: Optional[Callable] = None,
-                 kernel_init_gain: float = 1.0,
-                 bias_init_value: float = 0.0,
-                 bias_initializer: Optional[Callable] = None,
-                 weight_opt_args: Optional[Dict] = None,
-                 bias_opt_args: Optional[Dict] = None):
-        super().__init__(input_tensor_spec=alf.TensorSpec((input_size, )),
-                         state_spec=(alf.TensorSpec(
-                             (input_size, )), alf.TensorSpec(
-                                 (output_size, )))),
+    def __init__(
+        self,
+        input_size: int,
+        output_size: int,
+        std_init: float = 0.5,
+        new_noise_prob: float = 0.01,
+        activation: Callable = identity,
+        use_bn: bool = False,
+        use_ln: bool = False,
+        bn_ctor: Callable = nn.BatchNorm1d,
+        kernel_initializer: Optional[Callable] = None,
+        kernel_init_gain: float = 1.0,
+        bias_init_value: float = 0.0,
+        bias_initializer: Optional[Callable] = None,
+        weight_opt_args: Optional[Dict] = None,
+        bias_opt_args: Optional[Dict] = None,
+    ):
+        super().__init__(
+            input_tensor_spec=alf.TensorSpec((input_size,)),
+            state_spec=(
+                alf.TensorSpec((input_size,)),
+                alf.TensorSpec((output_size,)),
+            ),
+        ),
         self._input_size = input_size
         self._output_size = output_size
         self._activation = activation
@@ -412,13 +440,13 @@ class NoisyFC(Network):
         if weight_opt_args:
             self._weight.opt_args = weight_opt_args
             weight_opt_args = copy.copy(weight_opt_args)
-            weight_opt_args['zero_mean'] = False
-            weight_opt_args['fixed_norm'] = False
+            weight_opt_args["zero_mean"] = False
+            weight_opt_args["fixed_norm"] = False
             self._weight_sigma.opt_args = weight_opt_args
         if bias_opt_args and self._bias is not None:
             self._bias.opt_args = bias_opt_args
             bias_opt_args = copy.copy(bias_opt_args)
-            bias_opt_args['zero_mean'] = False
+            bias_opt_args["zero_mean"] = False
             self._bias_sigma.opt_args = bias_opt_args
 
     @property
@@ -440,19 +468,23 @@ class NoisyFC(Network):
     def reset_parameters(self):
         """Initialize the parameters."""
         if self._kernel_initializer is None:
-            variance_scaling_init(self._weight.data,
-                                  gain=self._kernel_init_gain,
-                                  nonlinearity=self._activation)
+            variance_scaling_init(
+                self._weight.data,
+                gain=self._kernel_init_gain,
+                nonlinearity=self._activation,
+            )
         else:
             self._kernel_initializer(self._weight.data)
-        self._weight_sigma.data.fill_(self._std_init /
-                                      math.sqrt(self._input_size))
+        self._weight_sigma.data.fill_(
+            self._std_init / math.sqrt(self._input_size)
+        )
         if self._bias_initializer is not None:
             self._bias_initializer(self._bias.data)
         else:
             nn.init.constant_(self._bias.data, self._bias_init_value)
-        self._bias_sigma.data.fill_(self._std_init /
-                                    math.sqrt(self._output_size))
+        self._bias_sigma.data.fill_(
+            self._std_init / math.sqrt(self._output_size)
+        )
         if self._use_ln:
             self._ln.reset_parameters()
         if self._use_bn:
@@ -477,13 +509,13 @@ class NoisyFC(Network):
         if not is_eval():
             batch_size = input.shape[0]
             new_epsilon_in = self._scale_noise((batch_size, self._input_size))
-            new_epsilon_out = self._scale_noise(
-                (batch_size, self._output_size))
+            new_epsilon_out = self._scale_noise((batch_size, self._output_size))
             new_noise = torch.rand(batch_size) < self._new_noise_prob
             # The initial state is always 0. So we need to generate new noise
             # for initial state.
-            new_noise = new_noise | ((epsilon_in == 0).all(dim=1) &
-                                     (epsilon_out == 0).all(dim=1))
+            new_noise = new_noise | (
+                (epsilon_in == 0).all(dim=1) & (epsilon_out == 0).all(dim=1)
+            )
             new_noise = new_noise.unsqueeze(-1)
             epsilon_in = torch.where(new_noise, new_epsilon_in, epsilon_in)
             epsilon_out = torch.where(new_noise, new_epsilon_out, epsilon_out)

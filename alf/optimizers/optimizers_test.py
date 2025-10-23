@@ -43,8 +43,9 @@ class LRBatchEnsemble(nn.Module):
         """
         nn.Module.__init__(self)
         self._beta = nn.Parameter(torch.rand(ensemble_size, input_size))
-        assert isinstance(ensemble_group,
-                          int), ("ensemble_group has to be an integer!")
+        assert isinstance(
+            ensemble_group, int
+        ), "ensemble_group has to be an integer!"
         self._beta.ensemble_group = ensemble_group
         self._input_size = input_size
         self._ensemble_size = ensemble_size
@@ -81,7 +82,7 @@ class OptimizersTest(parameterized.TestCase, alf.test.TestCase):
         """
         x = data.detach().clone()
         if x.dim() > 2:
-            raise ValueError('data has more than 2 dimensions')
+            raise ValueError("data has more than 2 dimensions")
         if x.dim() < 2:
             x = x.view(1, -1)
         if not rowvar and x.size(0) != 1:
@@ -108,10 +109,10 @@ class OptimizersTest(parameterized.TestCase, alf.test.TestCase):
         y = layer(x)
         loss = torch.sum(y**2)
         clip_norm = 1e-4
-        opt = AdamTF(lr=0.1,
-                     gradient_clipping=clip_norm,
-                     clip_by_global_norm=True)
-        opt.add_param_group({'params': layer.parameters()})
+        opt = AdamTF(
+            lr=0.1, gradient_clipping=clip_norm, clip_by_global_norm=True
+        )
+        opt.add_param_group({"params": layer.parameters()})
         opt.zero_grad()
         loss.backward()
 
@@ -126,9 +127,9 @@ class OptimizersTest(parameterized.TestCase, alf.test.TestCase):
         opt.step()
         self.assertTensorClose(_grad_norm(params), torch.as_tensor(clip_norm))
 
-    @parameterized.parameters('svgd', 'gfsf')
-    def test_parvi_grad_step(self, parvi='svgd'):
-        """Check consistency of one step grad update with ParVIAlgorithm. """
+    @parameterized.parameters("svgd", "gfsf")
+    def test_parvi_grad_step(self, parvi="svgd"):
+        """Check consistency of one step grad update with ParVIAlgorithm."""
         param_dim = 3
         ensemble_size = 4
         batch_size = 2
@@ -146,16 +147,18 @@ class OptimizersTest(parameterized.TestCase, alf.test.TestCase):
         w1.ensemble_group = 0
         loss = loss_func(w1)
         opt = AdamTF(lr=0.1, parvi=parvi)
-        opt.add_param_group({'params': w1})
+        opt.add_param_group({"params": w1})
         opt.zero_grad()
         loss.backward()
         opt.step()
 
         # Gradient update with ParVIAlgorithm
-        alg = ParVIAlgorithm(param_dim,
-                             num_particles=ensemble_size,
-                             par_vi=parvi,
-                             optimizer=AdamTF(lr=0.1))
+        alg = ParVIAlgorithm(
+            param_dim,
+            num_particles=ensemble_size,
+            par_vi=parvi,
+            optimizer=AdamTF(lr=0.1),
+        )
         w2 = init_w.clone()
         w2.requires_grad = True
         w2 = torch.nn.Parameter(w2)
@@ -165,11 +168,10 @@ class OptimizersTest(parameterized.TestCase, alf.test.TestCase):
 
         self.assertTensorClose(w1.data, alg.particles.data, 1e-4)
 
-    @parameterized.parameters('svgd', 'gfsf')
-    def test_parvi_batch_ensemble(self,
-                                  parvi='svgd',
-                                  train_batch_size=10,
-                                  num_particles=32):
+    @parameterized.parameters("svgd", "gfsf")
+    def test_parvi_batch_ensemble(
+        self, parvi="svgd", train_batch_size=10, num_particles=32
+    ):
         r"""
         Bayesian linear regression test for a linear regressor with BatchEnsemble
         parameter vector and trained with ``SVGD`` or ``GFSF`` optimizer.
@@ -179,11 +181,11 @@ class OptimizersTest(parameterized.TestCase, alf.test.TestCase):
         closed-form :math:`p(\beta|X,y)\sim N((X^TX)^{-1}X^Ty, X^TX)`.
         """
         input_size = 3
-        input_spec = TensorSpec((input_size, ), torch.float32)
+        input_spec = TensorSpec((input_size,), torch.float32)
         output_size = 1
         batch_size = 100
-        inputs = input_spec.randn(outer_dims=(batch_size, ))
-        beta = torch.rand(input_size, output_size) + 5.
+        inputs = input_spec.randn(outer_dims=(batch_size,))
+        beta = torch.rand(input_size, output_size) + 5.0
         print("beta: {}".format(beta))
         noise = torch.randn(batch_size, output_size)
         targets = inputs @ beta + noise
@@ -196,8 +198,9 @@ class OptimizersTest(parameterized.TestCase, alf.test.TestCase):
         layer = LRBatchEnsemble(input_size, num_particles)
         entropy_regularization = train_batch_size / batch_size
         optimizer = alf.optimizers.Adam(
-            lr=1e-2, parvi=parvi, repulsive_weight=entropy_regularization)
-        optimizer.add_param_group({'params': layer._beta})
+            lr=1e-2, parvi=parvi, repulsive_weight=entropy_regularization
+        )
+        optimizer.add_param_group({"params": layer._beta})
 
         def _train(train_batch=None):
             if train_batch is None:
@@ -211,7 +214,8 @@ class OptimizersTest(parameterized.TestCase, alf.test.TestCase):
             layer_outputs = layer(train_inputs)
             train_targets = train_targets.view(-1)
             train_targets = train_targets.unsqueeze(0).expand(
-                num_particles, *train_targets.shape)
+                num_particles, *train_targets.shape
+            )
             loss = regression_loss(layer_outputs, train_targets).loss
             optimizer.zero_grad()
             loss.backward()
@@ -255,34 +259,38 @@ class OptimizersTest(parameterized.TestCase, alf.test.TestCase):
         self.assertLess(cov_err, 0.5)
 
     @parameterized.parameters(
-        dict(opt_cls=Adam,
-             capacity_ratio=0.2,
-             masked_out_value=None,
-             opt_steps=3),
-        dict(opt_cls=AdamTF,
-             capacity_ratio=0.7,
-             masked_out_value=0,
-             opt_steps=5))
-    def test_capacity_scheduling(self, opt_cls, capacity_ratio,
-                                 masked_out_value, opt_steps):
+        dict(
+            opt_cls=Adam, capacity_ratio=0.2, masked_out_value=None, opt_steps=3
+        ),
+        dict(
+            opt_cls=AdamTF, capacity_ratio=0.7, masked_out_value=0, opt_steps=5
+        ),
+    )
+    def test_capacity_scheduling(
+        self, opt_cls, capacity_ratio, masked_out_value, opt_steps
+    ):
         layer = torch.nn.Linear(512, 512)
         clip_norm = 1e-4
-        opt = opt_cls(lr=0.1,
-                      gradient_clipping=clip_norm,
-                      clip_by_global_norm=True,
-                      capacity_ratio=capacity_ratio,
-                      masked_out_value=masked_out_value,
-                      min_capacity=1)
-        opt.add_param_group({'params': layer.parameters()})
+        opt = opt_cls(
+            lr=0.1,
+            gradient_clipping=clip_norm,
+            clip_by_global_norm=True,
+            capacity_ratio=capacity_ratio,
+            masked_out_value=masked_out_value,
+            min_capacity=1,
+        )
+        opt.add_param_group({"params": layer.parameters()})
 
         # test load_state_dict
-        opt2 = opt_cls(lr=0.1,
-                       gradient_clipping=clip_norm,
-                       clip_by_global_norm=True,
-                       capacity_ratio=capacity_ratio,
-                       masked_out_value=masked_out_value,
-                       min_capacity=1)
-        opt2.add_param_group({'params': layer.parameters()})
+        opt2 = opt_cls(
+            lr=0.1,
+            gradient_clipping=clip_norm,
+            clip_by_global_norm=True,
+            capacity_ratio=capacity_ratio,
+            masked_out_value=masked_out_value,
+            min_capacity=1,
+        )
+        opt2.add_param_group({"params": layer.parameters()})
         state_dict = opt.state_dict()
         opt2.load_state_dict(state_dict)
 
@@ -292,16 +300,19 @@ class OptimizersTest(parameterized.TestCase, alf.test.TestCase):
             loss = torch.sum(y**2)
             return loss
 
-        def _infer_capacity_mask_from_params_pairs(param_groups_before,
-                                                   param_groups_after):
+        def _infer_capacity_mask_from_params_pairs(
+            param_groups_before, param_groups_after
+        ):
             """infer the capacity mask as the parameter elements with unchanged values
             in the provided before and after pairs.
             """
             capacity_mask = []
-            for pg_before, pg_after in zip(param_groups_before,
-                                           param_groups_after):
-                for p_before, p_after in zip(pg_before['params'],
-                                             pg_after['params']):
+            for pg_before, pg_after in zip(
+                param_groups_before, param_groups_after
+            ):
+                for p_before, p_after in zip(
+                    pg_before["params"], pg_after["params"]
+                ):
                     capacity_mask.append(p_before == p_after)
             return capacity_mask
 
@@ -313,7 +324,8 @@ class OptimizersTest(parameterized.TestCase, alf.test.TestCase):
         # perform one opt step in order to infer capacity mask from parameters
         opt.step()
         initial_capacity_mask = _infer_capacity_mask_from_params_pairs(
-            param_groups_before, opt.param_groups)
+            param_groups_before, opt.param_groups
+        )
 
         for _ in range(opt_steps):
             loss = _train_step()
@@ -321,20 +333,23 @@ class OptimizersTest(parameterized.TestCase, alf.test.TestCase):
             opt.step()
 
         capacity_mask = _infer_capacity_mask_from_params_pairs(
-            param_groups_before, opt.param_groups)
+            param_groups_before, opt.param_groups
+        )
 
         # 1) check that the capacity mask remains unchanged across opt steps when
         # the specified capacity is unchanged
-        alf.nest.map_structure(self.assertTensorEqual, initial_capacity_mask,
-                               capacity_mask)
+        alf.nest.map_structure(
+            self.assertTensorEqual, initial_capacity_mask, capacity_mask
+        )
 
         # 2) check the empirical capacity matches the expected capacity
         capacity_ratios = alf.nest.map_structure(
-            lambda x: 1 - x.float().mean(), capacity_mask)
+            lambda x: 1 - x.float().mean(), capacity_mask
+        )
         empirical_capacity_ratio = sum(capacity_ratios) / len(capacity_ratios)
-        self.assertAlmostEqual(empirical_capacity_ratio,
-                               capacity_ratio,
-                               delta=0.1)
+        self.assertAlmostEqual(
+            empirical_capacity_ratio, capacity_ratio, delta=0.1
+        )
 
 
 if __name__ == "__main__":

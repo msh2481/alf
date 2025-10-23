@@ -43,8 +43,7 @@ class S5SSMTest(parameterized.TestCase, alf.test.TestCase):
         batch_size = 50
         state_dim = 64
         length = 100
-        x = torch.view_as_complex(torch.randn(length, batch_size, state_dim,
-                                              2))
+        x = torch.view_as_complex(torch.randn(length, batch_size, state_dim, 2))
         s = torch.zeros((batch_size, state_dim), dtype=x.dtype)
         Lambda = torch.view_as_complex(torch.randn(state_dim, 2))
         Lambda = Lambda / Lambda.abs()
@@ -55,14 +54,16 @@ class S5SSMTest(parameterized.TestCase, alf.test.TestCase):
         s.requires_grad_(True)
 
         mask = torch.view_as_complex(
-            torch.randn((length, batch_size, state_dim, 2)))
+            torch.randn((length, batch_size, state_dim, 2))
+        )
 
         Lambda.grad = None
         x.grad = None
         s.grad = None
         y1 = diag_ssm_forward_slow(s, x, Lambda)
-        Lambda_grad1, x_grad1, s_grad1 = torch.autograd.grad((y1 * mask).sum(),
-                                                             [Lambda, x, s])
+        Lambda_grad1, x_grad1, s_grad1 = torch.autograd.grad(
+            (y1 * mask).sum(), [Lambda, x, s]
+        )
 
         t0 = time.time()
         for i in range(10):
@@ -71,7 +72,8 @@ class S5SSMTest(parameterized.TestCase, alf.test.TestCase):
             s.grad = None
             y1 = diag_ssm_forward_slow(s, x, Lambda)
             Lambda_grad1, x_grad1, s_grad1 = torch.autograd.grad(
-                (y1 * mask).sum(), [Lambda, x, s])
+                (y1 * mask).sum(), [Lambda, x, s]
+            )
 
         t1 = time.time()
         print("time1:", t1 - t0)
@@ -80,8 +82,9 @@ class S5SSMTest(parameterized.TestCase, alf.test.TestCase):
         x.grad = None
         s.grad = None
         y2 = diag_ssm_forward_triton(s, x, Lambda)
-        Lambda_grad2, x_grad2, s_grad2 = torch.autograd.grad((y2 * mask).sum(),
-                                                             [Lambda, x, s])
+        Lambda_grad2, x_grad2, s_grad2 = torch.autograd.grad(
+            (y2 * mask).sum(), [Lambda, x, s]
+        )
 
         t0 = time.time()
         for i in range(10):
@@ -90,13 +93,17 @@ class S5SSMTest(parameterized.TestCase, alf.test.TestCase):
             s.grad = None
             y2 = diag_ssm_forward_triton(s, x, Lambda)
             Lambda_grad2, x_grad2, s_grad2 = torch.autograd.grad(
-                (y2 * mask).sum(), [Lambda, x, s])
+                (y2 * mask).sum(), [Lambda, x, s]
+            )
 
         t1 = time.time()
         print("time2:", t1 - t0)
         self.assertTensorClose(y1, y2, 2e-5)
-        self.assertLess((Lambda_grad1 - Lambda_grad2).abs().max() /
-                        (Lambda_grad1.abs().max() + 1e-8), 1e-5)
+        self.assertLess(
+            (Lambda_grad1 - Lambda_grad2).abs().max()
+            / (Lambda_grad1.abs().max() + 1e-8),
+            1e-5,
+        )
         self.assertTensorClose(x_grad1, x_grad2)
         self.assertTensorClose(s_grad1, s_grad2)
 
@@ -105,8 +112,7 @@ class S5SSMTest(parameterized.TestCase, alf.test.TestCase):
         batch_size = 50
         state_dim = 64
         length = 1000
-        x = torch.view_as_complex(torch.randn(length, batch_size, state_dim,
-                                              2))
+        x = torch.view_as_complex(torch.randn(length, batch_size, state_dim, 2))
         s = torch.zeros((batch_size, state_dim), dtype=x.dtype)
         Lambda = torch.view_as_complex(torch.randn(state_dim, 2))
         Lambda = Lambda / Lambda.abs()
@@ -117,7 +123,8 @@ class S5SSMTest(parameterized.TestCase, alf.test.TestCase):
         s.requires_grad_(True)
 
         mask = torch.view_as_complex(
-            torch.randn((length, batch_size, state_dim, 2)))
+            torch.randn((length, batch_size, state_dim, 2))
+        )
 
         x_grad = torch.autograd.grad((x * mask).sum(), [x])[0]
         self.assertTensorEqual(x_grad, mask.conj())
@@ -132,8 +139,8 @@ class S5SSMTest(parameterized.TestCase, alf.test.TestCase):
         self.assertEqual(ssm._B.shape, (9, 4, 2))
         self.assertEqual(ssm._Lambda.shape, (9, 2))
         self.assertEqual(ssm._C.shape, (4, 18))
-        self.assertEqual(ssm._D.shape, (4, ))
-        self.assertEqual(ssm._log_step.shape, (9, ))
+        self.assertEqual(ssm._D.shape, (4,))
+        self.assertEqual(ssm._log_step.shape, (9,))
         self.assertEqual(ssm._step_rescale, 1.0)
         self.assertEqual(ssm._dt_min, 0.001)
         self.assertEqual(ssm._dt_max, 0.1)
@@ -155,5 +162,5 @@ class S5SSMTest(parameterized.TestCase, alf.test.TestCase):
         self.assertTensorClose(state1, state2, epsilon=1e-5)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

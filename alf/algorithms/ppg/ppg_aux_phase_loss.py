@@ -24,11 +24,14 @@ from alf.utils import tensor_utils, value_ops
 
 # The auxiliary phase updates the network parameters based a loss that
 # has 3 parts. See PPGAuxPhaseLoss below for details.
-PPGAuxPhaseLossInfo = namedtuple('PPGAuxPhaseLossInfo', [
-    'td_loss_actual',
-    'td_loss_aux',
-    'policy_kl_loss',
-])
+PPGAuxPhaseLossInfo = namedtuple(
+    "PPGAuxPhaseLossInfo",
+    [
+        "td_loss_actual",
+        "td_loss_aux",
+        "policy_kl_loss",
+    ],
+)
 
 
 @alf.configurable
@@ -56,12 +59,14 @@ class PPGAuxPhaseLoss(Loss):
 
     """
 
-    def __init__(self,
-                 td_error_loss_fn: Callable = element_wise_squared_loss,
-                 policy_kl_loss_weight: float = 1.0,
-                 gamma: Union[float, List[float]] = 0.999,
-                 td_lambda: float = 0.95,
-                 name: str = 'PPGAuxPhaseLoss'):
+    def __init__(
+        self,
+        td_error_loss_fn: Callable = element_wise_squared_loss,
+        policy_kl_loss_weight: float = 1.0,
+        gamma: Union[float, List[float]] = 0.999,
+        td_lambda: float = 0.95,
+        name: str = "PPGAuxPhaseLoss",
+    ):
         """Construct a PPGAuxPhaseLoss instance with parameters
 
         Args:
@@ -100,17 +105,25 @@ class PPGAuxPhaseLoss(Loss):
         returns = self._calc_returns(info, info.rollout_value).detach()
         td_loss_actual = self._td_error_loss_fn(returns, info.value)
         td_loss_aux = self._td_error_loss_fn(returns, info.aux)
-        policy_kl_loss = td.kl_divergence(info.rollout_action_distribution,
-                                          info.action_distribution)
+        policy_kl_loss = td.kl_divergence(
+            info.rollout_action_distribution, info.action_distribution
+        )
 
         # Compute the total loss by combing the above 3 components
-        loss = td_loss_actual + td_loss_aux + self._policy_kl_loss_weight * policy_kl_loss
+        loss = (
+            td_loss_actual
+            + td_loss_aux
+            + self._policy_kl_loss_weight * policy_kl_loss
+        )
 
-        return LossInfo(loss=loss,
-                        extra=PPGAuxPhaseLossInfo(
-                            td_loss_actual=td_loss_actual,
-                            td_loss_aux=td_loss_aux,
-                            policy_kl_loss=policy_kl_loss))
+        return LossInfo(
+            loss=loss,
+            extra=PPGAuxPhaseLossInfo(
+                td_loss_actual=td_loss_actual,
+                td_loss_aux=td_loss_aux,
+                policy_kl_loss=policy_kl_loss,
+            ),
+        )
 
     def _calc_returns(self, info, value):
 
@@ -126,7 +139,8 @@ class PPGAuxPhaseLoss(Loss):
             values=value,
             step_types=info.step_type,
             discounts=discounts,
-            td_lambda=self._td_lambda)
+            td_lambda=self._td_lambda,
+        )
         advantages = tensor_utils.tensor_extend_zero(advantages)
         returns = advantages + value
 

@@ -32,7 +32,8 @@ class MySacAlgorithm(SacAlgorithm):
         zeros = torch.zeros_like(action)
         print("rollout_step: ", zeros.shape)
         alg_step = alg_step._replace(
-            info=MySacInfo(sac=alg_step.info, zeros=zeros))
+            info=MySacInfo(sac=alg_step.info, zeros=zeros)
+        )
         return alg_step
 
     def train_step(self, inputs, state, rollout_info: MySacInfo):
@@ -41,7 +42,8 @@ class MySacAlgorithm(SacAlgorithm):
         train_zeros = torch.zeros_like(alg_step.output, dtype=torch.uint8)
         print("train_step train zeros:", train_zeros.shape)
         alg_step = alg_step._replace(
-            info=MySacInfo(sac=alg_step.info, zeros=train_zeros))
+            info=MySacInfo(sac=alg_step.info, zeros=train_zeros)
+        )
         return alg_step
 
     def calc_loss(self, info: MySacInfo):
@@ -60,16 +62,20 @@ class MySacAlgorithm(SacAlgorithm):
         super().after_train_iter(root_inputs, rollout_info.sac)
 
 
-alf.config('Agent',
-           rl_algorithm_cls=MySacAlgorithm,
-           optimizer=alf.optimizers.Adam(lr=1e-3))
+alf.config(
+    "Agent",
+    rl_algorithm_cls=MySacAlgorithm,
+    optimizer=alf.optimizers.Adam(lr=1e-3),
+)
 
-alf.config('create_environment', num_parallel_environments=10)
+alf.config("create_environment", num_parallel_environments=10)
 
-alf.config('TrainerConfig',
-           temporally_independent_train_step=False,
-           mini_batch_length=2,
-           unroll_length=3,
-           mini_batch_size=4,
-           num_updates_per_train_iter=1,
-           num_iterations=1)
+alf.config(
+    "TrainerConfig",
+    temporally_independent_train_step=False,
+    mini_batch_length=2,
+    unroll_length=3,
+    mini_batch_size=4,
+    num_updates_per_train_iter=1,
+    num_iterations=1,
+)
