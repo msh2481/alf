@@ -13,25 +13,30 @@
 # limitations under the License.
 import alf
 from alf.environments import suite_gym, gym_wrappers
-from alf.algorithms.data_transformer import FrameStacker, ImageScaleTransformer, RewardClipping
+from alf.algorithms.data_transformer import (
+    FrameStacker,
+    ImageScaleTransformer,
+    RewardClipping,
+)
 
-alf.config('create_environment', env_load_fn=suite_gym.load)
-alf.config('DMAtariPreprocessing', frame_skip=4)
+alf.config("create_environment", env_load_fn=suite_gym.load)
+alf.config("DMAtariPreprocessing", frame_skip=4)
 alf.config(
-    'suite_gym.load',
+    "suite_gym.load",
     gym_env_wrappers=[gym_wrappers.DMAtariPreprocessing],
     # Default max episode steps for all games
     #
     # Per DQN paper setting, 18000 frames assuming frameskip = 4
-    max_episode_steps=4500)
+    max_episode_steps=4500,
+)
 
 # Configure the data transformers
-alf.config('FrameStacker', stack_size=4)
-alf.config('ImageScaleTransformer', min=0.0)
-alf.config('RewardClipping', minmax=(-1, 1))
+alf.config("FrameStacker", stack_size=4)
+alf.config("ImageScaleTransformer", min=0.0)
+alf.config("RewardClipping", minmax=(-1, 1))
 
-alf.config('TrainerConfig',
-           data_transformer_ctor=[
-               FrameStacker, ImageScaleTransformer, RewardClipping
-           ],
-           epsilon_greedy=0.1)
+alf.config(
+    "TrainerConfig",
+    data_transformer_ctor=[FrameStacker, ImageScaleTransformer, RewardClipping],
+    epsilon_greedy=0.1,
+)

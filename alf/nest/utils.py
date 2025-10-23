@@ -73,8 +73,8 @@ class NestCombiner(abc.ABC, nn.Module):
         assert len(flat) > 0, "The nest is empty!"
         if isinstance(flat[0], TensorSpec):
             tensors = nest.map_structure(
-                lambda spec: spec.zeros(outer_dims=(1, ) * self._batch_dims),
-                flat)
+                lambda spec: spec.zeros(outer_dims=(1,) * self._batch_dims), flat
+            )
         else:
             tensors = flat
         ret = self._combine_flat(tensors)
@@ -114,8 +114,8 @@ class NestConcat(NestCombiner):
     def _combine_flat(self, tensors):
         if self._flat_mask is not None:
             assert len(self._flat_mask) == len(tensors), (
-                "incompatible structures "
-                "between mask and data nest")
+                "incompatible structures " "between mask and data nest"
+            )
             selected_tensors = []
             for i, mask_value in enumerate(self._flat_mask):
                 if mask_value:
@@ -164,8 +164,7 @@ class NestSum(NestCombiner):
         return self._activation(ret)
 
     def make_parallel(self, n):
-        return NestSum(self._average, self._activation,
-                       "parallel_" + self._name)
+        return NestSum(self._average, self._activation, "parallel_" + self._name)
 
 
 @alf.configurable
@@ -198,11 +197,13 @@ class NestMultiply(NestCombiner):
 @alf.repr_wrapper
 class NestOuterProduct(NestCombiner):
 
-    def __init__(self,
-                 activation: Callable = None,
-                 batch_dims: int = 1,
-                 padding: bool = False,
-                 name: str = "NestOuterProduct"):
+    def __init__(
+        self,
+        activation: Callable = None,
+        batch_dims: int = 1,
+        padding: bool = False,
+        name: str = "NestOuterProduct",
+    ):
         """Perform outer-product operations across a nested structure. Can be used
         as a preprocessing combiner of a network.
 
@@ -240,12 +241,15 @@ class NestOuterProduct(NestCombiner):
         self._padding = padding
 
     def _combine_flat(self, tensors):
-        batch_shape = tensors[0].shape[:self._batch_dims]
+        batch_shape = tensors[0].shape[: self._batch_dims]
 
         for t in tensors:
-            assert batch_shape == t.shape[:self._batch_dims], (
-                "Different batch shapes %s vs. %s" %
-                (batch_shape, t.shape[:self._batch_dims]))
+            assert (
+                batch_shape == t.shape[: self._batch_dims]
+            ), "Different batch shapes %s vs. %s" % (
+                batch_shape,
+                t.shape[: self._batch_dims],
+            )
 
         B = int(np.prod(batch_shape))
 
@@ -257,14 +261,18 @@ class NestOuterProduct(NestCombiner):
             ]
 
         out = reduce(
-            lambda x, y: torch.einsum('bn,bm->bnm', x, y).reshape(B, -1),
-            tensors)
+            lambda x, y: torch.einsum("bn,bm->bnm", x, y).reshape(B, -1), tensors
+        )
         out = out.reshape(*batch_shape, -1)
         return self._activation(out)
 
     def make_parallel(self, n):
-        return NestOuterProduct(self._activation, self._batch_dims + 1,
-                                self._padding, "parallel_" + self._name)
+        return NestOuterProduct(
+            self._activation,
+            self._batch_dims + 1,
+            self._padding,
+            "parallel_" + self._name,
+        )
 
 
 def stack_nests(nests, dim=0):
@@ -282,11 +290,9 @@ def stack_nests(nests, dim=0):
         a nest with same structure as ``nests[0]``.
     """
     if len(nests) == 1:
-        return nest.map_structure(lambda tensor: tensor.unsqueeze(dim),
-                                  nests[0])
+        return nest.map_structure(lambda tensor: tensor.unsqueeze(dim), nests[0])
     else:
-        return nest.map_structure(lambda *tensors: torch.stack(tensors, dim),
-                                  *nests)
+        return nest.map_structure(lambda *tensors: torch.stack(tensors, dim), *nests)
 
 
 def get_outer_rank(tensors, specs):
@@ -320,9 +326,9 @@ def get_outer_rank(tensors, specs):
 
     nest.map_structure(_get_outer_rank, tensors, specs)
     outer_rank = outer_ranks[0]
-    assert all([r == outer_rank
-                for r in outer_ranks]), ("Tensors have different "
-                                         "outer_ranks %s" % outer_ranks)
+    assert all([r == outer_rank for r in outer_ranks]), (
+        "Tensors have different " "outer_ranks %s" % outer_ranks
+    )
     return outer_rank
 
 
@@ -346,13 +352,13 @@ def convert_device(nests, device=None):
     """
 
     def _convert_cuda(tensor):
-        if tensor.device.type != 'cuda':
+        if tensor.device.type != "cuda":
             return tensor.cuda()
         else:
             return tensor
 
     def _convert_cpu(tensor):
-        if tensor.device.type != 'cpu':
+        if tensor.device.type != "cpu":
             return tensor.cpu()
         else:
             return tensor
@@ -362,9 +368,9 @@ def convert_device(nests, device=None):
     else:
         d = device
 
-    if d == 'cpu':
+    if d == "cpu":
         return nest.map_structure(_convert_cpu, nests)
-    elif d == 'cuda':
+    elif d == "cuda":
         assert torch.cuda.is_available(), "cuda is unavailable"
         return nest.map_structure(_convert_cuda, nests)
     else:
@@ -385,9 +391,11 @@ def grad(nested, objective, retain_graph=False):
     return nest.pack_sequence_as(
         nested,
         list(
-            torch.autograd.grad(objective,
-                                nest.flatten(nested),
-                                retain_graph=retain_graph)))
+            torch.autograd.grad(
+                objective, nest.flatten(nested), retain_graph=retain_graph
+            )
+        ),
+    )
 
 
 def zeros_like(nested):
@@ -428,9 +436,9 @@ def make_nested_module(nested, ignore_non_module_element=True):
     else:
         module = nested
         if not ignore_non_module_element:
-            assert isinstance(nested,
-                              torch.nn.Module), ("Unsupported type %s" %
-                                                 type(nested))
+            assert isinstance(nested, torch.nn.Module), "Unsupported type %s" % type(
+                nested
+            )
         elif not isinstance(nested, torch.nn.Module):
             module = None
     return module

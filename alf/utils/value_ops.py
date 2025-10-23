@@ -19,58 +19,60 @@ from alf.data_structures import StepType
 from alf.utils import common, dist_utils
 
 
-def action_importance_ratio(action_distribution,
-                            rollout_action_distribution,
-                            action,
-                            clipping_mode,
-                            scope,
-                            importance_ratio_clipping,
-                            log_prob_clipping,
-                            check_numerics,
-                            debug_summaries,
-                            rollout_log_prob=(),
-                            log_prob=()):
-    """ ratio for importance sampling, used in PPO loss and vtrace loss.
+def action_importance_ratio(
+    action_distribution,
+    rollout_action_distribution,
+    action,
+    clipping_mode,
+    scope,
+    importance_ratio_clipping,
+    log_prob_clipping,
+    check_numerics,
+    debug_summaries,
+    rollout_log_prob=(),
+    log_prob=(),
+):
+    """ratio for importance sampling, used in PPO loss and vtrace loss.
 
-        Caller has to save alf.summary.scope() and pass scope to this function.
+    Caller has to save alf.summary.scope() and pass scope to this function.
 
-        Args:
-            action_distribution (nested td.distribution): Distribution over
-                actions under target policy.
-            rollout_action_distribution (nested td.distribution): distribution
-                over actions from behavior policy, used to sample actions for
-                the rollout.
-            action (nested tensor): possibly batched action tuple taken during
-                rollout.
-            clipping_mode (str): mode for clipping the importance ratio:
+    Args:
+        action_distribution (nested td.distribution): Distribution over
+            actions under target policy.
+        rollout_action_distribution (nested td.distribution): distribution
+            over actions from behavior policy, used to sample actions for
+            the rollout.
+        action (nested tensor): possibly batched action tuple taken during
+            rollout.
+        clipping_mode (str): mode for clipping the importance ratio:
 
-                * 'double_sided': clips the range of importance ratio into
-                  ``[1-importance_ratio_clipping, 1+importance_ratio_clipping]``,
-                  which is used by PPOLoss.
-                * 'capping': clips the range of importance ratio into
-                  ``min(1+importance_ratio_clipping, importance_ratio)``,
-                  which is used by VTraceLoss, where c_bar or rho_bar =
-                  1+importance_ratio_clipping.
+            * 'double_sided': clips the range of importance ratio into
+              ``[1-importance_ratio_clipping, 1+importance_ratio_clipping]``,
+              which is used by PPOLoss.
+            * 'capping': clips the range of importance ratio into
+              ``min(1+importance_ratio_clipping, importance_ratio)``,
+              which is used by VTraceLoss, where c_bar or rho_bar =
+              1+importance_ratio_clipping.
 
-            scope (name scope manager): returned by ``alf.summary.scope()``, set
-                outside.
-            importance_ratio_clipping (float):  Epsilon in clipped, surrogate
-                PPO objective. See the cited paper for more detail.
-            log_prob_clipping (float): If >0, clipping log probs to the range
-                (-log_prob_clipping, log_prob_clipping) to prevent inf / NaN
-                values.
-            check_numerics (bool):  If true, adds checks to help find
-                ``NaN``/``Inf`` values. For debugging only.
-            debug_summaries (bool): If true, output summary metrics to tensorboard.
-            rollout_log_prob (tensor): the rollout log probability of the action.
-                If empty, will be computed from ``rollout_action_distribution``
-                and ``action``.
-            log_prob (tensor): the log probability of the action. If empty,
-                will be computed from ``action_distribution`` and ``action``.
+        scope (name scope manager): returned by ``alf.summary.scope()``, set
+            outside.
+        importance_ratio_clipping (float):  Epsilon in clipped, surrogate
+            PPO objective. See the cited paper for more detail.
+        log_prob_clipping (float): If >0, clipping log probs to the range
+            (-log_prob_clipping, log_prob_clipping) to prevent inf / NaN
+            values.
+        check_numerics (bool):  If true, adds checks to help find
+            ``NaN``/``Inf`` values. For debugging only.
+        debug_summaries (bool): If true, output summary metrics to tensorboard.
+        rollout_log_prob (tensor): the rollout log probability of the action.
+            If empty, will be computed from ``rollout_action_distribution``
+            and ``action``.
+        log_prob (tensor): the log probability of the action. If empty,
+            will be computed from ``action_distribution`` and ``action``.
 
 
-        Returns:
-            importance_ratio (Tensor), importance_ratio_clipped (Tensor).
+    Returns:
+        importance_ratio (Tensor), importance_ratio_clipped (Tensor).
     """
     current_policy_distribution = action_distribution
 
@@ -78,17 +80,18 @@ def action_importance_ratio(action_distribution,
         sample_action_log_probs = rollout_log_prob.detach()
     else:
         sample_action_log_probs = dist_utils.compute_log_probability(
-            rollout_action_distribution, action).detach()
+            rollout_action_distribution, action
+        ).detach()
 
     if log_prob != ():
         action_log_prob = log_prob
     else:
         action_log_prob = dist_utils.compute_log_probability(
-            current_policy_distribution, action)
+            current_policy_distribution, action
+        )
 
     if log_prob_clipping > 0.0:
-        action_log_prob = action_log_prob.clamp(-log_prob_clipping,
-                                                log_prob_clipping)
+        action_log_prob = action_log_prob.clamp(-log_prob_clipping, log_prob_clipping)
     if check_numerics:
         assert torch.all(torch.isfinite(action_log_prob))
 
@@ -97,31 +100,32 @@ def action_importance_ratio(action_distribution,
     if check_numerics:
         assert torch.all(torch.isfinite(importance_ratio))
 
-    if clipping_mode == 'double_sided':
+    if clipping_mode == "double_sided":
         importance_ratio_clipped = importance_ratio.clamp(
-            1 - importance_ratio_clipping, 1 + importance_ratio_clipping)
-    elif clipping_mode == 'capping':
+            1 - importance_ratio_clipping, 1 + importance_ratio_clipping
+        )
+    elif clipping_mode == "capping":
         importance_ratio_clipped = torch.min(
-            importance_ratio, torch.tensor(1 + importance_ratio_clipping))
+            importance_ratio, torch.tensor(1 + importance_ratio_clipping)
+        )
     else:
-        raise Exception('Unsupported clipping mode: ' + clipping_mode)
+        raise Exception("Unsupported clipping mode: " + clipping_mode)
 
     if debug_summaries and alf.summary.should_record_summaries():
         with scope:
             if importance_ratio_clipping > 0.0:
-                clip_fraction = (torch.abs(importance_ratio - 1.0)
-                                 > importance_ratio_clipping).to(
-                                     torch.float32).mean()
-                alf.summary.scalar('clip_fraction', clip_fraction)
+                clip_fraction = (
+                    (torch.abs(importance_ratio - 1.0) > importance_ratio_clipping)
+                    .to(torch.float32)
+                    .mean()
+                )
+                alf.summary.scalar("clip_fraction", clip_fraction)
 
-            alf.summary.histogram('action_log_prob', action_log_prob)
-            alf.summary.histogram('action_log_prob_sample',
-                                  sample_action_log_probs)
-            alf.summary.histogram('importance_ratio', importance_ratio)
-            alf.summary.scalar('importance_ratio_mean',
-                               importance_ratio.mean())
-            alf.summary.histogram('importance_ratio_clipped',
-                                  importance_ratio_clipped)
+            alf.summary.histogram("action_log_prob", action_log_prob)
+            alf.summary.histogram("action_log_prob_sample", sample_action_log_probs)
+            alf.summary.histogram("importance_ratio", importance_ratio)
+            alf.summary.scalar("importance_ratio_mean", importance_ratio.mean())
+            alf.summary.histogram("importance_ratio_clipped", importance_ratio_clipped)
 
     return importance_ratio, importance_ratio_clipped
 
@@ -163,9 +167,11 @@ def discounted_return(rewards, values, step_types, discounts, time_major=True):
         values = values.transpose(0, 1)
         step_types = step_types.transpose(0, 1)
 
-    assert values.shape[0] >= 2, ("The sequence length needs to be "
-                                  "at least 2. Got {s}".format(
-                                      s=values.shape[0]))
+    assert (
+        values.shape[0] >= 2
+    ), "The sequence length needs to be " "at least 2. Got {s}".format(
+        s=values.shape[0]
+    )
 
     is_lasts = (step_types == StepType.LAST).to(dtype=torch.float32)
     is_lasts = common.expand_dims_as(is_lasts, values)
@@ -206,9 +212,11 @@ def one_step_discounted_return(rewards, values, step_types, discounts):
         A tensor with shape [T-1, B] (or [T-1]) representing the discounted
         returns.
     """
-    assert values.shape[0] >= 2, ("The sequence length needs to be "
-                                  "at least 2. Got {s}".format(
-                                      s=values.shape[0]))
+    assert (
+        values.shape[0] >= 2
+    ), "The sequence length needs to be " "at least 2. Got {s}".format(
+        s=values.shape[0]
+    )
 
     is_lasts = (step_types == StepType.LAST).to(dtype=torch.float32)
     is_lasts = common.expand_dims_as(is_lasts, values)
@@ -216,17 +224,15 @@ def one_step_discounted_return(rewards, values, step_types, discounts):
     rewards = common.expand_dims_as(rewards, values)
 
     discounted_values = discounts * values
-    rets = (1 - is_lasts[:-1]) * (rewards[1:] + discounted_values[1:]) + \
-                 is_lasts[:-1] * discounted_values[:-1]
+    rets = (1 - is_lasts[:-1]) * (rewards[1:] + discounted_values[1:]) + is_lasts[
+        :-1
+    ] * discounted_values[:-1]
     return rets.detach()
 
 
-def generalized_advantage_estimation(rewards,
-                                     values,
-                                     step_types,
-                                     discounts,
-                                     td_lambda=1.0,
-                                     time_major=True):
+def generalized_advantage_estimation(
+    rewards, values, step_types, discounts, td_lambda=1.0, time_major=True
+):
     """Computes generalized advantage estimation (GAE) for the first T-1 steps.
 
     For theory, see
@@ -263,9 +269,11 @@ def generalized_advantage_estimation(rewards,
         values = values.transpose(0, 1)
         step_types = step_types.transpose(0, 1)
 
-    assert values.shape[0] >= 2, ("The sequence length needs to be "
-                                  "at least 2. Got {s}".format(
-                                      s=values.shape[0]))
+    assert (
+        values.shape[0] >= 2
+    ), "The sequence length needs to be " "at least 2. Got {s}".format(
+        s=values.shape[0]
+    )
 
     is_lasts = (step_types == StepType.LAST).to(dtype=torch.float32)
     is_lasts = common.expand_dims_as(is_lasts, values)
@@ -278,8 +286,9 @@ def generalized_advantage_estimation(rewards,
 
     with torch.no_grad():
         for t in reversed(range(rewards.shape[0] - 1)):
-            advs[t] = (1 - is_lasts[t]) * \
-                      (delta[t] + weighted_discounts[t] * advs[t + 1])
+            advs[t] = (1 - is_lasts[t]) * (
+                delta[t] + weighted_discounts[t] * advs[t + 1]
+            )
         advs = advs[:-1]
 
     if not time_major:

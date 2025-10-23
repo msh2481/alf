@@ -21,6 +21,7 @@ import functools
 import types
 from typing import Tuple, Optional, Callable, Dict, Any
 import io
+
 try:
     import onnx
     from onnx import shape_inference
@@ -90,11 +91,13 @@ def _dtype_conversions(nest: alf.nest.NestedTensor) -> alf.nest.NestedTensor:
 
 class _OnnxWrapper(torch.nn.Module):
 
-    def __init__(self,
-                 module: torch.nn.Module,
-                 method: Callable,
-                 example_args: Tuple[Any] = (),
-                 example_kwargs: Dict[str, Any] = {}):
+    def __init__(
+        self,
+        module: torch.nn.Module,
+        method: Callable,
+        example_args: Tuple[Any] = (),
+        example_kwargs: Dict[str, Any] = {},
+    ):
         """A wrapper class that prepares exporting a ``module.method`` to an ONNX
         model. It transforms the method to a ``nn.Module`` which can be exported
         to ONNX using ``torch.onnx.export``.
@@ -142,16 +145,13 @@ class _OnnxWrapper(torch.nn.Module):
         # Sometimes we will return Distributions in the output. In this case,
         # we need to convert them to
         example_output = self._method(*example_args, **example_kwargs)
-        self._example_output_params = dist_utils.distributions_to_params(
-            example_output)
-        self._output_params_spec = dist_utils.extract_spec(
-            self._example_output_params)
+        self._example_output_params = dist_utils.distributions_to_params(example_output)
+        self._output_params_spec = dist_utils.extract_spec(self._example_output_params)
         self._output_spec = dist_utils.extract_spec(example_output)
 
     @property
     def example_output(self):
-        """Return an example output of ``self.forward()``.
-        """
+        """Return an example output of ``self.forward()``."""
         return alf.nest.flatten(self._example_output_params), torch.zeros(())
 
     @staticmethod
@@ -167,14 +167,13 @@ class _OnnxWrapper(torch.nn.Module):
                 m._default_optimizer = None
 
     def recover_module_output(self, forward_output):
-        """``forward_output`` is a direct return of ``self.forward()``.
-        """
+        """``forward_output`` is a direct return of ``self.forward()``."""
         # remove the dummy output as the last one
         forward_output = forward_output[:-1]
-        output_nest = alf.nest.py_pack_sequence_as(self._output_params_spec,
-                                                   forward_output)
-        output = dist_utils.params_to_distributions(output_nest,
-                                                    self._output_spec)
+        output_nest = alf.nest.py_pack_sequence_as(
+            self._output_params_spec, forward_output
+        )
+        output = dist_utils.params_to_distributions(output_nest, self._output_spec)
         return output
 
     @torch.no_grad()
@@ -188,14 +187,13 @@ class _OnnxWrapper(torch.nn.Module):
         # HACK: we generate a dummy output for onnx to record all tensor inputs
         # TODO: find a better way to figure out which args are actually used
         # in the onnx graph, and pass this info to the run() of tensorRT engine.
-        dummy_output = sum([
-            a.float().mean() for a in flat_all_args
-            if isinstance(a, torch.Tensor)
-        ])
+        dummy_output = sum(
+            [a.float().mean() for a in flat_all_args if isinstance(a, torch.Tensor)]
+        )
         ###############################
 
-        flat_args = flat_all_args[:len(alf.nest.flatten(self._example_args))]
-        flat_kwargs = flat_all_args[len(flat_args):]
+        flat_args = flat_all_args[: len(alf.nest.flatten(self._example_args))]
+        flat_kwargs = flat_all_args[len(flat_args) :]
 
         args = alf.nest.pack_sequence_as(self._example_args, flat_args)
         kwargs = alf.nest.pack_sequence_as(self._example_kwargs, flat_kwargs)
@@ -213,7 +211,8 @@ class _OnnxWrapper(torch.nn.Module):
         # TODO: test whether a tensor is a duplicate. If so, remove it from output_params.
         # And record this information to self and recover at recover_module_output
         output_params = alf.nest.map_structure(
-            lambda x: x + torch.zeros_like(x), output_params)
+            lambda x: x + torch.zeros_like(x), output_params
+        )
         ###############################
 
         # We want to use ALF's flatten to avoid ONNX's defined flattening order
@@ -222,17 +221,19 @@ class _OnnxWrapper(torch.nn.Module):
         return output_params
 
 
-@alf.configurable(whitelist=['device'])
+@alf.configurable(whitelist=["device"])
 class OnnxRuntimeEngine(object):
 
-    def __init__(self,
-                 module: torch.nn.Module,
-                 method: Callable,
-                 onnx_file: Optional[str] = None,
-                 onnx_verbose: bool = False,
-                 device: str = None,
-                 example_args: Tuple[Any] = (),
-                 example_kwargs: Dict[str, Any] = {}):
+    def __init__(
+        self,
+        module: torch.nn.Module,
+        method: Callable,
+        onnx_file: Optional[str] = None,
+        onnx_verbose: bool = False,
+        device: str = None,
+        example_args: Tuple[Any] = (),
+        example_kwargs: Dict[str, Any] = {},
+    ):
         """Class for converting a torch.nn.Module to an OnnxRuntime engine for fast
         inference, via ONNX model as the intermediate representation.
 
@@ -271,8 +272,7 @@ class OnnxRuntimeEngine(object):
         example_args = _dtype_conversions(example_args)
         example_kwargs = _dtype_conversions(example_kwargs)
 
-        self._onnx_wrapper = _OnnxWrapper(module, method, example_args,
-                                          example_kwargs)
+        self._onnx_wrapper = _OnnxWrapper(module, method, example_args, example_kwargs)
 
         flat_all_args = tuple(alf.nest.flatten([example_args, example_kwargs]))
 
@@ -288,7 +288,8 @@ class OnnxRuntimeEngine(object):
             # Don't modify the version easily! Other versions might
             # have weird errors.
             opset_version=12,
-            verbose=onnx_verbose)
+            verbose=onnx_verbose,
+        )
         if isinstance(onnx_io, io.BytesIO):
             onnx_io.seek(0)
         onnx_model = onnx.load(onnx_io)
@@ -296,7 +297,7 @@ class OnnxRuntimeEngine(object):
         # Infer shapes first to avoid the error: "Please run shape inference on the onnx model first."
         onnx_model = shape_inference.infer_shapes(onnx_model)
         if device is None:
-            device = 'CUDA' if torch.cuda.is_available() else 'CPU'
+            device = "CUDA" if torch.cuda.is_available() else "CPU"
         else:
             device = device.upper()
         self._engine = backend.prepare(onnx_model, device=device)
@@ -308,25 +309,27 @@ class OnnxRuntimeEngine(object):
         outputs_np = self._engine.run(flat_all_args_np)
         # torch.from_numpy shares the memory with the numpy array
         outputs = alf.nest.map_structure(
-            lambda x: torch.from_numpy(x).to(alf.get_default_device()),
-            outputs_np)
+            lambda x: torch.from_numpy(x).to(alf.get_default_device()), outputs_np
+        )
         return self._onnx_wrapper.recover_module_output(outputs)
 
 
 class TensorRTEngine(object):
 
-    def __init__(self,
-                 module: torch.nn.Module,
-                 method: Callable,
-                 onnx_file: Optional[str] = None,
-                 onnx_verbose: bool = False,
-                 memory_limit_gb: float = 1.,
-                 fp16: bool = False,
-                 example_args: Tuple[Any] = (),
-                 example_kwargs: Dict[str, Any] = {},
-                 engine_file: Optional[str] = None,
-                 force_build_engine: bool = False,
-                 validate_args: bool = False):
+    def __init__(
+        self,
+        module: torch.nn.Module,
+        method: Callable,
+        onnx_file: Optional[str] = None,
+        onnx_verbose: bool = False,
+        memory_limit_gb: float = 1.0,
+        fp16: bool = False,
+        example_args: Tuple[Any] = (),
+        example_kwargs: Dict[str, Any] = {},
+        engine_file: Optional[str] = None,
+        force_build_engine: bool = False,
+        validate_args: bool = False,
+    ):
         """Class for converting a torch.nn.Module to TensorRT engine for fast
         inference, via ONNX model as the intermediate representation.
 
@@ -368,33 +371,44 @@ class TensorRTEngine(object):
                 printed. Default to False. Use this flag if you have some memcpy
                 issue for an input.
         """
-        assert torch.cuda.is_available(
-        ), 'This engine can only be used on GPU!'
+        assert torch.cuda.is_available(), "This engine can only be used on GPU!"
 
         example_args = _dtype_conversions(example_args)
         example_kwargs = _dtype_conversions(example_kwargs)
         self._validate_args = validate_args
         self._example_args = example_args
         self._example_kwargs = example_kwargs
-        self._onnx_wrapper = _OnnxWrapper(module, method, example_args,
-                                          example_kwargs)
+        self._onnx_wrapper = _OnnxWrapper(module, method, example_args, example_kwargs)
         flat_all_args = tuple(alf.nest.flatten([example_args, example_kwargs]))
         self._inputs = flat_all_args
         self._outputs = alf.nest.flatten(self._onnx_wrapper.example_output)
 
-        engine = self._load_or_build_engine(onnx_file, onnx_verbose,
-                                            engine_file, force_build_engine,
-                                            fp16, memory_limit_gb)
+        engine = self._load_or_build_engine(
+            onnx_file,
+            onnx_verbose,
+            engine_file,
+            force_build_engine,
+            fp16,
+            memory_limit_gb,
+        )
 
         self._prepare_io(engine)
         self._engine = engine
 
-    def _load_or_build_engine(self, onnx_file: Optional[str],
-                              onnx_verbose: bool, engine_file: Optional[str],
-                              force_build_engine: bool, fp16: bool,
-                              memory_limit_gb: float):
-        if (not force_build_engine and engine_file is not None
-                and os.path.isfile(engine_file)):
+    def _load_or_build_engine(
+        self,
+        onnx_file: Optional[str],
+        onnx_verbose: bool,
+        engine_file: Optional[str],
+        force_build_engine: bool,
+        fp16: bool,
+        memory_limit_gb: float,
+    ):
+        if (
+            not force_build_engine
+            and engine_file is not None
+            and os.path.isfile(engine_file)
+        ):
             # According to https://github.com/onnx/onnx-tensorrt/issues/597,
             # this line solves the issue of "getPluginCreator could not find plugin InstanceNormalization_TRT version 1"
             # when loading a saved TRT engine.
@@ -408,8 +422,8 @@ class TensorRTEngine(object):
                 onnx_io = io.BytesIO()
             else:
                 onnx_io = onnx_file
-            input_names = [f'input-{i}' for i in range(len(self._inputs))]
-            output_names = [f'output-{i}' for i in range(len(self._outputs))]
+            input_names = [f"input-{i}" for i in range(len(self._inputs))]
+            output_names = [f"output-{i}" for i in range(len(self._outputs))]
             # 'args' must be a tuple of tensors
             torch.onnx.export(
                 self._onnx_wrapper,
@@ -420,12 +434,13 @@ class TensorRTEngine(object):
                 # Don't modify the version easily! Other versions might
                 # have weird errors.
                 opset_version=12,
-                verbose=onnx_verbose)
+                verbose=onnx_verbose,
+            )
             if isinstance(onnx_io, io.BytesIO):
                 onnx_io.seek(0)
                 model_content = onnx_io.getvalue()
             else:
-                with open(onnx_io, 'rb') as f:
+                with open(onnx_io, "rb") as f:
                     model_content = f.read()
             engine = self._build_engine(model_content, fp16, memory_limit_gb)
 
@@ -439,18 +454,20 @@ class TensorRTEngine(object):
     def _build_engine(self, model_content, fp16, memory_limit_gb):
         # Create a TensorRT logger
         TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
-        with trt.Builder(TRT_LOGGER) as builder, \
-            builder.create_network() as network, \
-            trt.OnnxParser(network, TRT_LOGGER) as parser:
+        with trt.Builder(
+            TRT_LOGGER
+        ) as builder, builder.create_network() as network, trt.OnnxParser(
+            network, TRT_LOGGER
+        ) as parser:
             parser.parse(model_content)
             config = builder.create_builder_config()
-            config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE,
-                                         int((1 << 30) * memory_limit_gb))
+            config.set_memory_pool_limit(
+                trt.MemoryPoolType.WORKSPACE, int((1 << 30) * memory_limit_gb)
+            )
             if fp16:
                 config.set_flag(trt.BuilderFlag.FP16)
             # Build the engine
-            serialized_engine = builder.build_serialized_network(
-                network, config)
+            serialized_engine = builder.build_serialized_network(network, config)
             # Create a runtime to deserialize the engine
             runtime = trt.Runtime(TRT_LOGGER)
             # Deserialize the engine
@@ -458,8 +475,7 @@ class TensorRTEngine(object):
 
     @staticmethod
     def _get_bytes(tensor):
-        """Get a tensor's size in bytes.
-        """
+        """Get a tensor's size in bytes."""
         return tensor.element_size() * tensor.nelement()
 
     def _check_args(self, args, kwargs):
@@ -467,37 +483,35 @@ class TensorRTEngine(object):
         alf.nest.assert_same_structure(kwargs, self._example_kwargs)
 
         def _check_tensor_shape_and_dtype(path, x, y):
-            if (not isinstance(x, torch.Tensor)
-                    or not isinstance(y, torch.Tensor)):
-                assert type(x) == type(y), (
-                    f"'{path}' has different types: {type(x)} vs {type(y)}")
+            if not isinstance(x, torch.Tensor) or not isinstance(y, torch.Tensor):
+                assert type(x) == type(
+                    y
+                ), f"'{path}' has different types: {type(x)} vs {type(y)}"
                 return
-            assert x.shape == y.shape, (
-                f"'{path}' has different shapes: {x.shape} vs {y.shape}")
-            assert x.dtype == y.dtype, (
-                f"'{path}' has different dtypes: {x.dtype} vs {y.dtype}")
+            assert (
+                x.shape == y.shape
+            ), f"'{path}' has different shapes: {x.shape} vs {y.shape}"
+            assert (
+                x.dtype == y.dtype
+            ), f"'{path}' has different dtypes: {x.dtype} vs {y.dtype}"
 
         alf.nest.py_map_structure_with_path(
-            _check_tensor_shape_and_dtype, (args, kwargs),
-            (self._example_args, self._example_kwargs))
+            _check_tensor_shape_and_dtype,
+            (args, kwargs),
+            (self._example_args, self._example_kwargs),
+        )
 
     def _prepare_io(self, engine):
         self._context = engine.create_execution_context()
 
         # allocate device memory (bytes)
-        self._input_mem = [
-            cuda.mem_alloc(self._get_bytes(i)) for i in self._inputs
-        ]
-        self._output_mem = [
-            cuda.mem_alloc(self._get_bytes(o)) for o in self._outputs
-        ]
+        self._input_mem = [cuda.mem_alloc(self._get_bytes(i)) for i in self._inputs]
+        self._output_mem = [cuda.mem_alloc(self._get_bytes(o)) for o in self._outputs]
 
         # Set the IO tensor addresses
-        bindings = list(map(int, self._input_mem)) + list(
-            map(int, self._output_mem))
+        bindings = list(map(int, self._input_mem)) + list(map(int, self._output_mem))
         for i in range(engine.num_io_tensors):
-            self._context.set_tensor_address(engine.get_tensor_name(i),
-                                             bindings[i])
+            self._context.set_tensor_address(engine.get_tensor_name(i), bindings[i])
         # create stream
         self._stream = cuda.Stream()
 
@@ -513,9 +527,9 @@ class TensorRTEngine(object):
         flat_all_args = _dtype_conversions(alf.nest.flatten([args, kwargs]))
 
         for im, i in zip(self._input_mem, flat_all_args):
-            cuda.memcpy_dtod_async(im,
-                                   i.contiguous().data_ptr(),
-                                   self._get_bytes(i), self._stream)
+            cuda.memcpy_dtod_async(
+                im, i.contiguous().data_ptr(), self._get_bytes(i), self._stream
+            )
 
         # For some reason, we have to manually synchronize the stream here before
         # executing the engine. Otherwise the inference will be much slower sometimes.
@@ -529,8 +543,7 @@ class TensorRTEngine(object):
             for o in self._outputs
         ]
         for om, o in zip(self._output_mem, outputs):
-            cuda.memcpy_dtod_async(o.data_ptr(), om, self._get_bytes(o),
-                                   self._stream)
+            cuda.memcpy_dtod_async(o.data_ptr(), om, self._get_bytes(o), self._stream)
 
         self._stream.synchronize()
         return self._onnx_wrapper.recover_module_output(outputs)
@@ -547,15 +560,15 @@ class TensorRT8Engine(TensorRTEngine):
     def _build_engine(self, model_content, fp16, memory_limit_gb):
         # Create a TensorRT logger
         TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
-        with trt.Builder(TRT_LOGGER) as builder, \
-            builder.create_network(1 << int(
-                trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)) as network, \
-            trt.OnnxParser(network, TRT_LOGGER) as parser:
+        with trt.Builder(TRT_LOGGER) as builder, builder.create_network(
+            1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)
+        ) as network, trt.OnnxParser(network, TRT_LOGGER) as parser:
             # Create a builder and network
             parser.parse(model_content)
             config = builder.create_builder_config()
-            config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE,
-                                         int((1 << 30) * memory_limit_gb))
+            config.set_memory_pool_limit(
+                trt.MemoryPoolType.WORKSPACE, int((1 << 30) * memory_limit_gb)
+            )
             if fp16:
                 config.set_flag(trt.BuilderFlag.FP16)
             return builder.build_engine(network, config)
@@ -570,7 +583,7 @@ class TensorRT8Engine(TensorRTEngine):
         # TRT8: This order might be different from the order of the onnx model!!
         for i in range(engine.num_io_tensors):
             name = engine.get_tensor_name(i)
-            idx = int(name.split('-')[1])
+            idx = int(name.split("-")[1])
             if engine.get_tensor_mode(name) == trt.TensorIOMode.INPUT:
                 mem = cuda.mem_alloc(self._get_bytes(self._inputs[idx]))
                 self._input_mem.append(mem)
@@ -591,16 +604,17 @@ class TensorRT8Engine(TensorRTEngine):
         for i in range(len(flat_all_args)):
             im = self._input_mem[i]
             arg = flat_all_args[self._input_idx[i]]
-            cuda.memcpy_dtod_async(im,
-                                   arg.contiguous().data_ptr(),
-                                   self._get_bytes(arg), self._stream)
+            cuda.memcpy_dtod_async(
+                im, arg.contiguous().data_ptr(), self._get_bytes(arg), self._stream
+            )
 
         # For some reason, we have to manually synchronize the stream here before
         # executing the engine. Otherwise the inference will be much slower sometimes.
         # Probably a pycuda bug because in theory this synchronization is not needed.
         self._stream.synchronize()
-        self._context.execute_async_v2(bindings=self._bindings,
-                                       stream_handle=self._stream.handle)
+        self._context.execute_async_v2(
+            bindings=self._bindings, stream_handle=self._stream.handle
+        )
 
         outputs = [
             torch.empty_like(o, memory_format=torch.contiguous_format)
@@ -610,15 +624,17 @@ class TensorRT8Engine(TensorRTEngine):
         for i in range(len(outputs)):
             om = self._output_mem[i]
             out = outputs[self._output_idx[i]]
-            cuda.memcpy_dtod_async(out.data_ptr(), om, self._get_bytes(out),
-                                   self._stream)
+            cuda.memcpy_dtod_async(
+                out.data_ptr(), om, self._get_bytes(out), self._stream
+            )
 
         self._stream.synchronize()
         return self._onnx_wrapper.recover_module_output(outputs)
 
 
-def compile_for_inference_if(cond: bool = True,
-                             engine_class: Callable = TensorRTEngine):
+def compile_for_inference_if(
+    cond: bool = True, engine_class: Callable = TensorRTEngine
+):
     """A decorator to compile a method as a onnxruntime/tensorRT engine for inference,
     when ``cond`` is true.
 
@@ -644,11 +660,11 @@ def compile_for_inference_if(cond: bool = True,
             # The first argument to the method is going to be ``self``, i.e. the
             # instance that the method belongs to. By accessing it we get the
             # reference of the module to wrap.
-            assert isinstance(module_to_wrap, torch.nn.Module), (
-                f'Cannot apply @compile_for_inference_if on {type(module_to_wrap)}'
-            )
+            assert isinstance(
+                module_to_wrap, torch.nn.Module
+            ), f"Cannot apply @compile_for_inference_if on {type(module_to_wrap)}"
 
-            if not hasattr(module_to_wrap, '_inference_engine_map'):
+            if not hasattr(module_to_wrap, "_inference_engine_map"):
                 module_to_wrap._inference_engine_map = {}
             n_args = len(args)
             arg_keys = tuple(kwargs.keys())
@@ -656,15 +672,15 @@ def compile_for_inference_if(cond: bool = True,
 
             engine = module_to_wrap._inference_engine_map.get(engine_key, None)
             if engine is None:
-                engine = engine_class(module_to_wrap,
-                                      method,
-                                      example_args=args,
-                                      example_kwargs=kwargs)
+                engine = engine_class(
+                    module_to_wrap, method, example_args=args, example_kwargs=kwargs
+                )
                 module_to_wrap._inference_engine_map[engine_key] = engine
                 alf.utils.common.info(
                     f"Created a new {engine_class} inference engine for "
                     f"'{module_to_wrap.__class__.__name__}.{method.__name__}' "
-                    f"with key '{engine_key}'")
+                    f"with key '{engine_key}'"
+                )
             return engine(*args, **kwargs)
 
         return wrapped
@@ -676,11 +692,13 @@ _compiled_methods = {}
 
 
 @alf.configurable
-def get_tensorrt_engine_class(memory_limit_gb: float = 1.,
-                              fp16: bool = False,
-                              engine_file: Optional[str] = None,
-                              force_build_engine: bool = False,
-                              validate_args: bool = False):
+def get_tensorrt_engine_class(
+    memory_limit_gb: float = 1.0,
+    fp16: bool = False,
+    engine_file: Optional[str] = None,
+    force_build_engine: bool = False,
+    validate_args: bool = False,
+):
     """Get the proper tensorrt engine class depending on the available ``tensorrt``
     version.
 
@@ -704,19 +722,21 @@ def get_tensorrt_engine_class(memory_limit_gb: float = 1.,
                 issue for an input.
     """
     assert is_tensorrt_available()
-    trt_major_ver = trt.__version__.split('.')[0]
+    trt_major_ver = trt.__version__.split(".")[0]
     # On some edge device like Jetson, only tensorrt 8 is supported
-    if trt_major_ver == '8':
+    if trt_major_ver == "8":
         cls = TensorRT8Engine
     else:
-        assert trt_major_ver == '10'
+        assert trt_major_ver == "10"
         cls = TensorRTEngine
-    return functools.partial(cls,
-                             memory_limit_gb=memory_limit_gb,
-                             fp16=fp16,
-                             engine_file=engine_file,
-                             force_build_engine=force_build_engine,
-                             validate_args=validate_args)
+    return functools.partial(
+        cls,
+        memory_limit_gb=memory_limit_gb,
+        fp16=fp16,
+        engine_file=engine_file,
+        force_build_engine=force_build_engine,
+        validate_args=validate_args,
+    )
 
 
 def compile_method(module, method_name, engine_class: Callable = None):
@@ -782,11 +802,12 @@ def compile_method(module, method_name, engine_class: Callable = None):
     # a multiple times.
     assert key not in _compiled_methods, (
         f"Method {module}.{method_name} is already compiled: "
-        f"{_compiled_methods[key]}")
+        f"{_compiled_methods[key]}"
+    )
 
     method = getattr(module, method_name)
     method = method.__func__  # convert a bound method to an unbound method
-    enable_compile = os.environ.get('ALF_ENABLE_COMPILATION', '1') == '1'
+    enable_compile = os.environ.get("ALF_ENABLE_COMPILATION", "1") == "1"
     wrapped = compile_for_inference_if(enable_compile, engine_class)(method)
     setattr(module, method_name, types.MethodType(wrapped, module))
 

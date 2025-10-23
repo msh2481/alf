@@ -13,28 +13,32 @@
 # limitations under the License.
 
 import alf
-from alf.algorithms.data_transformer import HindsightExperienceTransformer, \
-    ObservationNormalizer
+from alf.algorithms.data_transformer import (
+    HindsightExperienceTransformer,
+    ObservationNormalizer,
+)
 from alf.algorithms.ddpg_algorithm import DdpgAlgorithm
 from alf.environments import suite_robotics
 from alf.nest.utils import NestConcat
 
 from alf.examples import ddpg_fetchpush_conf
 
-alf.config('suite_robotics.load', concat_desired_goal=False)
-alf.config('ActorNetwork', preprocessing_combiner=NestConcat())
-alf.config('CriticNetwork',
-           observation_preprocessing_combiner=NestConcat(),
-           action_preprocessing_combiner=NestConcat())
+alf.config("suite_robotics.load", concat_desired_goal=False)
+alf.config("ActorNetwork", preprocessing_combiner=NestConcat())
+alf.config(
+    "CriticNetwork",
+    observation_preprocessing_combiner=NestConcat(),
+    action_preprocessing_combiner=NestConcat(),
+)
 
-alf.config('ReplayBuffer', keep_episodic_info=True)
-alf.config('HindsightExperienceTransformer', her_proportion=0.8)
-alf.config('TrainerConfig',
-           data_transformer_ctor=[
-               HindsightExperienceTransformer, ObservationNormalizer
-           ])
+alf.config("ReplayBuffer", keep_episodic_info=True)
+alf.config("HindsightExperienceTransformer", her_proportion=0.8)
+alf.config(
+    "TrainerConfig",
+    data_transformer_ctor=[HindsightExperienceTransformer, ObservationNormalizer],
+)
 
-alf.config('DdpgAlgorithm', action_l2=0.05)
+alf.config("DdpgAlgorithm", action_l2=0.05)
 
 # Finer grain tensorboard summaries plus local action distribution
 # TrainerConfig.summarize_action_distributions=True

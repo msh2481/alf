@@ -24,8 +24,7 @@ import torch.nn as nn
 import alf
 from alf.pretrained_models.pretrained_model import PretrainedModel
 import alf.utils.checkpoint_utils as ckpt_utils
-from alf.pretrained_models.model_adapters.lora import (LinearAdapter,
-                                                       Conv2dAdapter)
+from alf.pretrained_models.model_adapters.lora import LinearAdapter, Conv2dAdapter
 
 
 class Net(nn.Module):
@@ -40,7 +39,8 @@ class Net(nn.Module):
 
     def forward(self, input):
         return self.fc2(
-            self.fc1(self.conv2(self.conv1(input)).reshape(-1, self._size**2)))
+            self.fc1(self.conv2(self.conv1(input)).reshape(-1, self._size**2))
+        )
 
 
 class PretrainedModelTest(alf.test.TestCase):
@@ -49,31 +49,31 @@ class PretrainedModelTest(alf.test.TestCase):
         with tempfile.TemporaryDirectory() as ckpt_dir:
             net = Net()
             pretrained_net = PretrainedModel(
-                net, adapter_cls=[LinearAdapter, Conv2dAdapter])
+                net, adapter_cls=[LinearAdapter, Conv2dAdapter]
+            )
 
             # check the base model will be ignored for params
             named_paras = pretrained_net.named_parameters()
             for name, para in named_paras:
-                self.assertFalse('conv' in name or 'fc' in name)
+                self.assertFalse("conv" in name or "fc" in name)
 
             ckpt_mngr = ckpt_utils.Checkpointer(ckpt_dir, net=pretrained_net)
             # This merge doesn't affect ckpt
             pretrained_net.merge_adapter()
             ckpt_mngr.save(0)
 
-            model_structure_file = os.path.join(ckpt_dir,
-                                                'ckpt-structure.json')
-            with open(model_structure_file, 'r') as f:
+            model_structure_file = os.path.join(ckpt_dir, "ckpt-structure.json")
+            with open(model_structure_file, "r") as f:
                 model_structure = json.load(f)
 
             expected_model_structure = {
-                'global_step': -1,
-                'net': {
-                    '_adapters.0._wA': -1,
-                    '_adapters.1._wA': -1,
-                    '_adapters.2._wA': -1,
-                    '_adapters.3._wA': -1
-                }
+                "global_step": -1,
+                "net": {
+                    "_adapters.0._wA": -1,
+                    "_adapters.1._wA": -1,
+                    "_adapters.2._wA": -1,
+                    "_adapters.3._wA": -1,
+                },
             }
             self.assertEqual(expected_model_structure, model_structure)
 
@@ -81,11 +81,12 @@ class PretrainedModelTest(alf.test.TestCase):
 
     def test_finetuning_grad(self):
         alf.reset_configs()
-        alf.config('Conv2dAdapter', rank=32)
+        alf.config("Conv2dAdapter", rank=32)
         net = Net(10)
         net.half()
         pretrained_net = PretrainedModel(
-            net, adapter_cls=[LinearAdapter, Conv2dAdapter])
+            net, adapter_cls=[LinearAdapter, Conv2dAdapter]
+        )
         x = torch.zeros([1, 3, 10, 10]).to(torch.float16)
         y = pretrained_net(x).sum()
         y.float().backward()
@@ -94,15 +95,14 @@ class PretrainedModelTest(alf.test.TestCase):
 
     def test_module_blacklist(self):
         alf.reset_configs()
-        alf.config('Conv2dAdapter', rank=32)
-        alf.config('LinearAdapter', rank=32)
+        alf.config("Conv2dAdapter", rank=32)
+        alf.config("LinearAdapter", rank=32)
         net = Net(10)
         # This regex will exclude 'conv1 and 'fc1'
-        blacklist = ['.*1']
+        blacklist = [".*1"]
         pretrained_net = PretrainedModel(
-            net,
-            adapter_cls=[LinearAdapter, Conv2dAdapter],
-            module_blacklist=blacklist)
+            net, adapter_cls=[LinearAdapter, Conv2dAdapter], module_blacklist=blacklist
+        )
         for name in pretrained_net.adapted_module_names:
             for b in blacklist:
                 assert b not in name
@@ -111,14 +111,13 @@ class PretrainedModelTest(alf.test.TestCase):
 
         pretrained_net.remove_adapter()
 
-        whitelist = ['.*conv.*']
+        whitelist = [".*conv.*"]
         pretrained_net = PretrainedModel(
-            net,
-            adapter_cls=[LinearAdapter, Conv2dAdapter],
-            module_whitelist=whitelist)
+            net, adapter_cls=[LinearAdapter, Conv2dAdapter], module_whitelist=whitelist
+        )
         # because of whitelist, adapters only have two weights
         self.assertEqual(len(list(pretrained_net.parameters())), 2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

@@ -21,7 +21,11 @@ import torch
 
 import alf
 from alf.environments import suite_gym
-from alf.environments import thread_environment, parallel_environment, fast_parallel_environment
+from alf.environments import (
+    thread_environment,
+    parallel_environment,
+    fast_parallel_environment,
+)
 from alf.environments import alf_wrappers
 
 
@@ -38,8 +42,9 @@ class UnwrappedEnvChecker(object):
         self._unwrapped_env_in_process = False
 
     def check(self):
-        assert not self._unwrapped_env_in_process, \
-            "You cannot create more envs once there has been an env in the main process!"
+        assert (
+            not self._unwrapped_env_in_process
+        ), "You cannot create more envs once there has been an env in the main process!"
 
     def update(self, wrap_with_process):
         """
@@ -77,11 +82,9 @@ def _env_constructor(env_load_fn, env_name, batch_size_per_env, seed, env_id):
     #
     # NOTE: here it ASSUMES that the created batched environment will take the
     # following env IDs: env_id, env_id + 1, ... ,env_id + batch_size - 1
-    batched = getattr(_get_wrapped_fn(env_load_fn), 'batched', False)
+    batched = getattr(_get_wrapped_fn(env_load_fn), "batched", False)
     if batched:
-        return env_load_fn(env_name,
-                           env_id=env_id,
-                           batch_size=batch_size_per_env)
+        return env_load_fn(env_name, env_id=env_id, batch_size=batch_size_per_env)
     if batch_size_per_env == 1:
         return env_load_fn(env_name, env_id)
     envs = [
@@ -92,22 +95,23 @@ def _env_constructor(env_load_fn, env_name, batch_size_per_env, seed, env_id):
 
 
 @alf.configurable
-def create_environment(env_name='CartPole-v0',
-                       env_load_fn=suite_gym.load,
-                       eval_env_load_fn=None,
-                       for_evaluation=False,
-                       num_parallel_environments=30,
-                       batch_size_per_env=None,
-                       eval_batch_size_per_env=None,
-                       nonparallel=False,
-                       flatten=True,
-                       start_serially=True,
-                       num_spare_envs=0,
-                       torch_num_threads_per_env=1,
-                       parallel_environment_ctor=fast_parallel_environment.
-                       FastParallelEnvironment,
-                       seed=None,
-                       batched_wrappers=()):
+def create_environment(
+    env_name="CartPole-v0",
+    env_load_fn=suite_gym.load,
+    eval_env_load_fn=None,
+    for_evaluation=False,
+    num_parallel_environments=30,
+    batch_size_per_env=None,
+    eval_batch_size_per_env=None,
+    nonparallel=False,
+    flatten=True,
+    start_serially=True,
+    num_spare_envs=0,
+    torch_num_threads_per_env=1,
+    parallel_environment_ctor=fast_parallel_environment.FastParallelEnvironment,
+    seed=None,
+    batched_wrappers=(),
+):
     """Create a batched environment.
 
     Args:
@@ -175,21 +179,23 @@ def create_environment(env_name='CartPole-v0',
         AlfEnvironment:
 
     """
-    logger.info(f"Creating environment: {env_name}, "
-                f"num_parallel_environments: {num_parallel_environments}, "
-                f"batch_size_per_env: {batch_size_per_env}, "
-                f"nonparallel: {nonparallel}, "
-                f"for_evaluation: {for_evaluation}, "
-                f"eval_batch_size_per_env: {eval_batch_size_per_env}, "
-                f"num_spare_envs: {num_spare_envs}, "
-                f"torch_num_threads_per_env: {torch_num_threads_per_env}, "
-                f"parallel_environment_ctor: {parallel_environment_ctor}, "
-                f"seed: {seed}")
+    logger.info(
+        f"Creating environment: {env_name}, "
+        f"num_parallel_environments: {num_parallel_environments}, "
+        f"batch_size_per_env: {batch_size_per_env}, "
+        f"nonparallel: {nonparallel}, "
+        f"for_evaluation: {for_evaluation}, "
+        f"eval_batch_size_per_env: {eval_batch_size_per_env}, "
+        f"num_spare_envs: {num_spare_envs}, "
+        f"torch_num_threads_per_env: {torch_num_threads_per_env}, "
+        f"parallel_environment_ctor: {parallel_environment_ctor}, "
+        f"seed: {seed}"
+    )
 
     # Some environment may take long time to load. So we use GPU before loading
     # environments so that other people knows that this GPU is being used.
     if torch.cuda.is_available():
-        tmp = torch.zeros((32, ))
+        tmp = torch.zeros((32,))
         torch.cuda.synchronize()
 
     if for_evaluation:
@@ -200,10 +206,9 @@ def create_environment(env_name='CartPole-v0',
 
     # env_load_fn may be a functools.partial, so we need to get the wrapped
     # function to get its attributes
-    batched = getattr(_get_wrapped_fn(env_load_fn), 'batched', False)
+    batched = getattr(_get_wrapped_fn(env_load_fn), "batched", False)
     logger.info(f"env_load_fn: {env_load_fn}, batched: {batched}")
-    no_thread_env = getattr(_get_wrapped_fn(env_load_fn), 'no_thread_env',
-                            False)
+    no_thread_env = getattr(_get_wrapped_fn(env_load_fn), "no_thread_env", False)
 
     if nonparallel:
         assert num_parallel_environments == 1, "nonparallel is True"
@@ -218,20 +223,25 @@ def create_environment(env_name='CartPole-v0',
 
     assert num_parallel_environments % batch_size_per_env == 0, (
         f"num_parallel_environments ({num_parallel_environments}) cannot be"
-        f"divided by batch_size_per_env ({batch_size_per_env})")
+        f"divided by batch_size_per_env ({batch_size_per_env})"
+    )
     num_envs = num_parallel_environments // batch_size_per_env
     if batch_size_per_env > 1:
-        assert num_spare_envs == 0, "Do not support spare environments for batch_size_per_env > 1"
-        assert parallel_environment_ctor == fast_parallel_environment.FastParallelEnvironment
+        assert (
+            num_spare_envs == 0
+        ), "Do not support spare environments for batch_size_per_env > 1"
+        assert (
+            parallel_environment_ctor
+            == fast_parallel_environment.FastParallelEnvironment
+        )
 
-    if 'num_parallel_environments' in inspect.signature(
-            env_load_fn).parameters:
+    if "num_parallel_environments" in inspect.signature(env_load_fn).parameters:
         env_load_fn = functools.partial(
-            env_load_fn, num_parallel_environments=num_parallel_environments)
+            env_load_fn, num_parallel_environments=num_parallel_environments
+        )
 
     if isinstance(env_name, (list, tuple)):
-        env_load_fn = functools.partial(alf_wrappers.MultitaskWrapper.load,
-                                        env_load_fn)
+        env_load_fn = functools.partial(alf_wrappers.MultitaskWrapper.load, env_load_fn)
 
     if batched and batch_size_per_env == num_parallel_environments:
         logger.info(
@@ -239,8 +249,10 @@ def create_environment(env_name='CartPole-v0',
         )
         alf_env = env_load_fn(env_name, batch_size=num_parallel_environments)
         if not alf_env.is_tensor_based:
-            logger.info(f"{alf_env} is not tensor based, wrapping it with "
-                        "BatchedTensorWrapper")
+            logger.info(
+                f"{alf_env} is not tensor based, wrapping it with "
+                "BatchedTensorWrapper"
+            )
             alf_env = alf_wrappers.TensorWrapper(alf_env)
     elif nonparallel:
         # Each time we can only create one unwrapped env at most
@@ -249,17 +261,21 @@ def create_environment(env_name='CartPole-v0',
             # thread environment", and we will create it in the main thread.
             # BatchedTensorWrapper is applied to make sure the I/O is batched
             # torch tensor based.
-            logger.info(f"{env_name} disallows thread_env, wrapping it with "
-                        "BatchedTensorWrapper")
+            logger.info(
+                f"{env_name} disallows thread_env, wrapping it with "
+                "BatchedTensorWrapper"
+            )
             alf_env = alf_wrappers.BatchedTensorWrapper(env_load_fn(env_name))
         else:
             # Create and step the env in a separate thread. env `step` and
             #   `reset` must run in the same thread which the env is created in
             #   for some simulation environments such as social_bot(gazebo)
-            logger.info(f"{env_name} allows thread_env, wrapping it with "
-                        "ThreadEnvironment")
-            alf_env = thread_environment.ThreadEnvironment(lambda: env_load_fn(
-                env_name))
+            logger.info(
+                f"{env_name} allows thread_env, wrapping it with " "ThreadEnvironment"
+            )
+            alf_env = thread_environment.ThreadEnvironment(
+                lambda: env_load_fn(env_name)
+            )
 
         if seed is None:
             alf_env.seed(np.random.randint(0, np.iinfo(np.int32).max))
@@ -268,19 +284,24 @@ def create_environment(env_name='CartPole-v0',
     else:
         logger.info(
             f"Creating {num_parallel_environments} parallel environments"
-            f" with batch size {batch_size_per_env}")
+            f" with batch size {batch_size_per_env}"
+        )
         if seed is None:
             seeds = list(
                 map(
                     int,
-                    np.random.randint(0,
-                                      np.iinfo(np.int32).max,
-                                      num_envs + num_spare_envs)))
+                    np.random.randint(
+                        0, np.iinfo(np.int32).max, num_envs + num_spare_envs
+                    ),
+                )
+            )
         else:
             seeds = [seed + i for i in range(num_envs + num_spare_envs)]
         ctors = [
-            functools.partial(_env_constructor, env_load_fn, env_name,
-                              batch_size_per_env, seed) for seed in seeds
+            functools.partial(
+                _env_constructor, env_load_fn, env_name, batch_size_per_env, seed
+            )
+            for seed in seeds
         ]
         # flatten=True will use flattened action and time_step in
         #   process environments to reduce communication overhead.
@@ -289,7 +310,8 @@ def create_environment(env_name='CartPole-v0',
             flatten=flatten,
             start_serially=start_serially,
             num_spare_envs_for_reload=num_spare_envs,
-            torch_num_threads_per_env=torch_num_threads_per_env)
+            torch_num_threads_per_env=torch_num_threads_per_env,
+        )
         alf_env.seed(seeds)
 
     for wrapper in batched_wrappers:
@@ -299,10 +321,9 @@ def create_environment(env_name='CartPole-v0',
 
 
 @alf.configurable
-def load_with_random_max_episode_steps(env_name,
-                                       env_load_fn=suite_gym.load,
-                                       min_steps=200,
-                                       max_steps=250):
+def load_with_random_max_episode_steps(
+    env_name, env_load_fn=suite_gym.load, min_steps=200, max_steps=250
+):
     """Create environment with random max_episode_steps in range
     ``[min_steps, max_steps]``.
 
@@ -314,5 +335,4 @@ def load_with_random_max_episode_steps(env_name,
     Returns:
         AlfEnvironment:
     """
-    return env_load_fn(env_name,
-                       max_episode_steps=random.randint(min_steps, max_steps))
+    return env_load_fn(env_name, max_episode_steps=random.randint(min_steps, max_steps))

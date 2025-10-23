@@ -20,12 +20,14 @@ from alf.algorithms.td_loss import TDLoss
 
 alf.config("create_environment", env_name="fish:swim")
 
-alf.config('Agent', optimizer=dm_control_conf.optimizer)
+alf.config("Agent", optimizer=dm_control_conf.optimizer)
 
-alf.config('SacAlgorithm',
-           actor_network_cls=dm_control_conf.actor_distribution_network_cls,
-           critic_network_cls=dm_control_conf.critic_network_cls,
-           critic_loss_ctor=TDLoss,
-           target_update_tau=0.005)
+alf.config(
+    "SacAlgorithm",
+    actor_network_cls=dm_control_conf.actor_distribution_network_cls,
+    critic_network_cls=dm_control_conf.critic_network_cls,
+    critic_loss_ctor=TDLoss,
+    target_update_tau=0.005,
+)
 
-alf.config('calc_default_target_entropy', min_prob=0.2)
+alf.config("calc_default_target_entropy", min_prob=0.2)

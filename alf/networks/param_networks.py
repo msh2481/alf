@@ -28,18 +28,20 @@ from alf.utils import common
 @alf.configurable
 class ParamConvNet(Network):
 
-    def __init__(self,
-                 input_channels,
-                 input_size,
-                 conv_layer_params,
-                 same_padding=False,
-                 activation=torch.relu_,
-                 use_bias=False,
-                 use_ln=False,
-                 n_groups=None,
-                 kernel_initializer=None,
-                 flatten_output=False,
-                 name="ParamConvNet"):
+    def __init__(
+        self,
+        input_channels,
+        input_size,
+        conv_layer_params,
+        same_padding=False,
+        activation=torch.relu_,
+        use_bias=False,
+        use_ln=False,
+        n_groups=None,
+        kernel_initializer=None,
+        flatten_output=False,
+        name="ParamConvNet",
+    ):
         """A fully 2D conv network that does not maintain its own network parameters,
         but accepts them from users. If the given parameter tensor has an extra batch
         dimension (first dimension), it performs parallel operations.
@@ -59,7 +61,7 @@ class ParamConvNet(Network):
             activation (torch.nn.functional): activation for all the layers
             use_bias (bool): whether use bias.
             use_ln (bool): whether use layer normalization
-            n_groups (int): number of parallel groups, must be specified if 
+            n_groups (int): number of parallel groups, must be specified if
                 ``use_ln``
             kernel_initializer (Callable): initializer for all the layers.
             flatten_output (bool): If False, the output will be an image
@@ -69,9 +71,9 @@ class ParamConvNet(Network):
         """
 
         input_size = common.tuplify2d(input_size)
-        super().__init__(input_tensor_spec=TensorSpec((input_channels, ) +
-                                                      input_size),
-                         name=name)
+        super().__init__(
+            input_tensor_spec=TensorSpec((input_channels,) + input_size), name=name
+        )
 
         assert isinstance(conv_layer_params, tuple)
         assert len(conv_layer_params) > 0
@@ -79,9 +81,10 @@ class ParamConvNet(Network):
         if kernel_initializer is None:
             kernel_initializer = functools.partial(
                 variance_scaling_init,
-                mode='fan_in',
-                distribution='truncated_normal',
-                nonlinearity=activation)
+                mode="fan_in",
+                distribution="truncated_normal",
+                nonlinearity=activation,
+            )
 
         self._flatten_output = flatten_output
         self._conv_layer_params = conv_layer_params
@@ -93,25 +96,27 @@ class ParamConvNet(Network):
             pooling_kernel = paras[4] if len(paras) > 4 else None
             if same_padding:  # overwrite paddings
                 kernel_size = common.tuplify2d(kernel_size)
-                padding = ((kernel_size[0] - 1) // 2,
-                           (kernel_size[1] - 1) // 2)
+                padding = ((kernel_size[0] - 1) // 2, (kernel_size[1] - 1) // 2)
             self._conv_layers.append(
-                ParamConv2D(input_channels,
-                            filters,
-                            kernel_size,
-                            activation=activation,
-                            strides=strides,
-                            pooling_kernel=pooling_kernel,
-                            padding=padding,
-                            use_bias=use_bias,
-                            use_ln=use_ln,
-                            n_groups=n_groups,
-                            kernel_initializer=kernel_initializer))
+                ParamConv2D(
+                    input_channels,
+                    filters,
+                    kernel_size,
+                    activation=activation,
+                    strides=strides,
+                    pooling_kernel=pooling_kernel,
+                    padding=padding,
+                    use_bias=use_bias,
+                    use_ln=use_ln,
+                    n_groups=n_groups,
+                    kernel_initializer=kernel_initializer,
+                )
+            )
             input_channels = filters
 
     @property
     def param_length(self):
-        """Get total number of parameters for all layers. """
+        """Get total number of parameters for all layers."""
         if self._param_length is None:
             length = 0
             for conv_l in self._conv_layers:
@@ -135,14 +140,15 @@ class ParamConvNet(Network):
         """
         if theta.ndim == 1:
             theta = theta.unsqueeze(0)
-        assert (theta.ndim == 2 and theta.shape[1] == self.param_length), (
-            "Input theta has wrong shape %s. Expecting shape (, %d)" %
-            self.param_length)
+        assert theta.ndim == 2 and theta.shape[1] == self.param_length, (
+            "Input theta has wrong shape %s. Expecting shape (, %d)" % self.param_length
+        )
         pos = 0
         for conv_l in self._conv_layers:
             param_length = conv_l.param_length
-            conv_l.set_parameters(theta[:, pos:pos + param_length],
-                                  reinitialize=reinitialize)
+            conv_l.set_parameters(
+                theta[:, pos : pos + param_length], reinitialize=reinitialize
+            )
             pos = pos + param_length
         self._output_spec = None
 
@@ -164,22 +170,24 @@ class ParamConvNet(Network):
 @alf.configurable
 class ParamNetwork(Network):
 
-    def __init__(self,
-                 input_tensor_spec,
-                 conv_layer_params=None,
-                 fc_layer_params=None,
-                 use_conv_bias=False,
-                 use_conv_ln=False,
-                 use_fc_bias=True,
-                 use_fc_ln=False,
-                 n_groups=None,
-                 activation=torch.relu_,
-                 kernel_initializer=None,
-                 last_layer_size=None,
-                 last_activation=None,
-                 last_use_bias=True,
-                 last_use_ln=False,
-                 name="ParamNetwork"):
+    def __init__(
+        self,
+        input_tensor_spec,
+        conv_layer_params=None,
+        fc_layer_params=None,
+        use_conv_bias=False,
+        use_conv_ln=False,
+        use_fc_bias=True,
+        use_fc_ln=False,
+        n_groups=None,
+        activation=torch.relu_,
+        kernel_initializer=None,
+        last_layer_size=None,
+        last_activation=None,
+        last_use_bias=True,
+        last_use_ln=False,
+        name="ParamNetwork",
+    ):
         """A network with Fc and conv2D layers that does not maintain its own
         network parameters, but accepts them from users. If the given parameter
         tensor has an extra batch dimension (first dimension), it performs
@@ -195,7 +203,7 @@ class ParamNetwork(Network):
                 where ``padding`` and ``pooling_kernel`` are optional.
             fc_layer_params (tuple[int]): a tuple of integers
                 representing FC layer sizes.
-            use_conv_bias (bool): whether use bias for conv layers. 
+            use_conv_bias (bool): whether use bias for conv layers.
             use_conv_ln (bool): whether use layer normalization for conv layers.
             use_fc_bias (bool): whether use bias for fc layers.
             use_fc_ln (bool): whether use layer normalization for fc layers.
@@ -219,33 +227,39 @@ class ParamNetwork(Network):
         if kernel_initializer is None:
             kernel_initializer = functools.partial(
                 variance_scaling_init,
-                mode='fan_in',
-                distribution='truncated_normal',
-                nonlinearity=activation)
+                mode="fan_in",
+                distribution="truncated_normal",
+                nonlinearity=activation,
+            )
 
         self._param_length = None
         self._conv_net = None
         if conv_layer_params:
-            assert isinstance(conv_layer_params, tuple), \
-                "The input params {} should be tuple".format(conv_layer_params)
-            assert input_tensor_spec.ndim == 3, \
-                "The input shape {} should be like (C,H,W)!".format(
-                    input_tensor_spec.shape)
+            assert isinstance(
+                conv_layer_params, tuple
+            ), "The input params {} should be tuple".format(conv_layer_params)
+            assert (
+                input_tensor_spec.ndim == 3
+            ), "The input shape {} should be like (C,H,W)!".format(
+                input_tensor_spec.shape
+            )
             input_channels, height, width = input_tensor_spec.shape
             self._conv_net = ParamConvNet(
-                input_channels, (height, width),
+                input_channels,
+                (height, width),
                 conv_layer_params,
                 activation=activation,
                 use_bias=use_conv_bias,
                 use_ln=use_conv_ln,
                 n_groups=n_groups,
                 kernel_initializer=kernel_initializer,
-                flatten_output=True)
+                flatten_output=True,
+            )
             input_size = self._conv_net.output_spec.shape[-1]
         else:
-            assert input_tensor_spec.ndim == 1, \
-                "The input shape {} should be like (N,)!".format(
-                    input_tensor_spec.shape)
+            assert (
+                input_tensor_spec.ndim == 1
+            ), "The input shape {} should be like (N,)!".format(input_tensor_spec.shape)
             input_size = input_tensor_spec.shape[0]
 
         self._fc_layers = nn.ModuleList()
@@ -257,34 +271,42 @@ class ParamNetwork(Network):
 
         for size in fc_layer_params:
             self._fc_layers.append(
-                ParamFC(input_size,
-                        size,
-                        activation=activation,
-                        use_bias=use_fc_bias,
-                        use_ln=use_fc_ln,
-                        n_groups=n_groups,
-                        kernel_initializer=kernel_initializer))
+                ParamFC(
+                    input_size,
+                    size,
+                    activation=activation,
+                    use_bias=use_fc_bias,
+                    use_ln=use_fc_ln,
+                    n_groups=n_groups,
+                    kernel_initializer=kernel_initializer,
+                )
+            )
             input_size = size
 
         if last_layer_size is not None or last_activation is not None:
-            assert last_layer_size is not None and last_activation is not None, \
-            "Both last_layer_param and last_activation need to be specified!"
+            assert (
+                last_layer_size is not None and last_activation is not None
+            ), "Both last_layer_param and last_activation need to be specified!"
             self._fc_layers.append(
-                ParamFC(input_size,
-                        last_layer_size,
-                        activation=last_activation,
-                        use_bias=last_use_bias,
-                        use_ln=last_use_ln,
-                        n_groups=n_groups,
-                        kernel_initializer=kernel_initializer))
+                ParamFC(
+                    input_size,
+                    last_layer_size,
+                    activation=last_activation,
+                    use_bias=last_use_bias,
+                    use_ln=last_use_ln,
+                    n_groups=n_groups,
+                    kernel_initializer=kernel_initializer,
+                )
+            )
             input_size = last_layer_size
 
-        self._output_spec = TensorSpec((input_size, ),
-                                       dtype=self._input_tensor_spec.dtype)
+        self._output_spec = TensorSpec(
+            (input_size,), dtype=self._input_tensor_spec.dtype
+        )
 
     @property
     def param_length(self):
-        """Get total number of parameters for all layers. """
+        """Get total number of parameters for all layers."""
         if self._param_length is None:
             length = 0
             if self._conv_net is not None:
@@ -310,23 +332,23 @@ class ParamNetwork(Network):
         """
         if theta.ndim == 1:
             theta = theta.unsqueeze(0)
-        assert (theta.ndim == 2 and theta.shape[1] == self.param_length), (
-            "Input theta has wrong shape %s. Expecting shape (, %d)" %
-            self.param_length)
+        assert theta.ndim == 2 and theta.shape[1] == self.param_length, (
+            "Input theta has wrong shape %s. Expecting shape (, %d)" % self.param_length
+        )
         if self._conv_net is not None:
             split = self._conv_net.param_length
             conv_theta = theta[:, :split]
-            self._conv_net.set_parameters(conv_theta,
-                                          reinitialize=reinitialize)
-            fc_theta = theta[:, self._conv_net.param_length:]
+            self._conv_net.set_parameters(conv_theta, reinitialize=reinitialize)
+            fc_theta = theta[:, self._conv_net.param_length :]
         else:
             fc_theta = theta
 
         pos = 0
         for fc_l in self._fc_layers:
             param_length = fc_l.param_length
-            fc_l.set_parameters(fc_theta[:, pos:pos + param_length],
-                                reinitialize=reinitialize)
+            fc_l.set_parameters(
+                fc_theta[:, pos : pos + param_length], reinitialize=reinitialize
+            )
             pos = pos + param_length
 
     def forward(self, inputs, state=()):

@@ -73,7 +73,6 @@ class SimpleActionEncoder(Network):
             else:
                 return a.reshape(-1)
 
-        actions = alf.nest.map_structure(_encode_one_action, actions,
-                                         self._action_spec)
+        actions = alf.nest.map_structure(_encode_one_action, actions, self._action_spec)
 
         return torch.cat(alf.nest.flatten(actions), dim=-1), ()

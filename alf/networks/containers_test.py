@@ -21,7 +21,8 @@ from alf.networks.network_test import test_net_copy
 
 def _randn_from_spec(specs, batch_size):
     return alf.nest.map_structure(
-        lambda spec: torch.randn(batch_size, *spec.shape), specs)
+        lambda spec: torch.randn(batch_size, *spec.shape), specs
+    )
 
 
 class ContainersTest(alf.test.TestCase):
@@ -34,31 +35,31 @@ class ContainersTest(alf.test.TestCase):
             test_net_copy(pnet)
             nnet = alf.nn.NaiveParallelNetwork(net, n)
             for i in range(n):
-                for pp, np in zip(pnet.parameters(),
-                                  nnet._networks[i].parameters()):
-                    self.assertEqual(pp.shape, (n, ) + np.shape)
+                for pp, np in zip(pnet.parameters(), nnet._networks[i].parameters()):
+                    self.assertEqual(pp.shape, (n,) + np.shape)
                     np.data.copy_(pp[i])
             pspec = alf.layers.make_parallel_spec(spec, n)
             input = _randn_from_spec(pspec, batch_size)
             presult = pnet(input)
             nresult = nnet(input)
             alf.nest.map_structure(
-                lambda p, n: self.assertEqual(p.shape, n.shape), presult,
-                nresult)
+                lambda p, n: self.assertEqual(p.shape, n.shape), presult, nresult
+            )
             alf.nest.map_structure(
-                lambda p, n: self.assertTensorClose(p, n, tolerance), presult,
-                nresult)
+                lambda p, n: self.assertTensorClose(p, n, tolerance), presult, nresult
+            )
 
     def test_sequential1(self):
-        net = alf.nn.Sequential(alf.layers.FC(4, 6), alf.nn.GRUCell(6, 8),
-                                alf.nn.GRUCell(8, 12))
+        net = alf.nn.Sequential(
+            alf.layers.FC(4, 6), alf.nn.GRUCell(6, 8), alf.nn.GRUCell(8, 12)
+        )
 
-        self.assertEqual(net.input_tensor_spec, alf.TensorSpec((4, )))
+        self.assertEqual(net.input_tensor_spec, alf.TensorSpec((4,)))
         self.assertTrue(
             alf.utils.spec_utils.is_same_spec(
-                net.state_spec,
-                [(), alf.TensorSpec(
-                    (8, )), alf.TensorSpec((12, ))]))
+                net.state_spec, [(), alf.TensorSpec((8,)), alf.TensorSpec((12,))]
+            )
+        )
 
         batch_size = 24
         x = _randn_from_spec(net.input_tensor_spec, batch_size)
@@ -76,20 +77,27 @@ class ContainersTest(alf.test.TestCase):
         test_net_copy(net)
 
     def test_sequential_complex1(self):
-        net_original = alf.nn.Sequential(alf.layers.FC(4, 6),
-                                         c=alf.nn.GRUCell(6, 8),
-                                         b=alf.nn.GRUCell(8, 12),
-                                         a=('c', alf.nn.GRUCell(8, 16)),
-                                         output=('b', 'a'))
+        net_original = alf.nn.Sequential(
+            alf.layers.FC(4, 6),
+            c=alf.nn.GRUCell(6, 8),
+            b=alf.nn.GRUCell(8, 12),
+            a=("c", alf.nn.GRUCell(8, 16)),
+            output=("b", "a"),
+        )
         net_copy = net_original.copy()
         for net in (net_original, net_copy):
-            self.assertEqual(net.input_tensor_spec, alf.TensorSpec((4, )))
+            self.assertEqual(net.input_tensor_spec, alf.TensorSpec((4,)))
             self.assertTrue(
-                alf.utils.spec_utils.is_same_spec(net.state_spec,
-                                                  [(),
-                                                   alf.TensorSpec((8, )),
-                                                   alf.TensorSpec((12, )),
-                                                   alf.TensorSpec((16, ))]))
+                alf.utils.spec_utils.is_same_spec(
+                    net.state_spec,
+                    [
+                        (),
+                        alf.TensorSpec((8,)),
+                        alf.TensorSpec((12,)),
+                        alf.TensorSpec((16,)),
+                    ],
+                )
+            )
 
             batch_size = 24
             x = _randn_from_spec(net.input_tensor_spec, batch_size)
@@ -111,10 +119,11 @@ class ContainersTest(alf.test.TestCase):
             test_net_copy(net)
 
     def test_sequential2(self):
-        net = alf.nn.Sequential(alf.layers.FC(4, 6), alf.layers.FC(6, 8),
-                                alf.layers.FC(8, 12))
+        net = alf.nn.Sequential(
+            alf.layers.FC(4, 6), alf.layers.FC(6, 8), alf.layers.FC(8, 12)
+        )
 
-        self.assertEqual(net.input_tensor_spec, alf.TensorSpec((4, )))
+        self.assertEqual(net.input_tensor_spec, alf.TensorSpec((4,)))
         self.assertEqual(net.state_spec, ())
 
         batch_size = 24
@@ -131,12 +140,14 @@ class ContainersTest(alf.test.TestCase):
         test_net_copy(net)
 
     def test_sequential_complex2(self):
-        net = alf.nn.Sequential(alf.layers.FC(4, 6),
-                                a=alf.layers.FC(6, 8),
-                                b=alf.layers.FC(8, 12),
-                                c=(('a', 'b'), alf.layers.NestConcat()))
+        net = alf.nn.Sequential(
+            alf.layers.FC(4, 6),
+            a=alf.layers.FC(6, 8),
+            b=alf.layers.FC(8, 12),
+            c=(("a", "b"), alf.layers.NestConcat()),
+        )
 
-        self.assertEqual(net.input_tensor_spec, alf.TensorSpec((4, )))
+        self.assertEqual(net.input_tensor_spec, alf.TensorSpec((4,)))
         self.assertEqual(net.state_spec, ())
 
         batch_size = 24
@@ -154,12 +165,14 @@ class ContainersTest(alf.test.TestCase):
         self._test_make_parallel(net)
 
     def test_sequential_complex3(self):
-        net = alf.nn.Sequential(alf.layers.FC(4, 6),
-                                a=alf.layers.FC(6, 8),
-                                b=alf.layers.FC(8, 8),
-                                c=(('a', 'b'), alf.layers.AddN()))
+        net = alf.nn.Sequential(
+            alf.layers.FC(4, 6),
+            a=alf.layers.FC(6, 8),
+            b=alf.layers.FC(8, 8),
+            c=(("a", "b"), alf.layers.AddN()),
+        )
 
-        self.assertEqual(net.input_tensor_spec, alf.TensorSpec((4, )))
+        self.assertEqual(net.input_tensor_spec, alf.TensorSpec((4,)))
         self.assertEqual(net.state_spec, ())
 
         batch_size = 24
@@ -178,14 +191,20 @@ class ContainersTest(alf.test.TestCase):
 
     def test_parallel1(self):
         net = alf.nn.Parallel(
-            (alf.layers.FC(4, 6), alf.nn.GRUCell(6, 8), alf.nn.GRUCell(8, 12)))
+            (alf.layers.FC(4, 6), alf.nn.GRUCell(6, 8), alf.nn.GRUCell(8, 12))
+        )
 
         self.assertTrue(
-            is_same_spec(net.input_tensor_spec, (alf.TensorSpec(
-                (4, )), alf.TensorSpec((6, )), alf.TensorSpec((8, )))))
+            is_same_spec(
+                net.input_tensor_spec,
+                (alf.TensorSpec((4,)), alf.TensorSpec((6,)), alf.TensorSpec((8,))),
+            )
+        )
         self.assertTrue(
-            is_same_spec(net.state_spec, ((), alf.TensorSpec(
-                (8, )), alf.TensorSpec((12, )))))
+            is_same_spec(
+                net.state_spec, ((), alf.TensorSpec((8,)), alf.TensorSpec((12,)))
+            )
+        )
 
         batch_size = 24
         x = _randn_from_spec(net.input_tensor_spec, batch_size)
@@ -206,11 +225,15 @@ class ContainersTest(alf.test.TestCase):
 
     def test_parallel2(self):
         net = alf.nn.Parallel(
-            (alf.layers.FC(4, 6), alf.layers.FC(6, 8), alf.layers.FC(8, 12)))
+            (alf.layers.FC(4, 6), alf.layers.FC(6, 8), alf.layers.FC(8, 12))
+        )
 
         self.assertTrue(
-            is_same_spec(net.input_tensor_spec, (alf.TensorSpec(
-                (4, )), alf.TensorSpec((6, )), alf.TensorSpec((8, )))))
+            is_same_spec(
+                net.input_tensor_spec,
+                (alf.TensorSpec((4,)), alf.TensorSpec((6,)), alf.TensorSpec((8,))),
+            )
+        )
         self.assertEqual(net.state_spec, ())
 
         batch_size = 24
@@ -230,12 +253,15 @@ class ContainersTest(alf.test.TestCase):
 
     def test_branch1(self):
         net = alf.nn.Branch(
-            (alf.layers.FC(4, 6), alf.nn.GRUCell(4, 8), alf.nn.GRUCell(4, 12)))
+            (alf.layers.FC(4, 6), alf.nn.GRUCell(4, 8), alf.nn.GRUCell(4, 12))
+        )
 
-        self.assertEqual(net.input_tensor_spec, alf.TensorSpec((4, )))
+        self.assertEqual(net.input_tensor_spec, alf.TensorSpec((4,)))
         self.assertTrue(
-            is_same_spec(net.state_spec, ((), alf.TensorSpec(
-                (8, )), alf.TensorSpec((12, )))))
+            is_same_spec(
+                net.state_spec, ((), alf.TensorSpec((8,)), alf.TensorSpec((12,)))
+            )
+        )
 
         batch_size = 24
         x = _randn_from_spec(net.input_tensor_spec, batch_size)
@@ -256,9 +282,10 @@ class ContainersTest(alf.test.TestCase):
 
     def test_branch2(self):
         net = alf.nn.Branch(
-            (alf.layers.FC(4, 6), alf.layers.FC(4, 8), alf.layers.FC(4, 12)))
+            (alf.layers.FC(4, 6), alf.layers.FC(4, 8), alf.layers.FC(4, 12))
+        )
 
-        self.assertEqual(net.input_tensor_spec, alf.TensorSpec((4, )))
+        self.assertEqual(net.input_tensor_spec, alf.TensorSpec((4,)))
         self.assertEqual(net.state_spec, ())
 
         batch_size = 24
@@ -277,5 +304,5 @@ class ContainersTest(alf.test.TestCase):
         self._test_make_parallel(net)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

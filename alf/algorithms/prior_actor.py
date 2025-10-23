@@ -63,8 +63,7 @@ class TruncatedNormal(td.Distribution):
         low = (self._low - loc) / scale
         high = (self._high - loc) / scale
         # 0.9189385332046727 = math.log(math.sqrt(2 * math.pi))
-        log_prob = -(
-            (value - loc)**2) / (2 * var) - log_scale - 0.9189385332046727
+        log_prob = -((value - loc) ** 2) / (2 * var) - log_scale - 0.9189385332046727
         return log_prob - normcdf(low, high).log()
 
     def sample(self):
@@ -77,13 +76,15 @@ class TruncatedNormal(td.Distribution):
 @alf.configurable
 class SameActionPriorActor(Algorithm):
 
-    def __init__(self,
-                 observation_spec,
-                 action_spec: BoundedTensorSpec,
-                 same_action_noise=0.1,
-                 same_action_prob=0.9,
-                 debug_summaries=False,
-                 name="SameActionPriorActor"):
+    def __init__(
+        self,
+        observation_spec,
+        action_spec: BoundedTensorSpec,
+        same_action_noise=0.1,
+        same_action_prob=0.9,
+        debug_summaries=False,
+        name="SameActionPriorActor",
+    ):
         """
         ``SameActionPriorActor`` can be used as a prior for KLD regularized RL-algorithms.
         It encodes the prior intuition that the next action should be same as the
@@ -110,54 +111,56 @@ class SameActionPriorActor(Algorithm):
             debug_summaries (bool): True if debug summaries should be created.
             name (str): The name of this algorithm.
         """
-        super().__init__(train_state_spec=(),
-                         debug_summaries=debug_summaries,
-                         name=name)
+        super().__init__(
+            train_state_spec=(), debug_summaries=debug_summaries, name=name
+        )
 
         def _prepare_spec(action_spec):
             spec = {}
             assert action_spec.is_continuous, "Discrete action is not supported"
-            spec['minimum'] = torch.as_tensor(
-                np.broadcast_to(action_spec.minimum,
-                                action_spec.shape)).reshape(
-                                    1, *action_spec.shape, 1)
-            spec['maximum'] = torch.as_tensor(
-                np.broadcast_to(action_spec.maximum,
-                                action_spec.shape)).reshape(
-                                    1, *action_spec.shape, 1)
-            spec['background_loc'] = 0.5 * (spec['minimum'] +
-                                            spec['maximum']).squeeze(-1)
-            spec['scale'] = torch.cat([
-                spec['maximum'] - spec['minimum'],
-                (spec['maximum'] - spec['minimum']) * same_action_noise
-            ],
-                                      dim=-1)
-            mix_prob = torch.tensor([1. - same_action_prob, same_action_prob])
-            spec['mix_logits'] = mix_prob.log().reshape(
-                1, *([1] * len(action_spec.shape)), 2)
-            spec['pure_logits'] = torch.tensor([0., -100.])
-            spec['shape'] = action_spec.shape
-            spec['continuous'] = True
+            spec["minimum"] = torch.as_tensor(
+                np.broadcast_to(action_spec.minimum, action_spec.shape)
+            ).reshape(1, *action_spec.shape, 1)
+            spec["maximum"] = torch.as_tensor(
+                np.broadcast_to(action_spec.maximum, action_spec.shape)
+            ).reshape(1, *action_spec.shape, 1)
+            spec["background_loc"] = 0.5 * (spec["minimum"] + spec["maximum"]).squeeze(
+                -1
+            )
+            spec["scale"] = torch.cat(
+                [
+                    spec["maximum"] - spec["minimum"],
+                    (spec["maximum"] - spec["minimum"]) * same_action_noise,
+                ],
+                dim=-1,
+            )
+            mix_prob = torch.tensor([1.0 - same_action_prob, same_action_prob])
+            spec["mix_logits"] = mix_prob.log().reshape(
+                1, *([1] * len(action_spec.shape)), 2
+            )
+            spec["pure_logits"] = torch.tensor([0.0, -100.0])
+            spec["shape"] = action_spec.shape
+            spec["continuous"] = True
             return spec
 
         self._action_spec = action_spec
         flat_action_spec = alf.nest.flatten(action_spec)
-        self._prepared_specs = [
-            _prepare_spec(spec) for spec in flat_action_spec
-        ]
+        self._prepared_specs = [_prepare_spec(spec) for spec in flat_action_spec]
 
     def _make_dist(self, step_type, prev_action, spec):
-        logits = spec['mix_logits'].expand(*prev_action.shape, -1).clone()
-        logits[step_type == StepType.FIRST] = spec['pure_logits']
+        logits = spec["mix_logits"].expand(*prev_action.shape, -1).clone()
+        logits[step_type == StepType.FIRST] = spec["pure_logits"]
         mix = Categorical(logits=logits)
         loc = torch.stack(
-            [spec['background_loc'].expand_as(prev_action), prev_action],
-            dim=-1)
-        components = TruncatedNormal(loc, spec['scale'], spec['minimum'],
-                                     spec['maximum'])
-        return Independent(base_distribution=td.MixtureSameFamily(
-            mix, components),
-                           reinterpreted_batch_ndims=prev_action.ndim - 1)
+            [spec["background_loc"].expand_as(prev_action), prev_action], dim=-1
+        )
+        components = TruncatedNormal(
+            loc, spec["scale"], spec["minimum"], spec["maximum"]
+        )
+        return Independent(
+            base_distribution=td.MixtureSameFamily(mix, components),
+            reinterpreted_batch_ndims=prev_action.ndim - 1,
+        )
 
     def predict_step(self, inputs: TimeStep, state):
         """Calculate the distribution of the next action.
@@ -172,14 +175,14 @@ class SameActionPriorActor(Algorithm):
         """
         flat_prev_action = alf.nest.flatten(inputs.prev_action)
         dists = [
-            self._make_dist(inputs.step_type, prev_action,
-                            spec) for prev_action, spec in zip(
-                                flat_prev_action, self._prepared_specs)
+            self._make_dist(inputs.step_type, prev_action, spec)
+            for prev_action, spec in zip(flat_prev_action, self._prepared_specs)
         ]
-        return AlgStep(output=alf.nest.pack_sequence_as(
-            self._action_spec, dists),
-                       state=(),
-                       info=())
+        return AlgStep(
+            output=alf.nest.pack_sequence_as(self._action_spec, dists),
+            state=(),
+            info=(),
+        )
 
     def rollout_step(self, inputs: TimeStep, state):
         return self.predict_step(inputs, state)
@@ -191,11 +194,13 @@ class SameActionPriorActor(Algorithm):
 @alf.configurable
 class UniformPriorActor(Algorithm):
 
-    def __init__(self,
-                 observation_spec,
-                 action_spec: BoundedTensorSpec,
-                 debug_summaries=False,
-                 name="UniformPriorActor"):
+    def __init__(
+        self,
+        observation_spec,
+        action_spec: BoundedTensorSpec,
+        debug_summaries=False,
+        name="UniformPriorActor",
+    ):
         """
         UniformPriorActor can be used as a prior for KLD regularized RL-algorithms. It
         generate a prior distribution for the next action using limited information,
@@ -210,46 +215,44 @@ class UniformPriorActor(Algorithm):
             debug_summaries (bool): True if debug summaries should be created.
             name (str): The name of this algorithm.
         """
-        super().__init__(train_state_spec=(),
-                         debug_summaries=debug_summaries,
-                         name=name)
+        super().__init__(
+            train_state_spec=(), debug_summaries=debug_summaries, name=name
+        )
 
         def _prepare_spec(action_spec):
             spec = {}
-            spec['minimum'] = torch.as_tensor(
-                np.broadcast_to(action_spec.minimum,
-                                action_spec.shape)).reshape(
-                                    1, *action_spec.shape)
-            spec['maximum'] = torch.as_tensor(
-                np.broadcast_to(action_spec.maximum,
-                                action_spec.shape)).reshape(
-                                    1, *action_spec.shape)
-            spec['shape'] = action_spec.shape
+            spec["minimum"] = torch.as_tensor(
+                np.broadcast_to(action_spec.minimum, action_spec.shape)
+            ).reshape(1, *action_spec.shape)
+            spec["maximum"] = torch.as_tensor(
+                np.broadcast_to(action_spec.maximum, action_spec.shape)
+            ).reshape(1, *action_spec.shape)
+            spec["shape"] = action_spec.shape
             return spec
 
         self._action_spec = action_spec
         flat_action_spec = alf.nest.flatten(action_spec)
-        self._prepared_specs = [
-            _prepare_spec(spec) for spec in flat_action_spec
-        ]
+        self._prepared_specs = [_prepare_spec(spec) for spec in flat_action_spec]
 
     def _make_dist(self, step_type, prev_action, spec):
-        low = spec['minimum'].expand_as(prev_action)
-        high = spec['maximum'].expand_as(prev_action)
-        return Independent(base_distribution=Uniform(low, high),
-                           reinterpreted_batch_ndims=prev_action.ndim - 1)
+        low = spec["minimum"].expand_as(prev_action)
+        high = spec["maximum"].expand_as(prev_action)
+        return Independent(
+            base_distribution=Uniform(low, high),
+            reinterpreted_batch_ndims=prev_action.ndim - 1,
+        )
 
     def predict_step(self, inputs: TimeStep, state):
         flat_prev_action = alf.nest.flatten(inputs.prev_action)
         dists = [
-            self._make_dist(inputs.step_type, prev_action,
-                            spec) for prev_action, spec in zip(
-                                flat_prev_action, self._prepared_specs)
+            self._make_dist(inputs.step_type, prev_action, spec)
+            for prev_action, spec in zip(flat_prev_action, self._prepared_specs)
         ]
-        return AlgStep(output=alf.nest.pack_sequence_as(
-            self._action_spec, dists),
-                       state=(),
-                       info=())
+        return AlgStep(
+            output=alf.nest.pack_sequence_as(self._action_spec, dists),
+            state=(),
+            info=(),
+        )
 
     def rollout_step(self, inputs: TimeStep, state):
         return self.predict_step(inputs, state)

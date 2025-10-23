@@ -32,6 +32,5 @@ alf.config(
     # E.g., rl_train_every_update_steps=2 means we only do one online RL training
     # every two offline RL training passes.
     rl_train_every_update_steps=1,
-    offline_buffer_dir=
-    "/media/DATA/data/pytorch_alf/bipedal/data_collection/train/algorithm/ckpt-112030-replay_buffer"
+    offline_buffer_dir="/media/DATA/data/pytorch_alf/bipedal/data_collection/train/algorithm/ckpt-112030-replay_buffer",
 )

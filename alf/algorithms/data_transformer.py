@@ -28,7 +28,7 @@ from alf.utils.normalizers import WindowNormalizer, EMNormalizer, AdaptiveNormal
 from alf.utils import common
 from alf.utils.normalizers import ScalarAdaptiveNormalizer
 
-FrameStackState = namedtuple('FrameStackState', ['steps', 'prev_frames'])
+FrameStackState = namedtuple("FrameStackState", ["steps", "prev_frames"])
 
 
 class DataTransformer(nn.Module):
@@ -141,8 +141,9 @@ class SequentialDataTransformer(DataTransformer):
         def _tier_of(data_transformer):
             if isinstance(data_transformer, UntransformedTimeStep):
                 return 1
-            if isinstance(data_transformer,
-                          (HindsightExperienceTransformer, FrameStacker)):
+            if isinstance(
+                data_transformer, (HindsightExperienceTransformer, FrameStacker)
+            ):
                 return 2
             return 3
 
@@ -150,9 +151,10 @@ class SequentialDataTransformer(DataTransformer):
         for i in range(len(data_transformers)):
             tier = _tier_of(data_transformers[i])
             assert tier >= prev_tier, (
-                f'{type(data_transformers[i]).__name__} must be placed before '
-                f'{type(data_transformers[i - 1]).__name__}. Please check '
-                'docs/notes/knowledge_base.rst for details.')
+                f"{type(data_transformers[i]).__name__} must be placed before "
+                f"{type(data_transformers[i - 1]).__name__}. Please check "
+                "docs/notes/knowledge_base.rst for details."
+            )
             prev_tier = tier
 
     @property
@@ -178,11 +180,7 @@ class SequentialDataTransformer(DataTransformer):
 @alf.configurable
 class FrameStacker(DataTransformer):
 
-    def __init__(self,
-                 observation_spec,
-                 stack_size=4,
-                 stack_axis=0,
-                 fields=None):
+    def __init__(self, observation_spec, stack_size=4, stack_axis=0, fields=None):
         """Create a FrameStacker object.
 
         Args:
@@ -193,8 +191,8 @@ class FrameStacker(DataTransformer):
                 path denoted by "A.B.C". If None, then non-nested observation is stacked.
         """
         assert stack_size >= 1, (
-            "stack_size should be an integer greater than "
-            "or equal to 1")
+            "stack_size should be an integer greater than " "or equal to 1"
+        )
         self._stack_axis = stack_axis
         self._stack_size = stack_size
         self._frames = dict()
@@ -204,20 +202,24 @@ class FrameStacker(DataTransformer):
         stacked_observation_spec = observation_spec
         for field in self._fields:
             if field is not None:
-                exp_field = 'observation.' + field
+                exp_field = "observation." + field
             else:
-                exp_field = 'observation'
+                exp_field = "observation"
             self._exp_fields.append(exp_field)
 
             spec = alf.nest.get_field(observation_spec, field)
             prev_frames_spec.append([spec] * (self._stack_size - 1))
             stacked_observation_spec = alf.nest.transform_nest(
-                stacked_observation_spec, field, self._make_stacked_spec)
+                stacked_observation_spec, field, self._make_stacked_spec
+            )
 
-        super().__init__(transformed_observation_spec=stacked_observation_spec,
-                         state_spec=FrameStackState(
-                             steps=alf.TensorSpec((), dtype=torch.int64),
-                             prev_frames=prev_frames_spec))
+        super().__init__(
+            transformed_observation_spec=stacked_observation_spec,
+            state_spec=FrameStackState(
+                steps=alf.TensorSpec((), dtype=torch.int64),
+                prev_frames=prev_frames_spec,
+            ),
+        )
 
     @property
     def stack_size(self):
@@ -225,15 +227,15 @@ class FrameStacker(DataTransformer):
         return self._stack_size
 
     def _make_stacked_spec(self, spec):
-        assert isinstance(spec, alf.TensorSpec), (str(type(spec)) +
-                                                  "is not a TensorSpec")
+        assert isinstance(spec, alf.TensorSpec), str(type(spec)) + "is not a TensorSpec"
         if spec.ndim > 0:
             stacked_shape = list(copy.copy(spec.shape))
-            stacked_shape[self._stack_axis] = stacked_shape[
-                self._stack_axis] * self._stack_size
+            stacked_shape[self._stack_axis] = (
+                stacked_shape[self._stack_axis] * self._stack_size
+            )
             stacked_shape = tuple(stacked_shape)
         else:
-            stacked_shape = (self._stack_size, )
+            stacked_shape = (self._stack_size,)
         if not spec.is_bounded():
             return alf.TensorSpec(stacked_shape, spec.dtype)
         else:
@@ -251,15 +253,15 @@ class FrameStacker(DataTransformer):
                 maximum = np.tile(spec.maximum, rep)
             else:
                 maximum = spec.maximum
-            return alf.BoundedTensorSpec(stacked_shape,
-                                         minimum=minimum,
-                                         maximum=maximum,
-                                         dtype=spec.dtype)
+            return alf.BoundedTensorSpec(
+                stacked_shape, minimum=minimum, maximum=maximum, dtype=spec.dtype
+            )
 
     def _make_state(self, spec):
         stacked_shape = list(copy.copy(spec.shape))
         stacked_shape[self._stack_axis] = stacked_shape[self._stack_axis] * (
-            self._stack_size - 1)
+            self._stack_size - 1
+        )
         stacked_shape = tuple(stacked_shape)
         return alf.TensorSpec(stacked_shape, spec.dtype)
 
@@ -281,8 +283,7 @@ class FrameStacker(DataTransformer):
             # repeat the first frame if needed
             for t in range(self._stack_size - 1):
                 first_samples = alf.utils.common.expand_dims_as(is_first, obs)
-                prev_frames[i][t] = torch.where(first_samples, obs,
-                                                prev_frames[i][t])
+                prev_frames[i][t] = torch.where(first_samples, obs, prev_frames[i][t])
 
             if obs.ndim > 1:
                 stacked = torch.cat(prev_frames[i] + [obs], dim=stack_axis)
@@ -294,11 +295,14 @@ class FrameStacker(DataTransformer):
 
         observation = time_step.observation
         for i, field in enumerate(self._fields):
-            observation = alf.nest.transform_nest(observation, field,
-                                                  partial(_stack_frame, i=i))
+            observation = alf.nest.transform_nest(
+                observation, field, partial(_stack_frame, i=i)
+            )
 
-        return (time_step._replace(observation=observation),
-                FrameStackState(steps=steps, prev_frames=prev_frames))
+        return (
+            time_step._replace(observation=observation),
+            FrameStackState(steps=steps, prev_frames=prev_frames),
+        )
 
     def transform_experience(self, experience: Experience):
         if self._stack_size == 1:
@@ -314,26 +318,26 @@ class FrameStacker(DataTransformer):
             # [B]
             positions = convert_device(batch_info.positions)
 
-            prev_positions = torch.arange(self._stack_size -
-                                          1) - self._stack_size + 1
+            prev_positions = torch.arange(self._stack_size - 1) - self._stack_size + 1
 
             # [B, stack_size - 1]
-            prev_positions = positions.unsqueeze(
-                -1) + prev_positions.unsqueeze(0)
+            prev_positions = positions.unsqueeze(-1) + prev_positions.unsqueeze(0)
             episode_begin_positions = replay_buffer.get_episode_begin_position(
-                positions, env_ids)
+                positions, env_ids
+            )
             # [B, 1]
             episode_begin_positions = episode_begin_positions.unsqueeze(-1)
             # [B, stack_size - 1]
             prev_positions = torch.max(prev_positions, episode_begin_positions)
             # [B]
-            valid_prev = prev_positions[:,
-                                        0] >= replay_buffer.get_earliest_position(
-                                            env_ids)
+            valid_prev = prev_positions[:, 0] >= replay_buffer.get_earliest_position(
+                env_ids
+            )
             assert torch.all(valid_prev), (
                 "Some previous posisions are no longer in the replay buffer: "
                 f"{prev_positions[:, 0][~valid_prev]}, "
-                f"{replay_buffer.get_earliest_position(env_ids)[~valid_prev]}")
+                f"{replay_buffer.get_earliest_position(env_ids)[~valid_prev]}"
+            )
             # [B, 1]
             env_ids = env_ids.unsqueeze(-1)
 
@@ -345,16 +349,19 @@ class FrameStacker(DataTransformer):
         #  [mini_batch_length - 1, ...]]
         #
         # [mini_batch_length, stack_size]
-        obs_index = (torch.arange(self._stack_size).unsqueeze(0) +
-                     torch.arange(mini_batch_length).unsqueeze(1))
+        obs_index = torch.arange(self._stack_size).unsqueeze(0) + torch.arange(
+            mini_batch_length
+        ).unsqueeze(1)
         B = torch.arange(batch_size)
         obs_index = (B.unsqueeze(-1).unsqueeze(-1), obs_index.unsqueeze(0))
 
         def _stack_frame(obs, i):
-            prev_obs = replay_buffer.get_field(self._exp_fields[i], env_ids,
-                                               prev_positions)
+            prev_obs = replay_buffer.get_field(
+                self._exp_fields[i], env_ids, prev_positions
+            )
             stacked_shape = alf.nest.get_field(
-                self._transformed_observation_spec, self._fields[i]).shape
+                self._transformed_observation_spec, self._fields[i]
+            ).shape
             # [batch_size, mini_batch_length + stack_size - 1, ...]
             stacked_obs = torch.cat((prev_obs, obs), dim=1)
             # [batch_size, mini_batch_length, stack_size, ...]
@@ -368,16 +375,19 @@ class FrameStacker(DataTransformer):
                 stacked_obs = stacked_obs.unsqueeze(stack_axis)
                 stacked_obs = stacked_obs.transpose(2, stack_axis)
                 stacked_obs = stacked_obs.squeeze(2)
-            stacked_obs = stacked_obs.reshape(batch_size, mini_batch_length,
-                                              *stacked_shape)
+            stacked_obs = stacked_obs.reshape(
+                batch_size, mini_batch_length, *stacked_shape
+            )
             return stacked_obs
 
         observation = experience.observation
         for i, field in enumerate(self._fields):
-            observation = alf.nest.transform_nest(observation, field,
-                                                  partial(_stack_frame, i=i))
-        return experience._replace(time_step=experience.time_step._replace(
-            observation=observation))
+            observation = alf.nest.transform_nest(
+                observation, field, partial(_stack_frame, i=i)
+            )
+        return experience._replace(
+            time_step=experience.time_step._replace(observation=observation)
+        )
 
 
 class SimpleDataTransformer(DataTransformer):
@@ -459,43 +469,45 @@ class ImageScaleTransformer(SimpleDataTransformer):
             max (float): normalize maximum to this value
         """
         self._fields = fields if (fields is not None) else [None]
-        self._scale = (max - min) / 255.
+        self._scale = (max - min) / 255.0
         self._min = min
         new_observation_spec = observation_spec
 
         def _transform_spec(spec):
-            assert isinstance(spec, alf.TensorSpec), (str(type(spec)) +
-                                                      "is not a TensorSpec")
-            assert ImageScaleTransformer._check_img_type(spec), (
-                f"Image {spec} must have int dtype in [0, 255]!")
-            return alf.BoundedTensorSpec(spec.shape,
-                                         dtype=torch.float32,
-                                         minimum=min,
-                                         maximum=max)
+            assert isinstance(spec, alf.TensorSpec), (
+                str(type(spec)) + "is not a TensorSpec"
+            )
+            assert ImageScaleTransformer._check_img_type(
+                spec
+            ), f"Image {spec} must have int dtype in [0, 255]!"
+            return alf.BoundedTensorSpec(
+                spec.shape, dtype=torch.float32, minimum=min, maximum=max
+            )
 
         for field in self._fields:
             new_observation_spec = alf.nest.transform_nest(
-                new_observation_spec, field, _transform_spec)
+                new_observation_spec, field, _transform_spec
+            )
 
         super().__init__(new_observation_spec)
 
     @staticmethod
     def _check_img_type(img):
-        if 'int' not in alf.tensor_specs.torch_dtype_to_str(img.dtype):
+        if "int" not in alf.tensor_specs.torch_dtype_to_str(img.dtype):
             return False
         if isinstance(img, torch.Tensor):
-            return (img.min() >= 0 and img.max() <= 255)
+            return img.min() >= 0 and img.max() <= 255
         elif isinstance(img, alf.BoundedTensorSpec):
-            return (img.minimum >= 0 and img.maximum <= 255)
+            return img.minimum >= 0 and img.maximum <= 255
         return False
 
     def _transform(self, timestep):
 
         def _transform_image(obs):
-            assert isinstance(obs,
-                              torch.Tensor), str(type(obs)) + ' is not Tensor'
-            assert ImageScaleTransformer._check_img_type(obs), (
-                "Image must have int dtype in [0, 255]!")
+            assert isinstance(obs, torch.Tensor), str(type(obs)) + " is not Tensor"
+            assert ImageScaleTransformer._check_img_type(
+                obs
+            ), "Image must have int dtype in [0, 255]!"
             obs = self._scale * obs
             if self._min != 0:
                 obs.add_(self._min)
@@ -503,24 +515,25 @@ class ImageScaleTransformer(SimpleDataTransformer):
 
         observation = timestep.observation
         for field in self._fields:
-            observation = alf.nest.transform_nest(observation, field,
-                                                  _transform_image)
+            observation = alf.nest.transform_nest(observation, field, _transform_image)
         return timestep._replace(observation=observation)
 
 
 @alf.configurable
 class ObservationNormalizer(SimpleDataTransformer):
 
-    def __init__(self,
-                 observation_spec,
-                 fields=None,
-                 clipping=0.,
-                 window_size=10000,
-                 update_rate=1e-4,
-                 speed=8.0,
-                 zero_mean=True,
-                 update_mode="replay",
-                 mode="adaptive"):
+    def __init__(
+        self,
+        observation_spec,
+        fields=None,
+        clipping=0.0,
+        window_size=10000,
+        update_rate=1e-4,
+        speed=8.0,
+        zero_mean=True,
+        update_mode="replay",
+        mode="adaptive",
+    ):
         """Create an observation normalizer with optional value clipping to be
         used as the ``data_transformer`` of an algorithm. It will be called
         before both ``rollout_step()`` and ``train_step()``.
@@ -555,27 +568,34 @@ class ObservationNormalizer(SimpleDataTransformer):
         self._clipping = float(clipping)
         self._fields = fields
         if fields is not None:
-            observation_spec = dict([
-                (field, alf.nest.get_field(observation_spec, field))
-                for field in fields
-            ])
+            observation_spec = dict(
+                [
+                    (field, alf.nest.get_field(observation_spec, field))
+                    for field in fields
+                ]
+            )
         if mode == "adaptive":
             self._normalizer = AdaptiveNormalizer(
                 tensor_spec=observation_spec,
                 speed=float(speed),
                 auto_update=False,
                 zero_mean=zero_mean,
-                name="observations/adaptive_normalizer")
+                name="observations/adaptive_normalizer",
+            )
         elif mode == "window":
-            self._normalzier = WindowNormalizer(tensor_spec=observation_spec,
-                                                window_size=int(window_size),
-                                                zero_mean=zero_mean,
-                                                auto_update=False)
+            self._normalzier = WindowNormalizer(
+                tensor_spec=observation_spec,
+                window_size=int(window_size),
+                zero_mean=zero_mean,
+                auto_update=False,
+            )
         elif mode == "em":
-            self._normalizer = EMNormalizer(tensor_spec=observation_spec,
-                                            update_rate=float(update_rate),
-                                            zero_mean=zero_mean,
-                                            auto_update=False)
+            self._normalizer = EMNormalizer(
+                tensor_spec=observation_spec,
+                update_rate=float(update_rate),
+                zero_mean=zero_mean,
+                auto_update=False,
+            )
         else:
             raise ValueError("Unsupported mode: " + mode)
 
@@ -587,11 +607,17 @@ class ObservationNormalizer(SimpleDataTransformer):
         if self._fields is None:
             obs = observation
         else:
-            obs = dict([(field, alf.nest.get_field(observation, field))
-                        for field in self._fields])
-        if ((self._update_mode == "replay" and common.is_replay())
-                or (self._update_mode == "rollout" and common.is_rollout())
-                or (self._update_mode == "pretrain" and common.is_pretrain())):
+            obs = dict(
+                [
+                    (field, alf.nest.get_field(observation, field))
+                    for field in self._fields
+                ]
+            )
+        if (
+            (self._update_mode == "replay" and common.is_replay())
+            or (self._update_mode == "rollout" and common.is_rollout())
+            or (self._update_mode == "pretrain" and common.is_pretrain())
+        ):
             self._normalizer.update(obs)
         obs = self._normalizer.normalize(obs, self._clipping)
         if self._fields is None:
@@ -603,8 +629,7 @@ class ObservationNormalizer(SimpleDataTransformer):
 
 
 class RewardTransformer(SimpleDataTransformer):
-    """Base class for transforming reward.
-    """
+    """Base class for transforming reward."""
 
     def __init__(self, observation_spec):
         """
@@ -646,12 +671,14 @@ class RewardClipping(RewardTransformer):
 class RewardNormalizer(RewardTransformer):
     """Transform reward to be zero-mean and unit-variance."""
 
-    def __init__(self,
-                 observation_spec=(),
-                 normalizer=None,
-                 update_max_calls=0,
-                 clip_value=-1.0,
-                 update_mode="replay"):
+    def __init__(
+        self,
+        observation_spec=(),
+        normalizer=None,
+        update_max_calls=0,
+        clip_value=-1.0,
+        update_mode="replay",
+    ):
         """
         Args:
             observation_spec (nested TensorSpec): describing the observation in
@@ -674,7 +701,8 @@ class RewardNormalizer(RewardTransformer):
                 # TODO: we should pass a ``time_step`` spec to the constructor.
                 tensor_spec=alf.get_reward_spec(),
                 auto_update=False,
-                debug_summaries=True)
+                debug_summaries=True,
+            )
         self._normalizer = normalizer
         self._clip_value = clip_value
         self._update_mode = update_mode
@@ -691,8 +719,9 @@ class RewardNormalizer(RewardTransformer):
 
     def forward(self, reward):
         norm = self._normalizer
-        if ((self._update_mode == "replay" and common.is_replay())
-                or (self._update_mode == "rollout" and common.is_rollout())):
+        if (self._update_mode == "replay" and common.is_replay()) or (
+            self._update_mode == "rollout" and common.is_rollout()
+        ):
             if self._max_calls == 0 or self._calls < self._max_calls:
                 norm.update(reward)
             self._calls += 1
@@ -770,7 +799,7 @@ class FunctionalRewardTransformer(RewardTransformer):
 
 
 @alf.configurable
-def l2_dist_close_reward_fn(achieved_goal, goal, threshold=.05):
+def l2_dist_close_reward_fn(achieved_goal, goal, threshold=0.05):
     """Giving -1/0 reward based on how close the achieved state is to the goal state.
 
     Args:
@@ -786,39 +815,40 @@ def l2_dist_close_reward_fn(achieved_goal, goal, threshold=.05):
         assert achieved_goal.dim() == goal.dim()
         achieved_goal = achieved_goal.unsqueeze(2)
         goal = goal.unsqueeze(2)
-    return -(torch.norm(achieved_goal - goal, dim=2) >= threshold).to(
-        torch.float32)
+    return -(torch.norm(achieved_goal - goal, dim=2) >= threshold).to(torch.float32)
 
 
 @alf.configurable
 class HindsightExperienceTransformer(DataTransformer):
     """Randomly transform her_proportion of `batch_size` trajectories with hindsight relabel.
 
-        This transformer assumes that input observation is a dict of at least two fields:
-        1) an ``achieved_goal`` field, indicating the current state of the environment, and
-        2) a ``desired_goal`` field, indicating the desired state of the environment.
-        The achieved_goal from a future timestep will be used to relabel the desired_goal
-        of the current timestep.
-        The exact field names can be provided via arguments to the class ``__init__``.
+    This transformer assumes that input observation is a dict of at least two fields:
+    1) an ``achieved_goal`` field, indicating the current state of the environment, and
+    2) a ``desired_goal`` field, indicating the desired state of the environment.
+    The achieved_goal from a future timestep will be used to relabel the desired_goal
+    of the current timestep.
+    The exact field names can be provided via arguments to the class ``__init__``.
 
-        To use this class, add it to any existing data transformers, e.g. use this config if
-        ``ObservationNormalizer`` is an existing data transformer:
+    To use this class, add it to any existing data transformers, e.g. use this config if
+    ``ObservationNormalizer`` is an existing data transformer:
 
-        .. code-block:: python
+    .. code-block:: python
 
-            ReplayBuffer.keep_episodic_info=True
-            HindsightExperienceTransformer.her_proportion=0.8
-            TrainerConfig.data_transformer_ctor=[@HindsightExperienceTransformer, @ObservationNormalizer]
+        ReplayBuffer.keep_episodic_info=True
+        HindsightExperienceTransformer.her_proportion=0.8
+        TrainerConfig.data_transformer_ctor=[@HindsightExperienceTransformer, @ObservationNormalizer]
 
-        See unit test for more details on behavior.
+    See unit test for more details on behavior.
     """
 
-    def __init__(self,
-                 observation_spec,
-                 her_proportion=0.8,
-                 achieved_goal_field="time_step.observation.achieved_goal",
-                 desired_goal_field="time_step.observation.desired_goal",
-                 reward_fn=l2_dist_close_reward_fn):
+    def __init__(
+        self,
+        observation_spec,
+        her_proportion=0.8,
+        achieved_goal_field="time_step.observation.achieved_goal",
+        desired_goal_field="time_step.observation.desired_goal",
+        reward_fn=l2_dist_close_reward_fn,
+    ):
         """
         Args:
             her_proportion (float): proportion of hindsight relabeled experience.
@@ -831,8 +861,7 @@ class HindsightExperienceTransformer(DataTransformer):
                 L2 distance less than 0.05 and -1 otherwise, same as is done in
                 suite_robotics environments.
         """
-        super().__init__(transformed_observation_spec=observation_spec,
-                         state_spec=())
+        super().__init__(transformed_observation_spec=observation_spec, state_spec=())
         self._her_proportion = her_proportion
         self._achieved_goal_field = achieved_goal_field
         self._desired_goal_field = desired_goal_field
@@ -862,16 +891,20 @@ class HindsightExperienceTransformer(DataTransformer):
         buffer = info.replay_buffer
         assert buffer != (), "Hindsight requires replay_buffer to be populated"
         accessed_fields = [
-            "batch_info", "time_step.reward", "time_step.step_type",
-            self._desired_goal_field, self._achieved_goal_field
+            "batch_info",
+            "time_step.reward",
+            "time_step.step_type",
+            self._desired_goal_field,
+            self._achieved_goal_field,
         ]
         with alf.device(buffer.device):
-            experience = alf.nest.transform_nest(experience,
-                                                 "batch_info.replay_buffer",
-                                                 lambda _: ())
+            experience = alf.nest.transform_nest(
+                experience, "batch_info.replay_buffer", lambda _: ()
+            )
             for f in accessed_fields:
                 experience = alf.nest.transform_nest(
-                    experience, f, lambda t: convert_device(t))
+                    experience, f, lambda t: convert_device(t)
+                )
             result = experience
             info = experience.batch_info
 
@@ -884,7 +917,7 @@ class HindsightExperienceTransformer(DataTransformer):
 
             # relabel only these sampled indices
             her_cond = torch.rand(batch_size) < her_proportion
-            (her_indices, ) = torch.where(her_cond)
+            (her_indices,) = torch.where(her_cond)
 
             last_step_pos = start_pos[her_indices] + batch_length - 1
             last_env_ids = env_ids[her_indices]
@@ -893,69 +926,82 @@ class HindsightExperienceTransformer(DataTransformer):
             if alf.summary.should_record_summaries():
                 alf.summary.scalar(
                     "replayer/" + buffer._name + ".mean_steps_to_episode_end",
-                    torch.mean(dist.type(torch.float32)))
+                    torch.mean(dist.type(torch.float32)),
+                )
 
             # get random future state
-            future_idx = last_step_pos + (torch.rand(*dist.shape) *
-                                          (dist + 1)).to(torch.int64)
-            future_ag = buffer.get_field(self._achieved_goal_field,
-                                         last_env_ids, future_idx).unsqueeze(1)
+            future_idx = last_step_pos + (torch.rand(*dist.shape) * (dist + 1)).to(
+                torch.int64
+            )
+            future_ag = buffer.get_field(
+                self._achieved_goal_field, last_env_ids, future_idx
+            ).unsqueeze(1)
 
             # relabel desired goal
-            result_desired_goal = alf.nest.get_field(result,
-                                                     self._desired_goal_field)
+            result_desired_goal = alf.nest.get_field(result, self._desired_goal_field)
             relabed_goal = result_desired_goal.clone()
-            her_batch_index_tuple = (her_indices.unsqueeze(1),
-                                     torch.arange(batch_length).unsqueeze(0))
+            her_batch_index_tuple = (
+                her_indices.unsqueeze(1),
+                torch.arange(batch_length).unsqueeze(0),
+            )
             relabed_goal[her_batch_index_tuple] = future_ag
 
             # recompute rewards
             result_ag = alf.nest.get_field(result, self._achieved_goal_field)
             relabeled_rewards = self._reward_fn(result_ag, relabed_goal)
 
-            non_her_or_fst = ~her_cond.unsqueeze(1) & (result.step_type
-                                                       != StepType.FIRST)
+            non_her_or_fst = ~her_cond.unsqueeze(1) & (
+                result.step_type != StepType.FIRST
+            )
             # assert reward function is the same as used by the environment.
-            if not torch.allclose(relabeled_rewards[non_her_or_fst],
-                                  result.reward[non_her_or_fst]):
-                not_close = torch.abs(relabeled_rewards[non_her_or_fst] -
-                                      result.reward[non_her_or_fst]) > 0.01
+            if not torch.allclose(
+                relabeled_rewards[non_her_or_fst], result.reward[non_her_or_fst]
+            ):
+                not_close = (
+                    torch.abs(
+                        relabeled_rewards[non_her_or_fst]
+                        - result.reward[non_her_or_fst]
+                    )
+                    > 0.01
+                )
                 msg = (
-                    "hindsight_relabel:\nrelabeled_reward\n{}\n!=\n" +
-                    "env_reward\n{}\nag:\n{}\ndg:\n{}\nenv_ids:\n{}\nstart_pos:"
-                    + "\n{}").format(
-                        relabeled_rewards[non_her_or_fst][not_close],
-                        result.reward[non_her_or_fst][not_close],
-                        result_ag[non_her_or_fst][not_close],
-                        result_desired_goal[non_her_or_fst][not_close],
-                        env_ids.unsqueeze(1).expand(
-                            shape[:2])[non_her_or_fst][not_close],
-                        start_pos.unsqueeze(1).expand(
-                            shape[:2])[non_her_or_fst][not_close])
+                    "hindsight_relabel:\nrelabeled_reward\n{}\n!=\n"
+                    + "env_reward\n{}\nag:\n{}\ndg:\n{}\nenv_ids:\n{}\nstart_pos:"
+                    + "\n{}"
+                ).format(
+                    relabeled_rewards[non_her_or_fst][not_close],
+                    result.reward[non_her_or_fst][not_close],
+                    result_ag[non_her_or_fst][not_close],
+                    result_desired_goal[non_her_or_fst][not_close],
+                    env_ids.unsqueeze(1).expand(shape[:2])[non_her_or_fst][not_close],
+                    start_pos.unsqueeze(1).expand(shape[:2])[non_her_or_fst][not_close],
+                )
                 logging.warning(msg)
                 # assert False, msg
-                relabeled_rewards[non_her_or_fst] = result.reward[
-                    non_her_or_fst]
+                relabeled_rewards[non_her_or_fst] = result.reward[non_her_or_fst]
 
         if alf.summary.should_record_summaries():
             alf.summary.scalar(
                 "replayer/" + buffer._name + ".reward_mean_before_relabel",
-                torch.mean(result.reward[her_indices][:-1]))
+                torch.mean(result.reward[her_indices][:-1]),
+            )
             alf.summary.scalar(
                 "replayer/" + buffer._name + ".reward_mean_after_relabel",
-                torch.mean(relabeled_rewards[her_indices][:-1]))
+                torch.mean(relabeled_rewards[her_indices][:-1]),
+            )
 
-        result = alf.nest.transform_nest(result, self._desired_goal_field,
-                                         lambda _: relabed_goal)
+        result = alf.nest.transform_nest(
+            result, self._desired_goal_field, lambda _: relabed_goal
+        )
 
-        result = result.update_time_step_field('reward', relabeled_rewards)
+        result = result.update_time_step_field("reward", relabeled_rewards)
 
         if alf.get_default_device() != buffer.device:
             for f in accessed_fields:
-                result = alf.nest.transform_nest(result, f,
-                                                 lambda t: convert_device(t))
-        result = alf.nest.transform_nest(result, "batch_info.replay_buffer",
-                                         lambda _: buffer)
+                result = alf.nest.transform_nest(result, f, lambda t: convert_device(t))
+        result = alf.nest.transform_nest(
+            result, "batch_info.replay_buffer", lambda _: buffer
+        )
         return result
 
 
@@ -965,9 +1011,9 @@ class UntransformedTimeStep(SimpleDataTransformer):
     data transformer must be applied first, before any other data transformer.
     """
 
-    def __init__(self,
-                 observation_spec=None,
-                 fields_to_keep: Optional[Iterable[str]] = None):
+    def __init__(
+        self, observation_spec=None, fields_to_keep: Optional[Iterable[str]] = None
+    ):
         """
         observation_spec (nested TensorSpec): describing the observation. This
             should be provided when ``transformed_observation_spec`` property
@@ -981,16 +1027,18 @@ class UntransformedTimeStep(SimpleDataTransformer):
 
     def _transform(self, timestep):
         if self._fields_to_keep is not None:
-            return timestep._replace(untransformed=TimeStep(
-                **{f: getattr(timestep, f)
-                   for f in self._fields_to_keep}))
+            return timestep._replace(
+                untransformed=TimeStep(
+                    **{f: getattr(timestep, f) for f in self._fields_to_keep}
+                )
+            )
         return timestep._replace(untransformed=timestep)
 
 
 @alf.configurable
-def create_data_transformer(data_transformer_ctor,
-                            observation_spec,
-                            device: Optional[str] = None):
+def create_data_transformer(
+    data_transformer_ctor, observation_spec, device: Optional[str] = None
+):
     """Create a data transformer.
 
     Args:
@@ -1013,5 +1061,4 @@ def create_data_transformer(data_transformer_ctor,
         if len(data_transformer_ctor) == 1:
             return data_transformer_ctor[0](observation_spec=observation_spec)
 
-        return SequentialDataTransformer(data_transformer_ctor,
-                                         observation_spec)
+        return SequentialDataTransformer(data_transformer_ctor, observation_spec)

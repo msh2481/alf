@@ -40,14 +40,16 @@ class DIAYNAlgorithm(Algorithm):
     without a Reward Function" for more details.
     """
 
-    def __init__(self,
-                 skill_spec,
-                 encoding_net: EncodingNetwork,
-                 reward_adapt_speed=8.0,
-                 observation_spec=None,
-                 hidden_size=(),
-                 hidden_activation=torch.relu_,
-                 name="DIAYNAlgorithm"):
+    def __init__(
+        self,
+        skill_spec,
+        encoding_net: EncodingNetwork,
+        reward_adapt_speed=8.0,
+        observation_spec=None,
+        hidden_size=(),
+        hidden_activation=torch.relu_,
+        name="DIAYNAlgorithm",
+    ):
         """Create a DIAYNAlgorithm.
 
         Args:
@@ -79,14 +81,14 @@ class DIAYNAlgorithm(Algorithm):
             assert isinstance(skill_spec, BoundedTensorSpec)
             skill_dim = skill_spec.maximum - skill_spec.minimum + 1
         else:
-            assert len(
-                skill_spec.shape) == 1, "Only 1D skill vector is supported"
+            assert len(skill_spec.shape) == 1, "Only 1D skill vector is supported"
             skill_dim = skill_spec.shape[0]
 
         super().__init__(
-            train_state_spec=TensorSpec((skill_dim, )),
+            train_state_spec=TensorSpec((skill_dim,)),
             predict_state_spec=(),  # won't be needed for predict_step
-            name=name)
+            name=name,
+        )
 
         self._encoding_net = encoding_net
 
@@ -95,15 +97,16 @@ class DIAYNAlgorithm(Algorithm):
             fc_layer_params=hidden_size,
             activation=hidden_activation,
             last_layer_size=skill_dim,
-            last_activation=math_ops.identity)
+            last_activation=math_ops.identity,
+        )
 
-        self._reward_normalizer = ScalarAdaptiveNormalizer(
-            speed=reward_adapt_speed)
+        self._reward_normalizer = ScalarAdaptiveNormalizer(speed=reward_adapt_speed)
 
         self._observation_normalizer = None
         if observation_spec is not None:
             self._observation_normalizer = AdaptiveNormalizer(
-                tensor_spec=observation_spec)
+                tensor_spec=observation_spec
+            )
 
     def _step(self, time_step: TimeStep, state, calc_rewards=True):
         """
@@ -136,25 +139,22 @@ class DIAYNAlgorithm(Algorithm):
         skill_pred, _ = self._discriminator_net(feature)
 
         if self._skill_spec.is_discrete:
-            loss = torch.nn.CrossEntropyLoss(reduction='none')(
-                input=skill_pred, target=torch.argmax(prev_skill, dim=-1))
+            loss = torch.nn.CrossEntropyLoss(reduction="none")(
+                input=skill_pred, target=torch.argmax(prev_skill, dim=-1)
+            )
         else:
             # nn.MSELoss doesn't support reducing along a dim
             loss = torch.sum(math_ops.square(skill_pred - prev_skill), dim=-1)
 
-        valid_masks = (step_type
-                       != to_tensor(StepType.FIRST)).to(torch.float32)
+        valid_masks = (step_type != to_tensor(StepType.FIRST)).to(torch.float32)
         loss *= valid_masks
 
         intrinsic_reward = ()
         if calc_rewards:
             intrinsic_reward = -loss.detach()
-            intrinsic_reward = self._reward_normalizer.normalize(
-                intrinsic_reward)
+            intrinsic_reward = self._reward_normalizer.normalize(intrinsic_reward)
 
-        return AlgStep(output=intrinsic_reward,
-                       state=skill,
-                       info=DIAYNInfo(loss=loss))
+        return AlgStep(output=intrinsic_reward, state=skill, info=DIAYNInfo(loss=loss))
 
     def rollout_step(self, inputs, state):
         return self._step(inputs, state)
@@ -164,5 +164,4 @@ class DIAYNAlgorithm(Algorithm):
 
     def calc_loss(self, info: DIAYNInfo):
         loss = torch.mean(info.loss)
-        return LossInfo(scalar_loss=loss,
-                        extra=dict(skill_discriminate_loss=info.loss))
+        return LossInfo(scalar_loss=loss, extra=dict(skill_discriminate_loss=info.loss))

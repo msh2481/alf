@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#%% [markdown]
+# %% [markdown]
 """
 # Stable gradient descent for Gaussian distribution
 
@@ -111,4 +111,4 @@ hence it is also bounded.
  _Efficient Backprop_ in Orr, G. and Muller K. (Eds), Neural Networks: Tricks of
   the trade, Springer, 1998
 """
-#%%
+# %%

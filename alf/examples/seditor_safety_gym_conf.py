@@ -16,13 +16,16 @@ import alf
 from alf.algorithms.seditor_algorithm import SEditorAlgorithm
 
 from alf.examples import sac_safety_gym_conf
+
 """Follow instructions in ``sac_safety_gym_conf.py`` and ``suite_safety_gym.py``
 for env installation.
 """
 
-alf.config('SEditorAlgorithm',
-           actor_network_ctor=sac_safety_gym_conf.actor_network_cls,
-           critic_network_ctor=sac_safety_gym_conf.critic_network_cls,
-           target_update_tau=0.005)
+alf.config(
+    "SEditorAlgorithm",
+    actor_network_ctor=sac_safety_gym_conf.actor_network_cls,
+    critic_network_ctor=sac_safety_gym_conf.critic_network_cls,
+    target_update_tau=0.005,
+)
 
-alf.config('Agent', rl_algorithm_cls=SEditorAlgorithm)
+alf.config("Agent", rl_algorithm_cls=SEditorAlgorithm)

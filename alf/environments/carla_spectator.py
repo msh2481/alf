@@ -40,8 +40,8 @@ import os
 
 from alf.environments.suite_carla import CameraSensor
 
-flags.DEFINE_integer('port', 2000, "Carla server RPC port")
-flags.DEFINE_string('host', "localhost", "Carla server address")
+flags.DEFINE_integer("port", 2000, "Carla server RPC port")
+flags.DEFINE_string("host", "localhost", "Carla server address")
 FLAGS = flags.FLAGS
 
 
@@ -50,27 +50,29 @@ def _transform_to_ego(actor, target):
     yaw = math.radians(trans.rotation.yaw)
     target = np.array([target.x, target.y, target.z], dtype=np.float32)
     cos, sin = np.cos(yaw), np.sin(yaw)
-    rot = np.array([[cos, sin, 0.], [-sin, cos, 0.], [0., 0., 1.]])
+    rot = np.array([[cos, sin, 0.0], [-sin, cos, 0.0], [0.0, 0.0, 1.0]])
     target = np.matmul(rot, target).astype(np.float32).tolist()
     return carla.Location(target[0], target[1], target[2])
 
 
 def main(_):
     import pygame
+
     pygame.init()
     pygame.font.init()
 
     width = 640
     height = 320
-    display = pygame.display.set_mode((width, height),
-                                      pygame.HWSURFACE | pygame.DOUBLEBUF)
+    display = pygame.display.set_mode(
+        (width, height), pygame.HWSURFACE | pygame.DOUBLEBUF
+    )
 
-    font_name = 'courier' if os.name == 'nt' else 'mono'
+    font_name = "courier" if os.name == "nt" else "mono"
     fonts = [x for x in pygame.font.get_fonts() if font_name in x]
-    default_font = 'ubuntumono'
+    default_font = "ubuntumono"
     mono = default_font if default_font in fonts else fonts[0]
     mono = pygame.font.match_font(mono)
-    font = pygame.font.Font(mono, 12 if os.name == 'nt' else 14)
+    font = pygame.font.Font(mono, 12 if os.name == "nt" else 14)
     info_surface = pygame.Surface((240, 220))
     info_surface.set_alpha(100)
     display.blit(info_surface, (0, 0))
@@ -84,7 +86,7 @@ def main(_):
     actors = world.get_actors()
     vehicles = []
     for actor in actors:
-        if actor.type_id.startswith('vehicle'):
+        if actor.type_id.startswith("vehicle"):
             vehicles.append(actor)
             logging.info("id: %s type_id: %s" % (actor.id, actor.type_id))
     logging.info("Found %s vechiles." % len(vehicles))
@@ -93,16 +95,18 @@ def main(_):
         return
 
     vehicle_id = 0
-    xyz = [(1.6, 0., 1.7), (0., 0., 50.)]
-    pyr = [(0., 0., 0.), (-90., 0., 0.)]
+    xyz = [(1.6, 0.0, 1.7), (0.0, 0.0, 50.0)]
+    pyr = [(0.0, 0.0, 0.0), (-90.0, 0.0, 0.0)]
     view = 0
 
     def _make_camera(vehicle, view):
-        return CameraSensor(vehicle,
-                            image_size_x=width,
-                            image_size_y=height,
-                            xyz=xyz[view],
-                            pyr=pyr[view])
+        return CameraSensor(
+            vehicle,
+            image_size_x=width,
+            image_size_y=height,
+            xyz=xyz[view],
+            pyr=pyr[view],
+        )
 
     camera = _make_camera(vehicles[vehicle_id], view)
     clock = pygame.time.Clock()
@@ -115,10 +119,10 @@ def main(_):
         loc = vehicle.get_location()
         clock.tick_busy_loop(1000)
         info_text = [
-            'FPS: %6.2f' % clock.get_fps(),
-            'Location: (%6.3f, %6.3f, %6.3f)' % (loc.x, loc.y, loc.z),
-            'Velocity: (%5.2f, %5.2f, %5.2f) m/s' % (v.x, v.y, v.z),
-            'Acceleration: (%5.2f, %5.2f, %5.2f) m/s^2' % (a.x, a.y, a.z),
+            "FPS: %6.2f" % clock.get_fps(),
+            "Location: (%6.3f, %6.3f, %6.3f)" % (loc.x, loc.y, loc.z),
+            "Velocity: (%5.2f, %5.2f, %5.2f) m/s" % (v.x, v.y, v.z),
+            "Acceleration: (%5.2f, %5.2f, %5.2f) m/s^2" % (a.x, a.y, a.z),
         ]
         v_offset = 4
         for item in info_text:
@@ -130,13 +134,17 @@ def main(_):
 
     callback_id = world.on_tick(on_tick)
 
-    logging.info("Keyboard control:" + """
+    logging.info(
+        "Keyboard control:"
+        + """
     ESC          : quit
     TAB          : switch vehicle
     SPACE        : switch between ego view and birdeye view
-    """)
+    """
+    )
     stopping = False
     import pygame.locals as K
+
     try:
         while not stopping:
             for event in pygame.event.get():
@@ -153,8 +161,9 @@ def main(_):
                     vehicle_id = (vehicle_id + 1) % len(vehicles)
                     vehicle = vehicles[vehicle_id]
                     camera = _make_camera(vehicle, view)
-                    logging.info("Switched to id: %s type_id: %s" %
-                                 (vehicle.id, vehicle.type_id))
+                    logging.info(
+                        "Switched to id: %s type_id: %s" % (vehicle.id, vehicle.type_id)
+                    )
                 if event.key == K.K_SPACE:
                     view = 1 - view
                     client.apply_batch_sync(camera.destroy(), True)
@@ -166,5 +175,5 @@ def main(_):
         pygame.quit()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(main)

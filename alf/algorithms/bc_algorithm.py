@@ -45,18 +45,20 @@ class BcAlgorithm(OffPolicyAlgorithm):
         Pomerleau ALVINN: An Autonomous Land Vehicle in a Neural Network, NeurIPS 1988.
     """
 
-    def __init__(self,
-                 observation_spec,
-                 action_spec: BoundedTensorSpec,
-                 reward_spec=TensorSpec(()),
-                 actor_network_cls=ActorNetwork,
-                 actor_optimizer=None,
-                 env=None,
-                 config: TrainerConfig = None,
-                 checkpoint=None,
-                 debug_summaries=False,
-                 epsilon_greedy=None,
-                 name="BcAlgorithm"):
+    def __init__(
+        self,
+        observation_spec,
+        action_spec: BoundedTensorSpec,
+        reward_spec=TensorSpec(()),
+        actor_network_cls=ActorNetwork,
+        actor_optimizer=None,
+        env=None,
+        config: TrainerConfig = None,
+        checkpoint=None,
+        debug_summaries=False,
+        epsilon_greedy=None,
+        name="BcAlgorithm",
+    ):
         """
         Args:
             observation_spec (nested TensorSpec): representing the observations.
@@ -97,21 +99,24 @@ class BcAlgorithm(OffPolicyAlgorithm):
             epsilon_greedy = alf.utils.common.get_epsilon_greedy(config)
         self._epsilon_greedy = epsilon_greedy
 
-        actor_network = actor_network_cls(input_tensor_spec=observation_spec,
-                                          action_spec=action_spec)
+        actor_network = actor_network_cls(
+            input_tensor_spec=observation_spec, action_spec=action_spec
+        )
 
         action_state_spec = actor_network.state_spec
-        super().__init__(observation_spec=observation_spec,
-                         action_spec=action_spec,
-                         reward_spec=reward_spec,
-                         train_state_spec=BcState(actor=action_state_spec),
-                         predict_state_spec=BcState(actor=action_state_spec),
-                         reward_weights=None,
-                         env=env,
-                         config=config,
-                         checkpoint=checkpoint,
-                         debug_summaries=debug_summaries,
-                         name=name)
+        super().__init__(
+            observation_spec=observation_spec,
+            action_spec=action_spec,
+            reward_spec=reward_spec,
+            train_state_spec=BcState(actor=action_state_spec),
+            predict_state_spec=BcState(actor=action_state_spec),
+            reward_weights=None,
+            env=env,
+            config=config,
+            checkpoint=checkpoint,
+            debug_summaries=debug_summaries,
+            name=name,
+        )
 
         self._actor_network = actor_network
 
@@ -120,21 +125,19 @@ class BcAlgorithm(OffPolicyAlgorithm):
         self._actor_optimizer = actor_optimizer
 
     def _predict_action(self, observation, state):
-        action_dist, actor_network_state = self._actor_network(observation,
-                                                               state=state)
+        action_dist, actor_network_state = self._actor_network(observation, state=state)
 
         return action_dist, actor_network_state
 
     def predict_step(self, inputs: TimeStep, state: BcState):
-        action_dist, new_state = self._predict_action(inputs.observation,
-                                                      state=state.actor)
-        action = dist_utils.epsilon_greedy_sample(action_dist,
-                                                  self._epsilon_greedy)
+        action_dist, new_state = self._predict_action(
+            inputs.observation, state=state.actor
+        )
+        action = dist_utils.epsilon_greedy_sample(action_dist, self._epsilon_greedy)
 
         return AlgStep(output=action, state=BcState(actor=new_state))
 
-    def _actor_train_step_imitation(self, inputs: TimeStep, rollout_info,
-                                    action_dist):
+    def _actor_train_step_imitation(self, inputs: TimeStep, rollout_info, action_dist):
 
         exp_action = rollout_info.action
         im_loss = -action_dist.log_prob(exp_action)
@@ -143,29 +146,24 @@ class BcAlgorithm(OffPolicyAlgorithm):
 
         return actor_info
 
-    def train_step_offline(self,
-                           inputs: TimeStep,
-                           state,
-                           rollout_info,
-                           pre_train=False):
+    def train_step_offline(
+        self, inputs: TimeStep, state, rollout_info, pre_train=False
+    ):
 
-        action_dist, new_state = self._predict_action(inputs.observation,
-                                                      state=state.actor)
+        action_dist, new_state = self._predict_action(
+            inputs.observation, state=state.actor
+        )
 
-        actor_loss = self._actor_train_step_imitation(inputs, rollout_info,
-                                                      action_dist)
+        actor_loss = self._actor_train_step_imitation(inputs, rollout_info, action_dist)
 
         if self._debug_summaries and alf.summary.should_record_summaries():
             with alf.summary.scope(self._name):
                 alf.summary.scalar("imitation_loss", actor_loss.loss.mean())
 
         info = BcInfo(actor=actor_loss)
-        return AlgStep(rollout_info.action,
-                       state=BcState(actor=new_state),
-                       info=info)
+        return AlgStep(rollout_info.action, state=BcState(actor=new_state), info=info)
 
     def calc_loss_offline(self, info, pre_train=False):
 
         actor_loss = info.actor
-        return LossInfo(loss=actor_loss.loss,
-                        extra=BcLossInfo(actor=actor_loss.extra))
+        return LossInfo(loss=actor_loss.loss, extra=BcLossInfo(actor=actor_loss.extra))

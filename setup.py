@@ -52,7 +52,7 @@ setup(
         "torchtext==0.18.0",
         "torchvision==0.21.0",
         "wheel",
-        "yapf==0.43.0",
+        "black>=24.8.0",
     ],  # And any other dependencies alf needs
     cmdclass={"build_ext": build_ext},
     extras_require={

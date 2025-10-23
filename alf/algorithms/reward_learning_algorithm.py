@@ -27,8 +27,7 @@ class RewardEstimationAlgorithm(Algorithm):
     """
 
     def __init__(self, name="RewardEstimationAlgorithm"):
-        """Create a RewardEstimationAlgorithm.
-        """
+        """Create a RewardEstimationAlgorithm."""
         super().__init__(train_state_spec=(), name=name)
 
     def train_step(self, time_step: TimeStep, state, rollout_info=None):
@@ -55,8 +54,7 @@ class RewardEstimationAlgorithm(Algorithm):
 
 @alf.configurable
 class FixedRewardFunction(RewardEstimationAlgorithm):
-    """Fixed Reward Estimation Module with hand-crafted computational rules.
-    """
+    """Fixed Reward Estimation Module with hand-crafted computational rules."""
 
     def __init__(self, reward_func: Callable, name="FixedRewardFunction"):
         """

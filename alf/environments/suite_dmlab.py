@@ -36,15 +36,17 @@ def is_available():
 
 
 @alf.configurable
-def action_discretize(action_spec,
-                      look_left_right_pixels_per_frame=(-20, 20),
-                      look_down_up_pixels_per_frame=(-10, 10),
-                      strafe_left_right=(-1, 1),
-                      move_back_forward=(-1, 1),
-                      fire=(),
-                      jump=(1, ),
-                      crouch=(1, ),
-                      **kwargs):
+def action_discretize(
+    action_spec,
+    look_left_right_pixels_per_frame=(-20, 20),
+    look_down_up_pixels_per_frame=(-10, 10),
+    strafe_left_right=(-1, 1),
+    move_back_forward=(-1, 1),
+    fire=(),
+    jump=(1,),
+    crouch=(1,),
+    **kwargs
+):
     """Discretize action from action_spec
 
     TODO: action combinations
@@ -100,14 +102,15 @@ def action_discretize(action_spec,
         move_back_forward=move_back_forward,
         fire=fire,
         jump=jump,
-        crouch=crouch)
+        crouch=crouch,
+    )
     config.update(kwargs)
     config = {key.upper(): value for key, value in config.items()}
 
     for i, spec in enumerate(action_spec):
-        val_min = spec['min']
-        val_max = spec['max']
-        values = config.get(spec['name'], None)
+        val_min = spec["min"]
+        val_max = spec["max"]
+        values = config.get(spec["name"], None)
 
         if values is None:
             values = list(range(val_min, val_max + 1))
@@ -126,14 +129,16 @@ def action_discretize(action_spec,
 
 @alf.configurable
 class DeepmindLabEnv(gym.Env):
-    metadata = {'render.modes': ['rgb_array']}
+    metadata = {"render.modes": ["rgb_array"]}
 
-    def __init__(self,
-                 scene,
-                 action_repeat=4,
-                 observation='RGB_INTERLEAVED',
-                 config={},
-                 renderer='hardware'):
+    def __init__(
+        self,
+        scene,
+        action_repeat=4,
+        observation="RGB_INTERLEAVED",
+        config={},
+        renderer="hardware",
+    ):
         """Create an deepmind_lab env
 
         Args:
@@ -150,9 +155,9 @@ class DeepmindLabEnv(gym.Env):
 
         self._action_repeat = action_repeat
         self._observation = observation
-        self._lab = deepmind_lab.Lab(scene, [self._observation],
-                                     config=config,
-                                     renderer=renderer)
+        self._lab = deepmind_lab.Lab(
+            scene, [self._observation], config=config, renderer=renderer
+        )
 
         self._lab.reset()
         action_spec = self._lab.action_spec()
@@ -161,15 +166,13 @@ class DeepmindLabEnv(gym.Env):
         self._action_list = action_list
 
         obs = self._lab.observations()[observation]
-        self.observation_space = gym.spaces.Box(0,
-                                                255,
-                                                obs.shape,
-                                                dtype=np.uint8)
+        self.observation_space = gym.spaces.Box(0, 255, obs.shape, dtype=np.uint8)
         self._last_obs = obs
 
     def step(self, action):
-        reward = self._lab.step(self._action_list[action],
-                                num_steps=self._action_repeat)
+        reward = self._lab.step(
+            self._action_list[action], num_steps=self._action_repeat
+        )
         terminal = not self._lab.is_running()
         obs = None if terminal else self._lab.observations()[self._observation]
         self._last_obs = obs if obs is not None else np.copy(self._last_obs)
@@ -186,22 +189,24 @@ class DeepmindLabEnv(gym.Env):
     def close(self):
         self._lab.close()
 
-    def render(self, mode='rgb_array', close=False):
-        if mode == 'rgb_array':
+    def render(self, mode="rgb_array", close=False):
+        if mode == "rgb_array":
             return self._last_obs
         else:
             super().render(mode=mode)  # just raise an exception
 
 
 @alf.configurable
-def load(scene,
-         env_id=None,
-         discount=1.0,
-         frame_skip=4,
-         gym_env_wrappers=(),
-         alf_env_wrappers=(),
-         wrap_with_process=False,
-         max_episode_steps=None):
+def load(
+    scene,
+    env_id=None,
+    discount=1.0,
+    frame_skip=4,
+    gym_env_wrappers=(),
+    alf_env_wrappers=(),
+    wrap_with_process=False,
+    max_episode_steps=None,
+):
     """Load deepmind lab envs.
     Args:
         scene (str): script for the deepmind_lab env. See available script:
@@ -224,17 +229,19 @@ def load(scene,
         max_episode_steps = 0
 
     def env_ctor(env_id=None):
-        return suite_gym.wrap_env(DeepmindLabEnv(scene=scene,
-                                                 action_repeat=frame_skip),
-                                  env_id=env_id,
-                                  discount=discount,
-                                  max_episode_steps=max_episode_steps,
-                                  gym_env_wrappers=gym_env_wrappers,
-                                  alf_env_wrappers=alf_env_wrappers)
+        return suite_gym.wrap_env(
+            DeepmindLabEnv(scene=scene, action_repeat=frame_skip),
+            env_id=env_id,
+            discount=discount,
+            max_episode_steps=max_episode_steps,
+            gym_env_wrappers=gym_env_wrappers,
+            alf_env_wrappers=alf_env_wrappers,
+        )
 
     if wrap_with_process:
         process_env = process_environment.ProcessEnvironment(
-            functools.partial(env_ctor))
+            functools.partial(env_ctor)
+        )
         process_env.start()
         torch_env = alf_wrappers.AlfEnvironmentBaseWrapper(process_env)
     else:

@@ -37,14 +37,16 @@ class ActorDistributionNetworkBase(Network):
     different encoding network creators.
     """
 
-    def __init__(self,
-                 input_tensor_spec: alf.NestedTensorSpec,
-                 action_spec: alf.NestedTensorSpec,
-                 encoding_network_ctor: Callable,
-                 discrete_projection_net_ctor: Callable,
-                 continuous_projection_net_ctor: Callable,
-                 name: str = 'ActorDistributionNetworkBase',
-                 **encoder_kwargs):
+    def __init__(
+        self,
+        input_tensor_spec: alf.NestedTensorSpec,
+        action_spec: alf.NestedTensorSpec,
+        encoding_network_ctor: Callable,
+        discrete_projection_net_ctor: Callable,
+        continuous_projection_net_ctor: Callable,
+        name: str = "ActorDistributionNetworkBase",
+        **encoder_kwargs
+    ):
         """
         Args:
             input_tensor_spec: the tensor spec of the input.
@@ -63,18 +65,18 @@ class ActorDistributionNetworkBase(Network):
 
         super().__init__(input_tensor_spec, name=name)
 
-        if encoder_kwargs.get('kernel_initializer', None) is None:
-            encoder_kwargs[
-                'kernel_initializer'] = torch.nn.init.xavier_uniform_
+        if encoder_kwargs.get("kernel_initializer", None) is None:
+            encoder_kwargs["kernel_initializer"] = torch.nn.init.xavier_uniform_
 
         self._action_spec = action_spec
-        self._encoding_net = encoding_network_ctor(input_tensor_spec,
-                                                   **encoder_kwargs)
-        self._create_projection_net(discrete_projection_net_ctor,
-                                    continuous_projection_net_ctor)
+        self._encoding_net = encoding_network_ctor(input_tensor_spec, **encoder_kwargs)
+        self._create_projection_net(
+            discrete_projection_net_ctor, continuous_projection_net_ctor
+        )
 
-    def _create_projection_net(self, discrete_projection_net_ctor,
-                               continuous_projection_net_ctor):
+    def _create_projection_net(
+        self, discrete_projection_net_ctor, continuous_projection_net_ctor
+    ):
         """If there are :math:`N` action specs, then create :math:`N` projection
         networks which can be a mixture of categoricals and normals.
         """
@@ -82,19 +84,20 @@ class ActorDistributionNetworkBase(Network):
         def _create(spec):
             if spec.is_discrete:
                 net = discrete_projection_net_ctor(
-                    input_size=self._encoding_net.output_spec.shape[0],
-                    action_spec=spec)
+                    input_size=self._encoding_net.output_spec.shape[0], action_spec=spec
+                )
             else:
                 net = continuous_projection_net_ctor(
-                    input_size=self._encoding_net.output_spec.shape[0],
-                    action_spec=spec)
+                    input_size=self._encoding_net.output_spec.shape[0], action_spec=spec
+                )
             return net
 
         self._projection_net = nest.map_structure(_create, self._action_spec)
         if nest.is_nested(self._projection_net):
             # need this for torch to pickup the parameters of all the modules
             self._projection_net_module_list = nn.ModuleList(
-                nest.flatten(self._projection_net))
+                nest.flatten(self._projection_net)
+            )
 
     def forward(self, observation, state=()):
         """Computes an action distribution given an observation.
@@ -108,16 +111,16 @@ class ActorDistributionNetworkBase(Network):
             state: empty
         """
         encoding, state = self._encoding_net(observation, state)
-        act_dist = nest.map_structure(lambda proj: proj(encoding)[0],
-                                      self._projection_net)
+        act_dist = nest.map_structure(
+            lambda proj: proj(encoding)[0], self._projection_net
+        )
         return act_dist, state
 
     def make_parallel(self, n):
         """Create a ``ParallelActorDistributionNetwork`` using ``n`` replicas of ``self``.
         The initialized network parameters will be different.
         """
-        return ParallelActorDistributionNetwork(self, n,
-                                                "parallel_" + self._name)
+        return ParallelActorDistributionNetwork(self, n, "parallel_" + self._name)
 
     @property
     def state_spec(self):
@@ -130,21 +133,23 @@ class ActorDistributionNetworkBase(Network):
 class ActorDistributionNetwork(ActorDistributionNetworkBase):
     """Network which outputs temporally uncorrelated action distributions."""
 
-    def __init__(self,
-                 input_tensor_spec,
-                 action_spec,
-                 input_preprocessors=None,
-                 input_preprocessors_ctor=None,
-                 preprocessing_combiner=None,
-                 conv_layer_params=None,
-                 fc_layer_params=None,
-                 activation=torch.relu_,
-                 kernel_initializer=None,
-                 use_fc_bn=False,
-                 use_fc_ln=False,
-                 discrete_projection_net_ctor=CategoricalProjectionNetwork,
-                 continuous_projection_net_ctor=NormalProjectionNetwork,
-                 name="ActorDistributionNetwork"):
+    def __init__(
+        self,
+        input_tensor_spec,
+        action_spec,
+        input_preprocessors=None,
+        input_preprocessors_ctor=None,
+        preprocessing_combiner=None,
+        conv_layer_params=None,
+        fc_layer_params=None,
+        activation=torch.relu_,
+        kernel_initializer=None,
+        use_fc_bn=False,
+        use_fc_ln=False,
+        discrete_projection_net_ctor=CategoricalProjectionNetwork,
+        continuous_projection_net_ctor=NormalProjectionNetwork,
+        name="ActorDistributionNetwork",
+    ):
         """
 
         Args:
@@ -204,16 +209,19 @@ class ActorDistributionNetwork(ActorDistributionNetworkBase):
             activation=activation,
             kernel_initializer=kernel_initializer,
             use_fc_bn=use_fc_bn,
-            use_fc_ln=use_fc_ln)
+            use_fc_ln=use_fc_ln,
+        )
 
 
 class ParallelActorDistributionNetwork(Network):
     """Perform ``n`` actor distribution computations in parallel."""
 
-    def __init__(self,
-                 actor_network: ActorDistributionNetwork,
-                 n: int,
-                 name="ParallelActorDistributionNetwork"):
+    def __init__(
+        self,
+        actor_network: ActorDistributionNetwork,
+        n: int,
+        name="ParallelActorDistributionNetwork",
+    ):
         """
         It creates a parallelized version of ``actor_network``.
         Args:
@@ -223,8 +231,7 @@ class ParallelActorDistributionNetwork(Network):
             name (str):
         """
 
-        super().__init__(input_tensor_spec=actor_network.input_tensor_spec,
-                         name=name)
+        super().__init__(input_tensor_spec=actor_network.input_tensor_spec, name=name)
         self._encoding_net = actor_network._encoding_net.make_parallel(n)
         self._projection_net = actor_network._projection_net.make_parallel(n)
         self._output_spec = self._projection_net.output_spec
@@ -236,8 +243,9 @@ class ParallelActorDistributionNetwork(Network):
             state (tuple): Empty for API consistent with ``ActorDistributionRNNNetwork``.
         """
         encoding, state = self._encoding_net(observation, state)
-        act_dist = nest.map_structure(lambda proj: proj(encoding)[0],
-                                      self._projection_net)
+        act_dist = nest.map_structure(
+            lambda proj: proj(encoding)[0], self._projection_net
+        )
         return act_dist, state
 
     @property
@@ -251,20 +259,22 @@ class ParallelActorDistributionNetwork(Network):
 class ActorDistributionRNNNetwork(ActorDistributionNetworkBase):
     """Network which outputs temporally correlated action distributions."""
 
-    def __init__(self,
-                 input_tensor_spec,
-                 action_spec,
-                 input_preprocessors=None,
-                 preprocessing_combiner=None,
-                 conv_layer_params=None,
-                 fc_layer_params=None,
-                 lstm_hidden_size=100,
-                 actor_fc_layer_params=None,
-                 activation=torch.relu_,
-                 kernel_initializer=None,
-                 discrete_projection_net_ctor=CategoricalProjectionNetwork,
-                 continuous_projection_net_ctor=NormalProjectionNetwork,
-                 name="ActorRNNDistributionNetwork"):
+    def __init__(
+        self,
+        input_tensor_spec,
+        action_spec,
+        input_preprocessors=None,
+        preprocessing_combiner=None,
+        conv_layer_params=None,
+        fc_layer_params=None,
+        lstm_hidden_size=100,
+        actor_fc_layer_params=None,
+        activation=torch.relu_,
+        kernel_initializer=None,
+        discrete_projection_net_ctor=CategoricalProjectionNetwork,
+        continuous_projection_net_ctor=NormalProjectionNetwork,
+        name="ActorRNNDistributionNetwork",
+    ):
         """
 
         Args:
@@ -321,28 +331,25 @@ class ActorDistributionRNNNetwork(ActorDistributionNetworkBase):
             hidden_size=lstm_hidden_size,
             post_fc_layer_params=actor_fc_layer_params,
             activation=activation,
-            kernel_initializer=kernel_initializer)
+            kernel_initializer=kernel_initializer,
+        )
 
 
 class UnitNormalActorDistributionNetwork(Network):
-    """Outputs a constant unit normal regardless of the inputs.
-    """
+    """Outputs a constant unit normal regardless of the inputs."""
 
-    def __init__(self,
-                 input_tensor_spec,
-                 action_spec,
-                 name="UnitNormalActorDistributionNetwork"):
+    def __init__(
+        self, input_tensor_spec, action_spec, name="UnitNormalActorDistributionNetwork"
+    ):
         super().__init__(input_tensor_spec, name=name)
         self._action_spec = action_spec
 
     def forward(self, inputs, state=()):
-        outer_rank = alf.nest.utils.get_outer_rank(inputs,
-                                                   self._input_tensor_spec)
+        outer_rank = alf.nest.utils.get_outer_rank(inputs, self._input_tensor_spec)
         outer_dims = alf.nest.get_nest_shape(inputs)[:outer_rank]
         means = self._action_spec.zeros(outer_dims)
         stds = self._action_spec.ones(outer_dims)
-        normal_dist = alf.utils.dist_utils.DiagMultivariateNormal(loc=means,
-                                                                  scale=stds)
+        normal_dist = alf.utils.dist_utils.DiagMultivariateNormal(loc=means, scale=stds)
         return normal_dist, state
 
 
@@ -363,17 +370,17 @@ class LatentActorDistributionNetwork(Network):
         for details.
     """
 
-    def __init__(self,
-                 input_tensor_spec: alf.NestedTensorSpec,
-                 action_spec: alf.NestedTensorSpec,
-                 prior_actor_distribution_network_ctor:
-                 Callable = UnitNormalActorDistributionNetwork,
-                 normalizing_flow_network_ctor: Callable = RealNVPNetwork,
-                 conditional_flow: bool = True,
-                 scale_distribution: bool = False,
-                 dist_squashing_transform: td.Transform = alf.utils.dist_utils.
-                 StableTanh(),
-                 name: str = "LatentActorDistributionNetwork"):
+    def __init__(
+        self,
+        input_tensor_spec: alf.NestedTensorSpec,
+        action_spec: alf.NestedTensorSpec,
+        prior_actor_distribution_network_ctor: Callable = UnitNormalActorDistributionNetwork,
+        normalizing_flow_network_ctor: Callable = RealNVPNetwork,
+        conditional_flow: bool = True,
+        scale_distribution: bool = False,
+        dist_squashing_transform: td.Transform = alf.utils.dist_utils.StableTanh(),
+        name: str = "LatentActorDistributionNetwork",
+    ):
         """
         Args:
             input_tensor_spec: the tensor spec of the input
@@ -398,24 +405,28 @@ class LatentActorDistributionNetwork(Network):
         """
         super().__init__(input_tensor_spec, name=name)
         self._prior_actor_network = prior_actor_distribution_network_ctor(
-            input_tensor_spec=input_tensor_spec, action_spec=action_spec)
+            input_tensor_spec=input_tensor_spec, action_spec=action_spec
+        )
         self._nf_network = normalizing_flow_network_ctor(
             input_tensor_spec=action_spec,
-            conditional_input_tensor_spec=(input_tensor_spec
-                                           if conditional_flow else None))
+            conditional_input_tensor_spec=(
+                input_tensor_spec if conditional_flow else None
+            ),
+        )
         self._conditional_flow = conditional_flow
         self._scale_distribution = scale_distribution
 
         if scale_distribution:
-            assert isinstance(action_spec, BoundedTensorSpec), \
-                ("When squashing the mean or scaling the distribution, bounds "
-                 + "are required for the action spec!")
+            assert isinstance(action_spec, BoundedTensorSpec), (
+                "When squashing the mean or scaling the distribution, bounds "
+                + "are required for the action spec!"
+            )
             means, magnitudes = alf.utils.spec_utils.spec_means_and_magnitudes(
-                action_spec)
+                action_spec
+            )
             self._squash_transforms = [
                 dist_squashing_transform,
-                alf.utils.dist_utils.AffineTransform(loc=means,
-                                                     scale=magnitudes)
+                alf.utils.dist_utils.AffineTransform(loc=means, scale=magnitudes),
             ]
 
     def forward(self, inputs, state=()):

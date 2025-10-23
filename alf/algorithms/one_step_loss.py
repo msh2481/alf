@@ -23,11 +23,13 @@ from alf.utils import losses
 @alf.configurable
 class OneStepTDLoss(TDLoss):
 
-    def __init__(self,
-                 gamma: Union[float, List[float]] = 0.99,
-                 td_error_loss_fn: Callable = losses.element_wise_squared_loss,
-                 debug_summaries: bool = False,
-                 name: str = "OneStepTDLoss"):
+    def __init__(
+        self,
+        gamma: Union[float, List[float]] = 0.99,
+        td_error_loss_fn: Callable = losses.element_wise_squared_loss,
+        debug_summaries: bool = False,
+        name: str = "OneStepTDLoss",
+    ):
         """
         Args:
             gamma: A discount factor for future rewards. For
@@ -39,24 +41,28 @@ class OneStepTDLoss(TDLoss):
             debug_summaries: True if debug summaries should be created
             name: The name of this loss.
         """
-        super().__init__(gamma=gamma,
-                         td_error_loss_fn=td_error_loss_fn,
-                         debug_summaries=debug_summaries,
-                         td_lambda=0.0,
-                         name=name)
+        super().__init__(
+            gamma=gamma,
+            td_error_loss_fn=td_error_loss_fn,
+            debug_summaries=debug_summaries,
+            td_lambda=0.0,
+            name=name,
+        )
 
 
 @alf.configurable
 class OneStepTDQRLoss(TDQRLoss):
-    """One step temporal difference quantile regression loss. """
+    """One step temporal difference quantile regression loss."""
 
-    def __init__(self,
-                 num_quantiles: int = 50,
-                 gamma: Union[float, List[float]] = 0.99,
-                 td_error_loss_fn: Callable = losses.iqn_huber_loss,
-                 sum_over_quantiles: bool = False,
-                 debug_summaries: bool = False,
-                 name: str = "OneStepTDQRLoss"):
+    def __init__(
+        self,
+        num_quantiles: int = 50,
+        gamma: Union[float, List[float]] = 0.99,
+        td_error_loss_fn: Callable = losses.iqn_huber_loss,
+        sum_over_quantiles: bool = False,
+        debug_summaries: bool = False,
+        name: str = "OneStepTDQRLoss",
+    ):
         """
         Args:
             num_quantiles: the number of quantiles.
@@ -72,10 +78,12 @@ class OneStepTDQRLoss(TDQRLoss):
             debug_summaries: True if debug summaries should be created
             name: The name of this loss.
         """
-        super().__init__(num_quantiles=num_quantiles,
-                         gamma=gamma,
-                         td_error_loss_fn=td_error_loss_fn,
-                         td_lambda=0.0,
-                         sum_over_quantiles=sum_over_quantiles,
-                         debug_summaries=debug_summaries,
-                         name=name)
+        super().__init__(
+            num_quantiles=num_quantiles,
+            gamma=gamma,
+            td_error_loss_fn=td_error_loss_fn,
+            td_lambda=0.0,
+            sum_over_quantiles=sum_over_quantiles,
+            debug_summaries=debug_summaries,
+            name=name,
+        )

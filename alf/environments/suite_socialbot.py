@@ -14,6 +14,7 @@
 
 try:
     import social_bot
+
     # The following import is to allow gin config of environments take effects
     import social_bot.envs
 except ImportError:
@@ -37,14 +38,16 @@ def is_available():
 
 
 @alf.configurable
-def load(environment_name,
-         env_id=None,
-         port=None,
-         wrap_with_process=False,
-         discount=1.0,
-         max_episode_steps=None,
-         gym_env_wrappers=(),
-         alf_env_wrappers=()):
+def load(
+    environment_name,
+    env_id=None,
+    port=None,
+    wrap_with_process=False,
+    discount=1.0,
+    max_episode_steps=None,
+    gym_env_wrappers=(),
+    alf_env_wrappers=(),
+):
     """Loads the selected environment and wraps it with the specified wrappers.
 
     Note that by default a TimeLimit wrapper is used to limit episode lengths
@@ -82,18 +85,21 @@ def load(environment_name,
 
     def env_ctor(port, env_id=None):
         gym_env = gym_spec.make(port=port)
-        return suite_gym.wrap_env(gym_env,
-                                  env_id=env_id,
-                                  discount=discount,
-                                  max_episode_steps=max_episode_steps,
-                                  gym_env_wrappers=gym_env_wrappers,
-                                  alf_env_wrappers=alf_env_wrappers)
+        return suite_gym.wrap_env(
+            gym_env,
+            env_id=env_id,
+            discount=discount,
+            max_episode_steps=max_episode_steps,
+            gym_env_wrappers=gym_env_wrappers,
+            alf_env_wrappers=alf_env_wrappers,
+        )
 
     port_range = [port, port + 1] if port else [DEFAULT_SOCIALBOT_PORT]
     with get_unused_port(*port_range) as port:
         if wrap_with_process:
             process_env = process_environment.ProcessEnvironment(
-                functools.partial(env_ctor, port))
+                functools.partial(env_ctor, port)
+            )
             process_env.start()
             torch_env = alf_wrappers.AlfEnvironmentBaseWrapper(process_env)
         else:

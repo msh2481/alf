@@ -63,12 +63,9 @@ class GoBoard(object):
 
     """
 
-    def __init__(self,
-                 batch_size,
-                 height,
-                 width,
-                 max_num_moves,
-                 num_previous_boards=10):
+    def __init__(
+        self, batch_size, height, width, max_num_moves, num_previous_boards=10
+    ):
         """
         Args:
             batch_size (int): the number of parallel boards
@@ -85,25 +82,27 @@ class GoBoard(object):
         self._num_previous_boards = num_previous_boards
 
         self._B = torch.arange(batch_size)
-        self._board = torch.full((batch_size, height + 2, width + 2),
-                                 2,
-                                 dtype=torch.int8)
+        self._board = torch.full(
+            (batch_size, height + 2, width + 2), 2, dtype=torch.int8
+        )
         self._y = torch.arange(1, height + 1).unsqueeze(0).unsqueeze(-1)
         self._x = torch.arange(1, width + 1).unsqueeze(0).unsqueeze(0)
         self._board[self._B.unsqueeze(-1).unsqueeze(-1), self._y, self._x] = 0
 
         # connected component which this location belongs to, 0 for empty
-        self._cc_id = torch.zeros((batch_size, height + 2, width + 2),
-                                  dtype=torch.int64)
+        self._cc_id = torch.zeros(
+            (batch_size, height + 2, width + 2), dtype=torch.int64
+        )
         # The additional 2 are for cc_id 0 and 1 more move from GoEnvironment
         self._max_num_ccs = max_num_moves + 2
         # the qi (liberty) of each connected component.
-        self._cc_qi = torch.zeros((batch_size, self._max_num_ccs),
-                                  dtype=torch.int32).contiguous()
+        self._cc_qi = torch.zeros(
+            (batch_size, self._max_num_ccs), dtype=torch.int32
+        ).contiguous()
 
         # The number of connected components.
         # CC 0 is reserved for the CC of empty space. So num_ccs start from 1.
-        self._num_ccs = torch.ones((batch_size, ), dtype=torch.int64)
+        self._num_ccs = torch.ones((batch_size,), dtype=torch.int64)
 
         # The coordinate delta of neighbors.
         # It can be interesting to have a different dydxs. For example:
@@ -113,12 +112,14 @@ class GoBoard(object):
         self._prev_boards = torch.full(
             (batch_size, num_previous_boards, height + 2, width + 2),
             2,
-            dtype=torch.int8)
+            dtype=torch.int8,
+        )
         self._prev_boards[
             self._B.reshape(-1, 1, 1, 1),
             torch.arange(num_previous_boards).reshape(1, -1, 1, 1),
             self._y.unsqueeze(0),
-            self._x.unsqueeze(0)] = 0
+            self._x.unsqueeze(0),
+        ] = 0
         self._num_moves = torch.zeros(batch_size, dtype=torch.int64)
 
     def update(self, board_indices, y, x, player):
@@ -173,8 +174,7 @@ class GoBoard(object):
             # The new stone at (y, x) will decrease the qi by 1
             qi[same_player] -= 1
             # merge it with new_cc if it is not merged yet
-            self._change_cc_id(B[not_merged], cc_id[not_merged],
-                               new_cc_id[not_merged])
+            self._change_cc_id(B[not_merged], cc_id[not_merged], new_cc_id[not_merged])
             empty_neighbor = self._board[B, ny, nx] == 0
             # if the neighbor is empty, we increase qi by 1.
             qi[empty_neighbor] += 1
@@ -188,8 +188,7 @@ class GoBoard(object):
             # remove the connected stones for suicidal move
             self._remove_cc(B[suicidal], new_cc_id[suicidal])
 
-        prev_idx = self._num_moves[B].reshape(1,
-                                              -1) % self._num_previous_boards
+        prev_idx = self._num_moves[B].reshape(1, -1) % self._num_previous_boards
         self._prev_boards[B, prev_idx] = self._board[B]
         self._num_moves[B] += 1
 
@@ -221,7 +220,8 @@ class GoBoard(object):
             self._cc_qi.view(-1).scatter_add_(
                 dim=0,
                 index=B * self._max_num_ccs + cc_id,
-                src=torch.ones(1, dtype=torch.int32).expand_as(cc_id))
+                src=torch.ones(1, dtype=torch.int32).expand_as(cc_id),
+            )
 
     def _change_cc_id(self, board_indices, cc_id, new_cc_id):
         B = board_indices
@@ -349,7 +349,8 @@ class GoBoard(object):
             B.reshape(-1, 1, 1, 1),
             torch.arange(self._num_previous_boards).reshape(1, -1, 1, 1),
             self._y.unsqueeze(0),
-            self._x.unsqueeze(0)] = 0
+            self._x.unsqueeze(0),
+        ] = 0
 
     def classify_all_moves(self, player, board_indices=None):
         """Classify all the moves on the board.
@@ -378,13 +379,16 @@ class GoBoard(object):
         # process is very similar to ``update()``.
 
         # [B * H * W]
-        x = torch.arange(1, self._width + 1).repeat(board_indices.shape[0] *
-                                                    self._height)
+        x = torch.arange(1, self._width + 1).repeat(
+            board_indices.shape[0] * self._height
+        )
         # [B * H * W]
-        y = torch.arange(1, self._height + 1).repeat_interleave(
-            self._width).repeat(board_indices.shape[0])
-        board_indices = board_indices.repeat_interleave(self._height *
-                                                        self._width)
+        y = (
+            torch.arange(1, self._height + 1)
+            .repeat_interleave(self._width)
+            .repeat(board_indices.shape[0])
+        )
+        board_indices = board_indices.repeat_interleave(self._height * self._width)
         player = player.repeat_interleave(self._height * self._width)
         opponent = -player
 
@@ -444,8 +448,7 @@ class GoBoard(object):
             qi[same_player] -= 1
 
             # merge it with new_cc if it is not merged yet
-            _change_cc_id(B[not_merged], cc_id[not_merged],
-                          new_cc_id[not_merged])
+            _change_cc_id(B[not_merged], cc_id[not_merged], new_cc_id[not_merged])
 
             empty_neighbor = boards[B, ny, nx] == 0
             # if the neighbor is empty, we increase qi by 1.
@@ -459,13 +462,14 @@ class GoBoard(object):
         # remove the connected stones for suicidal move
         _remove_cc(B[suicidal], new_cc_id[suicidal])
 
-        boards = boards.reshape(-1, 1, self._height, self._width,
-                                self._height + 2, self._width + 2)
-        prev_boards = prev_boards.reshape(-1, self._num_previous_boards, 1, 1,
-                                          self._height + 2, self._width + 2)
+        boards = boards.reshape(
+            -1, 1, self._height, self._width, self._height + 2, self._width + 2
+        )
+        prev_boards = prev_boards.reshape(
+            -1, self._num_previous_boards, 1, 1, self._height + 2, self._width + 2
+        )
         repeated = boards == prev_boards
-        repeated = repeated.reshape(*repeated.shape[:-2],
-                                    -1).all(dim=-1).any(dim=1)
+        repeated = repeated.reshape(*repeated.shape[:-2], -1).all(dim=-1).any(dim=1)
         suicidal = suicidal.reshape(-1, self._height, self._width)
         occupied = ~empty.reshape(-1, self._height, self._width)
         repeated = repeated & ~occupied
@@ -473,7 +477,7 @@ class GoBoard(object):
         return occupied, suicidal, repeated
 
 
-@alf.configurable(blacklist=['batch_size'])
+@alf.configurable(blacklist=["batch_size"])
 class GoEnvironment(AlfEnvironment):
     """Go environment.
 
@@ -509,19 +513,18 @@ class GoEnvironment(AlfEnvironment):
     ``height * width``, it means to pass for this round.
     """
 
-    metadata = {
-        'render.modes': ['human', 'rgb_array'],
-        'video.frames_per_second': 1
-    }
+    metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 1}
 
-    def __init__(self,
-                 batch_size,
-                 height=19,
-                 width=19,
-                 winning_thresh=7.5,
-                 allow_suicidal_move=False,
-                 reward_shaping=False,
-                 human_player=None):
+    def __init__(
+        self,
+        batch_size,
+        height=19,
+        width=19,
+        winning_thresh=7.5,
+        allow_suicidal_move=False,
+        reward_shaping=False,
+        human_player=None,
+    ):
         """
         Args:
             batch_size (int): the number of parallel boards
@@ -546,27 +549,27 @@ class GoEnvironment(AlfEnvironment):
 
         # width*height for pass
         # otherwise it is a move at (y=action // width, x=action % width)
-        self._action_spec = alf.BoundedTensorSpec((),
-                                                  minimum=0,
-                                                  maximum=width * height,
-                                                  dtype=torch.int64)
+        self._action_spec = alf.BoundedTensorSpec(
+            (), minimum=0, maximum=width * height, dtype=torch.int64
+        )
         self._observation_spec = OrderedDict(
             board=alf.TensorSpec((1, height, width), torch.int8),
             prev_action=self._action_spec,
             valid_action_mask=alf.TensorSpec([width * height + 1], torch.bool),
             steps=alf.TensorSpec((), torch.int32),
-            to_play=alf.TensorSpec((), torch.int8))
+            to_play=alf.TensorSpec((), torch.int8),
+        )
 
         self._B = torch.arange(self._batch_size)
         self._env_ids = torch.arange(batch_size)
         self._pass_action = width * height
         self._board = GoBoard(batch_size, height, width, self._max_num_moves)
         self._previous_board = self._board.get_board()
-        self._num_moves = torch.zeros((batch_size, ), dtype=torch.int32)
-        self._game_over = torch.zeros((batch_size, ), dtype=torch.bool)
-        self._prev_action = torch.full((batch_size, ),
-                                       self._pass_action,
-                                       dtype=torch.int64)
+        self._num_moves = torch.zeros((batch_size,), dtype=torch.int32)
+        self._game_over = torch.zeros((batch_size,), dtype=torch.bool)
+        self._prev_action = torch.full(
+            (batch_size,), self._pass_action, dtype=torch.int64
+        )
         self._surface = None
         if human_player is not None:
             logging.info("Use mouse click to place a stone")
@@ -614,29 +617,32 @@ class GoEnvironment(AlfEnvironment):
         self._game_over.fill_(False)
         self._prev_action.fill_(self._pass_action)
 
-        return TimeStep(observation=OrderedDict(
-            board=self._board.get_board().detach().unsqueeze(1),
+        return TimeStep(
+            observation=OrderedDict(
+                board=self._board.get_board().detach().unsqueeze(1),
+                prev_action=self._prev_action,
+                valid_action_mask=self._get_valid_action_mask(),
+                steps=self._num_moves,
+                to_play=torch.zeros((self._batch_size), dtype=torch.int8),
+            ),
+            step_type=torch.full(
+                (self._batch_size,), StepType.FIRST, dtype=torch.int32
+            ),
+            reward=torch.zeros((self._batch_size,)),
+            discount=torch.ones((self._batch_size,)),
             prev_action=self._prev_action,
-            valid_action_mask=self._get_valid_action_mask(),
-            steps=self._num_moves,
-            to_play=torch.zeros((self._batch_size), dtype=torch.int8)),
-                        step_type=torch.full((self._batch_size, ),
-                                             StepType.FIRST,
-                                             dtype=torch.int32),
-                        reward=torch.zeros((self._batch_size, )),
-                        discount=torch.ones((self._batch_size, )),
-                        prev_action=self._prev_action,
-                        env_id=self._env_ids,
-                        env_info={
-                            "player0_win": torch.zeros(self._batch_size),
-                            "player1_win": torch.zeros(self._batch_size),
-                            "player0_pass": torch.zeros(self._batch_size),
-                            "player1_pass": torch.zeros(self._batch_size),
-                            "draw": torch.zeros(self._batch_size),
-                            "invalid_move": torch.zeros(self._batch_size),
-                            "too_long": torch.zeros(self._batch_size),
-                            "bad_move": torch.zeros(self._batch_size),
-                        })
+            env_id=self._env_ids,
+            env_info={
+                "player0_win": torch.zeros(self._batch_size),
+                "player1_win": torch.zeros(self._batch_size),
+                "player0_pass": torch.zeros(self._batch_size),
+                "player1_pass": torch.zeros(self._batch_size),
+                "draw": torch.zeros(self._batch_size),
+                "invalid_move": torch.zeros(self._batch_size),
+                "too_long": torch.zeros(self._batch_size),
+                "bad_move": torch.zeros(self._batch_size),
+            },
+        )
 
     def _get_valid_action_mask(self):
         player = ((self._num_moves % 2) * 2 - 1).to(torch.int8)
@@ -647,7 +653,8 @@ class GoEnvironment(AlfEnvironment):
 
         valid = (~invalid).reshape(self._batch_size, -1)
         valid = torch.cat(
-            [valid, torch.ones(self._batch_size, 1, dtype=torch.bool)], dim=1)
+            [valid, torch.ones(self._batch_size, 1, dtype=torch.bool)], dim=1
+        )
         return valid
 
     def _step1(self, action):
@@ -658,9 +665,7 @@ class GoEnvironment(AlfEnvironment):
         self._board.reset_board(self._B[prev_game_over])
         current_board = self._board.get_board()
         player = ((self._num_moves % 2) * 2 - 1).to(torch.int8)
-        step_type = torch.full((self._batch_size, ),
-                               StepType.MID,
-                               dtype=torch.int32)
+        step_type = torch.full((self._batch_size,), StepType.MID, dtype=torch.int32)
         height = self._height
         width = self._width
 
@@ -670,15 +675,18 @@ class GoEnvironment(AlfEnvironment):
         is_pass = action == self._pass_action
         valid = (current_board[self._B, y, x] == 0) | is_pass
         placing = valid & ~is_pass & ~prev_game_over
-        suicidal = self._board.update(self._B[placing], y[placing], x[placing],
-                                      player[placing])
+        suicidal = self._board.update(
+            self._B[placing], y[placing], x[placing], player[placing]
+        )
         if not self._allow_suicical_move:
             valid[self._B[placing][suicidal]] = False
 
-        both_pass = ((self._prev_action == self._pass_action) &
-                     (action == self._pass_action))
+        both_pass = (self._prev_action == self._pass_action) & (
+            action == self._pass_action
+        )
         duplicated = (self._board.get_board() == self._previous_board).reshape(
-            self._batch_size, -1).all(dim=1) & ~prev_game_over
+            self._batch_size, -1
+        ).all(dim=1) & ~prev_game_over
         illegal_duplicated = duplicated & ~is_pass & ~prev_game_over
         valid = valid & ~illegal_duplicated
 
@@ -700,18 +708,21 @@ class GoEnvironment(AlfEnvironment):
         else:
             reward[scoring] = score.sign()
         reward = torch.where(valid, reward, player.to(torch.float32))
-        reward[prev_game_over] = 0.
+        reward[prev_game_over] = 0.0
 
         self._num_moves[prev_game_over] = 0
 
         # early moves on side are bad
-        bad_move = (0 < self._num_moves) & (self._num_moves <= width) & (
-            (x == 0) | (x == width - 1) | (y == 0) | (y == height - 1))
+        bad_move = (
+            (0 < self._num_moves)
+            & (self._num_moves <= width)
+            & ((x == 0) | (x == width - 1) | (y == 0) | (y == height - 1))
+        )
 
         step_type[game_over] = int(StepType.LAST)
         step_type[prev_game_over] = int(StepType.FIRST)
         discount = torch.ones(self._batch_size)
-        discount[game_over] = 0.
+        discount[game_over] = 0.0
         self._game_over = game_over
         self._prev_action = action.detach().clone()
         self._prev_action[prev_game_over] = self._pass_action
@@ -720,27 +731,30 @@ class GoEnvironment(AlfEnvironment):
         draw = game_over & (reward == 0)
         self._previous_board = current_board
 
-        return TimeStep(observation=OrderedDict(
-            board=self._board.get_board().detach().unsqueeze(1),
+        return TimeStep(
+            observation=OrderedDict(
+                board=self._board.get_board().detach().unsqueeze(1),
+                prev_action=self._prev_action,
+                valid_action_mask=self._get_valid_action_mask(),
+                steps=self._num_moves,
+                to_play=(self._num_moves % 2).to(torch.int8),
+            ),
+            reward=reward.detach(),
+            step_type=step_type.detach(),
+            discount=discount.detach(),
             prev_action=self._prev_action,
-            valid_action_mask=self._get_valid_action_mask(),
-            steps=self._num_moves,
-            to_play=(self._num_moves % 2).to(torch.int8)),
-                        reward=reward.detach(),
-                        step_type=step_type.detach(),
-                        discount=discount.detach(),
-                        prev_action=self._prev_action,
-                        env_id=self._env_ids,
-                        env_info={
-                            "player0_win": player0_win.to(torch.float32),
-                            "player1_win": player1_win.to(torch.float32),
-                            "player0_pass": is_pass & (player == -1),
-                            "player1_pass": is_pass & (player == 1),
-                            "draw": draw.to(torch.float32),
-                            "invalid_move": (~valid).to(torch.float32),
-                            "too_long": too_long.to(torch.float32),
-                            "bad_move": bad_move.to(torch.float32),
-                        })
+            env_id=self._env_ids,
+            env_info={
+                "player0_win": player0_win.to(torch.float32),
+                "player1_win": player1_win.to(torch.float32),
+                "player0_pass": is_pass & (player == -1),
+                "player1_pass": is_pass & (player == 1),
+                "draw": draw.to(torch.float32),
+                "invalid_move": (~valid).to(torch.float32),
+                "too_long": too_long.to(torch.float32),
+                "bad_move": bad_move.to(torch.float32),
+            },
+        )
 
     def _step(self, action):
         """When there is a human player, the human player is part of the environment
@@ -752,18 +766,18 @@ class GoEnvironment(AlfEnvironment):
         if self._human_player is None:
             return self._step1(action)
         if self._num_moves == 0 and self._human_player == 0:
-            self.render('human')
+            self.render("human")
             human_action = self._get_human_action()
             time_step = self._step1(human_action)
-            self.render('human')
+            self.render("human")
             return time_step
         time_step = self._step1(action)
-        self.render('human')
+        self.render("human")
         if time_step.step_type[0] == StepType.LAST:
             return time_step
         human_action = self._get_human_action()
         time_step = self._step1(human_action)
-        self.render('human')
+        self.render("human")
         return time_step
 
     def _get_human_action(self):
@@ -787,10 +801,13 @@ class GoEnvironment(AlfEnvironment):
                     y = int((my - offset) / grid_size + 0.5)
                     gx = offset + x * grid_size
                     gy = offset + y * grid_size
-                    if ((mx - gx) * (mx - gx) + (my - gy) *
-                        (my - gy) <= stone_radius * stone_radius
-                            and 0 <= x < self._width and 0 <= y < self._height
-                            and valid_action_mask[y * self._width + x]):
+                    if (
+                        (mx - gx) * (mx - gx) + (my - gy) * (my - gy)
+                        <= stone_radius * stone_radius
+                        and 0 <= x < self._width
+                        and 0 <= y < self._height
+                        and valid_action_mask[y * self._width + x]
+                    ):
                         action = y * self._width + x
                         break
                 if event.type == pygame.KEYUP:
@@ -800,11 +817,12 @@ class GoEnvironment(AlfEnvironment):
                     if event.key == K.K_SPACE:
                         # For some unknown reason, the display may not update occasionally.
                         # Press SPACE to update the display.
-                        self.render('human')
+                        self.render("human")
         return torch.tensor([action], dtype=torch.int64)
 
     def render(self, mode):
         import pygame
+
         self._grid_size = 40
         self._offset = self._grid_size // 2
         self._stone_radius = int(0.4 * self._grid_size)
@@ -813,26 +831,32 @@ class GoEnvironment(AlfEnvironment):
         stone_radius = self._stone_radius
         if self._surface is None:
             pygame.init()
-            if mode == 'human':
+            if mode == "human":
                 self._surface = pygame.display.set_mode(
                     (self._width * grid_size, self._height * grid_size),
-                    pygame.HWSURFACE | pygame.DOUBLEBUF)
+                    pygame.HWSURFACE | pygame.DOUBLEBUF,
+                )
             else:
                 self._surface = pygame.Surface(
-                    (self._width * grid_size, self._height * grid_size))
+                    (self._width * grid_size, self._height * grid_size)
+                )
 
         self._surface.fill((128, 128, 64))
         for y in range(self._height):
-            pygame.draw.line(self._surface, (0, 0, 0),
-                             (offset, offset + y * grid_size),
-                             (offset + (self._width - 1) * grid_size,
-                              offset + y * grid_size))
+            pygame.draw.line(
+                self._surface,
+                (0, 0, 0),
+                (offset, offset + y * grid_size),
+                (offset + (self._width - 1) * grid_size, offset + y * grid_size),
+            )
 
         for x in range(self._width):
-            pygame.draw.line(self._surface, (0, 0, 0),
-                             (offset + x * grid_size, offset),
-                             (offset + x * grid_size, offset +
-                              (self._height - 1) * grid_size))
+            pygame.draw.line(
+                self._surface,
+                (0, 0, 0),
+                (offset + x * grid_size, offset),
+                (offset + x * grid_size, offset + (self._height - 1) * grid_size),
+            )
 
         action = self._prev_action[0].cpu().numpy()
         ay = action // self._width
@@ -843,28 +867,34 @@ class GoEnvironment(AlfEnvironment):
                 if board[y, x] != 0:
                     c = 128 + 127 * board[y, x]
                     pygame.draw.circle(
-                        self._surface, (c, c, c),
+                        self._surface,
+                        (c, c, c),
                         (offset + x * grid_size, offset + y * grid_size),
-                        stone_radius, 0)
+                        stone_radius,
+                        0,
+                    )
 
         if action != self._pass_action:
             pygame.draw.circle(
-                self._surface, (255, 0, 0),
-                (offset + ax * grid_size, offset + ay * grid_size), 2, 0)
+                self._surface,
+                (255, 0, 0),
+                (offset + ax * grid_size, offset + ay * grid_size),
+                2,
+                0,
+            )
 
-        if mode == 'human':
+        if mode == "human":
             pygame.display.flip()
             time.sleep(0.1)
-        elif mode == 'rgb_array':
+        elif mode == "rgb_array":
             # (x, y, c) => (y, x, c)
-            return np.transpose(pygame.surfarray.array3d(self._surface),
-                                (1, 0, 2))
+            return np.transpose(pygame.surfarray.array3d(self._surface), (1, 0, 2))
         else:
             raise ValueError("Unsupported render mode: %s" % mode)
 
 
 @alf.configurable(whitelist=[])
-def load(name='', batch_size=1):
+def load(name="", batch_size=1):
     """Load GoEnvironment.
 
     Args:

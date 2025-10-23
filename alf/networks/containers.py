@@ -18,19 +18,23 @@ import torch.nn as nn
 from typing import Callable
 
 import alf
-from alf.nest import (flatten, flatten_up_to, get_field, map_structure,
-                      map_structure_up_to, pack_sequence_as)
+from alf.nest import (
+    flatten,
+    flatten_up_to,
+    get_field,
+    map_structure,
+    map_structure_up_to,
+    pack_sequence_as,
+)
 from alf.nest.utils import get_nested_field
 from alf.utils.spec_utils import is_same_spec
 from .network import Network, get_input_tensor_spec, wrap_as_network
 from alf.layers import make_parallel_spec
 
 
-def Sequential(*modules,
-               output='',
-               input_tensor_spec=None,
-               name="Sequential",
-               **named_modules):
+def Sequential(
+    *modules, output="", input_tensor_spec=None, name="Sequential", **named_modules
+):
     """Network composed of a sequence of torch.nn.Module or alf.nn.Network.
 
     All the modules provided through ``modules`` and ``named_modules`` are calculated
@@ -106,45 +110,51 @@ def Sequential(*modules,
     # does not allow *args for __init__() (see _NetworkMeta.__new__()). And we
     # want to use *modules here to make the interface consistent with
     # torch.nn.Sequential and alf.layers.Sequential to avoid confusion.
-    return _Sequential(modules,
-                       named_modules,
-                       output=output,
-                       input_tensor_spec=input_tensor_spec,
-                       name=name)
+    return _Sequential(
+        modules,
+        named_modules,
+        output=output,
+        input_tensor_spec=input_tensor_spec,
+        name=name,
+    )
 
 
 class _Sequential(Network):
 
-    def __init__(self,
-                 elements=(),
-                 element_dict={},
-                 output='',
-                 input_tensor_spec=None,
-                 name='Sequential'):
+    def __init__(
+        self,
+        elements=(),
+        element_dict={},
+        output="",
+        input_tensor_spec=None,
+        name="Sequential",
+    ):
         state_spec = []
         modules = []
         inputs = []
         outputs = []
         simple = True
-        named_elements = list(zip([''] * len(elements), elements)) + list(
-            element_dict.items())
-        is_nested_str = lambda s: all(map(lambda x: type(x) == str, flatten(s))
-                                      )
+        named_elements = list(zip([""] * len(elements), elements)) + list(
+            element_dict.items()
+        )
+        is_nested_str = lambda s: all(map(lambda x: type(x) == str, flatten(s)))
         for i, (out, element) in enumerate(named_elements):
-            input = ''
+            input = ""
             if isinstance(element, tuple) and len(element) == 2:
                 input, module = element
             else:
                 module = element
             if not (isinstance(module, Callable) and is_nested_str(input)):
-                raise ValueError("Argument %s is not in the form of Callable "
-                                 "or (nested str, Callable): %s" %
-                                 (out or str(i), element))
+                raise ValueError(
+                    "Argument %s is not in the form of Callable "
+                    "or (nested str, Callable): %s" % (out or str(i), element)
+                )
             if isinstance(module, type):
                 raise ValueError(
                     "module should not be a type. Did you forget "
                     "to include '()' after it to construct the layer? module=%s"
-                    % str(module))
+                    % str(module)
+                )
             if isinstance(module, Network):
                 state_spec.append(module.state_spec)
             else:
@@ -156,19 +166,16 @@ class _Sequential(Network):
                 simple = False
         if output:
             simple = False
-        assert is_nested_str(output), ("output should be a nested str: %s" %
-                                       output)
+        assert is_nested_str(output), "output should be a nested str: %s" % output
         if len(flatten(state_spec)) == 0:
             state_spec = ()
         if input_tensor_spec is None and not inputs[0]:
             input_tensor_spec = get_input_tensor_spec(modules[0])
-        assert input_tensor_spec is not None, (
-            "input_tensor_spec needs to be provided")
+        assert input_tensor_spec is not None, "input_tensor_spec needs to be provided"
         super().__init__(input_tensor_spec, state_spec=state_spec, name=name)
         self._networks = modules
         # pytorch nn.Moddule needs to use ModuleList to keep track of parameters
-        self._nets = nn.ModuleList(
-            filter(lambda m: isinstance(m, nn.Module), modules))
+        self._nets = nn.ModuleList(filter(lambda m: isinstance(m, nn.Module), modules))
         if simple:
             self.forward = self._forward_simple
         else:
@@ -197,7 +204,7 @@ class _Sequential(Network):
 
     def _forward_complex(self, input, state=()):
         x = input
-        var_dict = {'input': x}
+        var_dict = {"input": x}
         if self._state_spec == ():
             for i, net in enumerate(self._networks):
                 if self._inputs[i]:
@@ -237,16 +244,20 @@ class _Sequential(Network):
         """
         new_networks = []
         new_named_networks = {}
-        for net, input, output in zip(self._networks, self._inputs,
-                                      self._outputs):
+        for net, input, output in zip(self._networks, self._inputs, self._outputs):
             pnet = alf.layers.make_parallel_net(net, n)
             if not output:
                 new_networks.append((input, pnet))
             else:
                 new_named_networks[output] = (input, pnet)
         input_spec = make_parallel_spec(self._input_tensor_spec, n)
-        return _Sequential(new_networks, new_named_networks, self._output,
-                           input_spec, "parallel_" + self.name)
+        return _Sequential(
+            new_networks,
+            new_named_networks,
+            self._output,
+            input_spec,
+            "parallel_" + self.name,
+        )
 
 
 class Parallel(Network):
@@ -280,15 +291,16 @@ class Parallel(Network):
         """
         if input_tensor_spec is None:
             input_tensor_spec = map_structure(get_input_tensor_spec, modules)
-            specified = all(
-                map(lambda s: s is not None, flatten(input_tensor_spec)))
+            specified = all(map(lambda s: s is not None, flatten(input_tensor_spec)))
             assert specified, (
                 "input_tensor_spec needs "
                 "to be specified if it cannot be inferred from elements of "
-                "networks")
+                "networks"
+            )
         alf.nest.assert_same_structure_up_to(modules, input_tensor_spec)
-        networks = map_structure_up_to(modules, wrap_as_network, modules,
-                                       input_tensor_spec)
+        networks = map_structure_up_to(
+            modules, wrap_as_network, modules, input_tensor_spec
+        )
         state_spec = map_structure(lambda net: net.state_spec, networks)
         if len(flatten(state_spec)) == 0:
             state_spec = ()
@@ -300,17 +312,23 @@ class Parallel(Network):
 
     def forward(self, inputs, state=()):
         if self._state_spec == ():
-            output = map_structure_up_to(self._networks,
-                                         lambda net, input: net(input)[0],
-                                         self._networks, inputs)
+            output = map_structure_up_to(
+                self._networks, lambda net, input: net(input)[0], self._networks, inputs
+            )
         else:
             output_and_state = map_structure_up_to(
-                self._networks, lambda net, input, s: net(input, s),
-                self._networks, inputs, state)
-            output = map_structure_up_to(self._networks, lambda os: os[0],
-                                         output_and_state)
-            state = map_structure_up_to(self._networks, lambda os: os[1],
-                                        output_and_state)
+                self._networks,
+                lambda net, input, s: net(input, s),
+                self._networks,
+                inputs,
+                state,
+            )
+            output = map_structure_up_to(
+                self._networks, lambda os: os[0], output_and_state
+            )
+            state = map_structure_up_to(
+                self._networks, lambda os: os[1], output_and_state
+            )
         return output, state
 
     @property
@@ -326,9 +344,10 @@ class Parallel(Network):
             the parallelized version of this network
         """
         networks = map_structure(
-            lambda net: alf.layers.make_parallel_net(net, n), self._networks)
+            lambda net: alf.layers.make_parallel_net(net, n), self._networks
+        )
         input_spec = make_parallel_spec(self._input_tensor_spec, n)
-        return Parallel(networks, input_spec, 'parallel_' + self.name)
+        return Parallel(networks, input_spec, "parallel_" + self.name)
 
 
 def Branch(*modules, input_tensor_spec=None, name="Branch", **named_modules):
@@ -363,19 +382,14 @@ def Branch(*modules, input_tensor_spec=None, name="Branch", **named_modules):
     """
     # The reason that we use a wrapper function for _Branch is that Network
     # does not allow *args for __init__() (see _NetworkMeta.__new__()).
-    return _Branch(modules,
-                   named_modules,
-                   input_tensor_spec=input_tensor_spec,
-                   name=name)
+    return _Branch(
+        modules, named_modules, input_tensor_spec=input_tensor_spec, name=name
+    )
 
 
 class _Branch(Network):
 
-    def __init__(self,
-                 modules,
-                 named_modules,
-                 input_tensor_spec=None,
-                 name="Branch"):
+    def __init__(self, modules, named_modules, input_tensor_spec=None, name="Branch"):
         if modules:
             assert not named_modules
             if len(modules) == 1:
@@ -385,15 +399,21 @@ class _Branch(Network):
         if input_tensor_spec is None:
             specs = list(map(get_input_tensor_spec, alf.nest.flatten(modules)))
             specs = list(filter(lambda s: s is not None, specs))
-            assert specs, ("input_tensor_spec needs to be specified since it "
-                           "cannot be inferred from any one of modules")
+            assert specs, (
+                "input_tensor_spec needs to be specified since it "
+                "cannot be inferred from any one of modules"
+            )
             for spec in specs:
-                assert alf.utils.spec_utils.is_same_spec(spec, specs[0]), (
-                    "modules have inconsistent input_tensor_spec: %s vs %s" %
-                    (spec, specs[0]))
+                assert alf.utils.spec_utils.is_same_spec(
+                    spec, specs[0]
+                ), "modules have inconsistent input_tensor_spec: %s vs %s" % (
+                    spec,
+                    specs[0],
+                )
             input_tensor_spec = specs[0]
         networks = map_structure(
-            lambda net: wrap_as_network(net, input_tensor_spec), modules)
+            lambda net: wrap_as_network(net, input_tensor_spec), modules
+        )
         state_spec = map_structure(lambda net: net.state_spec, networks)
         if len(flatten(state_spec)) == 0:
             state_spec = ()
@@ -406,18 +426,15 @@ class _Branch(Network):
 
     def forward(self, inputs, state=()):
         if self._state_spec == ():
-            output = list(
-                map(lambda net: net(inputs)[0], self._networks_flattened))
+            output = list(map(lambda net: net(inputs)[0], self._networks_flattened))
             output = pack_sequence_as(self._networks, output)
         else:
             state = flatten_up_to(self._networks, state)
             output_state = list(
-                map(lambda net, s: net(inputs, s), self._networks_flattened,
-                    state))
-            output = pack_sequence_as(self._networks,
-                                      [o for o, s in output_state])
-            state = pack_sequence_as(self._networks,
-                                     [s for o, s in output_state])
+                map(lambda net, s: net(inputs, s), self._networks_flattened, state)
+            )
+            output = pack_sequence_as(self._networks, [o for o, s in output_state])
+            state = pack_sequence_as(self._networks, [s for o, s in output_state])
         return output, state
 
     @property
@@ -433,11 +450,12 @@ class _Branch(Network):
             the parallelized version of this network
         """
         networks = map_structure(
-            lambda net: alf.layers.make_parallel_net(net, n), self._networks)
+            lambda net: alf.layers.make_parallel_net(net, n), self._networks
+        )
         input_spec = make_parallel_spec(self._input_tensor_spec, n)
-        return Branch(networks,
-                      input_tensor_spec=input_spec,
-                      name='parallel_' + self.name)
+        return Branch(
+            networks, input_tensor_spec=input_spec, name="parallel_" + self.name
+        )
 
 
 class Echo(Network):
@@ -489,52 +507,65 @@ class Echo(Network):
             input_tensor_spec (nested TensorSpec): If provided, it must match
                 the ``block.input_tensor_spec[0]`` or ``block.input_tensor_spec['input']``
         """
-        assert isinstance(block, Network), ("block must be an instance of "
-                                            "alf.networks.Network. Got %s" %
-                                            type(block))
-        if (isinstance(block.input_tensor_spec, tuple)
-                and len(block.input_tensor_spec) == 2):
+        assert isinstance(
+            block, Network
+        ), "block must be an instance of " "alf.networks.Network. Got %s" % type(block)
+        if (
+            isinstance(block.input_tensor_spec, tuple)
+            and len(block.input_tensor_spec) == 2
+        ):
             self._is_tuple_input = True
             real_input_spec, echo_input_spec = block.input_tensor_spec
-        elif (isinstance(block.input_tensor_spec, dict)
-              and len(block.input_tensor_spec) == 2
-              and 'input' in block.input_tensor_spec
-              and 'echo' in block.input_tensor_spec):
+        elif (
+            isinstance(block.input_tensor_spec, dict)
+            and len(block.input_tensor_spec) == 2
+            and "input" in block.input_tensor_spec
+            and "echo" in block.input_tensor_spec
+        ):
             self._is_tuple_input = False
-            real_input_spec = block.input_tensor_spec['input']
-            echo_input_spec = block.input_tensor_spec['echo']
+            real_input_spec = block.input_tensor_spec["input"]
+            echo_input_spec = block.input_tensor_spec["echo"]
         else:
             raise ValueError(
                 "block.input_tensor_spec should be a tuple with "
-                "two elements or a dict with two keys 'input' and 'echo': %s" %
-                block.input_tensor_spec)
+                "two elements or a dict with two keys 'input' and 'echo': %s"
+                % block.input_tensor_spec
+            )
 
-        if (isinstance(block.output_spec, tuple)
-                and len(block.output_spec) == 2):
+        if isinstance(block.output_spec, tuple) and len(block.output_spec) == 2:
             self._is_tuple_output = True
             echo_output_spec = block.output_spec[1]
-        elif (isinstance(block.output_spec, dict)
-              and len(block.output_spec) == 2 and 'output' in block.output_spec
-              and 'echo' in block.output_spec):
+        elif (
+            isinstance(block.output_spec, dict)
+            and len(block.output_spec) == 2
+            and "output" in block.output_spec
+            and "echo" in block.output_spec
+        ):
             self._is_tuple_output = False
-            echo_output_spec = block.output_spec['echo']
+            echo_output_spec = block.output_spec["echo"]
         else:
             raise ValueError(
                 "block.output_spec should be a tuple with "
                 "two elements or a dict with two keys 'output' and 'echo': %s"
-                % block.output_spec)
-        assert is_same_spec(echo_input_spec, echo_output_spec), (
-            "echo input and echo output should have same spec: %s vs. %s" %
-            (echo_input_spec, echo_output_spec))
+                % block.output_spec
+            )
+        assert is_same_spec(
+            echo_input_spec, echo_output_spec
+        ), "echo input and echo output should have same spec: %s vs. %s" % (
+            echo_input_spec,
+            echo_output_spec,
+        )
 
         if input_tensor_spec is not None:
-            assert is_same_spec(real_input_spec, input_tensor_spec), (
-                "input_tensor_spec is not same as real_input_spec: %s vs. %s" %
-                (input_tensor_spec, real_input_spec))
+            assert is_same_spec(
+                real_input_spec, input_tensor_spec
+            ), "input_tensor_spec is not same as real_input_spec: %s vs. %s" % (
+                input_tensor_spec,
+                real_input_spec,
+            )
 
         state_spec = (block.state_spec, echo_input_spec)
-        super().__init__(input_tensor_spec=real_input_spec,
-                         state_spec=state_spec)
+        super().__init__(input_tensor_spec=real_input_spec, state_spec=state_spec)
         self._block = block
 
     def forward(self, input, state):
@@ -547,8 +578,8 @@ class Echo(Network):
         if self._is_tuple_output:
             real_output, echo_output = block_output
         else:
-            real_output = block_output['output']
-            echo_output = block_output['echo']
+            real_output = block_output["output"]
+            echo_output = block_output["echo"]
         return real_output, (block_state, echo_output)
 
     def make_parallel(self, n: int):
@@ -559,5 +590,7 @@ class Echo(Network):
         Returns:
             the parallelized version of this network
         """
-        return Echo(alf.layers.make_parallel_net(self._block),
-                    make_parallel_spec(self._input_tensor_spec, n))
+        return Echo(
+            alf.layers.make_parallel_net(self._block),
+            make_parallel_spec(self._input_tensor_spec, n),
+        )

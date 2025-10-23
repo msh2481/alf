@@ -28,36 +28,46 @@ from alf.utils import common, dist_utils
 def create_algorithm(env):
     config = TrainerConfig(root_dir="dummy", unroll_length=5)
 
-    value_net = ValueNetwork(input_tensor_spec=env.observation_spec(),
-                             fc_layer_params=(10, 8))
+    value_net = ValueNetwork(
+        input_tensor_spec=env.observation_spec(), fc_layer_params=(10, 8)
+    )
 
     actor_net = ActorDistributionNetwork(
         input_tensor_spec=env.observation_spec(),
         action_spec=env.action_spec(),
         fc_layer_params=(10, 8),
-        discrete_projection_net_ctor=alf.networks.CategoricalProjectionNetwork)
+        discrete_projection_net_ctor=alf.networks.CategoricalProjectionNetwork,
+    )
 
-    alg = SequentialAlg(is_on_policy=True,
-                        value=('input.observation', value_net),
-                        action_dist=('input.observation', actor_net),
-                        action=dist_utils.sample_action_distribution,
-                        loss=(ActorCriticInfo(
-                            reward='input.reward',
-                            step_type='input.step_type',
-                            discount='input.discount',
-                            action_distribution='action_dist',
-                            action='action',
-                            value='value'), ActorCriticLoss()),
-                        output='action')
+    alg = SequentialAlg(
+        is_on_policy=True,
+        value=("input.observation", value_net),
+        action_dist=("input.observation", actor_net),
+        action=dist_utils.sample_action_distribution,
+        loss=(
+            ActorCriticInfo(
+                reward="input.reward",
+                step_type="input.step_type",
+                discount="input.discount",
+                action_distribution="action_dist",
+                action="action",
+                value="value",
+            ),
+            ActorCriticLoss(),
+        ),
+        output="action",
+    )
 
-    return RLAlgWrapper(observation_spec=env.observation_spec(),
-                        action_spec=env.action_spec(),
-                        algorithm=alg,
-                        env=env,
-                        config=config,
-                        optimizer=alf.optimizers.Adam(lr=1e-2),
-                        debug_summaries=True,
-                        name="MyActorCritic")
+    return RLAlgWrapper(
+        observation_spec=env.observation_spec(),
+        action_spec=env.action_spec(),
+        algorithm=alg,
+        env=env,
+        config=config,
+        optimizer=alf.optimizers.Adam(lr=1e-2),
+        debug_summaries=True,
+        name="MyActorCritic",
+    )
 
 
 class ContainersTest(alf.test.TestCase):
@@ -73,8 +83,7 @@ class ContainersTest(alf.test.TestCase):
         time_step = common.get_initial_time_step(env)
         state = alg1.get_initial_predict_state(env.batch_size)
         policy_step = alg1.rollout_step(time_step, state)
-        action_dist = alf.nest.find_field(policy_step.info,
-                                          'action_distribution')[0]
+        action_dist = alf.nest.find_field(policy_step.info, "action_distribution")[0]
         logits = action_dist.log_prob(torch.arange(3).reshape(3, 1))
         print("logits: ", logits)
         self.assertTrue(torch.all(logits[1, :] > logits[0, :]))
@@ -82,57 +91,54 @@ class ContainersTest(alf.test.TestCase):
 
     def test_echo_alg(self):
         echo_spec = alf.TensorSpec(())
-        alg = SequentialAlg(a=lambda x: x['input'] + x['echo'],
-                            b=('input.echo', lambda x: 2 * x),
-                            output=dict(output='b', echo='a'))
+        alg = SequentialAlg(
+            a=lambda x: x["input"] + x["echo"],
+            b=("input.echo", lambda x: 2 * x),
+            output=dict(output="b", echo="a"),
+        )
         echo_alg = EchoAlg(alg, echo_spec=echo_spec)
 
-        self.assertEqual(echo_alg.train_state_spec,
-                         (alg.train_state_spec, echo_spec))
-        self.assertEqual(echo_alg.predict_state_spec,
-                         (alg.predict_state_spec, echo_spec))
-        self.assertEqual(echo_alg.rollout_state_spec,
-                         (alg.rollout_state_spec, echo_spec))
+        self.assertEqual(echo_alg.train_state_spec, (alg.train_state_spec, echo_spec))
+        self.assertEqual(
+            echo_alg.predict_state_spec, (alg.predict_state_spec, echo_spec)
+        )
+        self.assertEqual(
+            echo_alg.rollout_state_spec, (alg.rollout_state_spec, echo_spec)
+        )
 
         state = echo_alg.get_initial_rollout_state(2)
         alg_step = echo_alg.rollout_step(torch.tensor([1.0, 1.0]), state)
-        self.assertEqual(alg_step.output, torch.tensor([0., 0.]))
-        self.assertEqual(alg_step.state[1], torch.tensor([1., 1.]))
-        alg_step = echo_alg.rollout_step(torch.tensor([3.0, 2.0]),
-                                         alg_step.state)
-        self.assertEqual(alg_step.output, torch.tensor([2., 2.]))
-        self.assertEqual(alg_step.state[1], torch.tensor([4., 3.]))
-        alg_step = echo_alg.rollout_step(torch.tensor([2.0, 1.0]),
-                                         alg_step.state)
-        self.assertEqual(alg_step.output, torch.tensor([8., 6.]))
-        self.assertEqual(alg_step.state[1], torch.tensor([6., 4.]))
+        self.assertEqual(alg_step.output, torch.tensor([0.0, 0.0]))
+        self.assertEqual(alg_step.state[1], torch.tensor([1.0, 1.0]))
+        alg_step = echo_alg.rollout_step(torch.tensor([3.0, 2.0]), alg_step.state)
+        self.assertEqual(alg_step.output, torch.tensor([2.0, 2.0]))
+        self.assertEqual(alg_step.state[1], torch.tensor([4.0, 3.0]))
+        alg_step = echo_alg.rollout_step(torch.tensor([2.0, 1.0]), alg_step.state)
+        self.assertEqual(alg_step.output, torch.tensor([8.0, 6.0]))
+        self.assertEqual(alg_step.state[1], torch.tensor([6.0, 4.0]))
 
         state = echo_alg.get_initial_predict_state(2)
         alg_step = echo_alg.predict_step(torch.tensor([1.0, 1.0]), state)
-        self.assertEqual(alg_step.output, torch.tensor([0., 0.]))
-        self.assertEqual(alg_step.state[1], torch.tensor([1., 1.]))
-        alg_step = echo_alg.predict_step(torch.tensor([3.0, 2.0]),
-                                         alg_step.state)
-        self.assertEqual(alg_step.output, torch.tensor([2., 2.]))
-        self.assertEqual(alg_step.state[1], torch.tensor([4., 3.]))
-        alg_step = echo_alg.predict_step(torch.tensor([2.0, 1.0]),
-                                         alg_step.state)
-        self.assertEqual(alg_step.output, torch.tensor([8., 6.]))
-        self.assertEqual(alg_step.state[1], torch.tensor([6., 4.]))
+        self.assertEqual(alg_step.output, torch.tensor([0.0, 0.0]))
+        self.assertEqual(alg_step.state[1], torch.tensor([1.0, 1.0]))
+        alg_step = echo_alg.predict_step(torch.tensor([3.0, 2.0]), alg_step.state)
+        self.assertEqual(alg_step.output, torch.tensor([2.0, 2.0]))
+        self.assertEqual(alg_step.state[1], torch.tensor([4.0, 3.0]))
+        alg_step = echo_alg.predict_step(torch.tensor([2.0, 1.0]), alg_step.state)
+        self.assertEqual(alg_step.output, torch.tensor([8.0, 6.0]))
+        self.assertEqual(alg_step.state[1], torch.tensor([6.0, 4.0]))
 
         state = echo_alg.get_initial_train_state(2)
         alg_step = echo_alg.train_step(torch.tensor([1.0, 1.0]), state, ())
-        self.assertEqual(alg_step.output, torch.tensor([0., 0.]))
-        self.assertEqual(alg_step.state[1], torch.tensor([1., 1.]))
-        alg_step = echo_alg.train_step(torch.tensor([3.0, 2.0]),
-                                       alg_step.state, ())
-        self.assertEqual(alg_step.output, torch.tensor([2., 2.]))
-        self.assertEqual(alg_step.state[1], torch.tensor([4., 3.]))
-        alg_step = echo_alg.train_step(torch.tensor([2.0, 1.0]),
-                                       alg_step.state, ())
-        self.assertEqual(alg_step.output, torch.tensor([8., 6.]))
-        self.assertEqual(alg_step.state[1], torch.tensor([6., 4.]))
+        self.assertEqual(alg_step.output, torch.tensor([0.0, 0.0]))
+        self.assertEqual(alg_step.state[1], torch.tensor([1.0, 1.0]))
+        alg_step = echo_alg.train_step(torch.tensor([3.0, 2.0]), alg_step.state, ())
+        self.assertEqual(alg_step.output, torch.tensor([2.0, 2.0]))
+        self.assertEqual(alg_step.state[1], torch.tensor([4.0, 3.0]))
+        alg_step = echo_alg.train_step(torch.tensor([2.0, 1.0]), alg_step.state, ())
+        self.assertEqual(alg_step.output, torch.tensor([8.0, 6.0]))
+        self.assertEqual(alg_step.state[1], torch.tensor([6.0, 4.0]))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

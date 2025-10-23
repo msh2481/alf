@@ -28,7 +28,7 @@ class TestDataSet(torch.utils.data.Dataset):
     def __init__(self, input_dim=3, output_dim=1, size=1000, weight=None):
         self._features = torch.randn(size, input_dim)
         if weight is None:
-            self._weight = torch.rand(input_dim, output_dim) + 5.
+            self._weight = torch.rand(input_dim, output_dim) + 5.0
         else:
             self._weight = weight
         noise = torch.randn(size, output_dim)
@@ -50,25 +50,21 @@ class TestDataSet(torch.utils.data.Dataset):
 def load_test(train_bs=50, test_bs=10, num_workers=0):
     input_dim = 3
     output_dim = 1
-    weight = torch.rand(input_dim, output_dim) + 5.
-    trainset = TestDataSet(input_dim=input_dim,
-                           output_dim=output_dim,
-                           size=1000,
-                           weight=weight)
-    testset = TestDataSet(input_dim=input_dim,
-                          output_dim=output_dim,
-                          size=500,
-                          weight=weight)
+    weight = torch.rand(input_dim, output_dim) + 5.0
+    trainset = TestDataSet(
+        input_dim=input_dim, output_dim=output_dim, size=1000, weight=weight
+    )
+    testset = TestDataSet(
+        input_dim=input_dim, output_dim=output_dim, size=500, weight=weight
+    )
 
-    train_loader = torch.utils.data.DataLoader(trainset,
-                                               batch_size=train_bs,
-                                               shuffle=True,
-                                               num_workers=num_workers)
+    train_loader = torch.utils.data.DataLoader(
+        trainset, batch_size=train_bs, shuffle=True, num_workers=num_workers
+    )
 
-    test_loader = torch.utils.data.DataLoader(testset,
-                                              batch_size=test_bs,
-                                              shuffle=True,
-                                              num_workers=num_workers)
+    test_loader = torch.utils.data.DataLoader(
+        testset, batch_size=test_bs, shuffle=True, num_workers=num_workers
+    )
 
     return train_loader, test_loader
 
@@ -94,7 +90,7 @@ def get_classes(target, labels):
 
 @alf.configurable
 def load_mnist(label_idx=None, train_bs=100, test_bs=100, num_workers=0):
-    """ Loads the MNIST dataset.
+    """Loads the MNIST dataset.
 
     Args:
         label_idx (list[int]): class indices to load from the dataset.
@@ -108,42 +104,35 @@ def load_mnist(label_idx=None, train_bs=100, test_bs=100, num_workers=0):
         test_loader (torch.utils.data.DataLoader): test data loader.
     """
 
-    kwargs = {
-        'num_workers': num_workers,
-        'pin_memory': False,
-        'drop_last': False
-    }
-    path = 'data_m/'
+    kwargs = {"num_workers": num_workers, "pin_memory": False, "drop_last": False}
+    path = "data_m/"
 
     data_transform = transforms.Compose(
-        [transforms.ToTensor(),
-         transforms.Normalize((0.1307, ), (0.3081, ))])
+        [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
+    )
 
-    trainset = datasets.MNIST(root=path,
-                              train=True,
-                              download=True,
-                              transform=data_transform)
+    trainset = datasets.MNIST(
+        root=path, train=True, download=True, transform=data_transform
+    )
     testset = datasets.MNIST(root=path, train=False, transform=data_transform)
 
     if label_idx is not None:
         trainset = Subset(trainset, get_classes(trainset, label_idx))
         testset = Subset(testset, get_classes(testset, label_idx))
 
-    train_loader = torch.utils.data.DataLoader(trainset,
-                                               batch_size=train_bs,
-                                               shuffle=True,
-                                               **kwargs)
-    test_loader = torch.utils.data.DataLoader(testset,
-                                              batch_size=test_bs,
-                                              shuffle=False,
-                                              **kwargs)
+    train_loader = torch.utils.data.DataLoader(
+        trainset, batch_size=train_bs, shuffle=True, **kwargs
+    )
+    test_loader = torch.utils.data.DataLoader(
+        testset, batch_size=test_bs, shuffle=False, **kwargs
+    )
 
     return train_loader, test_loader
 
 
 @alf.configurable
 def load_cifar10(label_idx=None, train_bs=100, test_bs=100, num_workers=0):
-    """ Loads the CIFAR-10 dataset.
+    """Loads the CIFAR-10 dataset.
     Args:
         label_idx (list[int]): classes to be loaded from the dataset.
         train_bs (int): training batch size.
@@ -154,41 +143,34 @@ def load_cifar10(label_idx=None, train_bs=100, test_bs=100, num_workers=0):
         train_loader (torch.utils.data.DataLoader): training data loader.
         test_loader (torch.utils.data.DataLoader): test data loader.
     """
-    kwargs = {
-        'num_workers': num_workers,
-        'pin_memory': False,
-        'drop_last': False
-    }
-    path = 'data_c10/'
+    kwargs = {"num_workers": num_workers, "pin_memory": False, "drop_last": False}
+    path = "data_c10/"
 
-    data_transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465),
-                             (0.2023, 0.1994, 0.2010))
-    ])
+    data_transform = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ]
+    )
 
-    trainset = datasets.CIFAR10(root=path,
-                                train=True,
-                                download=True,
-                                transform=data_transform)
+    trainset = datasets.CIFAR10(
+        root=path, train=True, download=True, transform=data_transform
+    )
 
-    testset = datasets.CIFAR10(root=path,
-                               train=False,
-                               download=True,
-                               transform=data_transform)
+    testset = datasets.CIFAR10(
+        root=path, train=False, download=True, transform=data_transform
+    )
 
     if label_idx is not None:
         trainset = Subset(trainset, get_classes(trainset, label_idx))
         testset = Subset(testset, get_classes(testset, label_idx))
 
-    test_loader = torch.utils.data.DataLoader(testset,
-                                              batch_size=test_bs,
-                                              shuffle=False,
-                                              **kwargs)
-    train_loader = torch.utils.data.DataLoader(trainset,
-                                               batch_size=train_bs,
-                                               shuffle=True,
-                                               **kwargs)
+    test_loader = torch.utils.data.DataLoader(
+        testset, batch_size=test_bs, shuffle=False, **kwargs
+    )
+    train_loader = torch.utils.data.DataLoader(
+        trainset, batch_size=train_bs, shuffle=True, **kwargs
+    )
 
     return train_loader, test_loader
 
@@ -211,8 +193,8 @@ def _load_textdata(load_fn, train_bs, test_bs, max_vocab_size=None):
     from torchtext.data.utils import get_tokenizer
     from torchtext.vocab import Vocab
 
-    train_iter = load_fn(split='train')
-    tokenizer = get_tokenizer('basic_english')
+    train_iter = load_fn(split="train")
+    tokenizer = get_tokenizer("basic_english")
     counter = Counter()
     for line in train_iter:
         counter.update(tokenizer(line))
@@ -220,11 +202,11 @@ def _load_textdata(load_fn, train_bs, test_bs, max_vocab_size=None):
 
     def _data_process(raw_text_iter):
         data = [
-            np.array([vocab[token] for token in tokenizer(item)],
-                     dtype=np.int64) for item in raw_text_iter
+            np.array([vocab[token] for token in tokenizer(item)], dtype=np.int64)
+            for item in raw_text_iter
         ]
         data = np.concatenate(tuple(filter(lambda t: t.size > 0, data)))
-        return torch.as_tensor(data, device='cpu')
+        return torch.as_tensor(data, device="cpu")
 
     def _batchify(data, bsz):
         # Divide the dataset into bsz parts.
@@ -262,6 +244,7 @@ def load_wikitext2(train_bs, test_bs):
         - torchtext.vocab.Vacob: vocab
     """
     from torchtext.datasets import WikiText2
+
     return _load_textdata(WikiText2, train_bs, test_bs)
 
 
@@ -283,7 +266,5 @@ def load_wikitext103(train_bs, test_bs, max_vocab_size=32768):
         - torchtext.vocab.Vacob: vocab
     """
     from torchtext.datasets import WikiText103
-    return _load_textdata(WikiText103,
-                          train_bs,
-                          test_bs,
-                          max_vocab_size=max_vocab_size)
+
+    return _load_textdata(WikiText103, train_bs, test_bs, max_vocab_size=max_vocab_size)

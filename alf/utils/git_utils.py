@@ -45,5 +45,4 @@ def get_diff(module_root: str):
     Returns:
         current diff.
     """
-    return _exec("git -c core.fileMode=false diff --diff-filter=M",
-                 module_root)
+    return _exec("git -c core.fileMode=false diff --diff-filter=M", module_root)

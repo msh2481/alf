@@ -27,29 +27,27 @@ import alf.tensor_specs as ts
 class ProcessEnvironmentTest(alf.test.TestCase):
 
     def test_close_no_hang_after_init(self):
-        constructor = functools.partial(RandomAlfEnvironment,
-                                        ts.TensorSpec((3, 3), torch.float32),
-                                        ts.BoundedTensorSpec([1],
-                                                             torch.float32,
-                                                             minimum=-1.0,
-                                                             maximum=1.0),
-                                        episode_end_probability=0,
-                                        min_duration=2,
-                                        max_duration=2)
+        constructor = functools.partial(
+            RandomAlfEnvironment,
+            ts.TensorSpec((3, 3), torch.float32),
+            ts.BoundedTensorSpec([1], torch.float32, minimum=-1.0, maximum=1.0),
+            episode_end_probability=0,
+            min_duration=2,
+            max_duration=2,
+        )
         env = ProcessEnvironment(constructor)
         env.start()
         env.close()
 
     def test_close_no_hang_after_step(self):
-        constructor = functools.partial(RandomAlfEnvironment,
-                                        ts.TensorSpec((3, 3), torch.float32),
-                                        ts.BoundedTensorSpec([1],
-                                                             torch.float32,
-                                                             minimum=-1.0,
-                                                             maximum=1.0),
-                                        episode_end_probability=0,
-                                        min_duration=5,
-                                        max_duration=5)
+        constructor = functools.partial(
+            RandomAlfEnvironment,
+            ts.TensorSpec((3, 3), torch.float32),
+            ts.BoundedTensorSpec([1], torch.float32, minimum=-1.0, maximum=1.0),
+            episode_end_probability=0,
+            min_duration=5,
+            max_duration=5,
+        )
         env = ProcessEnvironment(constructor)
         env.start()
         action_spec = env.action_spec()
@@ -73,8 +71,7 @@ class ProcessEnvironmentTest(alf.test.TestCase):
 
     def test_reraise_exception_in_step(self):
         crash_at_step = 3
-        constructor = functools.partial(MockEnvironmentCrashInStep,
-                                        crash_at_step)
+        constructor = functools.partial(MockEnvironmentCrashInStep, crash_at_step)
         env = ProcessEnvironment(constructor)
         env.start()
         env.reset()
@@ -112,28 +109,26 @@ class MockEnvironmentCrashInStep(RandomAlfEnvironment):
     """Raise an error after specified number of steps in an episode."""
 
     def __init__(self, crash_at_step, env_id=None):
-        super(MockEnvironmentCrashInStep,
-              self).__init__(observation_spec=ts.TensorSpec((3, 3),
-                                                            torch.float32),
-                             action_spec=ts.BoundedTensorSpec([1],
-                                                              torch.float32,
-                                                              minimum=-1.0,
-                                                              maximum=1.0),
-                             env_id=env_id,
-                             episode_end_probability=0,
-                             min_duration=crash_at_step + 1,
-                             max_duration=crash_at_step + 1)
+        super(MockEnvironmentCrashInStep, self).__init__(
+            observation_spec=ts.TensorSpec((3, 3), torch.float32),
+            action_spec=ts.BoundedTensorSpec(
+                [1], torch.float32, minimum=-1.0, maximum=1.0
+            ),
+            env_id=env_id,
+            episode_end_probability=0,
+            min_duration=crash_at_step + 1,
+            max_duration=crash_at_step + 1,
+        )
         self._crash_at_step = crash_at_step
         self._steps = 0
 
     def _step(self, *args, **kwargs):
-        transition = super(MockEnvironmentCrashInStep,
-                           self)._step(*args, **kwargs)
+        transition = super(MockEnvironmentCrashInStep, self)._step(*args, **kwargs)
         self._steps += 1
         if self._steps == self._crash_at_step:
             raise RuntimeError()
         return transition
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

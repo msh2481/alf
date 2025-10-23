@@ -19,11 +19,16 @@ from typing import Callable, Optional, Union
 
 import alf
 from alf.algorithms.config import TrainerConfig
-from alf.algorithms.sac_algorithm import SacAlgorithm, ActionType, \
-    SacState as DqnState, SacCriticState as DqnCriticState, \
-    SacActionState as DqnActionState, \
-    SacInfo as DqnInfo, SacCriticInfo as DqnCriticInfo, \
-    SacLossInfo as DqnLossInfo
+from alf.algorithms.sac_algorithm import (
+    SacAlgorithm,
+    ActionType,
+    SacState as DqnState,
+    SacCriticState as DqnCriticState,
+    SacActionState as DqnActionState,
+    SacInfo as DqnInfo,
+    SacCriticInfo as DqnCriticInfo,
+    SacLossInfo as DqnLossInfo,
+)
 from alf.algorithms.td_loss import TDLoss
 from alf.data_structures import AlgStep, LossInfo, TimeStep
 from alf.environments.alf_environment import AlfEnvironment
@@ -50,21 +55,23 @@ class DqnAlgorithm(SacAlgorithm):
     The implementation is based on the SAC algorithm.
     """
 
-    def __init__(self,
-                 observation_spec: alf.tensor_specs.NestedTensorSpec,
-                 action_spec: alf.tensor_specs.BoundedTensorSpec,
-                 reward_spec: TensorSpec = TensorSpec(()),
-                 q_network_cls: Callable[..., QNetwork] = QNetwork,
-                 q_optimizer: Optional[torch.optim.Optimizer] = None,
-                 rollout_epsilon_greedy: Union[float, Scheduler] = 0.1,
-                 target_net_target_action: bool = True,
-                 num_critic_replicas: int = 2,
-                 env: Optional[AlfEnvironment] = None,
-                 config: Optional[TrainerConfig] = None,
-                 critic_loss_ctor: Optional[Callable[..., TDLoss]] = None,
-                 checkpoint=None,
-                 debug_summaries: bool = False,
-                 name: str = "DqnAlgorithm"):
+    def __init__(
+        self,
+        observation_spec: alf.tensor_specs.NestedTensorSpec,
+        action_spec: alf.tensor_specs.BoundedTensorSpec,
+        reward_spec: TensorSpec = TensorSpec(()),
+        q_network_cls: Callable[..., QNetwork] = QNetwork,
+        q_optimizer: Optional[torch.optim.Optimizer] = None,
+        rollout_epsilon_greedy: Union[float, Scheduler] = 0.1,
+        target_net_target_action: bool = True,
+        num_critic_replicas: int = 2,
+        env: Optional[AlfEnvironment] = None,
+        config: Optional[TrainerConfig] = None,
+        critic_loss_ctor: Optional[Callable[..., TDLoss]] = None,
+        checkpoint=None,
+        debug_summaries: bool = False,
+        name: str = "DqnAlgorithm",
+    ):
         """
         Args:
             observation_spec (nested TensorSpec): representing the observations.
@@ -124,15 +131,18 @@ class DqnAlgorithm(SacAlgorithm):
             alpha_optimizer=alpha_optimizer,
             checkpoint=checkpoint,
             debug_summaries=debug_summaries,
-            name=name)
+            name=name,
+        )
         assert self._act_type == ActionType.Discrete
 
     # Copied and modified from sac_algorithm (discrete actions).
-    def _predict_action(self,
-                        observation,
-                        state: DqnActionState,
-                        epsilon_greedy=None,
-                        eps_greedy_sampling=False):
+    def _predict_action(
+        self,
+        observation,
+        state: DqnActionState,
+        epsilon_greedy=None,
+        eps_greedy_sampling=False,
+    ):
         new_state = DqnActionState()
         critic_network_inputs = (observation, None)
 
@@ -143,9 +153,9 @@ class DqnAlgorithm(SacAlgorithm):
             nets = self._critic_networks
         else:
             nets = self._target_critic_networks
-        q_values, critic_state = self._compute_critics(nets,
-                                                       *critic_network_inputs,
-                                                       state.critic)
+        q_values, critic_state = self._compute_critics(
+            nets, *critic_network_inputs, state.critic
+        )
         new_state = new_state._replace(critic=critic_state)
 
         # NOTE: This block departs from SAC:
@@ -185,36 +195,41 @@ class DqnAlgorithm(SacAlgorithm):
             state=state.action,
             # NOTE: This is the only departure from SAC.
             epsilon_greedy=self._rollout_epsilon_greedy(),
-            eps_greedy_sampling=True)
+            eps_greedy_sampling=True,
+        )
 
         if self.need_full_rollout_state():
-            _, critics_state = self._compute_critics(self._critic_networks,
-                                                     inputs.observation,
-                                                     action,
-                                                     state.critic.critics)
+            _, critics_state = self._compute_critics(
+                self._critic_networks, inputs.observation, action, state.critic.critics
+            )
             _, target_critics_state = self._compute_critics(
-                self._target_critic_networks, inputs.observation, action,
-                state.critic.target_critics)
-            critic_state = DqnCriticState(critics=critics_state,
-                                          target_critics=target_critics_state)
+                self._target_critic_networks,
+                inputs.observation,
+                action,
+                state.critic.target_critics,
+            )
+            critic_state = DqnCriticState(
+                critics=critics_state, target_critics=target_critics_state
+            )
             actor_state = ()
         else:
             actor_state = state.actor
             critic_state = state.critic
 
-        new_state = DqnState(action=action_state,
-                             actor=actor_state,
-                             critic=critic_state)
-        return AlgStep(output=action,
-                       state=new_state,
-                       info=DqnInfo(action=action,
-                                    action_distribution=action_dist))
+        new_state = DqnState(
+            action=action_state, actor=actor_state, critic=critic_state
+        )
+        return AlgStep(
+            output=action,
+            state=new_state,
+            info=DqnInfo(action=action, action_distribution=action_dist),
+        )
 
     def calc_loss(self, info: DqnInfo):
         # Adapted from SAC: Removes irrelevant losses and logging.
         critic_loss = self._calc_critic_loss(info)
-        return LossInfo(loss=critic_loss.loss,
-                        priority=critic_loss.priority,
-                        extra=DqnLossInfo(critic=critic_loss.extra,
-                                          actor=(),
-                                          alpha=()))
+        return LossInfo(
+            loss=critic_loss.loss,
+            priority=critic_loss.priority,
+            extra=DqnLossInfo(critic=critic_loss.extra, actor=(), alpha=()),
+        )

@@ -18,12 +18,7 @@ from typing import Callable, Union
 
 import alf
 
-_progress = {
-    "percent": 0.0,
-    "iterations": 0.0,
-    "env_steps": 0.0,
-    "global_counter": 0.0
-}
+_progress = {"percent": 0.0, "iterations": 0.0, "env_steps": 0.0, "global_counter": 0.0}
 
 
 def update_progress(progress_type: str, value: Number):
@@ -82,18 +77,17 @@ class Scheduler(object):
         self._progress_type = progress_type
 
     def __call__(self):
-        raise NotImplementedError(
-            "Child classes should implement this method.")
+        raise NotImplementedError("Child classes should implement this method.")
 
     def progress(self):
         assert _is_scheduler_allowed, (
             "Scheduler is not allowed in Environment "
-            "unless TrainerConfig.sync_progress_to_envs is set to True")
+            "unless TrainerConfig.sync_progress_to_envs is set to True"
+        )
         return _progress[self._progress_type]
 
     def final_value(self):
-        """The (limit of) final scheduled value.
-        """
+        """The (limit of) final scheduled value."""
         raise NotImplementedError()
 
 
@@ -116,12 +110,14 @@ class ConstantScheduler(object):
 class StepScheduler(Scheduler):
     """There is one value for each defined region of training progress."""
 
-    def __init__(self,
-                 progress_type,
-                 schedule,
-                 warm_up_period: Number = 0,
-                 start: Number = 0,
-                 scale: float = 1.0):
+    def __init__(
+        self,
+        progress_type,
+        schedule,
+        warm_up_period: Number = 0,
+        start: Number = 0,
+        scale: float = 1.0,
+    ):
         """
         Args:
             progress_type (str): one of "percent", "iterations", "env_steps"
@@ -146,8 +142,9 @@ class StepScheduler(Scheduler):
     def __call__(self):
         progress = self.progress()
         if progress < self._start + self._warm_up_period:
-            return self._values[0] * max(progress - self._start,
-                                         0) / self._warm_up_period
+            return (
+                self._values[0] * max(progress - self._start, 0) / self._warm_up_period
+            )
         index = self._index
         progresses = self._progresses
         while index < len(progresses) - 1 and progress >= progresses[index]:
@@ -157,8 +154,11 @@ class StepScheduler(Scheduler):
 
     def __repr__(self):
         return "StepScheduler('%s', %s, warm_up_period=%s, start=%s)" % (
-            self._progress_type, list(zip(self._progresses, self._values)),
-            self._warm_up_period, self._start)
+            self._progress_type,
+            list(zip(self._progresses, self._values)),
+            self._warm_up_period,
+            self._start,
+        )
 
     def final_value(self):
         return self._values[-1]
@@ -180,11 +180,10 @@ class LinearScheduler(Scheduler):
             scale: the values in the schedule will be scaled by this factor.
         """
         super().__init__(progress_type)
-        assert schedule[0][
-            0] == 0, "The first progress for linear scheduler must be 0."
-        assert len(
-            schedule
-        ) >= 2, "There should be at least two (progress, value) pairs"
+        assert schedule[0][0] == 0, "The first progress for linear scheduler must be 0."
+        assert (
+            len(schedule) >= 2
+        ), "There should be at least two (progress, value) pairs"
         self._progresses, self._values = zip(*schedule)
         self._index = 1
         self._values = [value * scale for value in self._values]
@@ -196,8 +195,9 @@ class LinearScheduler(Scheduler):
         while index < len(progresses) and progress >= progresses[index]:
             index += 1
         if index < len(progresses):
-            w = (progress - progresses[index - 1]) / (progresses[index] -
-                                                      progresses[index - 1])
+            w = (progress - progresses[index - 1]) / (
+                progresses[index] - progresses[index - 1]
+            )
             value = (1 - w) * self._values[index - 1] + w * self._values[index]
         else:
             index -= 1
@@ -207,7 +207,9 @@ class LinearScheduler(Scheduler):
 
     def __repr__(self):
         return "LinearScheduler('%s', %s)" % (
-            self._progress_type, list(zip(self._progresses, self._values)))
+            self._progress_type,
+            list(zip(self._progresses, self._values)),
+        )
 
     def final_value(self):
         return self._values[-1]
@@ -233,16 +235,21 @@ class ExponentialScheduler(Scheduler):
 
     def __call__(self):
         progress = self.progress()
-        return self._initial_value * self._decay_rate**(progress /
-                                                        self._decay_time)
+        return self._initial_value * self._decay_rate ** (progress / self._decay_time)
 
     def __repr__(self):
-        return "ExponentialScheduler('%s', initial_value=%s, decay_rate=%s, decay_time=%s)" % (
-            self._progress_type, self._initial_value, self._decay_rate,
-            self._decay_time)
+        return (
+            "ExponentialScheduler('%s', initial_value=%s, decay_rate=%s, decay_time=%s)"
+            % (
+                self._progress_type,
+                self._initial_value,
+                self._decay_rate,
+                self._decay_time,
+            )
+        )
 
     def final_value(self):
-        return 0.
+        return 0.0
 
 
 @alf.configurable
@@ -267,12 +274,9 @@ class CyclicalScheduler(Scheduler):
     switching mode to achieve this. Similar cases also appears in Dreamer.
     """
 
-    def __init__(self,
-                 progress_type,
-                 base_lr,
-                 bound_lr,
-                 half_cycle_size,
-                 switch_mode='step'):
+    def __init__(
+        self, progress_type, base_lr, bound_lr, half_cycle_size, switch_mode="step"
+    ):
         """
         Args:
             progress_type (str): one of "percent", "iterations", "env_steps"
@@ -295,25 +299,31 @@ class CyclicalScheduler(Scheduler):
         self._bound_lr = bound_lr
         self._half_cycle_size = half_cycle_size
         self._cycle_size = half_cycle_size * 2
-        assert switch_mode in {
-            "step", "linear"
-        }, ("unsupportted switch mode {}".format(switch_mode))
+        assert switch_mode in {"step", "linear"}, "unsupportted switch mode {}".format(
+            switch_mode
+        )
         self._switch_mode = switch_mode
         self._current_value = base_lr
         # Apply rounding the the calculated progress in cycle and half-cycle
         # when progress_type is ``percent`` to avoid the issue in stage
         # transition due to numerical reasons.
         # For the other progress_types, no rounding is applied.
-        self._rounding_func = partial(round, ndigits=10) \
-                            if progress_type == "percent" else lambda x: x
+        self._rounding_func = (
+            partial(round, ndigits=10) if progress_type == "percent" else lambda x: x
+        )
 
     def __call__(self):
         progress = self.progress()
 
-        progress_in_half_cycle = self._rounding_func(
-            (progress % self._half_cycle_size / self._half_cycle_size)) % 1
-        progress_in_cycle = self._rounding_func(
-            (progress % self._cycle_size / self._cycle_size)) % 1
+        progress_in_half_cycle = (
+            self._rounding_func(
+                (progress % self._half_cycle_size / self._half_cycle_size)
+            )
+            % 1
+        )
+        progress_in_cycle = (
+            self._rounding_func((progress % self._cycle_size / self._cycle_size)) % 1
+        )
 
         if self._switch_mode == "step":
             # step mode changes value at half-cycle point
@@ -326,21 +336,31 @@ class CyclicalScheduler(Scheduler):
 
         elif self._switch_mode == "linear":
             if progress_in_cycle < 0.5:
-                return (1 - progress_in_half_cycle) * self._base_lr + \
-                    progress_in_half_cycle * self._bound_lr
+                return (
+                    1 - progress_in_half_cycle
+                ) * self._base_lr + progress_in_half_cycle * self._bound_lr
             else:
-                return progress_in_half_cycle * self._base_lr + \
-                    (1 - progress_in_half_cycle) * self._bound_lr
+                return (
+                    progress_in_half_cycle * self._base_lr
+                    + (1 - progress_in_half_cycle) * self._bound_lr
+                )
 
     def __repr__(self):
-        return ("CyclicalScheduler('%s', base_lr=%s, bound_lr=%s,"
-                "half_cycle_size=%s, switch_mode=%s)") % (
-                    self._progress_type, self._base_lr, self._bound_lr,
-                    self._half_cycle_size, self._switch_mode)
+        return (
+            "CyclicalScheduler('%s', base_lr=%s, bound_lr=%s,"
+            "half_cycle_size=%s, switch_mode=%s)"
+        ) % (
+            self._progress_type,
+            self._base_lr,
+            self._bound_lr,
+            self._half_cycle_size,
+            self._switch_mode,
+        )
 
     def final_value(self):
         raise RuntimeError(
-            "This scheduler is cyclical and does not have a final value.")
+            "This scheduler is cyclical and does not have a final value."
+        )
 
 
 @alf.configurable

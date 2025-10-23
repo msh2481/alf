@@ -17,14 +17,16 @@ import torch
 import alf.nest as nest
 
 
-def critic_network_visualizer(net,
-                              observation,
-                              action_upper_left,
-                              action_upper_right,
-                              action_lower_left,
-                              H=20,
-                              W=20,
-                              batch_size=None):
+def critic_network_visualizer(
+    net,
+    observation,
+    action_upper_left,
+    action_upper_right,
+    action_lower_left,
+    H=20,
+    W=20,
+    batch_size=None,
+):
     """Generate a batched network response image within the rectangular range
     of actions (referred to as probing region) specified by ``action_top_left``,
     ``action_top_right``, ``action_bottom_left`` as shown below:
@@ -102,8 +104,8 @@ def critic_network_visualizer(net,
     num_anchors = H * W
     # expand observation from [B, ...] to [B * num_anchors, ...]
     ext_obs = nest.map_structure(
-        lambda obs: torch.repeat_interleave(obs, num_anchors, dim=0),
-        observation)
+        lambda obs: torch.repeat_interleave(obs, num_anchors, dim=0), observation
+    )
 
     assert action_upper_right.ndim == 1, "Only support 1D action"
     action_lower_right = action_upper_right + action_lower_left - action_upper_left
@@ -111,16 +113,18 @@ def critic_network_visualizer(net,
     # create the mini-image: [action_dim, 2, 2]
     # [action_upper_left,  action_upper_right]
     # [action_lower_left,  action_lower_right]
-    mini_image = torch.stack((torch.stack(
-        (action_upper_left, action_lower_left),
-        dim=1), torch.stack((action_upper_right, action_lower_right), dim=1)),
-                             dim=2)
+    mini_image = torch.stack(
+        (
+            torch.stack((action_upper_left, action_lower_left), dim=1),
+            torch.stack((action_upper_right, action_lower_right), dim=1),
+        ),
+        dim=2,
+    )
 
     # [action_dim, 2, 2] -> [1, action_dim, 2, 2] -> [1, action_dim, H, W]
-    mini_image = torch.nn.functional.interpolate(mini_image.unsqueeze(0),
-                                                 size=(H, W),
-                                                 mode='bilinear',
-                                                 align_corners=True)
+    mini_image = torch.nn.functional.interpolate(
+        mini_image.unsqueeze(0), size=(H, W), mode="bilinear", align_corners=True
+    )
 
     # [action_dim, H, W]
     mini_image = mini_image.squeeze(0)

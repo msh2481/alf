@@ -23,6 +23,7 @@ try:
     from metadrive.utils.map_utils import is_map_related_instance
 except ImportError:
     from unittest.mock import Mock
+
     # create 'metadrive' as a mock to not break python argument type hints
     metadrive = Mock()
     pygame = Mock()
@@ -45,9 +46,10 @@ class Renderer(TopDownRenderer):
 
     """
 
-    def __init__(self,
-                 observation_renderer: Optional[Callable[[pygame.Surface, Any],
-                                                         None]] = None):
+    def __init__(
+        self,
+        observation_renderer: Optional[Callable[[pygame.Surface, Any], None]] = None,
+    ):
         """Construct a Renderer instance.
 
         Please refer to make_vectorized_observation_renderer nad
@@ -71,20 +73,23 @@ class Renderer(TopDownRenderer):
         pygame.init()
 
     def _append_frame_objects(self, objects):
-        ego = self.engine.agent_manager.active_agents['default_agent']
+        ego = self.engine.agent_manager.active_agents["default_agent"]
         frame_objects = []
         for name, obj in objects.items():
             color = obj.top_down_color
             if obj is ego:
                 color = EGO_COLOR
             frame_objects.append(
-                history_object(name=name,
-                               heading_theta=obj.heading_theta,
-                               WIDTH=obj.top_down_width,
-                               LENGTH=obj.top_down_length,
-                               position=obj.position,
-                               color=color,
-                               done=False))
+                history_object(
+                    name=name,
+                    heading_theta=obj.heading_theta,
+                    WIDTH=obj.top_down_width,
+                    LENGTH=obj.top_down_length,
+                    position=obj.position,
+                    color=color,
+                    done=False,
+                )
+            )
         return frame_objects
 
     def _draw_info(self):
@@ -97,16 +102,15 @@ class Renderer(TopDownRenderer):
         """
         if self.pygame_font is None:
             self.pygame_font = pygame.font.SysFont("Arial.ttf", 20)
-        ego = self.engine.agent_manager.active_agents['default_agent']
-        text = self.pygame_font.render(f'Lon: {ego.throttle_brake:.3f}', True,
-                                       (0, 0, 255))
+        ego = self.engine.agent_manager.active_agents["default_agent"]
+        text = self.pygame_font.render(
+            f"Lon: {ego.throttle_brake:.3f}", True, (0, 0, 255)
+        )
         self.canvas.blit(text, (40, 40))
-        text = self.pygame_font.render(f'Lat: {ego.steering:.3f}', True,
-                                       (0, 0, 255))
+        text = self.pygame_font.render(f"Lat: {ego.steering:.3f}", True, (0, 0, 255))
         self.canvas.blit(text, (40, 60))
         speed = ego.speed * 1000.0 / 3600.0
-        text = self.pygame_font.render(f'Vel: {speed:.3f} m/s', True,
-                                       (0, 0, 255))
+        text = self.pygame_font.render(f"Vel: {speed:.3f} m/s", True, (0, 0, 255))
         self.canvas.blit(text, (40, 80))
 
     def render(self, observation=None):
@@ -132,8 +136,7 @@ class Renderer(TopDownRenderer):
 
         """
         # Record current target vehicle
-        objects = self.engine.get_objects(lambda obj:
-                                          not is_map_related_instance(obj))
+        objects = self.engine.get_objects(lambda obj: not is_map_related_instance(obj))
         this_frame_objects = self._append_frame_objects(objects)
         self.history_objects.append(this_frame_objects)
 
@@ -180,23 +183,24 @@ def make_vectorized_observation_renderer(sensor: VectorizedObservation):
     background = pygame.Rect((0.0, 1000.0, width, 200.0))
 
     # Extract the centers of all segments.
-    origin = np.array(
-        [-fov.bbox[0][0] * scale, 1000.0 + fov.bbox[2][1] * scale])
+    origin = np.array([-fov.bbox[0][0] * scale, 1000.0 + fov.bbox[2][1] * scale])
     # Number of segments per polyline.
     k = sensor.polyline_size
 
     # Helper function that draws polyline features from the map on the canvas.
     def draw_map(canvas, map_feature):
-        r = (map_feature[:, :(k * 2)].reshape(-1, k, 2) *
-             np.expand_dims(map_feature[:, (k * 4):(k * 5)], -1))
-        ab = (map_feature[:, (k * 2):(k * 4)].reshape(-1, k, 2) *
-              np.expand_dims(map_feature[:, (k * 5):(k * 6)], -1)) * 0.5
+        r = map_feature[:, : (k * 2)].reshape(-1, k, 2) * np.expand_dims(
+            map_feature[:, (k * 4) : (k * 5)], -1
+        )
+        ab = (
+            map_feature[:, (k * 2) : (k * 4)].reshape(-1, k, 2)
+            * np.expand_dims(map_feature[:, (k * 5) : (k * 6)], -1)
+        ) * 0.5
         points = np.zeros((map_feature.shape[0], k + 1, 2))
         points[:, :-1] = r - ab
         points[:, -1] = r[:, -1] + ab[:, -1]
         points = points * scale + origin
-        colors = (map_feature[:, (k * 6 + 1):(k * 6 + 4)] * 255.0).astype(
-            np.int32)
+        colors = (map_feature[:, (k * 6 + 1) : (k * 6 + 4)] * 255.0).astype(np.int32)
 
         for i in range(map_feature.shape[0]):
             pygame.draw.lines(canvas, colors[i], False, points[i])
@@ -205,8 +209,7 @@ def make_vectorized_observation_renderer(sensor: VectorizedObservation):
     def draw_agents(canvas, agent_feature):
         n, h = agent_feature.shape[:2]
         # n * h * 2
-        cg = agent_feature[:, :, 1:3] * np.expand_dims(agent_feature[:, :, 0],
-                                                       -1)
+        cg = agent_feature[:, :, 1:3] * np.expand_dims(agent_feature[:, :, 0], -1)
         lon = agent_feature[:, :, 5:7]
         lat = np.matmul(lon, np.array([[0.0, -1.0], [1.0, 0.0]]))
         lon = lon * np.expand_dims(agent_feature[:, :, 3], -1) * 0.5
@@ -229,8 +232,8 @@ def make_vectorized_observation_renderer(sensor: VectorizedObservation):
     def render(canvas: pygame.Surface, observation):
         pygame.draw.rect(canvas, (240, 240, 240), background)
         pygame.draw.circle(canvas, EGO_COLOR, center=origin, radius=4.0)
-        draw_map(canvas, observation['map'])
-        draw_agents(canvas, observation['agents'])
+        draw_map(canvas, observation["map"])
+        draw_agents(canvas, observation["agents"])
 
     return render
 
@@ -243,11 +246,11 @@ def make_bird_eye_observation_renderer():
     """
 
     def render(canvas: pygame.Surface, observation):
-        bevs = observation['bev'] * 255.0
+        bevs = observation["bev"] * 255.0
         bevs = bevs.astype(int)
 
         # Draw each channel in a row.
-        for i in range(observation['bev'].shape[0]):
+        for i in range(observation["bev"].shape[0]):
             observation_surface = pygame.surfarray.make_surface(bevs[i, :, :])
             canvas.blit(observation_surface, (120 + i * 100, 1020))
 

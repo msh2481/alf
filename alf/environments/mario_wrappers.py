@@ -39,31 +39,34 @@ class MarioXReward(gym.Wrapper):
     def __init__(self, env):
         gym.Wrapper.__init__(self, env)
         self.current_level = (0, 0)
-        self.current_max_x = 0.
+        self.current_max_x = 0.0
 
     def reset(self):
         ob = self.env.reset()
         self.current_level = (0, 0)
-        self.current_max_x = 0.
+        self.current_max_x = 0.0
         return ob
 
     def step(self, action):
         ob, reward, done, info = self.env.step(action)
-        levellow, levelhigh, xscrollHi, xscrollLo = \
-            info["levelLo"], info["levelHi"], \
-            info["xscrollHi"], info["xscrollLo"]
+        levellow, levelhigh, xscrollHi, xscrollLo = (
+            info["levelLo"],
+            info["levelHi"],
+            info["xscrollHi"],
+            info["xscrollLo"],
+        )
         new_level = (levellow, levelhigh)
         if new_level != self.current_level:
             self.current_level = new_level
-            self.current_max_x = 0.
-            reward = 0.
+            self.current_max_x = 0.0
+            reward = 0.0
         else:
             currentx = xscrollHi * 256 + xscrollLo
             if currentx > self.current_max_x:
                 reward = currentx - self.current_max_x
                 self.current_max_x = currentx
             else:
-                reward = 0.
+                reward = 0.0
 
         return ob, reward, done, info
 
@@ -92,14 +95,10 @@ class LimitedDiscreteActions(gym.ActionWrapper):
         gym.ActionWrapper.__init__(self, env)
         # 'B', None, 'SELECT', 'START', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'A'
         self._num_buttons = len(all_buttons)
-        button_keys = {
-            i
-            for i, b in enumerate(all_buttons) if b in self.BUTTONS
-        }
-        buttons = [(), *zip(button_keys),
-                   *itertools.combinations(button_keys, 2)]
+        button_keys = {i for i, b in enumerate(all_buttons) if b in self.BUTTONS}
+        buttons = [(), *zip(button_keys), *itertools.combinations(button_keys, 2)]
         # 'UP', 'DOWN', 'LEFT', 'RIGHT'
-        arrows = [(), (4, ), (5, ), (6, ), (7, )]
+        arrows = [(), (4,), (5,), (6,), (7,)]
         acts = []
         acts += arrows
         acts += buttons[1:]
@@ -123,10 +122,9 @@ class ProcessFrame84(gym.ObservationWrapper):
     def __init__(self, env, crop=True):
         self.crop = crop
         super(ProcessFrame84, self).__init__(env)
-        self.observation_space = gym.spaces.Box(low=0,
-                                                high=255,
-                                                shape=(84, 84, 1),
-                                                dtype=np.uint8)
+        self.observation_space = gym.spaces.Box(
+            low=0, high=255, shape=(84, 84, 1), dtype=np.uint8
+        )
 
     def observation(self, obs):
         return ProcessFrame84.process(obs, crop=self.crop)
@@ -141,12 +139,11 @@ class ProcessFrame84(gym.ObservationWrapper):
             img = np.reshape(frame, [224, 240, 3]).astype(np.float32)
         else:
             assert False, "Unknown resolution." + str(frame.size)
-        img = img[:, :, 0] * 0.299 + img[:, :, 1] * 0.587 + img[:, :,
-                                                                2] * 0.114
+        img = img[:, :, 0] * 0.299 + img[:, :, 1] * 0.587 + img[:, :, 2] * 0.114
         size = (84, 110 if crop else 84)
-        resized_screen = np.array(Image.fromarray(img).resize(
-            size, resample=Image.BILINEAR),
-                                  dtype=np.uint8)
+        resized_screen = np.array(
+            Image.fromarray(img).resize(size, resample=Image.BILINEAR), dtype=np.uint8
+        )
         x_t = resized_screen[18:102, :] if crop else resized_screen
         x_t = np.reshape(x_t, [84, 84, 1])
         return x_t.astype(np.uint8)
@@ -161,22 +158,22 @@ class FrameFormat(gym.Wrapper):
           `channels_first` for CHW and `channels_last` for HWC
     """
 
-    def __init__(self, env, data_format='channels_last'):
+    def __init__(self, env, data_format="channels_last"):
         gym.Wrapper.__init__(self, env)
         data_format = data_format.lower()
-        if data_format not in {'channels_first', 'channels_last'}:
-            raise ValueError('The `data_format` argument must be one of '
-                             '"channels_first", "channels_last". Received: ' +
-                             str(data_format))
+        if data_format not in {"channels_first", "channels_last"}:
+            raise ValueError(
+                "The `data_format` argument must be one of "
+                '"channels_first", "channels_last". Received: ' + str(data_format)
+            )
         self._transpose = False
         obs_shape = env.observation_space.shape
-        if data_format == 'channels_first':
+        if data_format == "channels_first":
             self._transpose = True
-            obs_shape = (obs_shape[-1], ) + (obs_shape[:-1])
-        self.observation_space = spaces.Box(low=0,
-                                            high=255,
-                                            shape=obs_shape,
-                                            dtype=env.observation_space.dtype)
+            obs_shape = (obs_shape[-1],) + (obs_shape[:-1])
+        self.observation_space = spaces.Box(
+            low=0, high=255, shape=obs_shape, dtype=env.observation_space.dtype
+        )
 
     def reset(self):
         ob = self.env.reset()
@@ -189,6 +186,7 @@ class FrameFormat(gym.Wrapper):
 
     def _get_ob(self, ob):
         import numpy as np
+
         if self._transpose:
             return np.transpose(ob, (2, 0, 1))
         return ob

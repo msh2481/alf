@@ -31,7 +31,7 @@ def get_opt_arg(p: nn.Parameter, argname: str, default: Any = None):
     Returns:
         The parameter specific value if it is found, otherwise default
     """
-    opt_args = getattr(p, 'opt_args', None)
+    opt_args = getattr(p, "opt_args", None)
     if opt_args is None:
         return default
     value = opt_args.get(argname, None)
@@ -95,12 +95,14 @@ class GradientNoiseScaleEstimator(nn.Module):
     and use :math:`(\frac{\bar{\beta}}{\bar{\alpha}}-1)B` as the estimated GNS.
     """
 
-    def __init__(self,
-                 batch_size_ratio: float = 0.1,
-                 update_rate: float = 0.001,
-                 gradient_norm_clip: float = None,
-                 mode: str = "alternative",
-                 name: str = "GNSEstimator"):
+    def __init__(
+        self,
+        batch_size_ratio: float = 0.1,
+        update_rate: float = 0.001,
+        gradient_norm_clip: float = None,
+        mode: str = "alternative",
+        name: str = "GNSEstimator",
+    ):
         """
         Args:
             batch_size_ratio: the portion of a batch to be used as a "smaller"
@@ -135,13 +137,13 @@ class GradientNoiseScaleEstimator(nn.Module):
         self._mode = mode
         self._batch_size_ratio = batch_size_ratio
         self._grad_norm_clip = gradient_norm_clip
-        self._gradient_norm_averager = ScalarEMAverager(
-            update_rate=update_rate)
+        self._gradient_norm_averager = ScalarEMAverager(update_rate=update_rate)
         self._var_trace_averager = ScalarEMAverager(update_rate=update_rate)
-        self.register_buffer('_last_valid_gns', torch.zeros(()))
+        self.register_buffer("_last_valid_gns", torch.zeros(()))
 
-    def _calculate_gradient_norm(self, loss: torch.Tensor,
-                                 tensors: alf.nest.NestedTensor):
+    def _calculate_gradient_norm(
+        self, loss: torch.Tensor, tensors: alf.nest.NestedTensor
+    ):
         grads = alf.nest.utils.grad(tensors, loss.mean(), retain_graph=True)
         if self._grad_norm_clip is not None:
             grads, _ = clip_by_global_norm(grads, self._grad_norm_clip)
@@ -175,16 +177,18 @@ class GradientNoiseScaleEstimator(nn.Module):
         B -= b
 
         B_norm2, B_grads = self._calculate_gradient_norm(
-            shuffled_loss[..., b:], tensors)
+            shuffled_loss[..., b:], tensors
+        )
         b_norm2, b_grads = self._calculate_gradient_norm(
-            shuffled_loss[..., :b], tensors)
+            shuffled_loss[..., :b], tensors
+        )
 
         if self._mode == "paper":
             gradient_norm = (B * B_norm2 - b * b_norm2) / (B - b)
-            var_trace = (b_norm2 - B_norm2) / (1. / b - 1. / B)
+            var_trace = (b_norm2 - B_norm2) / (1.0 / b - 1.0 / B)
         else:
             assert B == b, "Check if the batch size is even!"
-            var_trace = (B_norm2 + b_norm2) / 2.
+            var_trace = (B_norm2 + b_norm2) / 2.0
             gradient_norm = (B_grads * b_grads).sum()
 
         avg_grad_norm = self._gradient_norm_averager.average(gradient_norm)

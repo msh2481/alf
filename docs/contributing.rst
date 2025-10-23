@@ -18,7 +18,7 @@ Needs to be the same as the versions used by the CI docker
     pip install cpplint==1.6.1
     pip install pydocstyle==6.3.0
     pip install pylint==2.17.7
-    pip install yapf==0.43.0
+    pip install black>=24.8.0
     sudo apt install clang-format
 
 

@@ -52,7 +52,7 @@ _default_writer: SummaryWriter = None
 
 _global_counter = np.array(0, dtype=np.int64)
 
-_scope_stack = ['']
+_scope_stack = [""]
 
 _record_if_stack = [
     lambda: True,
@@ -82,7 +82,7 @@ class scope(object):
         Args:
             name (str): name of the scope
         """
-        name.strip('/')
+        name.strip("/")
         self._name = name
 
     @property
@@ -91,7 +91,7 @@ class scope(object):
         return self._name
 
     def __enter__(self):
-        scope_name = _scope_stack[-1] + self._name + '/'
+        scope_name = _scope_stack[-1] + self._name + "/"
         _scope_stack.append(scope_name)
         return scope_name
 
@@ -109,11 +109,7 @@ def _summary_wrapper(summary_func):
     """
 
     @functools.wraps(summary_func)
-    def wrapper(name,
-                data,
-                average_over_summary_interval=False,
-                step=None,
-                **kwargs):
+    def wrapper(name, data, average_over_summary_interval=False, step=None, **kwargs):
         """
         Args:
             average_over_summary_interval: if True, the average value of data during a
@@ -127,7 +123,7 @@ def _summary_wrapper(summary_func):
         if average_over_summary_interval:
             if isinstance(data, torch.Tensor):
                 data = data.detach()
-            if name.startswith('/'):
+            if name.startswith("/"):
                 name = name[1:]
             else:
                 name = _scope_stack[-1] + name
@@ -150,7 +146,7 @@ def _summary_wrapper(summary_func):
                     data = data.detach()
                 if step is None:
                     step = _global_counter
-                if name.startswith('/'):
+                if name.startswith("/"):
                     name = name[1:]
                 else:
                     name = _scope_stack[-1] + name
@@ -165,7 +161,7 @@ def scope_name():
 
 
 @_summary_wrapper
-def images(name, data, step=None, dataformat='NCHW', walltime=None):
+def images(name, data, step=None, dataformat="NCHW", walltime=None):
     """Add image data to summary.
 
     Args:
@@ -176,19 +172,19 @@ def images(name, data, step=None, dataformat='NCHW', walltime=None):
         walltime (float): Optional override default walltime (time.time())
             seconds after epoch of event
     """
-    _summary_writer_stack[-1].add_images(name,
-                                         data,
-                                         step,
-                                         walltime=walltime,
-                                         dataformats=dataformat)
+    _summary_writer_stack[-1].add_images(
+        name, data, step, walltime=walltime, dataformats=dataformat
+    )
 
 
 @_summary_wrapper
-def video(name: str,
-          data: Union[np.ndarray, torch.Tensor],
-          step: int = None,
-          fps: int = 4,
-          walltime: float = None):
+def video(
+    name: str,
+    data: Union[np.ndarray, torch.Tensor],
+    step: int = None,
+    fps: int = 4,
+    walltime: float = None,
+):
     """Add video data to summary.
 
     Args:
@@ -200,11 +196,7 @@ def video(name: str,
         walltime: Optional override default walltime (time.time())
             seconds after epoch of event
     """
-    _summary_writer_stack[-1].add_video(name,
-                                        data,
-                                        step,
-                                        fps=fps,
-                                        walltime=walltime)
+    _summary_writer_stack[-1].add_video(name, data, step, fps=fps, walltime=walltime)
 
 
 @_summary_wrapper
@@ -259,12 +251,9 @@ def histogram(name, data, step=None, bins=None, walltime=None, max_bins=None):
     """
     if bins is None:
         bins = _default_bins
-    _summary_writer_stack[-1].add_histogram(name,
-                                            data,
-                                            step,
-                                            bins=bins,
-                                            walltime=walltime,
-                                            max_bins=max_bins)
+    _summary_writer_stack[-1].add_histogram(
+        name, data, step, bins=bins, walltime=walltime, max_bins=max_bins
+    )
 
 
 @_summary_wrapper
@@ -290,11 +279,13 @@ def embedding(name, data, step=None, class_labels=None, label_imgs=None):
             label img corresponds to an embedding. Use this if you want to
             associate each embedding with an image for visualization.
     """
-    _summary_writer_stack[-1].add_embedding(tag=name,
-                                            mat=data,
-                                            metadata=class_labels,
-                                            label_img=label_imgs,
-                                            global_step=step)
+    _summary_writer_stack[-1].add_embedding(
+        tag=name,
+        mat=data,
+        metadata=class_labels,
+        label_img=label_imgs,
+        global_step=step,
+    )
 
 
 def should_record_summaries():
@@ -305,8 +296,7 @@ def should_record_summaries():
             are not recorded.
 
     """
-    return (_summary_writer_stack[-1] and is_summary_enabled()
-            and _record_if_stack[-1]())
+    return _summary_writer_stack[-1] and is_summary_enabled() and _record_if_stack[-1]()
 
 
 def get_global_counter():
@@ -401,9 +391,9 @@ def create_summary_writer(summary_dir, flush_secs=10, max_queue=10):
     Returns:
         SummaryWriter
     """
-    return SummaryWriter(log_dir=summary_dir,
-                         flush_secs=flush_secs,
-                         max_queue=max_queue)
+    return SummaryWriter(
+        log_dir=summary_dir, flush_secs=flush_secs, max_queue=max_queue
+    )
 
 
 def set_default_writer(writer):
@@ -475,9 +465,8 @@ def enter_summary_scope(method):
     def wrapped(self, *args, **kwargs):
         # The first argument to the method is going to be ``self``, i.e. the
         # instance that the method belongs to.
-        assert hasattr(self,
-                       '_name'), "self is expected to have attribute '_name'"
-        scope_name = _scope_stack[-1] + self._name + '/'
+        assert hasattr(self, "_name"), "self is expected to have attribute '_name'"
+        scope_name = _scope_stack[-1] + self._name + "/"
         _scope_stack.append(scope_name)
         ret = method(self, *args, **kwargs)
         _scope_stack.pop()

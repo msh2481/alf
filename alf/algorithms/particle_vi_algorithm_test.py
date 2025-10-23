@@ -49,7 +49,7 @@ class ParVIAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
         """
         x = data.detach().clone()
         if x.dim() > 2:
-            raise ValueError('data has more than 2 dimensions')
+            raise ValueError("data has more than 2 dimensions")
         if x.dim() < 2:
             x = x.view(1, -1)
         if not rowvar and x.size(0) != 1:
@@ -58,8 +58,8 @@ class ParVIAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
         x -= torch.mean(x, dim=1, keepdim=True)
         return fact * x.matmul(x.t()).squeeze()
 
-    @parameterized.parameters(('svgd'), ('gfsf'), ('minmax'))
-    def test_par_vi_algorithm(self, par_vi='svgd'):
+    @parameterized.parameters(("svgd"), ("gfsf"), ("minmax"))
+    def test_par_vi_algorithm(self, par_vi="svgd"):
         """
         The par_vi algorithm is trained to match the likelihood of a Gaussian
         distribution with zero mean and diagonal variance :math:`(1, 4)`.
@@ -69,20 +69,22 @@ class ParVIAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
         logging.info("par_vi: %s" % (par_vi))
         dim = 2
         num_particles = 256
-        ParVI = ParVIAlgorithm(dim,
-                               num_particles=num_particles,
-                               par_vi=par_vi,
-                               critic_hidden_layers=(20, ),
-                               critic_optimizer=alf.optimizers.Adam(lr=1e-3),
-                               optimizer=alf.optimizers.AdamTF(lr=1e-2))
+        ParVI = ParVIAlgorithm(
+            dim,
+            num_particles=num_particles,
+            par_vi=par_vi,
+            critic_hidden_layers=(20,),
+            critic_optimizer=alf.optimizers.Adam(lr=1e-3),
+            optimizer=alf.optimizers.AdamTF(lr=1e-2),
+        )
 
         var = torch.tensor([1, 4], dtype=torch.float32)
-        precision = 1. / var
+        precision = 1.0 / var
 
         def _neglogprob(x):
             return torch.squeeze(
-                0.5 * torch.matmul(x * x, torch.reshape(precision, (dim, 1))),
-                axis=-1)
+                0.5 * torch.matmul(x * x, torch.reshape(precision, (dim, 1))), axis=-1
+            )
 
         def _train():
             alg_step = ParVI.train_step(loss_func=_neglogprob)
@@ -97,5 +99,5 @@ class ParVIAlgorithmTest(parameterized.TestCase, alf.test.TestCase):
         self.assertArrayEqual(torch.diag(var), learned_var, 0.4)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

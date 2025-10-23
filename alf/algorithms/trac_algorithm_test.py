@@ -29,17 +29,20 @@ def create_ac_algorithm(observation_spec, action_spec, debug_summaries):
     actor_network = partial(
         ActorDistributionNetwork,
         fc_layer_params=fc_layer_params,
-        discrete_projection_net_ctor=alf.networks.CategoricalProjectionNetwork)
+        discrete_projection_net_ctor=alf.networks.CategoricalProjectionNetwork,
+    )
 
     value_network = partial(ValueNetwork, fc_layer_params=(10, 8, 1))
 
-    return ActorCriticAlgorithm(observation_spec=observation_spec,
-                                action_spec=action_spec,
-                                actor_network_ctor=actor_network,
-                                value_network_ctor=value_network,
-                                optimizer=alf.optimizers.Adam(lr=0.1),
-                                debug_summaries=debug_summaries,
-                                name="MyActorCritic")
+    return ActorCriticAlgorithm(
+        observation_spec=observation_spec,
+        action_spec=action_spec,
+        actor_network_ctor=actor_network,
+        value_network_ctor=value_network,
+        optimizer=alf.optimizers.Adam(lr=0.1),
+        debug_summaries=debug_summaries,
+        name="MyActorCritic",
+    )
 
 
 class TracAlgorithmTest(alf.test.TestCase):
@@ -47,11 +50,13 @@ class TracAlgorithmTest(alf.test.TestCase):
     def test_trac_algorithm(self):
         config = TrainerConfig(root_dir="dummy", unroll_length=5)
         env = MyEnv(batch_size=3)
-        alg = TracAlgorithm(observation_spec=env.observation_spec(),
-                            action_spec=env.action_spec(),
-                            ac_algorithm_cls=create_ac_algorithm,
-                            env=env,
-                            config=config)
+        alg = TracAlgorithm(
+            observation_spec=env.observation_spec(),
+            action_spec=env.action_spec(),
+            ac_algorithm_cls=create_ac_algorithm,
+            env=env,
+            config=config,
+        )
 
         for _ in range(50):
             alg.train_iter()
@@ -60,7 +65,8 @@ class TracAlgorithmTest(alf.test.TestCase):
         state = alg.get_initial_predict_state(env.batch_size)
         policy_step = alg.rollout_step(time_step, state)
         logits = policy_step.info.action_distribution.log_prob(
-            torch.arange(3).reshape(3, 1))
+            torch.arange(3).reshape(3, 1)
+        )
         print("logits: ", logits)
         # action 1 gets the most reward. So its probability should be higher
         # than other actions after training.
@@ -68,5 +74,5 @@ class TracAlgorithmTest(alf.test.TestCase):
         self.assertTrue(torch.all(logits[1, :] > logits[2, :]))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     alf.test.main()

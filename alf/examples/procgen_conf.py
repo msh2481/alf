@@ -14,7 +14,7 @@
 import alf
 from alf.environments import suite_procgen
 
-alf.config('create_environment', env_load_fn=suite_procgen.load)
+alf.config("create_environment", env_load_fn=suite_procgen.load)
 
 # NOTE: by default there is no ImageScaleTransformer applied to procgen
 # environments. You need to specifically add that if needed. That can be done

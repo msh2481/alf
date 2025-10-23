@@ -21,20 +21,20 @@ from alf.algorithms.data_transformer import UntransformedTimeStep
 from alf.examples import sac_bipedal_walker_conf
 from alf.utils import dist_utils
 
-alf.config("SacAlgorithm",
-           q_network_cls=partial(
-               alf.networks.QNetwork,
-               preprocessing_combiner=alf.layers.NestConcat(),
-               fc_layer_params=sac_bipedal_walker_conf.hidden_layers),
-           target_entropy=(partial(dist_utils.calc_default_target_entropy,
-                                   min_prob=0.2),
-                           partial(dist_utils.calc_default_target_entropy,
-                                   min_prob=0.1)))
+alf.config(
+    "SacAlgorithm",
+    q_network_cls=partial(
+        alf.networks.QNetwork,
+        preprocessing_combiner=alf.layers.NestConcat(),
+        fc_layer_params=sac_bipedal_walker_conf.hidden_layers,
+    ),
+    target_entropy=(
+        partial(dist_utils.calc_default_target_entropy, min_prob=0.2),
+        partial(dist_utils.calc_default_target_entropy, min_prob=0.1),
+    ),
+)
 
-alf.config("DynamicActionRepeatAgent",
-           K=5,
-           rl_algorithm_cls=SacAlgorithm,
-           gamma=0.99)
+alf.config("DynamicActionRepeatAgent", K=5, rl_algorithm_cls=SacAlgorithm, gamma=0.99)
 
 alf.config(
     "TrainerConfig",
@@ -42,4 +42,6 @@ alf.config(
     algorithm_ctor=partial(
         DynamicActionRepeatAgent,
         optimizer=sac_bipedal_walker_conf.optimizer,
-        reward_normalizer_ctor=sac_bipedal_walker_conf.reward_normalizer))
+        reward_normalizer_ctor=sac_bipedal_walker_conf.reward_normalizer,
+    ),
+)
