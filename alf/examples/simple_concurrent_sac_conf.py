@@ -45,29 +45,23 @@ alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
            gamma=0.98)
 
-# SimpleConcurrentAlgorithm configuration
-alf.config("SimpleConcurrentAlgorithm",
-           algorithm_ctor=SacAlgorithm,
-           num_copies=1)
+alf.config('Agent', rl_algorithm_cls=SacAlgorithm)
 
-# alf.config('Agent', rl_algorithm_cls=SimpleConcurrentAlgorithm)
-# alf.config('Agent', rl_algorithm_cls=SacAlgorithm)
+alf.config("SimpleConcurrentAlgorithm", algorithm_ctor=Agent, num_copies=1)
 
-alf.config(
-    'TrainerConfig',
-    #    algorithm_ctor=SacAlgorithm,
-    algorithm_ctor=SimpleConcurrentAlgorithm,
-    whole_replay_buffer_training=False,
-    clear_replay_buffer=False,
-    initial_collect_steps=1000,
-    mini_batch_length=2,
-    mini_batch_size=64,
-    unroll_length=1,
-    num_updates_per_train_iter=1,
-    num_iterations=10000,
-    num_checkpoints=5,
-    evaluate=False,
-    eval_interval=100,
-    debug_summaries=True,
-    summary_interval=100,
-    replay_buffer_length=100000)
+alf.config('TrainerConfig',
+           algorithm_ctor=SimpleConcurrentAlgorithm,
+           whole_replay_buffer_training=False,
+           clear_replay_buffer=False,
+           initial_collect_steps=1000,
+           mini_batch_length=2,
+           mini_batch_size=64,
+           unroll_length=1,
+           num_updates_per_train_iter=1,
+           num_iterations=10000,
+           num_checkpoints=5,
+           evaluate=False,
+           eval_interval=100,
+           debug_summaries=True,
+           summary_interval=100,
+           replay_buffer_length=100000)

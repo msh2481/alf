@@ -424,7 +424,6 @@ class Algorithm(AlgorithmInterface):
             num_earliest_frames_ignored=self._num_earliest_frames_ignored,
             mp_context=mp_context,
             name=f'{self._name}_replay_buffer')
-
         self._observers.append(lambda exp: self._replay_buffer.add_batch(
             exp, exp.env_id))
 

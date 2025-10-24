@@ -907,7 +907,6 @@ class SacAlgorithm(OffPolicyAlgorithm):
                    rollout_info: SacInfo):
         assert not self._is_eval
         self._training_started = True
-
         if self._target_repr_alg is not None:
             # We calculate the target observation first so that the peak memory
             # usage can be reduced because its computation graph will not be kept.
