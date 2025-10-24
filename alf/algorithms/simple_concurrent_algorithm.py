@@ -18,12 +18,41 @@ Creates multiple independent algorithm copies that train concurrently.
 
 from typing import Callable, Optional
 
-import torch.nn as nn
-
 import alf
 from alf.algorithms.rl_algorithm import RLAlgorithm
 from alf.algorithms.config import TrainerConfig
 from alf.tensor_specs import TensorSpec
+
+
+def lazy_partial(func, **kwargs):
+    """Create a partial function that evaluates callable arguments on each call.
+
+    Similar to functools.partial, but all keyword arguments are assumed to be
+    callables that will be invoked each time the partial is called. This ensures
+    fresh instances are created for each invocation.
+
+    Args:
+        func: The function to wrap
+        **kwargs: Keyword arguments (callables/lambdas). Each will be called
+                  each time to get a fresh value.
+
+    Returns:
+        A wrapper function that creates fresh instances by calling the lambdas.
+
+    Example:
+        # Instead of partial(SacAlgorithm, optimizer=Adam(lr=1e-3))
+        # which reuses the same optimizer instance, use:
+        lazy_partial(SacAlgorithm, optimizer=lambda: alf.optimizers.Adam(lr=1e-3))
+    """
+
+    def wrapper(*args, **call_kwargs):
+        # Evaluate all kwargs by calling them
+        evaluated_kwargs = {key: value() for key, value in kwargs.items()}
+        # Merge with call-time kwargs
+        evaluated_kwargs.update(call_kwargs)
+        return func(*args, **evaluated_kwargs)
+
+    return wrapper
 
 
 @alf.configurable
@@ -32,6 +61,27 @@ class SimpleConcurrentAlgorithm(RLAlgorithm):
 
     Creates K independent copies of a base algorithm. Each copy maintains
     independent parameters, optimizers, replay buffer, and environment interactions.
+
+    IMPORTANT: To ensure each algorithm copy gets its own optimizer instances,
+    use ``lazy_partial`` (provided in this module) to create the algorithm
+    constructor. This evaluates callable arguments each time, creating fresh instances.
+
+    Example:
+        from alf.algorithms.simple_concurrent_algorithm import lazy_partial
+        from alf.algorithms.sac_algorithm import SacAlgorithm
+        from alf.algorithms.agent import Agent
+
+        alf.config('SimpleConcurrentAlgorithm',
+                   algorithm_ctor=lazy_partial(
+                       Agent,
+                       rl_algorithm_cls=lazy_partial(
+                           SacAlgorithm,
+                           actor_optimizer=lambda: alf.optimizers.Adam(lr=1e-3, name='actor'),
+                           critic_optimizer=lambda: alf.optimizers.Adam(lr=1e-3, name='critic'),
+                           alpha_optimizer=lambda: alf.optimizers.Adam(lr=1e-3, name='alpha'))),
+                   num_copies=2)
+
+    Using lambdas ensures each algorithm copy gets fresh optimizer instances.
     """
 
     def __init__(
@@ -66,6 +116,9 @@ class SimpleConcurrentAlgorithm(RLAlgorithm):
         self._reward_spec = reward_spec
 
         # Create K independent algorithm copies, each with its own environment
+        # Note: We need to be careful with gin/alf.config here because configured
+        # optimizer instances can be shared across algorithm instances.
+        # The algorithm_ctor should handle creating independent optimizers.
         algorithms = [
             algorithm_ctor(
                 observation_spec=observation_spec,
@@ -91,7 +144,10 @@ class SimpleConcurrentAlgorithm(RLAlgorithm):
             debug_summaries=debug_summaries,
             name=name,
         )
-        self._algorithms = nn.ModuleList(algorithms)
+        # Use regular list, not nn.ModuleList, to keep algorithms independent
+        # This prevents sub-algorithms from being registered as child modules,
+        # so their parameters and optimizers remain completely separate
+        self._algorithms = algorithms
 
     def train_iter(self):
         """Perform one training iteration for all algorithm copies.
@@ -107,7 +163,7 @@ class SimpleConcurrentAlgorithm(RLAlgorithm):
         total_steps = 0
         for alg in self._algorithms:
             steps = alg.train_iter()
-            total_steps += steps
+            total_steps = steps
         return total_steps
 
     def load_offline_replay_buffer(self, untransformed_observation_spec,
@@ -162,13 +218,11 @@ class SimpleConcurrentAlgorithm(RLAlgorithm):
                 alg.eval_uncertainty()
 
     def compute_paras_statistics(self):
-        """Compute parameter statistics from first algorithm."""
-        return self._algorithms[0].compute_paras_statistics()
+        """Compute parameter statistics from all algorithms."""
+        return [alg.compute_paras_statistics() for alg in self._algorithms]
 
     def get_optimizer_info(self):
-        """Get optimizer info from first algorithm."""
-        return self._algorithms[0].get_optimizer_info()
+        return "{}"
 
     def get_unoptimized_parameter_info(self):
-        """Get unoptimized parameter info from first algorithm."""
-        return self._algorithms[0].get_unoptimized_parameter_info()
+        return "{}"

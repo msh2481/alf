@@ -20,34 +20,40 @@ The algorithm creates multiple independent SAC copies that learn concurrently.
 import alf
 
 from alf.algorithms.sac_algorithm import SacAlgorithm
-from alf.algorithms.simple_concurrent_algorithm import SimpleConcurrentAlgorithm
+from alf.algorithms.simple_concurrent_algorithm import SimpleConcurrentAlgorithm, lazy_partial
+from alf.algorithms.agent import Agent
 from alf.networks import QNetwork
 from alf.utils.losses import element_wise_squared_loss
-from alf.algorithms.agent import Agent
+from functools import partial
 
 # environment config
 alf.config('create_environment',
            env_name="CartPole-v0",
-           num_parallel_environments=8)
+           num_parallel_environments=4)
 
 # algorithm config
 alf.config('QNetwork', fc_layer_params=(100, ))
-# note that for discrete action space we do not need the actor network as a
-# discrete action can be sampled from the Q values.
-alf.config('SacAlgorithm',
-           q_network_cls=QNetwork,
-           actor_optimizer=alf.optimizers.Adam(lr=1e-3, name='actor'),
-           critic_optimizer=alf.optimizers.Adam(lr=1e-3, name='critic'),
-           alpha_optimizer=alf.optimizers.Adam(lr=1e-3, name='alpha'),
-           target_update_tau=0.01)
 
 alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
            gamma=0.98)
 
-alf.config('Agent', rl_algorithm_cls=SacAlgorithm)
+alf.config('SacAlgorithm', q_network_cls=QNetwork, target_update_tau=0.01)
 
-alf.config("SimpleConcurrentAlgorithm", algorithm_ctor=Agent, num_copies=1)
+# Use lazy_partial with lambdas to avoid sharing optimizers between algorithm copies
+# Each lambda is called during algorithm construction to create fresh optimizer instances
+alf.config(
+    "SimpleConcurrentAlgorithm",
+    algorithm_ctor=partial(
+        Agent,
+        rl_algorithm_cls=lazy_partial(
+            SacAlgorithm,
+            actor_optimizer=lambda: alf.optimizers.Adam(lr=1e-3, name='actor'),
+            critic_optimizer=lambda: alf.optimizers.Adam(lr=1e-3,
+                                                         name='critic'),
+            alpha_optimizer=lambda: alf.optimizers.Adam(lr=1e-3, name='alpha'),
+        )),
+    num_copies=1)
 
 alf.config('TrainerConfig',
            algorithm_ctor=SimpleConcurrentAlgorithm,
