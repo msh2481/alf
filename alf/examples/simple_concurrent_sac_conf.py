@@ -19,11 +19,11 @@ The algorithm creates multiple independent SAC copies that learn concurrently.
 
 import alf
 
-alf.import_config("sac_conf.py")
 from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.simple_concurrent_algorithm import SimpleConcurrentAlgorithm
-from alf.networks import ActorDistributionNetwork, QNetwork
+from alf.networks import QNetwork
 from alf.utils.losses import element_wise_squared_loss
+from alf.algorithms.agent import Agent
 
 # environment config
 alf.config('create_environment',
@@ -50,18 +50,24 @@ alf.config("SimpleConcurrentAlgorithm",
            algorithm_ctor=SacAlgorithm,
            num_copies=1)
 
-# training config
-alf.config('TrainerConfig',
-           algorithm_ctor=SimpleConcurrentAlgorithm,
-           initial_collect_steps=1000,
-           mini_batch_length=2,
-           mini_batch_size=64,
-           unroll_length=1,
-           num_updates_per_train_iter=1,
-           num_iterations=10000,
-           num_checkpoints=5,
-           evaluate=False,
-           eval_interval=100,
-           debug_summaries=True,
-           summary_interval=100,
-           replay_buffer_length=100000)
+# alf.config('Agent', rl_algorithm_cls=SimpleConcurrentAlgorithm)
+# alf.config('Agent', rl_algorithm_cls=SacAlgorithm)
+
+alf.config(
+    'TrainerConfig',
+    #    algorithm_ctor=SacAlgorithm,
+    algorithm_ctor=SimpleConcurrentAlgorithm,
+    whole_replay_buffer_training=False,
+    clear_replay_buffer=False,
+    initial_collect_steps=1000,
+    mini_batch_length=2,
+    mini_batch_size=64,
+    unroll_length=1,
+    num_updates_per_train_iter=1,
+    num_iterations=10000,
+    num_checkpoints=5,
+    evaluate=False,
+    eval_interval=100,
+    debug_summaries=True,
+    summary_interval=100,
+    replay_buffer_length=100000)

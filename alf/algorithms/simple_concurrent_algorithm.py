@@ -13,85 +13,25 @@
 # limitations under the License.
 """Simple Concurrent RL Algorithm.
 
-Routes batch elements to independent copies of a base algorithm.
+Creates multiple independent algorithm copies that train concurrently.
 """
 
 from typing import Callable, Optional
 
-import torch
-import torch.distributions as td
 import torch.nn as nn
 
 import alf
+from alf.algorithms.rl_algorithm import RLAlgorithm
 from alf.algorithms.config import TrainerConfig
-from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
-from alf.data_structures import AlgStep, Experience, LossInfo, TimeStep
 from alf.tensor_specs import TensorSpec
 
 
-def _slice_distribution(dist, indices, time_major=False):
-    """Slice a distribution object by recreating it with sliced parameters.
-
-    Args:
-        dist: Distribution object to slice
-        indices: Indices to slice with
-        time_major: If True, slice along dimension 1 (for [T, B, ...]),
-                    otherwise slice along dimension 0 (for [B, ...])
-    """
-    if isinstance(dist, td.Distribution):
-        if hasattr(dist, "logits"):
-            if time_major:
-                sliced_logits = dist.logits[:, indices]
-            else:
-                sliced_logits = dist.logits[indices]
-            return type(dist)(logits=sliced_logits)
-        elif hasattr(dist, "probs"):
-            if time_major:
-                sliced_probs = dist.probs[:, indices]
-            else:
-                sliced_probs = dist.probs[indices]
-            return type(dist)(probs=sliced_probs)
-        else:
-            raise ValueError(f"Cannot slice distribution of type {type(dist)}")
-    return dist
-
-
-def _slice_nested_structure(value, indices, time_major=False):
-    """Slice a value that may be a tensor or distribution.
-    
-    Args:
-        value: Tensor or Distribution object to slice
-        indices: Indices to slice with
-        time_major: If True, slice along dimension 1 (for [T, B, ...]),
-                    otherwise slice along dimension 0 (for [B, ...])
-    
-    Returns:
-        Sliced value
-    """
-    if isinstance(value, td.Distribution):
-        return _slice_distribution(value, indices, time_major)
-    else:
-        if time_major:
-            return value[:, indices]
-        else:
-            return value[indices]
-
-
 @alf.configurable
-class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
+class SimpleConcurrentAlgorithm(RLAlgorithm):
     """SimpleConcurrent Algorithm.
 
-    Creates K independent copies of a base algorithm and routes batch element i
-    to algorithm copy (i % K). Each copy maintains independent:
-    - Parameters
-    - Optimizer
-    - Replay buffer
-    - Training state
-
-    This is useful for:
-    - Training diverse ensemble of agents
-    - Parallel exploration with different policies
-    - Load balancing across different tasks
+    Creates K independent copies of a base algorithm. Each copy maintains
+    independent parameters, optimizers, replay buffer, and environment interactions.
     """
 
     def __init__(
@@ -113,476 +53,122 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
             action_spec (nested BoundedTensorSpec): representing the actions.
             algorithm_ctor (Callable): Function to construct the base algorithm.
                 Will be called as ``algorithm_ctor(observation_spec, action_spec, ...)``.
-                Should return an RLAlgorithm (typically OffPolicyAlgorithm).
             num_copies (int): Number of independent algorithm copies (K).
             reward_spec (TensorSpec): representing the reward(s).
-            env (Environment): The batched environment to interact with.
+            env (Environment): The batched environment. Each algorithm gets its own env.
             config (TrainerConfig): config for training.
-            checkpoint (str): checkpoint path in format "prefix@path".
             debug_summaries (bool): whether to create debug summaries.
             name (str): name of this algorithm.
         """
-        # Infer on_policy from first algorithm copy
-        # Create a temporary instance to check on_policy property
-        temp_alg = algorithm_ctor(observation_spec=observation_spec,
-                                  action_spec=action_spec)
-        is_on_policy = temp_alg.on_policy
-
-        # Collect state specs from temporary algorithm
-        train_state_spec = [
-            temp_alg.train_state_spec for _ in range(num_copies)
-        ]
-        rollout_state_spec = [
-            temp_alg.rollout_state_spec for _ in range(num_copies)
-        ]
-        predict_state_spec = [
-            temp_alg.predict_state_spec for _ in range(num_copies)
-        ]
-
-        # Clean up temporary algorithm
-        del temp_alg
-
-        super().__init__(
-            observation_spec=observation_spec,
-            action_spec=action_spec,
-            reward_spec=reward_spec,
-            train_state_spec=train_state_spec,
-            rollout_state_spec=rollout_state_spec,
-            predict_state_spec=predict_state_spec,
-            is_on_policy=is_on_policy,
-            env=env,
-            config=config,
-            checkpoint=checkpoint,
-            optimizer=None,  # Each sub-algorithm has its own optimizer
-            debug_summaries=debug_summaries,
-            name=name,
-        )
-
         self._num_copies = num_copies
+        self._observation_spec = observation_spec
+        self._action_spec = action_spec
+        self._reward_spec = reward_spec
 
-        # Force sequential training: We don't want _collect_train_info_parallelly
-        # because it flattens temporal sequences which breaks our routing mechanism.
-        # With this set to False, the framework will use _collect_train_info_sequentially
-        # which processes one timestep at a time and naturally works with routing.
-        self._temporally_independent_train_step = False
-
-        # Validate that batch size will be compatible with num_copies
-        if env and hasattr(env, "batch_size"):
-            assert (
-                env.batch_size % num_copies == 0
-            ), f"Environment batch size {env.batch_size} must be a multiple of num_copies {num_copies}"
-
-        # Create K independent algorithm copies
-        self._algorithms = nn.ModuleList([
+        # Create K independent algorithm copies, each with its own environment
+        algorithms = [
             algorithm_ctor(
                 observation_spec=observation_spec,
                 action_spec=action_spec,
                 reward_spec=reward_spec,
-                env=None,  # Only root algorithm gets env
+                env=env,
                 config=config,
                 debug_summaries=debug_summaries,
                 name=f"{name}_copy_{i}",
             ) for i in range(num_copies)
-        ])
-
-    def get_initial_predict_state(self, batch_size):
-        """Get initial predict state for all algorithm copies."""
-        # For single environment evaluation, use only the first algorithm copy
-        if batch_size == 1:
-            return self._algorithms[0].get_initial_predict_state(batch_size)
-        else:
-            return [
-                alg.get_initial_predict_state(batch_size)
-                for alg in self._algorithms
-            ]
-
-    def get_initial_rollout_state(self, batch_size):
-        """Get initial rollout state for all algorithm copies."""
-        return [
-            alg.get_initial_rollout_state(batch_size)
-            for alg in self._algorithms
         ]
 
-    def get_initial_train_state(self, batch_size):
-        """Get initial train state for all algorithm copies."""
-        return [
-            alg.get_initial_train_state(batch_size) for alg in self._algorithms
-        ]
+        super().__init__(
+            observation_spec=observation_spec,
+            action_spec=action_spec,
+            train_state_spec=algorithms[0].train_state_spec,
+            reward_spec=reward_spec,
+            predict_state_spec=algorithms[0].predict_state_spec,
+            rollout_state_spec=algorithms[0].rollout_state_spec,
+            is_on_policy=algorithms[0].on_policy,
+            env=env,
+            config=config,
+            debug_summaries=debug_summaries,
+            name=name,
+        )
+        self._algorithms = nn.ModuleList(algorithms)
 
-        # Setup replay buffers for off-policy algorithms
-        if not is_on_policy and config:
-            for alg in self._algorithms:
-                if hasattr(alg, "set_replay_buffer"):
-                    alg.set_replay_buffer(
-                        num_envs=env.batch_size if env else 1,
-                        max_length=config.replay_buffer_length,
-                        prioritized_sampling=config.priority_replay,
-                    )
+    def train_iter(self):
+        """Perform one training iteration for all algorithm copies.
 
-    def _trainable_attributes_to_ignore(self):
-        """Prevent parent optimizer from managing sub-algorithm parameters."""
-        return ["_algorithms"]
-
-    def _compute_train_info_and_loss_info(self, experience):
-        """Override to force sequential processing regardless of length.
-
-        The parent's _collect_train_info_parallelly would flatten [T, B, ...] to
-        [T*B, ...] which breaks our routing mechanism that expects [B, ...]
-        tensors. We always use sequential processing, even for length==1.
-        """
-        # Always use sequential processing to avoid flattening the batch dimension
-        train_info = self._collect_train_info_sequentially(experience)
-        loss_info = self.calc_loss(train_info)
-        return train_info, loss_info
-
-    def _route_batch_to_algorithms(self, time_step, state):
-        """Route each batch element to the appropriate algorithm copy.
+        Each algorithm runs its own complete training iteration independently:
+        - Unrolls in its own environment
+        - Stores experiences in its own replay buffer
+        - Samples and trains from its own replay buffer
 
         Returns:
-            dict: mapping algorithm index -> (sliced_time_step, sliced_state, batch_indices)
+            int: total number of samples trained on across all algorithms
         """
-        batch_size = alf.nest.get_nest_batch_size(time_step.observation)
-        device = next(iter(alf.nest.flatten(time_step.observation))).device
-
-        routing = {}
-        for i in range(self._num_copies):
-            # Use efficient slicing: elements where j % K == i
-            batch_indices = torch.arange(i,
-                                         batch_size,
-                                         self._num_copies,
-                                         device=device)
-
-            if len(batch_indices) == 0:
-                continue
-
-            # Slice time_step for this algorithm
-            sliced_time_step = alf.nest.map_structure(
-                lambda x: x[batch_indices], time_step)
-
-            # Slice state for this algorithm
-            sliced_state = state[i] if isinstance(state, list) else state
-
-            routing[i] = (sliced_time_step, sliced_state, batch_indices)
-
-        return routing
-
-    def _scatter_outputs(self, outputs_by_alg, batch_size):
-        """Scatter algorithm outputs back to full batch dimension.
-
-        Args:
-            outputs_by_alg: dict mapping algorithm index -> (output, batch_indices)
-            batch_size: target batch size
-
-        Returns:
-            nested Tensor with shape [batch_size, ...]
-        """
-        # Get structure from first output
-        first_output = next(iter(outputs_by_alg.values()))[0]
-
-        def _scatter_single_tensor(tensor_by_alg):
-            """Scatter a single tensor from all algorithms."""
-            # Get first tensor to determine structure
-            first_tensor = next(iter(tensor_by_alg.values()))[0]
-
-            # Handle non-tensor values (e.g., empty tuples)
-            if not isinstance(first_tensor, torch.Tensor):
-                return first_tensor
-
-            # Determine output shape
-            out_shape = [batch_size] + list(first_tensor.shape[1:])
-            result = torch.zeros(out_shape,
-                                 dtype=first_tensor.dtype,
-                                 device=first_tensor.device)
-
-            # Scatter each algorithm's outputs
-            for tensor, batch_indices in tensor_by_alg.values():
-                result[batch_indices] = tensor
-
-            return result
-
-        # Get all paths in the nest
-        flat_structure = alf.nest.flatten(first_output)
-        result_flat = []
-
-        for leaf_idx in range(len(flat_structure)):
-            # For each leaf, gather from all algorithms and scatter
-            leaf_by_alg = {
-                alg_idx: (alf.nest.flatten(output)[leaf_idx], batch_indices)
-                for alg_idx, (output, batch_indices) in outputs_by_alg.items()
-            }
-            result_flat.append(_scatter_single_tensor(leaf_by_alg))
-
-        return alf.nest.pack_sequence_as(first_output, result_flat)
-
-    def rollout_step(self, inputs: TimeStep, state) -> AlgStep:
-        """Route batch elements to algorithm copies for rollout.
-
-        Args:
-            inputs: TimeStep with shape [B, ...]
-            state: List of states, one per algorithm copy
-
-        Returns:
-            AlgStep with output shape [B, ...] and updated states
-        """
-        batch_size = alf.nest.get_nest_batch_size(inputs.observation)
-        routing = self._route_batch_to_algorithms(inputs, state)
-
-        # Collect outputs
-        outputs_dict = {}  # {alg_idx: (alg_step.output, batch_indices)}
-        new_states = [None] * self._num_copies
-        infos_dict = {}  # {alg_idx: (alg_step.info, batch_indices)}
-
-        for alg_idx, (
-                sliced_time_step,
-                sliced_state,
-                batch_indices,
-        ) in routing.items():
-            alg_step = self._algorithms[alg_idx].rollout_step(
-                sliced_time_step, sliced_state)
-
-            outputs_dict[alg_idx] = (alg_step.output, batch_indices)
-            new_states[alg_idx] = alg_step.state
-            infos_dict[alg_idx] = (alg_step.info, batch_indices)
-
-        # Scatter outputs back to full batch
-        output = self._scatter_outputs(outputs_dict, batch_size)
-        info = self._scatter_outputs(infos_dict, batch_size)
-
-        return AlgStep(output=output, state=new_states, info=info)
-
-    def train_step(self, inputs: TimeStep, state, rollout_info) -> AlgStep:
-        """Route batch elements to algorithm copies for training.
-
-        Args:
-            inputs: TimeStep from replay buffer, shape [B, ...]
-            state: List of states, one per algorithm copy
-            rollout_info: nested Tensor from rollout_step
-
-        Returns:
-            AlgStep with training info
-        """
-        batch_size = alf.nest.get_nest_batch_size(inputs.observation)
-        routing = self._route_batch_to_algorithms(inputs, state)
-
-        outputs_dict = {}
-        new_states = [None] * self._num_copies
-        infos_dict = {}
-
-        for alg_idx, (
-                sliced_time_step,
-                sliced_state,
-                batch_indices,
-        ) in routing.items():
-            # Slice rollout_info (handling distributions specially)
-            sliced_rollout_info = alf.nest.map_structure(
-                lambda x: _slice_nested_structure(
-                    x, batch_indices, time_major=False),
-                rollout_info,
-            )
-
-            alg_step = self._algorithms[alg_idx].train_step(
-                sliced_time_step, sliced_state, sliced_rollout_info)
-
-            outputs_dict[alg_idx] = (alg_step.output, batch_indices)
-            new_states[alg_idx] = alg_step.state
-            infos_dict[alg_idx] = (alg_step.info, batch_indices)
-
-        output = self._scatter_outputs(outputs_dict, batch_size)
-        info = self._scatter_outputs(infos_dict, batch_size)
-
-        return AlgStep(output=output, state=new_states, info=info)
-
-    def _scatter_loss_to_full_batch(self, loss_tensor, batch_indices,
-                                    full_batch_size):
-        """Scatter a loss tensor from sliced batch back to full batch size.
-        
-        Args:
-            loss_tensor: tensor with shape [T, B_sliced, ...]
-            batch_indices: indices of the samples this loss came from
-            full_batch_size: target full batch size (mini_batch_size)
-            
-        Returns:
-            tensor with shape [T, full_batch_size, ...] (with zeros where indices don't match)
-        """
-        if not isinstance(loss_tensor, torch.Tensor):
-            return loss_tensor
-
-        if loss_tensor.ndim < 2:
-            return loss_tensor
-
-        # Get actual batch size from loss tensor
-        sliced_batch_size = loss_tensor.shape[1]
-
-        # If already at full batch size, return as-is
-        if sliced_batch_size == full_batch_size:
-            return loss_tensor
-
-        T = loss_tensor.shape[0]
-        result_shape = [T, full_batch_size] + list(loss_tensor.shape[2:])
-        result = torch.zeros(result_shape,
-                             dtype=loss_tensor.dtype,
-                             device=loss_tensor.device)
-
-        result[:, batch_indices] = loss_tensor
-        return result
-
-    def calc_loss(self, info) -> LossInfo:
-        """Compute and aggregate losses from all algorithm copies.
-
-        Args:
-            info: nested Tensor with shape [T, B, ...]
-
-        Returns:
-            LossInfo with aggregated loss
-        """
-        # Route info to each algorithm
-        actual_batch_size = alf.nest.get_nest_batch_size(info)
-
-        # Get the full batch size from config (mini_batch_size during training)
-        full_batch_size = self._config.mini_batch_size if self._config else actual_batch_size
-
-        total_loss = ()
-        total_priority = ()
-        extra_dict = {}
-
-        device = next(iter(alf.nest.flatten(info))).device
-
-        for alg_idx in range(self._num_copies):
-            # Use efficient slicing: elements where j % K == alg_idx
-            batch_indices = torch.arange(alg_idx,
-                                         actual_batch_size,
-                                         self._num_copies,
-                                         device=device)
-
-            if len(batch_indices) == 0:
-                continue
-
-            # Slice info for this algorithm (handling distributions specially)
-            sliced_info = alf.nest.map_structure(
-                lambda x: _slice_nested_structure(
-                    x, batch_indices, time_major=True),
-                info,
-            )
-
-            # Compute loss for this algorithm
-            loss_info = self._algorithms[alg_idx].calc_loss(sliced_info)
-
-            # Scatter losses back to full batch size for aggregation
-            scattered_loss = alf.nest.map_structure(
-                lambda x: self._scatter_loss_to_full_batch(
-                    x, batch_indices, full_batch_size), loss_info.loss)
-            scattered_priority = alf.nest.map_structure(
-                lambda x: self._scatter_loss_to_full_batch(
-                    x, batch_indices, full_batch_size), loss_info.priority)
-
-            # Accumulate losses using add_ignore_empty to handle () gracefully
-            total_loss = alf.utils.math_ops.add_ignore_empty(
-                total_loss, scattered_loss)
-            total_priority = alf.utils.math_ops.add_ignore_empty(
-                total_priority, scattered_priority)
-
-            # Scatter extra info back to full batch size
-            scattered_extra = alf.nest.map_structure(
-                lambda x: self._scatter_loss_to_full_batch(
-                    x, batch_indices, full_batch_size), loss_info.extra)
-
-            extra_dict[f"alg_{alg_idx}"] = scattered_extra
-
-        return LossInfo(loss=total_loss,
-                        priority=total_priority,
-                        extra=extra_dict)
-
-    def predict_step(self, inputs: TimeStep, state) -> AlgStep:
-        """Route batch elements to algorithm copies for prediction.
-
-        Args:
-            inputs: TimeStep with shape [B, ...]
-            state: List of states, one per algorithm copy, or single state for evaluation
-
-        Returns:
-            AlgStep with predictions
-        """
-        batch_size = alf.nest.get_nest_batch_size(inputs.observation)
-
-        # Handle single environment evaluation (batch_size=1, single state)
-        if batch_size == 1 and not isinstance(state, list):
-            alg_step = self._algorithms[0].predict_step(inputs, state)
-            return AlgStep(output=alg_step.output,
-                           state=alg_step.state,
-                           info=alg_step.info)
-
-        # Handle multi-environment training (batch_size > 1, list of states)
-        routing = self._route_batch_to_algorithms(inputs, state)
-
-        outputs_dict = {}
-        new_states = [None] * self._num_copies
-        infos_dict = {}
-
-        for alg_idx, (
-                sliced_time_step,
-                sliced_state,
-                batch_indices,
-        ) in routing.items():
-            alg_step = self._algorithms[alg_idx].predict_step(
-                sliced_time_step, sliced_state)
-
-            outputs_dict[alg_idx] = (alg_step.output, batch_indices)
-            new_states[alg_idx] = alg_step.state
-            infos_dict[alg_idx] = (alg_step.info, batch_indices)
-
-        output = self._scatter_outputs(outputs_dict, batch_size)
-        info = self._scatter_outputs(infos_dict, batch_size)
-
-        return AlgStep(output=output, state=new_states, info=info)
-
-    def summarize_rollout(self, experience: Experience):
-        """Summarize rollout experience for all algorithm copies.
-        
-        Routes experience to each algorithm copy and calls their summarize_rollout.
-        """
-        batch_size = alf.nest.get_nest_batch_size(experience.observation)
-        device = next(iter(alf.nest.flatten(experience.observation))).device
-
-        for i in range(self._num_copies):
-            batch_indices = torch.arange(i,
-                                         batch_size,
-                                         self._num_copies,
-                                         device=device)
-            if len(batch_indices) == 0:
-                continue
-
-            sliced_experience = alf.nest.map_structure(
-                lambda x: _slice_nested_structure(
-                    x, batch_indices, time_major=False), experience)
-
-            if hasattr(self._algorithms[i], 'summarize_rollout'):
-                self._algorithms[i].summarize_rollout(sliced_experience)
-
-    def summarize_train(self, experience: Experience, train_info, loss_info,
-                        params):
-        """Summarize training experience for all algorithm copies.
-        
-        Routes experience to each algorithm copy and calls their summarize_train.
-        """
-        batch_size = alf.nest.get_nest_batch_size(experience.observation)
-        device = next(iter(alf.nest.flatten(experience.observation))).device
-
-        for i in range(self._num_copies):
-            batch_indices = torch.arange(i,
-                                         batch_size,
-                                         self._num_copies,
-                                         device=device)
-            if len(batch_indices) == 0:
-                continue
-
-            sliced_experience = alf.nest.map_structure(
-                lambda x: _slice_nested_structure(
-                    x, batch_indices, time_major=False), experience)
-            sliced_train_info = alf.nest.map_structure(
-                lambda x: _slice_nested_structure(
-                    x, batch_indices, time_major=False), train_info)
-
-            if hasattr(self._algorithms[i], 'summarize_train'):
-                self._algorithms[i].summarize_train(sliced_experience,
-                                                    sliced_train_info,
-                                                    loss_info, params)
+        total_steps = 0
+        for alg in self._algorithms:
+            steps = alg.train_iter()
+            total_steps += steps
+        return total_steps
+
+    def load_offline_replay_buffer(self, untransformed_observation_spec,
+                                   ddp_rank):
+        """Load offline replay buffer for all sub-algorithms."""
+        for alg in self._algorithms:
+            alg.load_offline_replay_buffer(untransformed_observation_spec,
+                                           ddp_rank)
+
+    def get_step_metrics(self):
+        """Get step metrics from the first algorithm."""
+        return self._algorithms[0].get_step_metrics()
+
+    def get_metrics(self):
+        """Get metrics from the first algorithm."""
+        return self._algorithms[0].get_metrics()
+
+    def load_checkpoint(self, *args, **kwargs):
+        """Load checkpoint for all sub-algorithms."""
+        for alg in self._algorithms:
+            if hasattr(alg, 'load_checkpoint'):
+                alg.load_checkpoint(*args, **kwargs)
+
+    def save_checkpoint(self, *args, **kwargs):
+        """Save checkpoint for all sub-algorithms."""
+        for alg in self._algorithms:
+            if hasattr(alg, 'save_checkpoint'):
+                alg.save_checkpoint(*args, **kwargs)
+
+    def finish_train(self):
+        """Finish training for all sub-algorithms."""
+        for alg in self._algorithms:
+            if hasattr(alg, 'finish_train'):
+                alg.finish_train()
+
+    def reset_state(self):
+        """Reset state for all sub-algorithms."""
+        for alg in self._algorithms:
+            if hasattr(alg, 'reset_state'):
+                alg.reset_state()
+
+    def evaluate(self):
+        """Evaluate all sub-algorithms."""
+        for alg in self._algorithms:
+            if hasattr(alg, 'evaluate'):
+                alg.evaluate()
+
+    def eval_uncertainty(self):
+        """Eval uncertainty for all sub-algorithms."""
+        for alg in self._algorithms:
+            if hasattr(alg, 'eval_uncertainty'):
+                alg.eval_uncertainty()
+
+    def compute_paras_statistics(self):
+        """Compute parameter statistics from first algorithm."""
+        return self._algorithms[0].compute_paras_statistics()
+
+    def get_optimizer_info(self):
+        """Get optimizer info from first algorithm."""
+        return self._algorithms[0].get_optimizer_info()
+
+    def get_unoptimized_parameter_info(self):
+        """Get unoptimized parameter info from first algorithm."""
+        return self._algorithms[0].get_unoptimized_parameter_info()
