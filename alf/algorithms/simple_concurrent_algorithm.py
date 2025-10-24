@@ -25,7 +25,7 @@ import torch.nn as nn
 import alf
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
-from alf.data_structures import AlgStep, LossInfo, TimeStep
+from alf.data_structures import AlgStep, Experience, LossInfo, TimeStep
 from alf.tensor_specs import TensorSpec
 
 
@@ -54,6 +54,27 @@ def _slice_distribution(dist, indices, time_major=False):
         else:
             raise ValueError(f"Cannot slice distribution of type {type(dist)}")
     return dist
+
+
+def _slice_nested_structure(value, indices, time_major=False):
+    """Slice a value that may be a tensor or distribution.
+    
+    Args:
+        value: Tensor or Distribution object to slice
+        indices: Indices to slice with
+        time_major: If True, slice along dimension 1 (for [T, B, ...]),
+                    otherwise slice along dimension 0 (for [B, ...])
+    
+    Returns:
+        Sliced value
+    """
+    if isinstance(value, td.Distribution):
+        return _slice_distribution(value, indices, time_major)
+    else:
+        if time_major:
+            return value[:, indices]
+        else:
+            return value[indices]
 
 
 @alf.configurable
@@ -354,9 +375,8 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         ) in routing.items():
             # Slice rollout_info (handling distributions specially)
             sliced_rollout_info = alf.nest.map_structure(
-                lambda x:
-                (_slice_distribution(x, batch_indices, time_major=False)
-                 if isinstance(x, td.Distribution) else x[batch_indices]),
+                lambda x: _slice_nested_structure(
+                    x, batch_indices, time_major=False),
                 rollout_info,
             )
 
@@ -372,6 +392,40 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
 
         return AlgStep(output=output, state=new_states, info=info)
 
+    def _scatter_loss_to_full_batch(self, loss_tensor, batch_indices,
+                                    full_batch_size):
+        """Scatter a loss tensor from sliced batch back to full batch size.
+        
+        Args:
+            loss_tensor: tensor with shape [T, B_sliced, ...]
+            batch_indices: indices of the samples this loss came from
+            full_batch_size: target full batch size (mini_batch_size)
+            
+        Returns:
+            tensor with shape [T, full_batch_size, ...] (with zeros where indices don't match)
+        """
+        if not isinstance(loss_tensor, torch.Tensor):
+            return loss_tensor
+
+        if loss_tensor.ndim < 2:
+            return loss_tensor
+
+        # Get actual batch size from loss tensor
+        sliced_batch_size = loss_tensor.shape[1]
+
+        # If already at full batch size, return as-is
+        if sliced_batch_size == full_batch_size:
+            return loss_tensor
+
+        T = loss_tensor.shape[0]
+        result_shape = [T, full_batch_size] + list(loss_tensor.shape[2:])
+        result = torch.zeros(result_shape,
+                             dtype=loss_tensor.dtype,
+                             device=loss_tensor.device)
+
+        result[:, batch_indices] = loss_tensor
+        return result
+
     def calc_loss(self, info) -> LossInfo:
         """Compute and aggregate losses from all algorithm copies.
 
@@ -382,7 +436,10 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
             LossInfo with aggregated loss
         """
         # Route info to each algorithm
-        batch_size = alf.nest.get_nest_batch_size(info)
+        actual_batch_size = alf.nest.get_nest_batch_size(info)
+
+        # Get the full batch size from config (mini_batch_size during training)
+        full_batch_size = self._config.mini_batch_size if self._config else actual_batch_size
 
         total_loss = ()
         total_priority = ()
@@ -393,7 +450,7 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         for alg_idx in range(self._num_copies):
             # Use efficient slicing: elements where j % K == alg_idx
             batch_indices = torch.arange(alg_idx,
-                                         batch_size,
+                                         actual_batch_size,
                                          self._num_copies,
                                          device=device)
 
@@ -402,22 +459,34 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
 
             # Slice info for this algorithm (handling distributions specially)
             sliced_info = alf.nest.map_structure(
-                lambda x:
-                (_slice_distribution(x, batch_indices, time_major=True)
-                 if isinstance(x, td.Distribution) else x[:, batch_indices]),
+                lambda x: _slice_nested_structure(
+                    x, batch_indices, time_major=True),
                 info,
             )
 
             # Compute loss for this algorithm
             loss_info = self._algorithms[alg_idx].calc_loss(sliced_info)
 
+            # Scatter losses back to full batch size for aggregation
+            scattered_loss = alf.nest.map_structure(
+                lambda x: self._scatter_loss_to_full_batch(
+                    x, batch_indices, full_batch_size), loss_info.loss)
+            scattered_priority = alf.nest.map_structure(
+                lambda x: self._scatter_loss_to_full_batch(
+                    x, batch_indices, full_batch_size), loss_info.priority)
+
             # Accumulate losses using add_ignore_empty to handle () gracefully
             total_loss = alf.utils.math_ops.add_ignore_empty(
-                total_loss, loss_info.loss)
+                total_loss, scattered_loss)
             total_priority = alf.utils.math_ops.add_ignore_empty(
-                total_priority, loss_info.priority)
+                total_priority, scattered_priority)
 
-            extra_dict[f"alg_{alg_idx}"] = loss_info.extra
+            # Scatter extra info back to full batch size
+            scattered_extra = alf.nest.map_structure(
+                lambda x: self._scatter_loss_to_full_batch(
+                    x, batch_indices, full_batch_size), loss_info.extra)
+
+            extra_dict[f"alg_{alg_idx}"] = scattered_extra
 
         return LossInfo(loss=total_loss,
                         priority=total_priority,
@@ -465,3 +534,55 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         info = self._scatter_outputs(infos_dict, batch_size)
 
         return AlgStep(output=output, state=new_states, info=info)
+
+    def summarize_rollout(self, experience: Experience):
+        """Summarize rollout experience for all algorithm copies.
+        
+        Routes experience to each algorithm copy and calls their summarize_rollout.
+        """
+        batch_size = alf.nest.get_nest_batch_size(experience.observation)
+        device = next(iter(alf.nest.flatten(experience.observation))).device
+
+        for i in range(self._num_copies):
+            batch_indices = torch.arange(i,
+                                         batch_size,
+                                         self._num_copies,
+                                         device=device)
+            if len(batch_indices) == 0:
+                continue
+
+            sliced_experience = alf.nest.map_structure(
+                lambda x: _slice_nested_structure(
+                    x, batch_indices, time_major=False), experience)
+
+            if hasattr(self._algorithms[i], 'summarize_rollout'):
+                self._algorithms[i].summarize_rollout(sliced_experience)
+
+    def summarize_train(self, experience: Experience, train_info, loss_info,
+                        params):
+        """Summarize training experience for all algorithm copies.
+        
+        Routes experience to each algorithm copy and calls their summarize_train.
+        """
+        batch_size = alf.nest.get_nest_batch_size(experience.observation)
+        device = next(iter(alf.nest.flatten(experience.observation))).device
+
+        for i in range(self._num_copies):
+            batch_indices = torch.arange(i,
+                                         batch_size,
+                                         self._num_copies,
+                                         device=device)
+            if len(batch_indices) == 0:
+                continue
+
+            sliced_experience = alf.nest.map_structure(
+                lambda x: _slice_nested_structure(
+                    x, batch_indices, time_major=False), experience)
+            sliced_train_info = alf.nest.map_structure(
+                lambda x: _slice_nested_structure(
+                    x, batch_indices, time_major=False), train_info)
+
+            if hasattr(self._algorithms[i], 'summarize_train'):
+                self._algorithms[i].summarize_train(sliced_experience,
+                                                    sliced_train_info,
+                                                    loss_info, params)

@@ -13,62 +13,55 @@
 # limitations under the License.
 """Simple Concurrent SAC Demo Configuration.
 
-This demonstrates SimpleConcurrentAlgorithm with SAC on LunarLander-v2.
+This demonstrates SimpleConcurrentAlgorithm with SAC on CartPole-v0.
 The algorithm creates multiple independent SAC copies that learn concurrently.
 """
 
 import alf
+
+alf.import_config("sac_conf.py")
 from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.simple_concurrent_algorithm import SimpleConcurrentAlgorithm
-from alf.networks import QNetwork
-from alf.optimizers import AdamTF
+from alf.networks import ActorDistributionNetwork, QNetwork
 from alf.utils.losses import element_wise_squared_loss
 
-# Environment configuration
-alf.config(
-    "create_environment",
-    env_name="LunarLander-v2",
-    num_parallel_environments=2,  # Must be multiple of num_copies (2)
-)
+# environment config
+alf.config('create_environment',
+           env_name="CartPole-v0",
+           num_parallel_environments=8)
 
-# Q-Network configuration
-alf.config("QNetwork", fc_layer_params=(128, 128))
+# algorithm config
+alf.config('QNetwork', fc_layer_params=(100, ))
+# note that for discrete action space we do not need the actor network as a
+# discrete action can be sampled from the Q values.
+alf.config('SacAlgorithm',
+           q_network_cls=QNetwork,
+           actor_optimizer=alf.optimizers.Adam(lr=1e-3, name='actor'),
+           critic_optimizer=alf.optimizers.Adam(lr=1e-3, name='critic'),
+           alpha_optimizer=alf.optimizers.Adam(lr=1e-3, name='alpha'),
+           target_update_tau=0.01)
 
-# SAC algorithm configuration
-alf.config(
-    "SacAlgorithm",
-    q_network_cls=QNetwork,
-    actor_optimizer=AdamTF(lr=1e-3, name="actor"),
-    critic_optimizer=AdamTF(lr=1e-3, name="critic"),
-    alpha_optimizer=AdamTF(lr=1e-3, name="alpha"),
-    target_update_tau=0.01,
-)
-
-alf.config("OneStepTDLoss",
+alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
-           gamma=0.99)
+           gamma=0.98)
 
 # SimpleConcurrentAlgorithm configuration
 alf.config("SimpleConcurrentAlgorithm",
            algorithm_ctor=SacAlgorithm,
-           num_copies=2)  # 2 independent SAC copies
+           num_copies=1)
 
-# Training configuration
-alf.config(
-    "TrainerConfig",
-    algorithm_ctor=SimpleConcurrentAlgorithm,
-    num_iterations=10000,
-    unroll_length=1,
-    mini_batch_length=2,
-    mini_batch_size=64,
-    num_updates_per_train_iter=1,
-    initial_collect_steps=1000,
-    replay_buffer_length=20000,
-    whole_replay_buffer_training=False,
-    clear_replay_buffer=False,
-    evaluate=True,
-    eval_interval=200,
-    num_eval_episodes=5,
-    debug_summaries=True,
-    random_seed=42,
-)
+# training config
+alf.config('TrainerConfig',
+           algorithm_ctor=SimpleConcurrentAlgorithm,
+           initial_collect_steps=1000,
+           mini_batch_length=2,
+           mini_batch_size=64,
+           unroll_length=1,
+           num_updates_per_train_iter=1,
+           num_iterations=10000,
+           num_checkpoints=5,
+           evaluate=False,
+           eval_interval=100,
+           debug_summaries=True,
+           summary_interval=100,
+           replay_buffer_length=100000)
