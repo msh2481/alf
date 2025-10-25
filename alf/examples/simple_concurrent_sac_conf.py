@@ -28,10 +28,10 @@ from alf.utils.losses import element_wise_squared_loss
 # environment config
 alf.config('create_environment',
            env_name="CartPole-v0",
-           num_parallel_environments=8)
+           num_parallel_environments=1)
 
 # algorithm config
-alf.config('QNetwork', fc_layer_params=(100, ))
+alf.config('QNetwork', fc_layer_params=(97, ))
 # note that for discrete action space we do not need the actor network as a
 # discrete action can be sampled from the Q values.
 alf.config('SacAlgorithm',
@@ -45,23 +45,24 @@ alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
            gamma=0.98)
 
-# SimpleConcurrentAlgorithm configuration
 alf.config("SimpleConcurrentAlgorithm",
            algorithm_ctor=SacAlgorithm,
+           optimizer=alf.optimizers.Adam(lr=1e-3, name='main'),
            num_copies=1)
 
 # training config
-alf.config('TrainerConfig',
-           algorithm_ctor=SimpleConcurrentAlgorithm,
-           initial_collect_steps=1000,
-           mini_batch_length=2,
-           mini_batch_size=64,
-           unroll_length=1,
-           num_updates_per_train_iter=1,
-           num_iterations=10000,
-           num_checkpoints=5,
-           evaluate=False,
-           eval_interval=100,
-           debug_summaries=True,
-           summary_interval=100,
-           replay_buffer_length=100000)
+alf.config(
+    'TrainerConfig',
+    algorithm_ctor=SacAlgorithm,
+    initial_collect_steps=1000,
+    mini_batch_length=2,
+    mini_batch_size=61,
+    unroll_length=1,
+    num_updates_per_train_iter=1,
+    num_iterations=10000,
+    #    num_checkpoints=5,
+    evaluate=False,
+    eval_interval=100,
+    debug_summaries=True,
+    summary_interval=100,
+    replay_buffer_length=100000)

@@ -27,6 +27,8 @@ from alf.algorithms.config import TrainerConfig
 from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
 from alf.data_structures import AlgStep, Experience, LossInfo, TimeStep
 from alf.tensor_specs import TensorSpec
+from alf.debug_logger import log
+from alf.nest_formatter import format_nest
 
 
 def _slice_distribution(dist, indices, time_major=False):
@@ -104,6 +106,7 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         env=None,
         config: Optional[TrainerConfig] = None,
         checkpoint: Optional[str] = None,
+        optimizer=None,
         debug_summaries: bool = False,
         name: str = "SimpleConcurrentAlgorithm",
     ):
@@ -127,19 +130,9 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         temp_alg = algorithm_ctor(observation_spec=observation_spec,
                                   action_spec=action_spec)
         is_on_policy = temp_alg.on_policy
-
-        # Collect state specs from temporary algorithm
-        train_state_spec = [
-            temp_alg.train_state_spec for _ in range(num_copies)
-        ]
-        rollout_state_spec = [
-            temp_alg.rollout_state_spec for _ in range(num_copies)
-        ]
-        predict_state_spec = [
-            temp_alg.predict_state_spec for _ in range(num_copies)
-        ]
-
-        # Clean up temporary algorithm
+        train_state_spec = temp_alg.train_state_spec
+        rollout_state_spec = temp_alg.rollout_state_spec
+        predict_state_spec = temp_alg.predict_state_spec
         del temp_alg
 
         super().__init__(
@@ -153,18 +146,12 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
             env=env,
             config=config,
             checkpoint=checkpoint,
-            optimizer=None,  # Each sub-algorithm has its own optimizer
+            optimizer=optimizer,
             debug_summaries=debug_summaries,
             name=name,
         )
 
         self._num_copies = num_copies
-
-        # Force sequential training: We don't want _collect_train_info_parallelly
-        # because it flattens temporal sequences which breaks our routing mechanism.
-        # With this set to False, the framework will use _collect_train_info_sequentially
-        # which processes one timestep at a time and naturally works with routing.
-        self._temporally_independent_train_step = False
 
         # Validate that batch size will be compatible with num_copies
         if env and hasattr(env, "batch_size"):
@@ -208,10 +195,6 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         return [
             alg.get_initial_train_state(batch_size) for alg in self._algorithms
         ]
-
-    def _trainable_attributes_to_ignore(self):
-        """Prevent parent optimizer from managing sub-algorithm parameters."""
-        return ["_algorithms"]
 
     def _compute_train_info_and_loss_info(self, experience):
         """Override to force sequential processing regardless of length.
@@ -351,6 +334,7 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         Returns:
             AlgStep with training info
         """
+        log("train_step_inputs", format_nest(inputs))
         batch_size = alf.nest.get_nest_batch_size(inputs.observation)
         routing = self._route_batch_to_algorithms(inputs, state)
 
@@ -379,7 +363,8 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
 
         output = self._scatter_outputs(outputs_dict, batch_size)
         info = self._scatter_outputs(infos_dict, batch_size)
-
+        log("train_step_outputs", format_nest(output))
+        log("train_step_infos", format_nest(info))
         return AlgStep(output=output, state=new_states, info=info)
 
     def _scatter_loss_to_full_batch(self, loss_tensor, batch_indices,
