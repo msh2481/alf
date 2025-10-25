@@ -25,11 +25,9 @@ def unroll(self, unroll_length: int):
         policy_step.output (action): [num_envs] = [2]
         policy_step.info.action_distribution.logits: [num_envs, num_actions] = [2, 2]
         """
-        action = common.detach(policy_step.output)
-
         exp = Experience(
             time_step=time_step,
-            action=policy_step.output,
+            action=common.detach(policy_step.output),
             rollout_info=policy_step.info,
             state=(),
         )
@@ -88,7 +86,8 @@ def train_from_replay_buffer(self, update_global_counter=False):
     """
     batch_size = alf.nest.get_nest_batch_size(experience)
 
-    indices = torch.randperm(batch_size)
+    # indices = torch.randperm(batch_size)
+    indices = torch.arange(batch_size)
     for b in range(0, batch_size, mini_batch_size):
         mini_batch_list, mini_batch_info_list = self._extract_mini_batch_and_info_from_experience(
             indices, [experience], [batch_info], batch_size, b, mini_batch_size)
@@ -184,28 +183,26 @@ def update_with_gradient(self, loss_info):
 ```
 
 ```python
-def train_step(self, inputs, state, rollout_info):
-    """Perform one step of training computation.
+# In case of SAC:
+def train_step(self, inputs: TimeStep, state: SacState, rollout_info: SacInfo):
+    target_observation = inputs.observation
+    observation, new_state, info = inputs.observation, SacState(), SacInfo()
+    (action_distribution, action, critics, action_state) = self._predict_action(observation, state=state.action)
 
-    It is called to calculate output for every time step for a batch of
-    experience from replay buffer. It also needs to generate necessary
-    information for ``calc_loss()``.
+    # actor_state, actor_loss = self._actor_train_step(...)
+    critic_state, critic_info = self._critic_train_step(observation, observation, state.critic, rollout_info, action, action_distribution)
+    # alpha_loss = self._alpha_train_step(...)
+    # info = info._replace(critic=critic_info, alpha=alpha_loss, actor=actor_loss, ...)
+    return AlgStep(action, new_state, info)
 
-    Args:
-        inputs (nested Tensor): inputs for train.
-        state (nested Tensor): consistent with ``train_state_spec``.
-        rollout_info (nested Tensor): info from ``rollout_step()``. It is
-            retrieved from replay buffer.
-    Returns:
-        AlgStep:
-        - output (nested Tensor): prediction result.
-        - state (nested Tensor): should match ``train_state_spec``.
-        - info (nested Tensor): information for training. It will temporally
-            batched and passed as ``info`` for calc_loss(). If this is
-            ``LossInfo``, ``calc_loss()`` in ``Algorithm`` can be used.
-            Otherwise, the user needs to override ``calc_loss()`` to
-            calculate loss or override ``update_with_gradient()`` to do
-            customized training.
-    """
-    raise NotImplementedError()
 ```
+
+## What I will need to implement
+`collect_info...`: ensure that sequential version is called
+`rollout_step`: split inputs (just nested tensor, batch-major) into sub-batches, call `rollout_step` for children on those sub-batches, combine their results (which might contain distributions, and gradients) back.
+`predict_step`: same (needed only for evaluation)
+`after_update` / `after_train_iter`: call on children recursively
+`train_step`: split, call `train_step` for children recursively, combine results back (again should be batch-major)
+`subalgorithms`: when creating them, ensure that their specs reflect receiving sub-batches instead of full mini-batches
+
+Btw, can implement this as mixin, or even just inherit from `SacAlgorithm` -- this way I am reusing all specs, etc.

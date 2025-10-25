@@ -209,16 +209,6 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
             alg.get_initial_train_state(batch_size) for alg in self._algorithms
         ]
 
-        # Setup replay buffers for off-policy algorithms
-        if not is_on_policy and config:
-            for alg in self._algorithms:
-                if hasattr(alg, "set_replay_buffer"):
-                    alg.set_replay_buffer(
-                        num_envs=env.batch_size if env else 1,
-                        max_length=config.replay_buffer_length,
-                        prioritized_sampling=config.priority_replay,
-                    )
-
     def _trainable_attributes_to_ignore(self):
         """Prevent parent optimizer from managing sub-algorithm parameters."""
         return ["_algorithms"]
