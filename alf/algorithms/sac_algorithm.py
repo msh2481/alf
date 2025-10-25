@@ -42,6 +42,10 @@ from alf.utils import losses, common, dist_utils, math_ops
 from alf.utils.normalizers import ScalarAdaptiveNormalizer
 from alf.utils.schedulers import Scheduler
 
+# Debug logging utilities
+from alf.debug_logger import log
+from alf.nest_formatter import format_nest
+
 ActionType = Enum('ActionType', ('Discrete', 'Continuous', 'Mixed'))
 
 SacActionState = namedtuple("SacActionState", ["actor_network", "critic"],
@@ -925,6 +929,11 @@ class SacAlgorithm(OffPolicyAlgorithm):
         (action_distribution, action, critics,
          action_state) = self._predict_action(observation, state=state.action)
 
+        # Debug log: SAC action prediction
+        log("sac_action_distribution_11", format_nest(action_distribution))
+        log("sac_action_11", format_nest(action))
+        log("sac_critics_11", format_nest(critics))
+
         log_pi = nest.map_structure(lambda dist, a: dist.log_prob(a),
                                     action_distribution, action)
 
@@ -944,9 +953,17 @@ class SacAlgorithm(OffPolicyAlgorithm):
         actor_state, actor_loss = self._actor_train_step(
             observation, state.actor, action, critics, log_pi,
             action_distribution)
+
+        # Debug log: SAC actor loss
+        log("sac_actor_loss_12", format_nest(actor_loss))
+
         critic_state, critic_info = self._critic_train_step(
             observation, target_observation, state.critic, rollout_info,
             action, action_distribution)
+
+        # Debug log: SAC critic info
+        log("sac_critic_info_13", format_nest(critic_info))
+
         alpha_loss = self._alpha_train_step(log_pi)
 
         new_state = new_state._replace(action=action_state,

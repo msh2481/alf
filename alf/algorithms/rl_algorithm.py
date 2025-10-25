@@ -35,6 +35,10 @@ from alf.utils.distributed import data_distributed_when, make_ddp_performer
 from alf.tensor_specs import TensorSpec
 from .config import TrainerConfig
 
+# Debug logging utilities
+from alf.debug_logger import log
+from alf.nest_formatter import format_nest
+
 
 def adjust_replay_buffer_length(config: TrainerConfig,
                                 num_earliest_frames_ignored: int = 0) -> int:
@@ -677,6 +681,11 @@ class RLAlgorithm(Algorithm):
                                                 policy_state)
             policy_step_time += time.time() - t0
 
+            # Debug log: rollout step output
+            log("rollout_step_output_1", format_nest(policy_step))
+            log("rollout_step_input_time_step_1",
+                format_nest(transformed_time_step))
+
             action = common.detach(policy_step.output)
 
             t0 = time.time()
@@ -715,6 +724,9 @@ class RLAlgorithm(Algorithm):
         experience = experience._replace(
             rollout_info=dist_utils.params_to_distributions(
                 experience.rollout_info, self._rollout_info_spec))
+
+        # Debug log: complete unroll experience
+        log("unroll_complete_experience_2", format_nest(experience))
 
         self._current_time_step = time_step
         # Need to detach so that the graph from this unroll is disconnected from

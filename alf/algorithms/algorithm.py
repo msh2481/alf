@@ -43,6 +43,10 @@ from .algorithm_interface import AlgorithmInterface
 from .config import TrainerConfig
 from .data_transformer import IdentityDataTransformer
 
+# Debug logging utilities
+from alf.debug_logger import log
+from alf.nest_formatter import format_nest
+
 
 def _get_optimizer_params(optimizer: torch.optim.Optimizer):
     return sum([g['params'] for g in optimizer.param_groups], [])
@@ -1535,6 +1539,11 @@ class Algorithm(AlgorithmInterface):
                                     config.num_updates_per_train_iter),
                         batch_length=config.mini_batch_length)
                     num_updates = 1
+
+            # Debug log: replay buffer sample
+            log("replay_buffer_sample_3", format_nest(experience))
+            log("replay_buffer_batch_info_3", format_nest(batch_info))
+
             return experience, batch_info, num_updates, mini_batch_size
 
         if not self.has_offline:
@@ -1710,6 +1719,9 @@ class Algorithm(AlgorithmInterface):
         with alf.device(experience.step_type.device.type):
             experience = self.transform_experience(experience)
 
+        # Debug log: experience after transformation
+        log("experience_after_transform_4", format_nest(experience))
+
         # TODO(breakds): Create a cleaner and more readable function to prepare
         # experience that better handles the similar and distinct part of
         # "whole_replay_buffer_training or not", including correctly set
@@ -1800,6 +1812,9 @@ class Algorithm(AlgorithmInterface):
             lambda x: x.reshape(-1, mini_batch_length, *x.shape[2:]),
             experience)
 
+        # Debug log: experience after reshape
+        log("experience_after_reshape_5", format_nest(experience))
+
         batch_size = alf.nest.get_nest_batch_size(experience)
 
         return (experience, processed_exp_spec, batch_info, length,
@@ -1829,8 +1844,16 @@ class Algorithm(AlgorithmInterface):
                     "Policy state is non-empty but the experience doesn't "
                     "contain the 'step_type' field. No way to reinitialize "
                     "the state but will simply keep updating it.")
+
+            # Debug log: train_step input (single time step)
+            log("train_step_input_exp_7", format_nest(exp))
+
             policy_step = self.train_step(exp.time_step, policy_state,
                                           exp.rollout_info)
+
+            # Debug log: train_step output
+            log("train_step_output_info_8", format_nest(policy_step.info))
+
             if self._train_info_spec is None:
                 self._train_info_spec = dist_utils.extract_spec(
                     policy_step.info)
@@ -1840,6 +1863,10 @@ class Algorithm(AlgorithmInterface):
 
         info = alf.nest.utils.stack_nests(info_list)
         info = dist_utils.params_to_distributions(info, self.train_info_spec)
+
+        # Debug log: aggregated train_info
+        log("train_info_aggregated_9", format_nest(info))
+
         return info
 
     def _collect_train_info_parallelly(self, experience):
@@ -1885,6 +1912,9 @@ class Algorithm(AlgorithmInterface):
         else:
             train_info = self._collect_train_info_sequentially(experience)
         loss_info = self.calc_loss(train_info)
+
+        # Debug log: computed loss_info
+        log("loss_info_computed_10", format_nest(loss_info))
 
         return train_info, loss_info
 
@@ -2017,6 +2047,9 @@ class Algorithm(AlgorithmInterface):
                     binfo = None
                 batch = _make_time_major(batch)
                 batch = alf.nest.utils.convert_device(batch)
+
+                # Debug log: mini-batch extracted (time-major format)
+                log("mini_batch_extracted_6", format_nest(batch))
             else:
                 batch = None
                 binfo = None
