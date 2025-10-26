@@ -20,6 +20,8 @@ import alf
 from alf.environments import suite_gym
 from alf.environments.simple.noisy_array import NoisyArray
 from alf.environments.simple.stochastic_with_risky_branch import StochasticWithRiskyBranch
+from alf.environments.simple.check_value import CheckValue
+from alf.environments.simple.check_policy import CheckPolicy
 from alf.environments.object_centric.bouncing_squares import BouncingSquares
 from alf.environments.gym_wrappers import FrameSkip, FrameStack
 
@@ -55,6 +57,10 @@ def load(game,
         env = NoisyArray(**env_args)
     elif game == "StochasticWithRiskyBranch":
         env = StochasticWithRiskyBranch(**env_args)
+    elif game == "CheckValue":
+        env = CheckValue(**env_args)
+    elif game == "CheckPolicy":
+        env = CheckPolicy(**env_args)
     elif game == "BouncingSquares":
         env = BouncingSquares(**env_args)
     else:

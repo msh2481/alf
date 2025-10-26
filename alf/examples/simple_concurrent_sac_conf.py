@@ -27,7 +27,7 @@ from alf.utils.losses import element_wise_squared_loss
 
 # environment config
 alf.config('create_environment',
-           env_name="CartPole-v0",
+           env_name="CheckPolicy-v0",
            num_parallel_environments=1)
 
 # algorithm config
@@ -53,6 +53,7 @@ alf.config("SimpleConcurrentAlgorithm",
 # training config
 alf.config(
     'TrainerConfig',
+    #  algorithm_ctor=SimpleConcurrentAlgorithm,
     algorithm_ctor=SacAlgorithm,
     initial_collect_steps=1000,
     mini_batch_length=2,

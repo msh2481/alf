@@ -11,3 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+import gym
+
+gym.register(
+    id='CheckValue-v0',
+    entry_point='alf.environments.simple.check_value:CheckValue',
+)
+
+gym.register(
+    id='CheckPolicy-v0',
+    entry_point='alf.environments.simple.check_policy:CheckPolicy',
+)

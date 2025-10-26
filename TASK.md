@@ -196,13 +196,3 @@ def train_step(self, inputs: TimeStep, state: SacState, rollout_info: SacInfo):
     return AlgStep(action, new_state, info)
 
 ```
-
-## What I will need to implement
-`collect_info...`: ensure that sequential version is called
-`rollout_step`: split inputs (just nested tensor, batch-major) into sub-batches, call `rollout_step` for children on those sub-batches, combine their results (which might contain distributions, and gradients) back.
-`predict_step`: same (needed only for evaluation)
-`after_update` / `after_train_iter`: call on children recursively
-`train_step`: split, call `train_step` for children recursively, combine results back (again should be batch-major)
-`subalgorithms`: when creating them, ensure that their specs reflect receiving sub-batches instead of full mini-batches
-
-Btw, can implement this as mixin, or even just inherit from `SacAlgorithm` -- this way I am reusing all specs, etc.
