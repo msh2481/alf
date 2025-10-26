@@ -448,6 +448,8 @@ class SacAlgorithm(OffPolicyAlgorithm):
         self._repr_alg = repr_alg
         self._target_repr_alg = target_repr_alg
 
+        self._initial_debug_obs = None
+
         def _filter(x):
             return list(filter(lambda x: x is not None, x))
 
@@ -975,8 +977,49 @@ class SacAlgorithm(OffPolicyAlgorithm):
                 lambda la: la.data.copy_(torch.min(la, self._max_log_alpha)),
                 self._log_alpha)
 
+    def debug_metrics(self, initial_obs, actions, q_function):
+        """Debug metrics for analyzing Q-values.
+
+        Args:
+            initial_obs (Tensor): initial observation
+            actions (Tensor): actions to evaluate
+            q_function (callable): function that takes (obs, action) and returns Q-value
+        """
+        if torch.rand(1).item() > 0.002:
+            return
+        print("\n=== Debug Metrics ===")
+        print(f"Initial observation: {initial_obs}")
+        print(f"Q-values for all actions from initial state:")
+        for i, action in enumerate(actions):
+            q_value = q_function(initial_obs, action)
+            print(f"  Action {i}: Q = {q_value.item():.4f}")
+        print("=" * 40 + "\n")
+
+    def _call_debug_metrics(self):
+        """Helper to call debug_metrics with appropriate arguments."""
+        if self._act_type != ActionType.Discrete:
+            return
+
+        with torch.no_grad():
+            if self._initial_debug_obs is None:
+                initial_time_step = self._env.reset()
+                self._initial_debug_obs = initial_time_step.observation[
+                    0:1].clone()
+
+            num_actions = nest.flatten(self._action_spec)[0].maximum + 1
+            actions = torch.arange(num_actions)
+
+            def q_function(obs, action):
+                q_values, _ = self._compute_critics(self._critic_networks, obs,
+                                                    None, ())
+                return q_values[0, action]
+
+            self.debug_metrics(self._initial_debug_obs, actions, q_function)
+
     def after_train_iter(self, inputs: TimeStep, info: SacInfo):
         self._periodic_reset()
+        if self._debug_summaries and self._env is not None:
+            self._call_debug_metrics()
 
     def calc_loss(self, info: SacInfo):
         assert not self._is_eval
