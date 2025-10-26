@@ -26,17 +26,19 @@ from alf.networks import ActorDistributionNetwork, QNetwork
 from alf.utils.losses import element_wise_squared_loss
 
 # environment config
-alf.config('create_environment',
-           env_name="CheckPolicy-v0",
-           num_parallel_environments=1)
+alf.config(
+    'create_environment',
+    #   env_name="CheckPolicy-v0",
+    env_name="CartPole-v0",
+    num_parallel_environments=1)
 
 alf.config('QNetwork', fc_layer_params=(97, ))
 alf.config(
     'SacAlgorithm',
     q_network_cls=QNetwork,
-    #   actor_optimizer=alf.optimizers.Adam(lr=1e-3, name='actor'),
-    #   critic_optimizer=alf.optimizers.Adam(lr=1e-3, name='critic'),
-    #   alpha_optimizer=alf.optimizers.Adam(lr=1e-3, name='alpha'),
+    # actor_optimizer=alf.optimizers.Adam(lr=1e-3, name='actor'),
+    # critic_optimizer=alf.optimizers.Adam(lr=1e-3, name='critic'),
+    # alpha_optimizer=alf.optimizers.Adam(lr=1e-3, name='alpha'),
     target_update_tau=0.01)
 
 alf.config('OneStepTDLoss',
@@ -52,13 +54,13 @@ alf.config("SimpleConcurrentAlgorithm",
 alf.config(
     'TrainerConfig',
     algorithm_ctor=SimpleConcurrentAlgorithm,
-    #  algorithm_ctor=SacAlgorithm,
+    #   algorithm_ctor=SacAlgorithm,
     initial_collect_steps=10,
     mini_batch_length=2,
     mini_batch_size=61,
     unroll_length=1,
     num_updates_per_train_iter=1,
-    num_iterations=3000,
+    num_iterations=10000,
     num_checkpoints=3,
     evaluate=False,
     eval_interval=100,

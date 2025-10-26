@@ -128,11 +128,18 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         # Infer on_policy from first algorithm copy
         # Create a temporary instance to check on_policy property
         temp_alg = algorithm_ctor(observation_spec=observation_spec,
-                                  action_spec=action_spec)
+                                  action_spec=action_spec,
+                                  reward_spec=reward_spec)
         is_on_policy = temp_alg.on_policy
-        train_state_spec = temp_alg.train_state_spec
-        rollout_state_spec = temp_alg.rollout_state_spec
-        predict_state_spec = temp_alg.predict_state_spec
+        train_state_spec = [
+            temp_alg.train_state_spec for _ in range(num_copies)
+        ]
+        rollout_state_spec = [
+            temp_alg.rollout_state_spec for _ in range(num_copies)
+        ]
+        predict_state_spec = [
+            temp_alg.predict_state_spec for _ in range(num_copies)
+        ]
         del temp_alg
 
         super().__init__(
@@ -174,14 +181,10 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
 
     def get_initial_predict_state(self, batch_size):
         """Get initial predict state for all algorithm copies."""
-        # For single environment evaluation, use only the first algorithm copy
-        if batch_size == 1:
-            return self._algorithms[0].get_initial_predict_state(batch_size)
-        else:
-            return [
-                alg.get_initial_predict_state(batch_size)
-                for alg in self._algorithms
-            ]
+        return [
+            alg.get_initial_predict_state(batch_size)
+            for alg in self._algorithms
+        ]
 
     def get_initial_rollout_state(self, batch_size):
         """Get initial rollout state for all algorithm copies."""
@@ -204,7 +207,9 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         tensors. We always use sequential processing, even for length==1.
         """
         # Always use sequential processing to avoid flattening the batch dimension
-        train_info = self._collect_train_info_sequentially(experience)
+        # TODO: return sequential, or handle flattening in routing properly
+        # train_info = self._collect_train_info_sequentially(experience)
+        train_info = self._collect_train_info_parallelly(experience)
         loss_info = self.calc_loss(train_info)
         return train_info, loss_info
 
