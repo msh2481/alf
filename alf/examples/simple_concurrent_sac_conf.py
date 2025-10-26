@@ -30,16 +30,14 @@ alf.config('create_environment',
            env_name="CheckPolicy-v0",
            num_parallel_environments=1)
 
-# algorithm config
 alf.config('QNetwork', fc_layer_params=(97, ))
-# note that for discrete action space we do not need the actor network as a
-# discrete action can be sampled from the Q values.
-alf.config('SacAlgorithm',
-           q_network_cls=QNetwork,
-           actor_optimizer=alf.optimizers.Adam(lr=1e-3, name='actor'),
-           critic_optimizer=alf.optimizers.Adam(lr=1e-3, name='critic'),
-           alpha_optimizer=alf.optimizers.Adam(lr=1e-3, name='alpha'),
-           target_update_tau=0.01)
+alf.config(
+    'SacAlgorithm',
+    q_network_cls=QNetwork,
+    #   actor_optimizer=alf.optimizers.Adam(lr=1e-3, name='actor'),
+    #   critic_optimizer=alf.optimizers.Adam(lr=1e-3, name='critic'),
+    #   alpha_optimizer=alf.optimizers.Adam(lr=1e-3, name='alpha'),
+    target_update_tau=0.01)
 
 alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
@@ -53,15 +51,15 @@ alf.config("SimpleConcurrentAlgorithm",
 # training config
 alf.config(
     'TrainerConfig',
-    #  algorithm_ctor=SimpleConcurrentAlgorithm,
-    algorithm_ctor=SacAlgorithm,
-    initial_collect_steps=1000,
+    algorithm_ctor=SimpleConcurrentAlgorithm,
+    #  algorithm_ctor=SacAlgorithm,
+    initial_collect_steps=10,
     mini_batch_length=2,
     mini_batch_size=61,
     unroll_length=1,
     num_updates_per_train_iter=1,
-    num_iterations=10000,
-    #    num_checkpoints=5,
+    num_iterations=3000,
+    num_checkpoints=3,
     evaluate=False,
     eval_interval=100,
     debug_summaries=True,

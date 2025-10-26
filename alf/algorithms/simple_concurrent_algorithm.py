@@ -165,7 +165,7 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
                 observation_spec=observation_spec,
                 action_spec=action_spec,
                 reward_spec=reward_spec,
-                env=None,  # Only root algorithm gets env
+                env=env,
                 config=config,
                 debug_summaries=debug_summaries,
                 name=f"{name}_copy_{i}",
@@ -509,6 +509,21 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         info = self._scatter_outputs(infos_dict, batch_size)
 
         return AlgStep(output=output, state=new_states, info=info)
+
+    def after_train_iter(self, inputs: TimeStep, info):
+        """Call after_train_iter for all algorithm copies."""
+        log("after_train_iter_inputs", format_nest(inputs))
+        log("after_train_iter_info", format_nest(info))
+        for alg in self._algorithms:
+            alg.after_train_iter(inputs, info)
+
+    def after_update(self, root_inputs, info):
+        """Call after_update for all algorithm copies."""
+        # TODO: split these
+        log("after_update_root_inputs", format_nest(root_inputs))
+        log("after_update_info", format_nest(info))
+        for alg in self._algorithms:
+            alg.after_update(root_inputs, info)
 
     def summarize_rollout(self, experience: Experience):
         """Summarize rollout experience for all algorithm copies.

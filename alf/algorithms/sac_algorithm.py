@@ -985,7 +985,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
             actions (Tensor): actions to evaluate
             q_function (callable): function that takes (obs, action) and returns Q-value
         """
-        if torch.rand(1).item() > 0.002:
+        if torch.rand(1).item() > 0.02:
             return
         print("\n=== Debug Metrics ===")
         print(f"Initial observation: {initial_obs}")
