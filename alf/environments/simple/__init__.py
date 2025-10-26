@@ -23,3 +23,8 @@ gym.register(
     id='CheckPolicy-v0',
     entry_point='alf.environments.simple.check_policy:CheckPolicy',
 )
+
+gym.register(
+    id='CheckPropagation-v0',
+    entry_point='alf.environments.simple.check_propagation:CheckPropagation',
+)

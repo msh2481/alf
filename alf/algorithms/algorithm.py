@@ -1535,7 +1535,6 @@ class Algorithm(AlgorithmInterface):
                                     config.num_updates_per_train_iter),
                         batch_length=config.mini_batch_length)
                     num_updates = 1
-
             return experience, batch_info, num_updates, mini_batch_size
 
         if not self.has_offline:
@@ -1830,10 +1829,8 @@ class Algorithm(AlgorithmInterface):
                     "Policy state is non-empty but the experience doesn't "
                     "contain the 'step_type' field. No way to reinitialize "
                     "the state but will simply keep updating it.")
-
             policy_step = self.train_step(exp.time_step, policy_state,
                                           exp.rollout_info)
-
             if self._train_info_spec is None:
                 self._train_info_spec = dist_utils.extract_spec(
                     policy_step.info)
@@ -1843,7 +1840,6 @@ class Algorithm(AlgorithmInterface):
 
         info = alf.nest.utils.stack_nests(info_list)
         info = dist_utils.params_to_distributions(info, self.train_info_spec)
-
         return info
 
     def _collect_train_info_parallelly(self, experience):
