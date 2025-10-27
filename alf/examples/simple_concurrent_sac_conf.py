@@ -25,12 +25,17 @@ from alf.algorithms.simple_concurrent_algorithm import SimpleConcurrentAlgorithm
 from alf.networks import ActorDistributionNetwork, QNetwork
 from alf.utils.losses import element_wise_squared_loss
 
+BATCH_SIZE = 60
+ENV_COUNTS = 2
+UNROLL_LENGTH = 1
+MINI_BATCH_LENGTH = 2
+
 # environment config
 alf.config(
     'create_environment',
-    env_name="CheckPropagation-v0",
-    #  env_name="CartPole-v0",
-    num_parallel_environments=1)
+    # env_name="CheckPropagation-v0",
+    env_name="CartPole-v0",
+    num_parallel_environments=ENV_COUNTS)
 
 alf.config('QNetwork', fc_layer_params=(97, ))
 alf.config(
@@ -45,10 +50,16 @@ alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
            gamma=0.98)
 
-alf.config("SimpleConcurrentAlgorithm",
-           algorithm_ctor=SacAlgorithm,
-           optimizer=alf.optimizers.Adam(lr=1e-3, name='main'),
-           num_copies=1)
+alf.config(
+    "SimpleConcurrentAlgorithm",
+    algorithm_ctor=SacAlgorithm,
+    optimizer=alf.optimizers.Adam(lr=1e-3, name='main'),
+    num_copies=2,
+    batch_size=BATCH_SIZE,
+    env_counts=ENV_COUNTS,
+    unroll_length=UNROLL_LENGTH,
+    mini_batch_length=MINI_BATCH_LENGTH,
+)
 
 # training config
 alf.config(
@@ -56,9 +67,9 @@ alf.config(
     algorithm_ctor=SimpleConcurrentAlgorithm,
     # algorithm_ctor=SacAlgorithm,
     initial_collect_steps=10,
-    mini_batch_length=2,
-    mini_batch_size=61,
-    unroll_length=1,
+    mini_batch_length=MINI_BATCH_LENGTH,
+    mini_batch_size=BATCH_SIZE,
+    unroll_length=UNROLL_LENGTH,
     num_updates_per_train_iter=1,
     num_iterations=10000,
     num_checkpoints=3,
@@ -66,4 +77,5 @@ alf.config(
     eval_interval=100,
     debug_summaries=True,
     summary_interval=100,
-    replay_buffer_length=100000)
+    replay_buffer_length=100000,
+    random_seed=42)

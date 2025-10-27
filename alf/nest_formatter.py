@@ -104,7 +104,7 @@ def format_nest(obj: Any, indent: int = 0, max_depth: int = 10) -> str:
     if isinstance(obj, list):
         if not obj:
             return indent_str + "[]"
-        if len(obj) > 5:
+        if len(obj) > 10:
             # For long lists, show first few and last few
             lines = [
                 indent_str + f"[{len(obj)} items, showing first 3 and last 1]"
@@ -134,7 +134,7 @@ def format_nest(obj: Any, indent: int = 0, max_depth: int = 10) -> str:
     if isinstance(obj, tuple):
         if not obj:
             return indent_str + "()"
-        if len(obj) > 5:
+        if len(obj) > 10:
             lines = [
                 indent_str + f"({len(obj)} items, showing first 3 and last 1)"
             ]

@@ -1168,6 +1168,110 @@ def detach(nests: alf.nest.Nest):
     return nest.map_structure(_detach_dist_or_tensor, nests)
 
 
+def slice_nested(value, indices, time_major=False):
+    """Slice a nested structure that may contain tensors and distributions.
+    
+    Args:
+        value: Nested structure of tensors and distributions to slice
+        indices: Indices to slice with
+        time_major: If True, slice along dimension 1 (for [T, B, ...]),
+                    otherwise slice along dimension 0 (for [B, ...])
+    
+    Returns:
+        Sliced nested structure
+    """
+    spec = dist_utils.extract_spec(value, from_dim=1 if time_major else 0)
+    params = dist_utils.distributions_to_params(value)
+
+    def _slice_leaf(leaf):
+        if isinstance(leaf, torch.Tensor):
+            if time_major:
+                return leaf[:, indices]
+            else:
+                return leaf[indices]
+        else:
+            return leaf
+
+    sliced_params = nest.map_structure(_slice_leaf, params)
+    return dist_utils.params_to_distributions(sliced_params, spec)
+
+
+def scatter_nested(value, indices, batch_size, time_major=False):
+    """Scatter a nested structure to full batch size with zeros elsewhere.
+    
+    Args:
+        value: Nested structure of tensors and distributions to scatter
+        indices: Indices where values should be placed
+        batch_size: Target full batch size
+        time_major: If True, scatter along dimension 1 (for [T, B, ...]),
+                    otherwise scatter along dimension 0 (for [B, ...])
+    
+    Returns:
+        Scattered nested structure with full batch size
+    """
+    spec = dist_utils.extract_spec(value, from_dim=1 if time_major else 0)
+    params = dist_utils.distributions_to_params(value)
+
+    def _scatter_leaf(leaf):
+        if not isinstance(leaf, torch.Tensor):
+            return leaf
+        if time_major:
+            if leaf.ndim < 2:
+                return leaf
+            T = leaf.shape[0]
+            out_shape = [T, batch_size] + list(leaf.shape[2:])
+            result = torch.zeros(out_shape,
+                                 dtype=leaf.dtype,
+                                 device=leaf.device)
+            result[:, indices] = leaf
+        else:
+            if leaf.ndim < 1:
+                return leaf
+            out_shape = [batch_size] + list(leaf.shape[1:])
+            result = torch.zeros(out_shape,
+                                 dtype=leaf.dtype,
+                                 device=leaf.device)
+            result[indices] = leaf
+
+        return result
+
+    scattered_params = nest.map_structure(_scatter_leaf, params)
+    return dist_utils.params_to_distributions(scattered_params, spec)
+
+
+def scatter_and_sum_nested(values_by_alg, batch_size, time_major=False):
+    """Unslice scattered values by aggregating them.
+    
+    Args:
+        values_by_alg: dict mapping algorithm index -> (value, batch_indices)
+        batch_size: Target full batch size
+        time_major: If True, scatter along dimension 1 (for [T, B, ...]),
+                    otherwise scatter along dimension 0 (for [B, ...])
+    
+    Returns:
+        Aggregated nested structure with full batch size
+    """
+    from alf.utils import math_ops
+    result = None
+    spec = None
+    for alg_idx, (value, batch_indices) in values_by_alg.items():
+        scattered = scatter_nested(value,
+                                   batch_indices,
+                                   batch_size,
+                                   time_major=time_major)
+        if scattered is None:
+            continue
+        scattered = dist_utils.distributions_to_params(scattered)
+        spec = dist_utils.extract_spec(value, from_dim=1 if time_major else 0)
+        if result is None:
+            result = scattered
+        else:
+            result = nest.map_structure(math_ops.add_ignore_empty, result,
+                                        scattered)
+    result = dist_utils.params_to_distributions(result, spec)
+    return result
+
+
 # A catch all mode.  Currently includes on-policy training on unrolled experience.
 EXE_MODE_OTHER = 0
 # Unroll during training
