@@ -41,6 +41,8 @@ from alf.tensor_specs import TensorSpec, BoundedTensorSpec
 from alf.utils import losses, common, dist_utils, math_ops
 from alf.utils.normalizers import ScalarAdaptiveNormalizer
 from alf.utils.schedulers import Scheduler
+from alf.debug_logger import log
+from alf.nest_formatter import format_nest
 
 ActionType = Enum('ActionType', ('Discrete', 'Continuous', 'Mixed'))
 

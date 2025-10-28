@@ -52,6 +52,9 @@ alf.config('OneStepTDLoss',
 alf.config(
     "SeedSampling",
     algorithm_ctor=SacAlgorithm,
+    parameter_target_std=1.0,
+    parameter_target_alpha=0.1,
+    reward_noise_std=0.0,
 )
 
 # training config

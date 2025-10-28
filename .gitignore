@@ -1,6 +1,5 @@
-# /*.md
-!README.md
 log.txt
+/*.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
