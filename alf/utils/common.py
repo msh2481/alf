@@ -1272,6 +1272,51 @@ def scatter_and_sum_nested(values_by_alg, batch_size, time_major=False):
     return result
 
 
+def hash_nested(nested, seed=0):
+    """Compute a hash of a nested structure containing tensors, arrays, and scalars.
+    
+    Args:
+        nested: Nested structure of tensors, numpy arrays, floats, ints, etc.
+    
+    Returns:
+        int: Hash value of the nested structure
+    """
+
+    def _to_bytes(leaf):
+        if isinstance(leaf, torch.Tensor):
+            arr = leaf.detach().cpu().numpy()
+            return arr.tobytes()
+        elif isinstance(leaf, np.ndarray):
+            return leaf.tobytes()
+        elif isinstance(leaf, (float, np.floating)):
+            return np.float64(leaf).tobytes()
+        elif isinstance(leaf, (int, np.integer)):
+            return np.int64(leaf & 0x7FFFFFFFFFFFFFFF).tobytes()
+        else:
+            raise TypeError(f"Unsupported type for hashing: {type(leaf)}")
+
+    flat = nest.flatten(nested)
+    all_bytes = b''.join(
+        _to_bytes(leaf)
+        for leaf in flat) + np.int64(seed & 0x7FFFFFFFFFFFFFFF).tobytes()
+    return hash(all_bytes)
+
+
+def seed_rand_nested(nested, seed=0):
+    """Return a pseudo-random number based on the nested structure and seed.
+    
+    Args:
+        nested: Nested structure of tensors, numpy arrays, floats, ints, etc.
+        seed: Seed for the random number generator
+    
+    Returns:
+        float: Pseudo-random number based on the nested structure and seed
+    """
+    MOD = 2**16
+    hash_value = hash_nested(nested, seed)
+    return (hash_value % MOD) / MOD
+
+
 # A catch all mode.  Currently includes on-policy training on unrolled experience.
 EXE_MODE_OTHER = 0
 # Unroll during training
