@@ -21,7 +21,7 @@ import alf
 
 alf.import_config("sac_conf.py")
 from alf.algorithms.sac_algorithm import SacAlgorithm
-from alf.algorithms.seed_sampling import SeedSampling
+from alf.algorithms.simple_concurrent_algorithm import SimpleConcurrentAlgorithm
 from alf.networks import QNetwork
 from alf.utils.losses import element_wise_squared_loss
 
@@ -50,13 +50,14 @@ alf.config('OneStepTDLoss',
            gamma=0.98)
 
 alf.config(
-    "SeedSampling",
+    "SimpleConcurrentAlgorithm",
     algorithm_ctor=SacAlgorithm,
+    num_copies=2,
 )
 
 # training config
 alf.config('TrainerConfig',
-           algorithm_ctor=SeedSampling,
+           algorithm_ctor=SacAlgorithm,
            initial_collect_steps=10,
            mini_batch_length=MINI_BATCH_LENGTH,
            mini_batch_size=BATCH_SIZE,

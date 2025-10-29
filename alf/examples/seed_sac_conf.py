@@ -53,8 +53,9 @@ alf.config(
     "SeedSampling",
     algorithm_ctor=SacAlgorithm,
     parameter_target_std=1.0,
-    parameter_target_alpha=0.1,
-    reward_noise_std=0.0,
+    parameter_target_alpha=0.001,
+    reward_noise_std=0.1,
+    exploration_seed=0,
 )
 
 # training config
