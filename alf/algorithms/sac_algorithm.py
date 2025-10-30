@@ -979,13 +979,18 @@ class SacAlgorithm(OffPolicyAlgorithm):
                 lambda la: la.data.copy_(torch.min(la, self._max_log_alpha)),
                 self._log_alpha)
 
-    def debug_metrics(self, initial_obs, actions, q_function):
+    def debug_metrics(self,
+                      initial_obs,
+                      actions,
+                      q_function,
+                      visited_states=None):
         """Debug metrics for analyzing Q-values.
 
         Args:
             initial_obs (Tensor): initial observation
             actions (Tensor): actions to evaluate
             q_function (callable): function that takes (obs, action) and returns Q-value
+            visited_states (Tensor): tensor of visited states from replay buffer
         """
         if torch.rand(1).item() > 0.02:
             return
@@ -995,6 +1000,29 @@ class SacAlgorithm(OffPolicyAlgorithm):
         for i, action in enumerate(actions):
             q_value = q_function(initial_obs, action)
             print(f"  Action {i}: Q = {q_value.item():.4f}")
+
+        if visited_states is not None:
+            print(
+                f"\nVisited states statistics (n={visited_states.shape[0]}):")
+            # Flatten observation if it's nested or has batch dimension
+            if visited_states.dim() > 1:
+                # Shape is [num_samples, obs_dim] or [num_samples, ...]
+                obs_flat = visited_states.reshape(visited_states.shape[0], -1)
+            else:
+                obs_flat = visited_states.unsqueeze(-1)
+
+            mean = obs_flat.mean(dim=0)
+            std = obs_flat.std(dim=0)
+
+            for i in range(min(obs_flat.shape[1],
+                               20)):  # Print up to 20 dimensions
+                print(
+                    f"  Obs dim {i}: mean = {mean[i].item():.4f}, std = {std[i].item():.4f}"
+                )
+
+            if obs_flat.shape[1] > 20:
+                print(f"  ... ({obs_flat.shape[1] - 20} more dimensions)")
+
         print("=" * 40 + "\n")
 
     def _call_debug_metrics(self):
@@ -1016,7 +1044,19 @@ class SacAlgorithm(OffPolicyAlgorithm):
                                                     None, ())
                 return q_values[0, action]
 
-            self.debug_metrics(self._initial_debug_obs, actions, q_function)
+            # Fetch random visited states from replay buffer
+            visited_states = None
+            if self._replay_buffer is not None and self._replay_buffer.total_size > 0:
+                num_samples = min(1000, self._replay_buffer.total_size.item())
+                # Use the replay buffer's _sample method to get random positions
+                batch_info = self._replay_buffer._sample(
+                    batch_size=num_samples, batch_length=1)
+                # Fetch observations at these positions
+                visited_states = self._replay_buffer.get_field(
+                    'observation', batch_info.env_ids, batch_info.positions)
+
+            self.debug_metrics(self._initial_debug_obs, actions, q_function,
+                               visited_states)
 
     def after_train_iter(self, inputs: TimeStep, info: SacInfo):
         self._periodic_reset()

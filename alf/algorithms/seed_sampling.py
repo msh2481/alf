@@ -57,8 +57,11 @@ def _patched_train_step(self, inputs: TimeStep, state, rollout_info):
                                   dtype=torch.float32)
         for i in range(batch_size):
             obs_i = alf.nest.map_structure(lambda x: x[i], observation)
+            prev_action_i = alf.nest.map_structure(lambda x: x[i],
+                                                   inputs.prev_action)
             seed_values[i] = seed_rand_nested(
-                obs_i, seed=self._seed_sampling_exploration_seed)
+                (obs_i, prev_action_i),
+                seed=self._seed_sampling_exploration_seed)
 
         norm = td.Normal(0.0, 1.0)
         noise = self._seed_sampling_reward_noise_std * norm.icdf(seed_values)
