@@ -983,7 +983,8 @@ class SacAlgorithm(OffPolicyAlgorithm):
                       initial_obs,
                       actions,
                       q_function,
-                      visited_states=None):
+                      visited_states=None,
+                      visited_actions=None):
         """Debug metrics for analyzing Q-values.
 
         Args:
@@ -991,15 +992,11 @@ class SacAlgorithm(OffPolicyAlgorithm):
             actions (Tensor): actions to evaluate
             q_function (callable): function that takes (obs, action) and returns Q-value
             visited_states (Tensor): tensor of visited states from replay buffer
+            visited_actions (Tensor): tensor of actions taken in sampled experiences
         """
         if torch.rand(1).item() > 0.02:
             return
         print("\n=== Debug Metrics ===")
-        print(f"Initial observation: {initial_obs}")
-        print(f"Q-values for all actions from initial state:")
-        for i, action in enumerate(actions):
-            q_value = q_function(initial_obs, action)
-            print(f"  Action {i}: Q = {q_value.item():.4f}")
 
         if visited_states is not None:
             print(
@@ -1023,12 +1020,35 @@ class SacAlgorithm(OffPolicyAlgorithm):
             if obs_flat.shape[1] > 20:
                 print(f"  ... ({obs_flat.shape[1] - 20} more dimensions)")
 
+        if visited_actions is not None:
+            print(
+                f"\nVisited actions statistics (n={visited_actions.shape[0]}):"
+            )
+            # Get unique actions and their counts
+            unique_actions, counts = torch.unique(visited_actions,
+                                                  return_counts=True,
+                                                  dim=0)
+            # Sort by action value
+            sorted_indices = torch.argsort(unique_actions, dim=0)
+            unique_actions = unique_actions[sorted_indices]
+            counts = counts[sorted_indices]
+
+            print(f"  Unique actions and their counts:")
+            for action, count in zip(unique_actions, counts):
+                percentage = 100.0 * count.item() / visited_actions.shape[0]
+                log("obs spec", self._observation_spec)
+                log("action spec", self._action_spec)
+                log("initial_obs", initial_obs)
+                log("action", action)
+                q_value = q_function(initial_obs, action)
+                print(
+                    f"    Action {action.item()}: {count.item()} ({percentage:.1f}%), Q(s_0, a) = {q_value.item():.4f}"
+                )
+
         print("=" * 40 + "\n")
 
     def _call_debug_metrics(self):
         """Helper to call debug_metrics with appropriate arguments."""
-        if self._act_type != ActionType.Discrete:
-            return
 
         with torch.no_grad():
             if self._initial_debug_obs is None:
@@ -1040,23 +1060,38 @@ class SacAlgorithm(OffPolicyAlgorithm):
             actions = torch.arange(num_actions)
 
             def q_function(obs, action):
-                q_values, _ = self._compute_critics(self._critic_networks, obs,
-                                                    None, ())
-                return q_values[0, action]
+                if self._act_type == ActionType.Discrete:
+                    q_values, _ = self._compute_critics(
+                        self._critic_networks, obs, None, ())
+                    return q_values[0, action]
+                elif self._act_type == ActionType.Continuous:
+                    q_values, _ = self._compute_critics(
+                        self._critic_networks, obs, action, ())
+                    log("q_values", q_values)
+                    return q_values[0]
+                else:
+                    raise ValueError(
+                        f"Unsupported action type: {self._act_type}")
 
-            # Fetch random visited states from replay buffer
+            # Fetch random visited states and actions from replay buffer
             visited_states = None
+            visited_actions = None
             if self._replay_buffer is not None and self._replay_buffer.total_size > 0:
-                num_samples = min(1000, self._replay_buffer.total_size.item())
+                num_samples = min(10, self._replay_buffer.total_size.item())
                 # Use the replay buffer's _sample method to get random positions
                 batch_info = self._replay_buffer._sample(
                     batch_size=num_samples, batch_length=1)
-                # Fetch observations at these positions
+                # Fetch observations and actions at these positions
                 visited_states = self._replay_buffer.get_field(
-                    'observation', batch_info.env_ids, batch_info.positions)
+                    'observation', batch_info.env_ids,
+                    batch_info.positions).reshape(
+                        -1, *self._observation_spec.shape)
+                visited_actions = self._replay_buffer.get_field(
+                    'action', batch_info.env_ids,
+                    batch_info.positions).reshape(-1, *self._action_spec.shape)
 
             self.debug_metrics(self._initial_debug_obs, actions, q_function,
-                               visited_states)
+                               visited_states, visited_actions)
 
     def after_train_iter(self, inputs: TimeStep, info: SacInfo):
         self._periodic_reset()

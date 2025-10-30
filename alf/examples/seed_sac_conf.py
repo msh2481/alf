@@ -35,6 +35,7 @@ alf.config(
     'create_environment',
     # env_name="CheckPropagation-v0",
     env_name="CartPole-v0",
+    # env_name="Pendulum-v0",
     num_parallel_environments=ENV_COUNTS)
 
 alf.config('QNetwork', fc_layer_params=(97, ))
