@@ -130,7 +130,6 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         device = next(iter(alf.nest.flatten(args[0]))).device
         sliced = {}
         for i in range(self._num_copies):
-            print(f"i: {i}, n: {n}, self._num_copies: {self._num_copies}")
             indices = torch.arange(i, n, self._num_copies, device=device)
             sliced_args = []
             for arg in args:

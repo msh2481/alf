@@ -11,12 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Simple Concurrent SAC Demo Configuration.
-
-This demonstrates SimpleConcurrentAlgorithm with SAC on CartPole-v0.
-The algorithm creates multiple independent SAC copies that learn concurrently.
-"""
-
 import alf
 
 alf.import_config("sac_conf.py")
@@ -64,14 +58,14 @@ alf.config(
 
 alf.config(
     "ActionRepulsionAlgorithm",
-    algorithm_ctor=SacAlgorithm,
+    algorithm_ctor=SeedSampling,
     optimizer=alf.optimizers.Adam(lr=1e-3, name='main'),
-    num_copies=2,
+    num_copies=4,
     batch_size=BATCH_SIZE,
     env_counts=ENV_COUNTS,
     unroll_length=UNROLL_LENGTH,
     mini_batch_length=MINI_BATCH_LENGTH,
-    repulsion_alpha=0.0,
+    repulsion_alpha=1e-10,
     repulsion_num_obs=100,
 )
 

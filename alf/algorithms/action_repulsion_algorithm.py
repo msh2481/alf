@@ -21,6 +21,7 @@ from alf.data_structures import LossInfo
 from alf.tensor_specs import TensorSpec
 from itertools import combinations
 from alf.utils.common import warning
+import logging
 
 
 @alf.configurable
@@ -151,10 +152,13 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
                 self._get_policy_vector(i, observations, actions))
             # print(f"policy_vectors[{i}]:", policy_vectors[i].shape, policy_vectors[i][:10])
         total_distance = torch.zeros(())
+        distance_matrix = torch.zeros((self._num_copies, self._num_copies),
+                                      dtype=torch.int32)
         for i, j in combinations(range(self._num_copies), 2):
             distance = torch.norm(policy_vectors[i] - policy_vectors[j], p=2)
-            print(f"distance[{i}, {j}]:", distance.item())
+            distance_matrix[i, j] = int(distance.item() * 100)
             total_distance = total_distance + distance.sum()
+        print(f"distance_matrix:\n{distance_matrix.numpy()}")
         loss = -total_distance
         return loss
 
