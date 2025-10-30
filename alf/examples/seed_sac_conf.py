@@ -22,6 +22,8 @@ import alf
 alf.import_config("sac_conf.py")
 from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.seed_sampling import SeedSampling
+from alf.algorithms.action_repulsion_algorithm import ActionRepulsionAlgorithm
+from alf.algorithms.simple_concurrent_algorithm import SimpleConcurrentAlgorithm
 from alf.networks import QNetwork
 from alf.utils.losses import element_wise_squared_loss
 
@@ -39,12 +41,13 @@ alf.config(
     num_parallel_environments=ENV_COUNTS)
 
 alf.config('QNetwork', fc_layer_params=(97, ))
-alf.config('SacAlgorithm',
-           q_network_cls=QNetwork,
-           actor_optimizer=alf.optimizers.Adam(lr=1e-3, name='actor'),
-           critic_optimizer=alf.optimizers.Adam(lr=1e-3, name='critic'),
-           alpha_optimizer=alf.optimizers.Adam(lr=1e-3, name='alpha'),
-           target_update_tau=0.01)
+alf.config(
+    'SacAlgorithm',
+    q_network_cls=QNetwork,
+    #    actor_optimizer=alf.optimizers.Adam(lr=1e-3, name='actor'),
+    #    critic_optimizer=alf.optimizers.Adam(lr=1e-3, name='critic'),
+    #    alpha_optimizer=alf.optimizers.Adam(lr=1e-3, name='alpha'),
+    target_update_tau=0.01)
 
 alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
@@ -59,9 +62,20 @@ alf.config(
     exploration_seed=0,
 )
 
+alf.config(
+    "ActionRepulsionAlgorithm",
+    algorithm_ctor=SacAlgorithm,
+    optimizer=alf.optimizers.Adam(lr=1e-3, name='main'),
+    num_copies=1,
+    batch_size=BATCH_SIZE,
+    env_counts=ENV_COUNTS,
+    unroll_length=UNROLL_LENGTH,
+    mini_batch_length=MINI_BATCH_LENGTH,
+)
+
 # training config
 alf.config('TrainerConfig',
-           algorithm_ctor=SeedSampling,
+           algorithm_ctor=ActionRepulsionAlgorithm,
            initial_collect_steps=10,
            mini_batch_length=MINI_BATCH_LENGTH,
            mini_batch_size=BATCH_SIZE,

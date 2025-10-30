@@ -994,7 +994,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
             visited_states (Tensor): tensor of visited states from replay buffer
             visited_actions (Tensor): tensor of actions taken in sampled experiences
         """
-        if torch.rand(1).item() > 0.02:
+        if torch.rand(1).item() > 0.0:
             return
         print("\n=== Debug Metrics ===")
 

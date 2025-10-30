@@ -92,7 +92,7 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
                 observation_spec=observation_spec,
                 action_spec=action_spec,
                 reward_spec=reward_spec,
-                env=env,
+                env=None,
                 config=config,
                 debug_summaries=debug_summaries,
                 name=f"{name}_copy_{i}",
