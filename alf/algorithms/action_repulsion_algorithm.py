@@ -17,11 +17,20 @@ import torch
 import alf
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.simple_concurrent_algorithm import SimpleConcurrentAlgorithm
+from alf.data_structures import LossInfo
 from alf.tensor_specs import TensorSpec
+from itertools import combinations
+from alf.utils.common import warning
 
 
 @alf.configurable
 class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
+    """Action Repulsion Algorithm with multiple concurrent learners.
+
+    Encourages diversity between sub-algorithms by penalizing similar Q-value
+    landscapes. Currently designed primarily for discrete action spaces and a small number
+    of sub-algorithms (loss computation complexity is quadratic in num_copies).
+    """
 
     def __init__(
         self,
@@ -40,6 +49,8 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
         env_counts=None,
         unroll_length=None,
         mini_batch_length=None,
+        repulsion_alpha: float = 0.0,
+        repulsion_num_obs: int = 100,
     ):
         super().__init__(
             observation_spec=observation_spec,
@@ -58,6 +69,9 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
             unroll_length=unroll_length,
             mini_batch_length=mini_batch_length,
         )
+
+        self._repulsion_alpha = repulsion_alpha
+        self._repulsion_num_obs = repulsion_num_obs
 
     def sample_state_action_distribution(self, num_samples: int):
         replay_buffer = self._replay_buffer
@@ -85,30 +99,78 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
 
         alg = self._algorithms[alg_index]
 
-        with torch.no_grad():
-            if self._action_spec.is_discrete:
-                q_values, _ = alg._compute_critics(alg._critic_networks,
-                                                   observations,
-                                                   None,
-                                                   critics_state=(),
-                                                   replica_min=True,
-                                                   apply_reward_weights=True)
-                q_values = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
-            else:
-                q_values, _ = alg._compute_critics(alg._critic_networks,
-                                                   observations,
-                                                   actions,
-                                                   critics_state=(),
-                                                   replica_min=True,
-                                                   apply_reward_weights=True)
+        if self._action_spec.is_discrete:
+            q_values, _ = alg._compute_critics(alg._critic_networks,
+                                               observations,
+                                               None,
+                                               critics_state=(),
+                                               replica_min=True,
+                                               apply_reward_weights=True)
+            q_values = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
+        else:
+            q_values, _ = alg._compute_critics(alg._critic_networks,
+                                               observations,
+                                               actions,
+                                               critics_state=(),
+                                               replica_min=True,
+                                               apply_reward_weights=True)
 
         assert q_values.shape == (batch_size, ), (
             f"Output batch size mismatch: expected {batch_size}, got {q_values.shape}"
         )
         return q_values
 
+    def _get_policy_vector(self, alg_index: int, observations: torch.Tensor,
+                           actions: torch.Tensor):
+        B = observations.shape[0]
+        A = actions.shape[0]
+
+        obs_expanded = observations.unsqueeze(1).expand(
+            B, A, *observations.shape[1:])
+        act_expanded = actions.unsqueeze(0).expand(B, A, *actions.shape[1:])
+
+        obs_flat = obs_expanded.reshape(B * A, *observations.shape[1:])
+        act_flat = act_expanded.reshape(B * A, *actions.shape[1:])
+
+        q_values = self.get_q_values(alg_index, obs_flat, act_flat)
+        q_values = q_values.reshape(B, A)
+        mean = q_values.mean(dim=1, keepdim=True)
+        std = q_values.std(dim=1, keepdim=True)
+        policy_vector = ((q_values - mean) / (std + 1e-8)).reshape(B * A)
+        return policy_vector
+
+    def _get_action_repulsion_loss(self, observations: torch.Tensor,
+                                   actions: torch.Tensor):
+        policy_vectors = []
+        for i in range(self._num_copies):
+            policy_vectors.append(
+                self._get_policy_vector(i, observations, actions))
+        total_distance = 0.0
+        for i, j in combinations(range(self._num_copies), 2):
+            distance = torch.norm(policy_vectors[i] - policy_vectors[j], p=2)
+            total_distance = total_distance + distance.sum()
+        loss = -total_distance
+        return loss
+
+    def calc_loss(self, info) -> LossInfo:
+        loss_info = super().calc_loss(info)
+        if self._repulsion_alpha > 0:
+            observations, actions = self.sample_state_action_distribution(
+                num_samples=self._repulsion_num_obs)
+            actions = torch.unique(actions, dim=0)
+            if observations is not None or actions is not None:
+                warning("No data in replay buffer")
+                return loss_info
+            repulsion_loss = self._get_action_repulsion_loss(
+                observations, actions)
+            print("repulsion_loss:", repulsion_loss.item(), "x",
+                  self._repulsion_alpha)
+            total_loss = loss_info.loss + self._repulsion_alpha * repulsion_loss
+            loss_info = loss_info._replace(loss=total_loss)
+        return loss_info
+
     def debug_metrics(self, observations, actions):
-        if torch.rand(1).item() > 0.02:
+        if torch.rand(1).item() > 0.01:
             return
 
         print("\n=== Action Repulsion Debug Metrics ===")
