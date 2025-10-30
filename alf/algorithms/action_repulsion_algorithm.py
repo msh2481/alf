@@ -21,7 +21,6 @@ from alf.data_structures import LossInfo
 from alf.tensor_specs import TensorSpec
 from itertools import combinations
 from alf.utils.common import warning
-import logging
 
 
 @alf.configurable
@@ -52,6 +51,7 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
         mini_batch_length=None,
         repulsion_alpha: float = 0.0,
         repulsion_num_obs: int = 100,
+        use_exploration_seeds: bool = True,
     ):
         super().__init__(
             observation_spec=observation_spec,
@@ -69,6 +69,7 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
             env_counts=env_counts,
             unroll_length=unroll_length,
             mini_batch_length=mini_batch_length,
+            use_exploration_seeds=use_exploration_seeds,
         )
 
         self._repulsion_alpha = repulsion_alpha

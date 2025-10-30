@@ -42,6 +42,7 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         env_counts=None,
         unroll_length=None,
         mini_batch_length=None,
+        use_exploration_seeds: bool = True,
     ):
         assert batch_size is not None, "batch_size must be provided"
         assert env_counts is not None, "env_counts must be provided"
@@ -87,17 +88,25 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
 
         self._num_copies = num_copies
 
-        self._algorithms = nn.ModuleList([
-            algorithm_ctor(
-                observation_spec=observation_spec,
-                action_spec=action_spec,
-                reward_spec=reward_spec,
-                env=None,
-                config=config,
-                debug_summaries=debug_summaries,
-                name=f"{name}_copy_{i}",
-            ) for i in range(num_copies)
-        ])
+        get_kwargs = lambda i: {
+            "observation_spec": observation_spec,
+            "action_spec": action_spec,
+            "reward_spec": reward_spec,
+            "env": None,
+            "config": config,
+            "debug_summaries": debug_summaries,
+            "name": f"{name}_copy_{i}",
+        }
+        if use_exploration_seeds:
+            self._algorithms = nn.ModuleList([
+                algorithm_ctor(
+                    **get_kwargs(i),
+                    exploration_seed=i,
+                ) for i in range(num_copies)
+            ])
+        else:
+            self._algorithms = nn.ModuleList(
+                [algorithm_ctor(**get_kwargs(i)) for i in range(num_copies)])
 
     def get_initial_predict_state(self, batch_size):
         return [
