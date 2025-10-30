@@ -27,8 +27,8 @@ from alf.algorithms.simple_concurrent_algorithm import SimpleConcurrentAlgorithm
 from alf.networks import QNetwork
 from alf.utils.losses import element_wise_squared_loss
 
-BATCH_SIZE = 60
-ENV_COUNTS = 2
+BATCH_SIZE = 64
+ENV_COUNTS = 4
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
 
@@ -66,11 +66,13 @@ alf.config(
     "ActionRepulsionAlgorithm",
     algorithm_ctor=SacAlgorithm,
     optimizer=alf.optimizers.Adam(lr=1e-3, name='main'),
-    num_copies=1,
+    num_copies=2,
     batch_size=BATCH_SIZE,
     env_counts=ENV_COUNTS,
     unroll_length=UNROLL_LENGTH,
     mini_batch_length=MINI_BATCH_LENGTH,
+    repulsion_alpha=0.0,
+    repulsion_num_obs=100,
 )
 
 # training config

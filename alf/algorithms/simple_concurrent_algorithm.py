@@ -126,9 +126,11 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
             dict: mapping algorithm index -> (sliced_arg1, sliced_arg2, ..., batch_indices)
         """
         n = alf.nest.get_nest_size(args[0], dim=1 if time_major else 0)
+        assert n % self._num_copies == 0, f"n {n} must be a multiple of num_copies {self._num_copies}"
         device = next(iter(alf.nest.flatten(args[0]))).device
         sliced = {}
         for i in range(self._num_copies):
+            print(f"i: {i}, n: {n}, self._num_copies: {self._num_copies}")
             indices = torch.arange(i, n, self._num_copies, device=device)
             sliced_args = []
             for arg in args:
@@ -223,7 +225,7 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
             self._unroll_length, self._env_counts
         ), f"inputs shape: {alf.nest.get_nest_shape(inputs)}"
 
-        sliced = self._slice_batch(inputs)
+        sliced = self._slice_batch(inputs, time_major=True)
         for alg_idx, (
                 sliced_inputs,
                 _batch_indices,

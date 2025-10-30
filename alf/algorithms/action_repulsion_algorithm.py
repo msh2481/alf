@@ -75,7 +75,11 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
 
     def sample_state_action_distribution(self, num_samples: int):
         replay_buffer = self._replay_buffer
-        if replay_buffer is None or replay_buffer.total_size == 0:
+        if replay_buffer is None:
+            warning("No replay buffer")
+            return None, None
+        if replay_buffer.total_size == 0:
+            warning("Replay buffer is empty")
             return None, None
         num_samples = min(num_samples, replay_buffer.total_size.item())
         batch_info = replay_buffer._sample(batch_size=num_samples,
@@ -135,7 +139,7 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
         q_values = self.get_q_values(alg_index, obs_flat, act_flat)
         q_values = q_values.reshape(B, A)
         mean = q_values.mean(dim=1, keepdim=True)
-        std = q_values.std(dim=1, keepdim=True)
+        std = q_values.std() + 1e-8
         policy_vector = ((q_values - mean) / (std + 1e-8)).reshape(B * A)
         return policy_vector
 
@@ -145,9 +149,11 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
         for i in range(self._num_copies):
             policy_vectors.append(
                 self._get_policy_vector(i, observations, actions))
-        total_distance = 0.0
+            # print(f"policy_vectors[{i}]:", policy_vectors[i].shape, policy_vectors[i][:10])
+        total_distance = torch.zeros(())
         for i, j in combinations(range(self._num_copies), 2):
             distance = torch.norm(policy_vectors[i] - policy_vectors[j], p=2)
+            print(f"distance[{i}, {j}]:", distance.item())
             total_distance = total_distance + distance.sum()
         loss = -total_distance
         return loss
@@ -158,7 +164,7 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
             observations, actions = self.sample_state_action_distribution(
                 num_samples=self._repulsion_num_obs)
             actions = torch.unique(actions, dim=0)
-            if observations is not None or actions is not None:
+            if observations is None or actions is None:
                 warning("No data in replay buffer")
                 return loss_info
             repulsion_loss = self._get_action_repulsion_loss(

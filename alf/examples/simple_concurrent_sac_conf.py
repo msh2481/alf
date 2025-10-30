@@ -53,11 +53,15 @@ alf.config(
     "SimpleConcurrentAlgorithm",
     algorithm_ctor=SacAlgorithm,
     num_copies=2,
+    batch_size=BATCH_SIZE,
+    env_counts=ENV_COUNTS,
+    unroll_length=UNROLL_LENGTH,
+    mini_batch_length=MINI_BATCH_LENGTH,
 )
 
 # training config
 alf.config('TrainerConfig',
-           algorithm_ctor=SacAlgorithm,
+           algorithm_ctor=SimpleConcurrentAlgorithm,
            initial_collect_steps=10,
            mini_batch_length=MINI_BATCH_LENGTH,
            mini_batch_size=BATCH_SIZE,
