@@ -151,7 +151,6 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
         for i in range(self._num_copies):
             policy_vectors.append(
                 self._get_policy_vector(i, observations, actions))
-            # print(f"policy_vectors[{i}]:", policy_vectors[i].shape, policy_vectors[i][:10])
         total_distance = torch.zeros(())
         distance_matrix = torch.zeros((self._num_copies, self._num_copies),
                                       dtype=torch.int32)
@@ -159,7 +158,7 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
             distance = torch.norm(policy_vectors[i] - policy_vectors[j], p=2)
             distance_matrix[i, j] = int(distance.item() * 100)
             total_distance = total_distance + distance.sum()
-        print(f"distance_matrix:\n{distance_matrix.numpy()}")
+        # print(f"distance_matrix:\n{distance_matrix.numpy()}")
         loss = -total_distance
         return loss
 
@@ -174,8 +173,8 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
                 return loss_info
             repulsion_loss = self._get_action_repulsion_loss(
                 observations, actions)
-            print("repulsion_loss:", repulsion_loss.item(), "x",
-                  self._repulsion_alpha)
+            # print("repulsion_loss:", repulsion_loss.item(), "x",
+            #   self._repulsion_alpha)
             total_loss = loss_info.loss + self._repulsion_alpha * repulsion_loss
             loss_info = loss_info._replace(loss=total_loss)
         return loss_info

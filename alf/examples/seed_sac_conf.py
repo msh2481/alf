@@ -42,7 +42,7 @@ alf.config(
     target_update_tau=0.01,
     parameter_target_std=1.0,
     parameter_target_alpha=0.001,
-    reward_noise_std=0.1,
+    reward_noise_std=1e-3,
 )
 
 alf.config('OneStepTDLoss',
@@ -58,8 +58,9 @@ alf.config(
     env_counts=ENV_COUNTS,
     unroll_length=UNROLL_LENGTH,
     mini_batch_length=MINI_BATCH_LENGTH,
-    repulsion_alpha=1e-10,
+    repulsion_alpha=1e-4,
     repulsion_num_obs=100,
+    use_exploration_seeds=True,
 )
 
 # training config
