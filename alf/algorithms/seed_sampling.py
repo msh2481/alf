@@ -14,6 +14,7 @@
 
 import torch
 import torch.distributions as td
+from absl import logging
 
 import alf
 from alf.algorithms.sac_algorithm import SacAlgorithm
@@ -175,6 +176,13 @@ class SeedSacAlgorithm(SacAlgorithm, SeedSamplingMixin):
                                  parameter_target_std=parameter_target_std,
                                  parameter_target_alpha=parameter_target_alpha,
                                  exploration_seed=exploration_seed)
+
+        logging.info(f"SeedSacAlgorithm instantiated with: "
+                     f"reward_noise_std={reward_noise_std}, "
+                     f"parameter_target_std={parameter_target_std}, "
+                     f"parameter_target_alpha={parameter_target_alpha}, "
+                     f"exploration_seed={exploration_seed}, "
+                     f"target_update_tau={target_update_tau}")
 
     def calc_loss(self, info):
         loss_info = super().calc_loss(info)

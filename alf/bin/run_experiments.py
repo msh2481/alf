@@ -86,15 +86,17 @@ def run_training(conf_file: str, root_dir: str, params: Dict) -> str:
 
     logging.info(f"Running command: {' '.join(cmd)}")
 
-    result = subprocess.run(cmd,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            text=True)
+    log_file = os.path.join(run_dir, f"{run_id}.log")
+    with open(log_file, 'w') as f:
+        result = subprocess.run(cmd,
+                                stdout=subprocess.PIPE,
+                                stderr=f,
+                                text=True)
 
     if result.returncode != 0:
         logging.error(f"Training failed for {run_id}")
         logging.error(f"STDOUT: {result.stdout}")
-        logging.error(f"STDERR: {result.stderr}")
+        logging.error(f"STDERR saved to: {log_file}")
         raise RuntimeError(f"Training failed for {run_id}")
 
     logging.info(f"Training completed for {run_id}")

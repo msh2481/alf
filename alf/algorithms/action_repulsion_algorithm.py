@@ -15,6 +15,7 @@
 from typing import Callable, Optional
 import torch
 import alf
+from absl import logging
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.simple_concurrent_algorithm import SimpleConcurrentAlgorithm
 from alf.data_structures import LossInfo
@@ -74,6 +75,15 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
 
         self._repulsion_alpha = repulsion_alpha
         self._repulsion_num_obs = repulsion_num_obs
+
+        logging.info(
+            f"ActionRepulsionAlgorithm instantiated with: "
+            f"num_copies={num_copies}, repulsion_alpha={repulsion_alpha}, "
+            f"repulsion_num_obs={repulsion_num_obs}, "
+            f"use_exploration_seeds={use_exploration_seeds}, "
+            f"batch_size={batch_size}, env_counts={env_counts}, "
+            f"unroll_length={unroll_length}, mini_batch_length={mini_batch_length}"
+        )
 
     def sample_state_action_distribution(self, num_samples: int):
         replay_buffer = self._replay_buffer
