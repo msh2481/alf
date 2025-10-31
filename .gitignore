@@ -1,5 +1,6 @@
 log.txt
 /*.sh
+.cursor
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
