@@ -22,7 +22,8 @@ from alf.environments.simple.noisy_array import NoisyArray
 from alf.environments.simple.stochastic_with_risky_branch import StochasticWithRiskyBranch
 from alf.environments.simple.check_value import CheckValue
 from alf.environments.simple.check_policy import CheckPolicy
-from alf.environments.simple.check_propagation import CheckPropagation
+from alf.environments.simple.bipolar_chain import BipolarChain
+from alf.environments.simple.parallel_chains import ParallelChains
 from alf.environments.object_centric.bouncing_squares import BouncingSquares
 from alf.environments.gym_wrappers import FrameSkip, FrameStack
 
@@ -63,7 +64,9 @@ def load(game,
     elif game == "CheckPolicy":
         env = CheckPolicy(**env_args)
     elif game == "CheckPropagation":
-        env = CheckPropagation(**env_args)
+        env = BipolarChain(**env_args)
+    elif game == "ParallelChains":
+        env = ParallelChains(**env_args)
     elif game == "BouncingSquares":
         env = BouncingSquares(**env_args)
     else:

@@ -17,16 +17,28 @@ from gym import spaces
 import numpy as np
 
 
-class CheckPropagation(gym.Env):
+class ParallelChains(gym.Env):
+    """Environment with k parallel chains of length l.
 
-    def __init__(self, k=3):
+    State numbering:
+    - State 0: initial state where agent chooses which chain to enter
+    - State i*l + j (for i in [0, k-1], j in [1, l]): position j in chain i
+    - Terminal states: when state % l == 0 (reached end of a chain)
+    
+    From state 0, action i selects chain i. From other states, any action
+    advances to the next position in the current chain. Reward is 1.0 only
+    when reaching the end of chain 0; all other chains give 0.0 reward.
+    """
+
+    def __init__(self, k=3, l=5):
         super().__init__()
         self.k = k
-        self.observation_space = spaces.Box(low=-k,
-                                            high=k,
+        self.l = l
+        self.observation_space = spaces.Box(low=0,
+                                            high=k * l,
                                             shape=(1, ),
                                             dtype=np.float32)
-        self.action_space = spaces.Discrete(2)
+        self.action_space = spaces.Discrete(k)
         self.state = 0
 
     def reset(self):
@@ -34,15 +46,14 @@ class CheckPropagation(gym.Env):
         return np.array([self.state], dtype=np.float32)
 
     def step(self, action):
-        delta = 2 * action - 1
-        self.state += delta
-
-        if self.state >= self.k:
-            return np.array([self.state], dtype=np.float32), 1.0, True, {}
-        elif self.state <= -self.k:
-            return np.array([self.state], dtype=np.float32), 0.0, True, {}
+        if self.state == 0:
+            self.state = action * self.l + 1
         else:
-            return np.array([self.state], dtype=np.float32), 0.0, False, {}
+            self.state += 1
+
+        done = self.state % self.l == 0
+        reward = 1.0 if done and self.state == self.l else 0.0
+        return np.array([self.state], dtype=np.float32), reward, done, {}
 
     def render(self, mode="human", close=False):
         pass
