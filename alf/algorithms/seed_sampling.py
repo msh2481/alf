@@ -18,6 +18,7 @@ from absl import logging
 
 import alf
 from alf.algorithms.sac_algorithm import SacAlgorithm
+from alf.algorithms.dqn_algorithm import DqnAlgorithm
 from alf.data_structures import LossInfo, TimeStep
 from alf.debug_logger import log
 from alf.nest_formatter import format_nest
@@ -183,6 +184,62 @@ class SeedSacAlgorithm(SacAlgorithm, SeedSamplingMixin):
                      f"parameter_target_alpha={parameter_target_alpha}, "
                      f"exploration_seed={exploration_seed}, "
                      f"target_update_tau={target_update_tau}")
+
+    def calc_loss(self, info):
+        loss_info = super().calc_loss(info)
+        return self._seed_sampling_calc_loss_addition(loss_info)
+
+    def train_step(self, inputs: TimeStep, state, rollout_info):
+        inputs = self._seed_sampling_train_step_preprocessing(inputs)
+        return super().train_step(inputs, state, rollout_info)
+
+
+@alf.configurable
+class SeedDqnAlgorithm(DqnAlgorithm, SeedSamplingMixin):
+
+    def __init__(self,
+                 observation_spec: alf.tensor_specs.NestedTensorSpec,
+                 action_spec: alf.tensor_specs.BoundedTensorSpec,
+                 reward_spec: TensorSpec = TensorSpec(()),
+                 q_network_cls: Callable[..., QNetwork] = QNetwork,
+                 q_optimizer: Optional[torch.optim.Optimizer] = None,
+                 rollout_epsilon_greedy: Union[float, Scheduler] = 0.1,
+                 target_net_target_action: bool = True,
+                 num_critic_replicas: int = 2,
+                 env=None,
+                 config: Optional[TrainerConfig] = None,
+                 critic_loss_ctor=None,
+                 checkpoint=None,
+                 debug_summaries: bool = False,
+                 name: str = "SeedDqnAlgorithm",
+                 reward_noise_std: float = 0.0,
+                 parameter_target_std: float = 0.0,
+                 parameter_target_alpha: float = 0.0,
+                 exploration_seed: int = 0):
+        super().__init__(observation_spec=observation_spec,
+                         action_spec=action_spec,
+                         reward_spec=reward_spec,
+                         q_network_cls=q_network_cls,
+                         q_optimizer=q_optimizer,
+                         rollout_epsilon_greedy=rollout_epsilon_greedy,
+                         target_net_target_action=target_net_target_action,
+                         num_critic_replicas=num_critic_replicas,
+                         env=env,
+                         config=config,
+                         critic_loss_ctor=critic_loss_ctor,
+                         checkpoint=checkpoint,
+                         debug_summaries=debug_summaries,
+                         name=name)
+        self._seed_sampling_init(reward_noise_std=reward_noise_std,
+                                 parameter_target_std=parameter_target_std,
+                                 parameter_target_alpha=parameter_target_alpha,
+                                 exploration_seed=exploration_seed)
+
+        logging.info(f"SeedDqnAlgorithm instantiated with: "
+                     f"reward_noise_std={reward_noise_std}, "
+                     f"parameter_target_std={parameter_target_std}, "
+                     f"parameter_target_alpha={parameter_target_alpha}, "
+                     f"exploration_seed={exploration_seed}")
 
     def calc_loss(self, info):
         loss_info = super().calc_loss(info)

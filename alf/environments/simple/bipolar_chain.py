@@ -19,30 +19,34 @@ import numpy as np
 
 class BipolarChain(gym.Env):
 
-    def __init__(self, k=100):
+    def __init__(self, k=5):
         super().__init__()
         self.k = k
-        self.observation_space = spaces.Box(low=-k,
-                                            high=k,
-                                            shape=(1, ),
+        self.num_states = 2 * k + 1
+        self.observation_space = spaces.Box(low=0.0,
+                                            high=1.0,
+                                            shape=(self.num_states, ),
                                             dtype=np.float32)
         self.action_space = spaces.Discrete(2)
         self.state = 0
+        self.step_count = 0
 
     def reset(self):
         self.state = 0
-        return np.array([self.state], dtype=np.float32)
+        self.step_count = 0
+        obs = np.zeros(self.num_states, dtype=np.float32)
+        obs[self.state + self.k] = 1.0
+        return obs
 
     def step(self, action):
-        delta = 2 * action - 1
-        self.state += delta
-
-        if self.state >= self.k:
-            return np.array([self.state], dtype=np.float32), 1.0, True, {}
-        elif self.state <= -self.k:
-            return np.array([self.state], dtype=np.float32), 0.0, True, {}
-        else:
-            return np.array([self.state], dtype=np.float32), 0.0, False, {}
+        self.step_count += 1
+        done = abs(self.state) >= self.k or self.step_count >= 2 * self.k
+        if not done:
+            self.state += 2 * action - 1
+        reward = 1.0 if (self.state == self.k and not done) else 0.0
+        obs = np.zeros(self.num_states, dtype=np.float32)
+        obs[self.state + self.k] = 1.0
+        return obs, reward, done, {}
 
     def render(self, mode="human", close=False):
         pass

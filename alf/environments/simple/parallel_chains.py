@@ -34,16 +34,19 @@ class ParallelChains(gym.Env):
         super().__init__()
         self.k = k
         self.l = l
-        self.observation_space = spaces.Box(low=0,
-                                            high=k * l,
-                                            shape=(1, ),
+        self.num_states = k * l + 1
+        self.observation_space = spaces.Box(low=0.0,
+                                            high=1.0,
+                                            shape=(self.num_states, ),
                                             dtype=np.float32)
         self.action_space = spaces.Discrete(k)
         self.state = 0
 
     def reset(self):
         self.state = 0
-        return np.array([self.state], dtype=np.float32)
+        obs = np.zeros(self.num_states, dtype=np.float32)
+        obs[0] = 1.0
+        return obs
 
     def step(self, action):
         if self.state == 0:
@@ -53,7 +56,9 @@ class ParallelChains(gym.Env):
 
         done = self.state % self.l == 0
         reward = 1.0 if done and self.state == self.l else 0.0
-        return np.array([self.state], dtype=np.float32), reward, done, {}
+        obs = np.zeros(self.num_states, dtype=np.float32)
+        obs[self.state] = 1.0
+        return obs, reward, done, {}
 
     def render(self, mode="human", close=False):
         pass

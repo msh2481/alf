@@ -268,7 +268,7 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
 
     def _call_debug_metrics(self):
         observations, actions, rewards = self.sample_state_action_distribution(
-            num_samples=10)
+            num_samples=1000)
         self.debug_metrics(observations, actions, rewards)
 
     def after_train_iter(self, inputs, info):
