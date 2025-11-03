@@ -63,7 +63,7 @@ def load(game,
         env = CheckValue(**env_args)
     elif game == "CheckPolicy":
         env = CheckPolicy(**env_args)
-    elif game == "CheckPropagation":
+    elif game == "BipolarChain":
         env = BipolarChain(**env_args)
     elif game == "ParallelChains":
         env = ParallelChains(**env_args)

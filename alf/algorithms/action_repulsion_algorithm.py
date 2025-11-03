@@ -89,10 +89,10 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
         replay_buffer = self._replay_buffer
         if replay_buffer is None:
             warning("No replay buffer")
-            return None, None
+            return None, None, None
         if replay_buffer.total_size == 0:
             warning("Replay buffer is empty")
-            return None, None
+            return None, None, None
         num_samples = min(num_samples, replay_buffer.total_size.item())
         batch_info = replay_buffer._sample(batch_size=num_samples,
                                            batch_length=1)
@@ -101,7 +101,9 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
                                                batch_info.positions)
         actions = replay_buffer.get_field('action', batch_info.env_ids,
                                           batch_info.positions)
-        return observations, actions
+        rewards = replay_buffer.get_field('reward', batch_info.env_ids,
+                                          batch_info.positions)
+        return observations, actions, rewards
 
     def get_q_values(self, alg_index: int, observations: torch.Tensor,
                      actions: torch.Tensor):
@@ -175,7 +177,7 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
     def calc_loss(self, info) -> LossInfo:
         loss_info = super().calc_loss(info)
         if self._repulsion_alpha > 0:
-            observations, actions = self.sample_state_action_distribution(
+            observations, actions, _ = self.sample_state_action_distribution(
                 num_samples=self._repulsion_num_obs)
             actions = torch.unique(actions, dim=0)
             if observations is None or actions is None:
@@ -189,7 +191,7 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
             loss_info = loss_info._replace(loss=total_loss)
         return loss_info
 
-    def debug_metrics(self, observations, actions):
+    def debug_metrics(self, observations, actions, rewards=None):
         if torch.rand(1).item() > 0.01:
             return
 
@@ -201,6 +203,10 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
             return
 
         num_samples = observations.shape[0]
+
+        if rewards is not None:
+            mean_reward = rewards.mean().item()
+            print(f"\nMean reward: {mean_reward:.4f}")
 
         print(f"\nVisited states statistics (n={num_samples}):")
         if observations.dim() > 1:
@@ -261,9 +267,9 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
         print("=" * 40 + "\n")
 
     def _call_debug_metrics(self):
-        observations, actions = self.sample_state_action_distribution(
+        observations, actions, rewards = self.sample_state_action_distribution(
             num_samples=10)
-        self.debug_metrics(observations, actions)
+        self.debug_metrics(observations, actions, rewards)
 
     def after_train_iter(self, inputs, info):
         super().after_train_iter(inputs, info)

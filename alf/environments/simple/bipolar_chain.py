@@ -19,7 +19,7 @@ import numpy as np
 
 class BipolarChain(gym.Env):
 
-    def __init__(self, k=3):
+    def __init__(self, k=100):
         super().__init__()
         self.k = k
         self.observation_space = spaces.Box(low=-k,

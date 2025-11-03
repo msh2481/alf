@@ -23,12 +23,13 @@ BATCH_SIZE = 64
 ENV_COUNTS = 4
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
+NUM_COPIES = 4
 
 # environment config
 alf.config(
     'create_environment',
-    # env_name="CheckPropagation-v0",
-    env_name="CartPole-v0",
+    env_name="BipolarChain-v0",
+    # env_name="CartPole-v0",
     # env_name="Pendulum-v0",
     num_parallel_environments=ENV_COUNTS)
 
@@ -53,7 +54,7 @@ alf.config(
     "ActionRepulsionAlgorithm",
     algorithm_ctor=SeedSacAlgorithm,
     optimizer=alf.optimizers.Adam(lr=1e-3, name='main'),
-    num_copies=4,
+    num_copies=NUM_COPIES,
     batch_size=BATCH_SIZE,
     env_counts=ENV_COUNTS,
     unroll_length=UNROLL_LENGTH,

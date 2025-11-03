@@ -25,6 +25,11 @@ gym.register(
 )
 
 gym.register(
-    id='CheckPropagation-v0',
-    entry_point='alf.environments.simple.check_propagation:CheckPropagation',
+    id='BipolarChain-v0',
+    entry_point='alf.environments.simple.bipolar_chain:BipolarChain',
+)
+
+gym.register(
+    id='ParallelChains-v0',
+    entry_point='alf.environments.simple.parallel_chains:ParallelChains',
 )
