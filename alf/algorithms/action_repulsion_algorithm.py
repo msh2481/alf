@@ -53,6 +53,7 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
         repulsion_alpha: float = 0.0,
         repulsion_num_obs: int = 100,
         use_exploration_seeds: bool = True,
+        log_every_n_steps: int = 100,
     ):
         super().__init__(
             observation_spec=observation_spec,
@@ -75,6 +76,8 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
 
         self._repulsion_alpha = repulsion_alpha
         self._repulsion_num_obs = repulsion_num_obs
+        self._debug_count = 0
+        self._log_every_n_steps = log_every_n_steps
 
         logging.info(
             f"ActionRepulsionAlgorithm instantiated with: "
@@ -192,7 +195,8 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
         return loss_info
 
     def debug_metrics(self, observations, actions, rewards=None):
-        if torch.rand(1).item() > 0.01:
+        self._debug_count += 1
+        if self._debug_count % self._log_every_n_steps != 1:
             return
 
         print("\n=== Action Repulsion Debug Metrics ===")

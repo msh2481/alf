@@ -19,7 +19,7 @@ import numpy as np
 
 class BipolarChain(gym.Env):
 
-    def __init__(self, k=5):
+    def __init__(self, k=20):
         super().__init__()
         self.k = k
         self.num_states = 2 * k + 1

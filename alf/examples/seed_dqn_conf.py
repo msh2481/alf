@@ -13,8 +13,9 @@
 # limitations under the License.
 import alf
 
-alf.import_config("sac_conf.py")
 from alf.algorithms.seed_sampling import SeedDqnAlgorithm, SeedSacAlgorithm
+from alf.algorithms.sac_algorithm import SacAlgorithm
+from alf.algorithms.dqn_algorithm import DqnAlgorithm
 from alf.algorithms.action_repulsion_algorithm import ActionRepulsionAlgorithm
 from alf.networks import QNetwork, QNetworkBase, DebugLinearQNetwork
 from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetwork
@@ -37,15 +38,16 @@ alf.config(
 # alf.config('QNetworkBase', fc_layer_params=(97, ))
 # alf.config('QNetworkBase', encoding_network_ctor=EncodingNetwork)
 alf.config(
-    'SeedSacAlgorithm',
+    'DqnAlgorithm',
     # q_network_cls=QNetworkBase,
     q_network_cls=DebugLinearQNetwork,
+    num_critic_replicas=1,
     #    actor_optimizer=alf.optimizers.Adam(lr=1e-3, name='actor'),
     #    critic_optimizer=alf.optimizers.Adam(lr=1e-3, name='critic'),
     #    alpha_optimizer=alf.optimizers.Adam(lr=1e-3, name='alpha'),
-    parameter_target_std=0.01,
-    parameter_target_alpha=1e-6,
-    reward_noise_std=0.0,
+    # parameter_target_std=0.01,
+    # parameter_target_alpha=1e-6,
+    # reward_noise_std=0.0,
 )
 
 alf.config('OneStepTDLoss',
@@ -54,7 +56,7 @@ alf.config('OneStepTDLoss',
 
 alf.config(
     "ActionRepulsionAlgorithm",
-    algorithm_ctor=SeedSacAlgorithm,
+    algorithm_ctor=DqnAlgorithm,
     optimizer=alf.optimizers.Adam(lr=1e-3, name='main'),
     num_copies=NUM_COPIES,
     batch_size=BATCH_SIZE,
@@ -63,7 +65,8 @@ alf.config(
     mini_batch_length=MINI_BATCH_LENGTH,
     # repulsion_alpha=1e-4,
     repulsion_num_obs=100,
-    use_exploration_seeds=True,
+    log_every_n_steps=500,
+    use_exploration_seeds=False,  # TODO: turn back on
 )
 
 # training config
@@ -81,4 +84,6 @@ alf.config('TrainerConfig',
            debug_summaries=True,
            summary_interval=100,
            replay_buffer_length=100000,
-           random_seed=42)
+           random_seed=42,
+           whole_replay_buffer_training=False,
+           clear_replay_buffer=False)

@@ -1236,7 +1236,7 @@ def scatter_nested(value, indices, batch_size, time_major=False):
         return result
 
     scattered_params = nest.map_structure(_scatter_leaf, params)
-    return dist_utils.params_to_distributions(scattered_params, spec)
+    return scattered_params, spec
 
 
 def scatter_and_sum_nested(values_by_alg, batch_size, time_major=False):
@@ -1255,14 +1255,12 @@ def scatter_and_sum_nested(values_by_alg, batch_size, time_major=False):
     result = None
     spec = None
     for alg_idx, (value, batch_indices) in values_by_alg.items():
-        scattered = scatter_nested(value,
-                                   batch_indices,
-                                   batch_size,
-                                   time_major=time_major)
+        scattered, spec = scatter_nested(value,
+                                         batch_indices,
+                                         batch_size,
+                                         time_major=time_major)
         if scattered is None:
             continue
-        scattered = dist_utils.distributions_to_params(scattered)
-        spec = dist_utils.extract_spec(value, from_dim=1 if time_major else 0)
         if result is None:
             result = scattered
         else:
