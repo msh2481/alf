@@ -14,7 +14,7 @@
 import alf
 
 alf.import_config("sac_conf.py")
-from alf.algorithms.seed_sampling import SeedDqnAlgorithm
+from alf.algorithms.seed_sampling import SeedSacAlgorithm
 from alf.algorithms.action_repulsion_algorithm import ActionRepulsionAlgorithm
 from alf.networks import QNetwork
 from alf.utils.losses import element_wise_squared_loss
@@ -35,7 +35,7 @@ alf.config(
 
 alf.config('QNetwork', fc_layer_params=(97, ))
 alf.config(
-    'SeedDqnAlgorithm',
+    'SeedSacAlgorithm',
     q_network_cls=QNetwork,
     #    actor_optimizer=alf.optimizers.Adam(lr=1e-3, name='actor'),
     #    critic_optimizer=alf.optimizers.Adam(lr=1e-3, name='critic'),
@@ -52,7 +52,7 @@ alf.config('OneStepTDLoss',
 
 alf.config(
     "ActionRepulsionAlgorithm",
-    algorithm_ctor=SeedDqnAlgorithm,
+    algorithm_ctor=SeedSacAlgorithm,
     optimizer=alf.optimizers.Adam(lr=1e-3, name='main'),
     num_copies=NUM_COPIES,
     batch_size=BATCH_SIZE,

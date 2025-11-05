@@ -14,9 +14,10 @@
 import alf
 
 alf.import_config("sac_conf.py")
-from alf.algorithms.seed_sampling import SeedSacAlgorithm
+from alf.algorithms.seed_sampling import SeedDqnAlgorithm, SeedSacAlgorithm
 from alf.algorithms.action_repulsion_algorithm import ActionRepulsionAlgorithm
-from alf.networks import QNetwork
+from alf.networks import QNetwork, QNetworkBase, DebugLinearQNetwork
+from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetwork
 from alf.utils.losses import element_wise_squared_loss
 
 BATCH_SIZE = 64
@@ -33,17 +34,18 @@ alf.config(
     # env_name="Pendulum-v0",
     num_parallel_environments=ENV_COUNTS)
 
-alf.config('QNetwork', fc_layer_params=(97, ))
+# alf.config('QNetworkBase', fc_layer_params=(97, ))
+# alf.config('QNetworkBase', encoding_network_ctor=EncodingNetwork)
 alf.config(
     'SeedSacAlgorithm',
-    q_network_cls=QNetwork,
+    # q_network_cls=QNetworkBase,
+    q_network_cls=DebugLinearQNetwork,
     #    actor_optimizer=alf.optimizers.Adam(lr=1e-3, name='actor'),
     #    critic_optimizer=alf.optimizers.Adam(lr=1e-3, name='critic'),
     #    alpha_optimizer=alf.optimizers.Adam(lr=1e-3, name='alpha'),
-    target_update_tau=0.01,
-    # parameter_target_std=2.0,
-    # parameter_target_alpha=0.5,
-    reward_noise_std=0.5,
+    parameter_target_std=0.01,
+    parameter_target_alpha=1e-6,
+    reward_noise_std=0.0,
 )
 
 alf.config('OneStepTDLoss',

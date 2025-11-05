@@ -861,6 +861,22 @@ class EncodingNetwork(_Sequential):
             return pnet
 
 
+@alf.configurable
+class IdentityEncodingNetwork(_Sequential):
+    """An encoding network that simply returns the input unchanged.
+
+    This is useful for creating purely linear networks where only the final
+    layer performs computation.
+    """
+
+    def __init__(self, input_tensor_spec, name="IdentityEncodingNetwork"):
+        nets = [alf.layers.Identity()]
+        super().__init__(nets, input_tensor_spec=input_tensor_spec, name=name)
+
+    def make_parallel(self, n: int, allow_non_parallel_input=False):
+        return super().make_parallel(n)
+
+
 class _ReplicateInputForParallel(Network):
 
     def __init__(self, input_tensor_spec, n, pnet, name):

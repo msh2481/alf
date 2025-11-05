@@ -306,3 +306,57 @@ class QRNNNetwork(QNetworkBase):
             post_fc_layer_params=value_fc_layer_params,
             activation=activation,
             kernel_initializer=kernel_initializer)
+
+
+@alf.configurable
+class DebugLinearQNetwork(QNetworkBase):
+    """A purely linear QNetwork with periodic parameter logging.
+
+    This network uses an IdentityEncodingNetwork, making it equivalent to
+    a single linear layer from observations to Q-values. Useful for debugging
+    on environments where linear function approximation is sufficient.
+
+    Periodically logs parameter statistics to help understand network behavior.
+    """
+
+    def __init__(self,
+                 input_tensor_spec: TensorSpec,
+                 action_spec: BoundedTensorSpec,
+                 name="DebugLinearQNetwork"):
+        """Creates a linear QNetwork with parameter logging.
+
+        Args:
+            input_tensor_spec (TensorSpec): the tensor spec of the input
+            action_spec (TensorSpec): the tensor spec of the action
+            log_frequency (float): probability of logging on each forward pass
+                (default 0.01 = 1% of forward passes)
+            name (str): name of the network
+        """
+        # Import here to avoid circular dependency
+        from alf.networks.encoding_networks import IdentityEncodingNetwork
+
+        super(DebugLinearQNetwork, self).__init__(
+            input_tensor_spec,
+            action_spec,
+            encoding_network_ctor=IdentityEncodingNetwork,
+            use_naive_parallel_network=False,
+            name=name,
+        )
+        self._forward_count = 0
+
+    def forward(self, observation, state=()):
+        self._forward_count += 1
+        return super().forward(observation, state)
+
+    def make_parallel(self, n):
+        return alf.networks.NaiveParallelNetwork(self, n)
+
+    def _log_parameters(self):
+        print("Forward count: ", self._forward_count)
+        for i in range(self._final_layer.weight.shape[0]):
+            weight_str = ', '.join([
+                f"{val:.2f}"
+                for val in self._final_layer.weight[i].data.flatten()
+            ])
+            bias_val = self._final_layer.bias[i].data.item()
+            print(f"Action {i}: {bias_val:.2f} + [{weight_str}]")

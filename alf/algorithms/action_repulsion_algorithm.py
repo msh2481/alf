@@ -264,6 +264,13 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
                       f"min = {min_val[i].item():.4f}, "
                       f"max = {max_val[i].item():.4f}")
 
+        for i, alg in enumerate(self._algorithms):
+            print(f"=== Algorithm #{i} ===")
+            critics = alg._critic_networks._networks
+            for j, critic in enumerate(critics):
+                print(f"  Critic #{j}")
+                critic._log_parameters()
+
         print("=" * 40 + "\n")
 
     def _call_debug_metrics(self):

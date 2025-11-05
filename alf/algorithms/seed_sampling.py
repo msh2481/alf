@@ -55,6 +55,8 @@ class SeedSamplingMixin:
                 self.register_buffer(
                     f"_param_target_{param_name.replace('.', '_')}", buffer)
                 self._seed_sampling_parameter_targets[param_name] = buffer
+                # Initialize parameter data to equal the buffer value
+                param.data.copy_(buffer)
 
     def _seed_sampling_calc_loss_addition(self, loss_info: LossInfo):
         if self._seed_sampling_parameter_target_alpha > 0:
