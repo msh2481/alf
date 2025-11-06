@@ -12,41 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gym
-from gym import spaces
 import numpy as np
+from alf.environments.simple.bipolar_chain import BipolarChain
 
 
-class BipolarChain(gym.Env):
+class RandomizedBipolarChain(BipolarChain):
+    """BipolarChain environment with pseudorandomized action effects.
+
+    For each state, a random bit is generated (using a fixed seed for
+    reproducibility). When this bit is 1, the effect of the action is
+    flipped (XOR operation with the action).
+    """
 
     def __init__(self, k=30):
-        super().__init__()
-        self.k = k
-        self.num_states = 2 * k + 1
-        self.observation_space = spaces.Box(low=0.0,
-                                            high=1.0,
-                                            shape=(self.num_states, ),
-                                            dtype=np.float32)
-        self.action_space = spaces.Discrete(2)
-        self.state = 0
-        self.step_count = 0
-
-    def reset(self):
-        self.state = 0
-        self.step_count = 0
-        obs = np.zeros(self.num_states, dtype=np.float32)
-        obs[self.state + self.k] = 1.0
-        return obs
+        super().__init__(k)
+        # Use a fixed seed for reproducibility
+        rng = np.random.RandomState(42)
+        # Generate a random bit for each state (0 or 1)
+        self.action_flip_bits = rng.randint(0, 2, size=self.num_states)
 
     def step(self, action):
         self.step_count += 1
         done = abs(self.state) >= self.k or self.step_count >= 2 * self.k
         if not done:
-            self.state += 2 * action - 1
+            # Get the flip bit for the current state
+            flip_bit = self.action_flip_bits[self.state + self.k]
+            # XOR the action with the flip bit to get the effective action
+            effective_action = action ^ flip_bit
+            # Apply the effective action to update state
+            self.state += 2 * effective_action - 1
         reward = 1.0 if (self.state == self.k and not done) else 0.0
         obs = np.zeros(self.num_states, dtype=np.float32)
         obs[self.state + self.k] = 1.0
         return obs, reward, done, {}
-
-    def render(self, mode="human", close=False):
-        pass
