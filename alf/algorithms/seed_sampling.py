@@ -51,7 +51,9 @@ class SeedSamplingMixin:
         for param_name, param in self.named_parameters():
             if param.requires_grad:
                 buffer = torch.zeros_like(param)
-                buffer.normal_(mean=0.0, std=parameter_target_std)
+                buffer.normal_(
+                    mean=0.0,
+                    std=0.0 if "bias" in param_name else parameter_target_std)
                 self.register_buffer(
                     f"_param_target_{param_name.replace('.', '_')}", buffer)
                 self._seed_sampling_parameter_targets[param_name] = buffer

@@ -352,11 +352,14 @@ class DebugLinearQNetwork(QNetworkBase):
         return alf.networks.NaiveParallelNetwork(self, n)
 
     def _log_parameters(self):
-        print("Forward count: ", self._forward_count)
+        totals = []
         for i in range(self._final_layer.weight.shape[0]):
-            weight_str = ', '.join([
-                f"{val:.2f}"
-                for val in self._final_layer.weight[i].data.flatten()
-            ])
             bias_val = self._final_layer.bias[i].data.item()
-            print(f"Action {i}: {bias_val:.2f} + [{weight_str}]")
+            total = bias_val + self._final_layer.weight[i].data.flatten()
+            weight_str = ', '.join([f"{val:.2f}" for val in total])
+            print(f"Action {i}: [{weight_str}] (bias = {bias_val:.2f})")
+            totals.append(total)
+        if len(totals) == 2:
+            delta = totals[1] - totals[0]
+            delta_str = ', '.join([f"{val:.2f}" for val in delta])
+            print(f"Delta: [{delta_str}]")

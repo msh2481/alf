@@ -401,6 +401,11 @@ class SacAlgorithm(OffPolicyAlgorithm):
         if critic_networks:
             self._target_critic_networks = self._critic_networks.copy(
                 name='target_critic_networks')
+            # UPDATE: actually set target networks to have the same weights as the critic networks initially
+            for critic, target_critic in zip(
+                    self._critic_networks._networks,
+                    self._target_critic_networks._networks):
+                target_critic.load_state_dict(critic.state_dict())
 
         if critic_loss_ctor is None:
             critic_loss_ctor = OneStepTDLoss

@@ -24,23 +24,20 @@ class RandomizedBipolarChain(BipolarChain):
     flipped (XOR operation with the action).
     """
 
-    def __init__(self, k=30):
+    def __init__(self, k=10):
         super().__init__(k)
-        # Use a fixed seed for reproducibility
         rng = np.random.RandomState(42)
-        # Generate a random bit for each state (0 or 1)
         self.action_flip_bits = rng.randint(0, 2, size=self.num_states)
 
     def step(self, action):
+        # Randomly flip the action, to prevent trivial exploration
+        flip_bit = self.action_flip_bits[self.state + self.k]
+        action = action ^ flip_bit
+
         self.step_count += 1
-        done = abs(self.state) >= self.k or self.step_count >= 2 * self.k
+        done = abs(self.state) >= self.k or self.step_count >= self.k + 1
         if not done:
-            # Get the flip bit for the current state
-            flip_bit = self.action_flip_bits[self.state + self.k]
-            # XOR the action with the flip bit to get the effective action
-            effective_action = action ^ flip_bit
-            # Apply the effective action to update state
-            self.state += 2 * effective_action - 1
+            self.state += 2 * action - 1
         reward = 1.0 if (self.state == self.k and not done) else 0.0
         obs = np.zeros(self.num_states, dtype=np.float32)
         obs[self.state + self.k] = 1.0

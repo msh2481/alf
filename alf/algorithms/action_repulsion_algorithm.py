@@ -212,68 +212,67 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
             mean_reward = rewards.mean().item()
             print(f"\nMean reward: {mean_reward:.4f}")
 
-        print(f"\nVisited states statistics (n={num_samples}):")
         if observations.dim() > 1:
             obs_flat = observations.reshape(observations.shape[0], -1)
         else:
             obs_flat = observations.unsqueeze(-1)
-
         mean = obs_flat.mean(dim=0)
         std = obs_flat.std(dim=0)
+        print(f"\nObservation statistics (n={num_samples}):")
+        mean_str = ', '.join([f"{val:.2f}" for val in mean])
+        std_str = ', '.join([f"{val:.2f}" for val in std])
+        print(f" Mean: [{mean_str}]")
+        print(f"  Std: [{std_str}]")
 
-        for i in range(min(obs_flat.shape[1], 20)):
-            print(
-                f"  Obs dim {i}: mean = {mean[i].item():.4f}, std = {std[i].item():.4f}"
-            )
+        # print(f"\nVisited actions statistics (n={num_samples}):")
+        # if self._action_spec.is_discrete:
+        #     unique_actions, counts = torch.unique(actions,
+        #                                           return_counts=True,
+        #                                           dim=0)
+        #     sorted_indices = torch.argsort(unique_actions, dim=0)
+        #     unique_actions = unique_actions[sorted_indices]
+        #     counts = counts[sorted_indices]
 
-        if obs_flat.shape[1] > 20:
-            print(f"  ... ({obs_flat.shape[1] - 20} more dimensions)")
+        #     print(f"  Unique actions and their counts:")
+        #     for action, count in zip(unique_actions, counts):
+        #         percentage = 100.0 * count.item() / num_samples
+        #         q_values = []
+        #         for i in range(self._num_copies):
+        #             q_val = self.get_q_values(i, observations[:1],
+        #                                       action.unsqueeze(0))
+        #             q_values.append(q_val[0].item())
+        #         q_str = ", ".join(
+        #             [f"Q{i}={q:.3f}" for i, q in enumerate(q_values)])
+        #         print(
+        #             f"    Action {action.item()}: {count.item()} ({percentage:.1f}%), [{q_str}]"
+        #         )
+        # else:
+        #     if actions.dim() > 1:
+        #         action_flat = actions.reshape(actions.shape[0], -1)
+        #     else:
+        #         action_flat = actions.unsqueeze(-1)
 
-        print(f"\nVisited actions statistics (n={num_samples}):")
-        if self._action_spec.is_discrete:
-            unique_actions, counts = torch.unique(actions,
-                                                  return_counts=True,
-                                                  dim=0)
-            sorted_indices = torch.argsort(unique_actions, dim=0)
-            unique_actions = unique_actions[sorted_indices]
-            counts = counts[sorted_indices]
+        #     mean = action_flat.mean(dim=0)
+        #     std = action_flat.std(dim=0)
+        #     min_val = action_flat.min(dim=0)[0]
+        #     max_val = action_flat.max(dim=0)[0]
 
-            print(f"  Unique actions and their counts:")
-            for action, count in zip(unique_actions, counts):
-                percentage = 100.0 * count.item() / num_samples
-                q_values = []
-                for i in range(self._num_copies):
-                    q_val = self.get_q_values(i, observations[:1],
-                                              action.unsqueeze(0))
-                    q_values.append(q_val[0].item())
-                q_str = ", ".join(
-                    [f"Q{i}={q:.3f}" for i, q in enumerate(q_values)])
-                print(
-                    f"    Action {action.item()}: {count.item()} ({percentage:.1f}%), [{q_str}]"
-                )
-        else:
-            if actions.dim() > 1:
-                action_flat = actions.reshape(actions.shape[0], -1)
-            else:
-                action_flat = actions.unsqueeze(-1)
-
-            mean = action_flat.mean(dim=0)
-            std = action_flat.std(dim=0)
-            min_val = action_flat.min(dim=0)[0]
-            max_val = action_flat.max(dim=0)[0]
-
-            for i in range(action_flat.shape[1]):
-                print(f"  Action dim {i}: mean = {mean[i].item():.4f}, "
-                      f"std = {std[i].item():.4f}, "
-                      f"min = {min_val[i].item():.4f}, "
-                      f"max = {max_val[i].item():.4f}")
+        #     for i in range(action_flat.shape[1]):
+        #         print(f"  Action dim {i}: mean = {mean[i].item():.4f}, "
+        #               f"std = {std[i].item():.4f}, "
+        #               f"min = {min_val[i].item():.4f}, "
+        #               f"max = {max_val[i].item():.4f}")
 
         for i, alg in enumerate(self._algorithms):
             print(f"=== Algorithm #{i} ===")
             critics = alg._critic_networks._networks
-            for j, critic in enumerate(critics):
+            target_critics = alg._target_critic_networks._networks
+            for j, (critic,
+                    target_critic) in enumerate(zip(critics, target_critics)):
                 print(f"  Critic #{j}")
                 critic._log_parameters()
+                # print(f"  Target Critic #{j}")
+                # target_critic._log_parameters()
 
         print("=" * 40 + "\n")
 
