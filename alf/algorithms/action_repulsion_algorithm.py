@@ -269,6 +269,8 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
             target_critics = alg._target_critic_networks._networks
             for j, (critic,
                     target_critic) in enumerate(zip(critics, target_critics)):
+                if not hasattr(critic, '_log_parameters'):
+                    continue
                 print(f"  Critic #{j}")
                 critic._log_parameters()
                 # print(f"  Target Critic #{j}")

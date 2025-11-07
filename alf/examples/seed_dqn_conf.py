@@ -68,7 +68,7 @@ alf.config(
     # repulsion_alpha=1e-4,
     repulsion_num_obs=100,
     log_every_n_steps=500,
-    use_exploration_seeds=False,  # TODO: turn back on
+    use_exploration_seeds=SEED_VERSION,
 )
 
 # training config
