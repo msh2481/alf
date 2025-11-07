@@ -39,3 +39,8 @@ gym.register(
     id='ParallelChains-v0',
     entry_point='alf.environments.simple.parallel_chains:ParallelChains',
 )
+
+gym.register(
+    id='Bezier-v0',
+    entry_point='alf.environments.simple.bezier:Bezier',
+)

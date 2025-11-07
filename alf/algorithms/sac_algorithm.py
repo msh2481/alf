@@ -161,6 +161,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
                  reward_weights=None,
                  train_eps_greedy=1.0,
                  epsilon_greedy=None,
+                 use_discrete_actor=False,
                  use_entropy_reward=True,
                  use_mc_return=False,
                  normalize_entropy_reward=False,
@@ -229,6 +230,12 @@ class SacAlgorithm(OffPolicyAlgorithm):
                 Breakout. Only used for evaluation. If None, its value is taken
                 from ``config.epsilon_greedy`` and then
                 ``alf.get_config_value(TrainerConfig.epsilon_greedy)``.
+            use_discrete_actor (bool): if True, use an actor network for discrete
+                actions instead of sampling directly from Q-values. The actor will
+                be trained to maximize E_π[Q(s,a)] + αH(π), making the discrete
+                case consistent with continuous SAC. If False, actions are sampled
+                from p(a|s) ∝ exp(Q(s,a)/α) without a learnable actor network
+                (original SAC discrete action behavior). Default is False.
             use_entropy_reward (bool): whether to include entropy as reward
             use_mc_return (bool): whether to use Monte Carlo return (MC-return)
                 to lower-bound the target return calculation.
@@ -296,6 +303,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
         if epsilon_greedy is None:
             epsilon_greedy = alf.utils.common.get_epsilon_greedy(config)
         self._epsilon_greedy = epsilon_greedy
+        self._use_discrete_actor = use_discrete_actor
 
         original_observation_spec = observation_spec
         if repr_alg_ctor is not None:
@@ -339,7 +347,8 @@ class SacAlgorithm(OffPolicyAlgorithm):
             log_alpha = _init_log_alpha()
 
         action_state_spec = SacActionState(
-            actor_network=(() if self._act_type == ActionType.Discrete else
+            actor_network=(() if (self._act_type == ActionType.Discrete
+                                  and not self._use_discrete_actor) else
                            actor_network.state_spec),
             critic=(() if self._act_type == ActionType.Continuous
                     or critic_network_cls is None else
@@ -570,6 +579,11 @@ class SacAlgorithm(OffPolicyAlgorithm):
             else:
                 q_network = q_network_cls(input_tensor_spec=observation_spec,
                                           action_spec=action_spec)
+                # Create actor network for discrete actions if use_discrete_actor is True
+                if self._use_discrete_actor and continuous_actor_network_cls is not None:
+                    actor_network = continuous_actor_network_cls(
+                        input_tensor_spec=observation_spec,
+                        action_spec=discrete_action_spec)
             critic_networks = _make_parallel(q_network)
 
         return critic_networks, actor_network, act_type
@@ -604,23 +618,35 @@ class SacAlgorithm(OffPolicyAlgorithm):
 
         q_values = None
         if self._act_type != ActionType.Continuous:
-            q_values, critic_state = self._compute_critics(
-                self._critic_networks, *critic_network_inputs, state.critic)
-
-            new_state = new_state._replace(critic=critic_state)
-            if self._act_type == ActionType.Discrete:
-                alpha = torch.exp(self._log_alpha).detach()
-            else:
-                alpha = torch.exp(self._log_alpha[0]).detach()
-            # p(a|s) = exp(Q(s,a)/alpha) / Z;
-            logits = q_values / alpha
-            discrete_action_dist = td.Categorical(logits=logits)
-            if eps_greedy_sampling:
-                discrete_action = dist_utils.epsilon_greedy_sample(
-                    discrete_action_dist, epsilon_greedy)
-            else:
+            # For discrete actions with actor network
+            if self._act_type == ActionType.Discrete and self._use_discrete_actor:
+                discrete_action_dist, actor_network_state = self._actor_network(
+                    observation, state=state.actor_network)
+                new_state = new_state._replace(
+                    actor_network=actor_network_state)
+                # Sample from actor distribution (no epsilon-greedy for actor-based policy)
                 discrete_action = dist_utils.sample_action_distribution(
                     discrete_action_dist)
+            else:
+                # For discrete actions without actor (old behavior) or mixed actions
+                q_values, critic_state = self._compute_critics(
+                    self._critic_networks, *critic_network_inputs,
+                    state.critic)
+
+                new_state = new_state._replace(critic=critic_state)
+                if self._act_type == ActionType.Discrete:
+                    alpha = torch.exp(self._log_alpha).detach()
+                else:
+                    alpha = torch.exp(self._log_alpha[0]).detach()
+                # p(a|s) = exp(Q(s,a)/alpha) / Z;
+                logits = q_values / alpha
+                discrete_action_dist = td.Categorical(logits=logits)
+                if eps_greedy_sampling:
+                    discrete_action = dist_utils.epsilon_greedy_sample(
+                        discrete_action_dist, epsilon_greedy)
+                else:
+                    discrete_action = dist_utils.sample_action_distribution(
+                        discrete_action_dist)
 
         if self._act_type == ActionType.Mixed:
             # Note that in this case ``action_dist`` is not the valid joint
@@ -806,8 +832,36 @@ class SacAlgorithm(OffPolicyAlgorithm):
         neg_entropy = sum(nest.flatten(log_pi))
 
         if self._act_type == ActionType.Discrete:
-            # Pure discrete case doesn't need to learn an actor network
-            return (), LossInfo(extra=SacActorInfo(neg_entropy=neg_entropy))
+            if not self._use_discrete_actor:
+                # Pure discrete case without actor network doesn't need to learn
+                return (), LossInfo(extra=SacActorInfo(
+                    neg_entropy=neg_entropy))
+
+            # Discrete case with actor network: maximize E_π[Q(s,a)] + αH(π)
+            # Compute Q-values for all actions
+            q_values, critics_state = self._compute_critics(
+                self._critic_networks, observation, None, state)
+            # q_values shape: [B, num_actions] (after replica_min and reward_weights)
+
+            alpha = torch.exp(self._log_alpha).detach()
+
+            # Get action probabilities from the actor distribution
+            action_probs = action_distribution.probs  # shape: [B, num_actions]
+
+            # Expected Q-value: E_π[Q(s,a)] = sum_a π(a|s) * Q(s,a)
+            expected_q = (action_probs * q_values).sum(dim=-1)  # shape: [B]
+
+            # Entropy: H(π) = -sum_a π(a|s) * log π(a|s)
+            entropy = action_distribution.entropy()  # shape: [B]
+
+            # Actor objective: maximize E_π[Q(s,a)] + αH(π)
+            # Loss: minimize -(E_π[Q(s,a)] + αH(π))
+            actor_loss = -(expected_q + alpha * entropy)
+
+            return critics_state, LossInfo(loss=actor_loss,
+                                           extra=SacActorInfo(
+                                               actor_loss=actor_loss,
+                                               neg_entropy=neg_entropy))
 
         if self._act_type == ActionType.Continuous:
             q_value, critics_state = self._compute_critics(

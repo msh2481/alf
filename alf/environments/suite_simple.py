@@ -25,6 +25,7 @@ from alf.environments.simple.check_policy import CheckPolicy
 from alf.environments.simple.bipolar_chain import BipolarChain
 from alf.environments.simple.randomized_bipolar_chain import RandomizedBipolarChain
 from alf.environments.simple.parallel_chains import ParallelChains
+from alf.environments.simple.bezier import Bezier
 from alf.environments.object_centric.bouncing_squares import BouncingSquares
 from alf.environments.gym_wrappers import FrameSkip, FrameStack
 
@@ -70,6 +71,8 @@ def load(game,
         env = RandomizedBipolarChain(**env_args)
     elif game == "ParallelChains":
         env = ParallelChains(**env_args)
+    elif game == "Bezier":
+        env = Bezier(**env_args)
     elif game == "BouncingSquares":
         env = BouncingSquares(**env_args)
     else:
