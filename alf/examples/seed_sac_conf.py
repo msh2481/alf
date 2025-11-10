@@ -22,18 +22,19 @@ from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetw
 from alf.utils.losses import element_wise_squared_loss
 
 BATCH_SIZE = 64
-ENV_COUNTS = 1
+ENV_COUNTS = 4
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
-NUM_COPIES = 1
+NUM_COPIES = 4
 SEED_VERSION = False
 
 # environment config
 alf.config(
     'create_environment',
     # env_name="RandomizedBipolarChain-v0",
-    env_name="CartPole-v0",
+    # env_name="CartPole-v0",
     # env_name="Pendulum-v0",
+    env_name="Bezier-v0",
     num_parallel_environments=ENV_COUNTS)
 
 alf.config('QNetwork', fc_layer_params=(100, ))

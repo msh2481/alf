@@ -170,6 +170,49 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
 
         return dist_params
 
+    def _get_q_values(self, alg_index: int, observations: torch.Tensor,
+                      actions: torch.Tensor):
+        """Get Q-values for debugging purposes.
+
+        Args:
+            alg_index: index of the algorithm
+            observations: [B, obs_dim] tensor of observations
+            actions: [B, ...] tensor of actions
+
+        Returns:
+            q_values: [B] tensor of Q-values
+        """
+        assert 0 <= alg_index < self._num_copies, (
+            f"alg_index {alg_index} out of range [0, {self._num_copies})")
+
+        batch_size = observations.shape[0]
+        assert actions.shape[0] == batch_size, (
+            f"Batch size mismatch: observations {observations.shape[0]} vs actions {actions.shape[0]}"
+        )
+
+        alg = self._algorithms[alg_index]
+
+        if self._action_spec.is_discrete:
+            q_values, _ = alg._compute_critics(alg._critic_networks,
+                                               observations,
+                                               None,
+                                               critics_state=(),
+                                               replica_min=True,
+                                               apply_reward_weights=True)
+            q_values = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
+        else:
+            q_values, _ = alg._compute_critics(alg._critic_networks,
+                                               observations,
+                                               actions,
+                                               critics_state=(),
+                                               replica_min=True,
+                                               apply_reward_weights=True)
+
+        assert q_values.shape == (batch_size, ), (
+            f"Output batch size mismatch: expected {batch_size}, got {q_values.shape}"
+        )
+        return q_values
+
     def _get_policy_vector(self, alg_index: int, observations: torch.Tensor):
         """Get policy vector by concatenating distribution params across observations.
 
@@ -253,6 +296,10 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
             return
 
         num_samples = observations.shape[0]
+        replay_buffer = self._replay_buffer
+        total_size = replay_buffer.total_size.item(
+        ) if replay_buffer is not None else 0
+        print(f"Sampled {num_samples} out of {total_size} experiences")
 
         if rewards is not None:
             mean_reward = rewards.mean().item()
@@ -264,50 +311,73 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
             obs_flat = observations.unsqueeze(-1)
         mean = obs_flat.mean(dim=0)
         std = obs_flat.std(dim=0)
-        print(f"\nObservation statistics (n={num_samples}):")
+        print(f"\nObservation statistics:")
         mean_str = ', '.join([f"{val:.2f}" for val in mean])
         std_str = ', '.join([f"{val:.2f}" for val in std])
         print(f" Mean: [{mean_str}]")
         print(f"  Std: [{std_str}]")
 
-        # print(f"\nVisited actions statistics (n={num_samples}):")
-        # if self._action_spec.is_discrete:
-        #     unique_actions, counts = torch.unique(actions,
-        #                                           return_counts=True,
-        #                                           dim=0)
-        #     sorted_indices = torch.argsort(unique_actions, dim=0)
-        #     unique_actions = unique_actions[sorted_indices]
-        #     counts = counts[sorted_indices]
+        # Track policy evolution by showing average distribution parameters
+        print(f"\nAverage policy parameters across sampled states:")
+        for i in range(self._num_copies):
+            # Get distribution parameters for all observations
+            dist_params = self.get_action_distribution_params(i, observations)
+            # Compute average across observations: [B, param_dim] -> [param_dim]
+            avg_params = dist_params.mean(dim=0)
 
-        #     print(f"  Unique actions and their counts:")
-        #     for action, count in zip(unique_actions, counts):
-        #         percentage = 100.0 * count.item() / num_samples
-        #         q_values = []
-        #         for i in range(self._num_copies):
-        #             q_val = self.get_q_values(i, observations[:1],
-        #                                       action.unsqueeze(0))
-        #             q_values.append(q_val[0].item())
-        #         q_str = ", ".join(
-        #             [f"Q{i}={q:.3f}" for i, q in enumerate(q_values)])
-        #         print(
-        #             f"    Action {action.item()}: {count.item()} ({percentage:.1f}%), [{q_str}]"
-        #         )
-        # else:
-        #     if actions.dim() > 1:
-        #         action_flat = actions.reshape(actions.shape[0], -1)
-        #     else:
-        #         action_flat = actions.unsqueeze(-1)
+            if self._action_spec.is_discrete:
+                # For discrete: avg_params are average probabilities over actions
+                params_str = ', '.join([f"{val:.3f}" for val in avg_params])
+                print(f"  Agent {i} avg probs: [{params_str}]")
+            else:
+                # For continuous: first half is mean, second half is stddev
+                param_dim = avg_params.shape[0] // 2
+                avg_mean = avg_params[:param_dim]
+                avg_std = avg_params[param_dim:]
+                mean_str = ', '.join([f"{val:.3f}" for val in avg_mean])
+                std_str = ', '.join([f"{val:.3f}" for val in avg_std])
+                print(
+                    f"  Agent {i} avg mean: [{mean_str}], avg std: [{std_str}]"
+                )
 
-        #     mean = action_flat.mean(dim=0)
-        #     std = action_flat.std(dim=0)
-        #     min_val = action_flat.min(dim=0)[0]
-        #     max_val = action_flat.max(dim=0)[0]
+        print(f"\nVisited actions statistics:")
+        if self._action_spec.is_discrete:
+            unique_actions, counts = torch.unique(actions,
+                                                  return_counts=True,
+                                                  dim=0)
+            sorted_indices = torch.argsort(unique_actions, dim=0)
+            unique_actions = unique_actions[sorted_indices]
+            counts = counts[sorted_indices]
 
-        #     for i in range(action_flat.shape[1]):
-        #         print(f"  Action dim {i}: mean = {mean[i].item():.4f}, "
-        #               f"std = {std[i].item():.4f}, "
-        #               f"min = {min_val[i].item():.4f}, "
-        #               f"max = {max_val[i].item():.4f}")
+            print(f"  Unique actions and their counts:")
+            for action, count in zip(unique_actions, counts):
+                percentage = 100.0 * count.item() / num_samples
+                q_values = []
+                for i in range(self._num_copies):
+                    q_val = self._get_q_values(i, observations[:1],
+                                               action.unsqueeze(0))
+                    q_values.append(q_val[0].item())
+                q_str = ", ".join(
+                    [f"Q{i}={q:.3f}" for i, q in enumerate(q_values)])
+                print(
+                    f"    Action {action.item()}: {count.item()} ({percentage:.1f}%), [{q_str}]"
+                )
+        else:
+            if actions.dim() > 1:
+                action_flat = actions.reshape(actions.shape[0], -1)
+            else:
+                action_flat = actions.unsqueeze(-1)
+
+            mean = action_flat.mean(dim=0)
+            std = action_flat.std(dim=0)
+            min_val = action_flat.min(dim=0)[0]
+            max_val = action_flat.max(dim=0)[0]
+
+            for i in range(action_flat.shape[1]):
+                print(f"  Action dim {i}: mean = {mean[i].item():.4f}, "
+                      f"std = {std[i].item():.4f}, "
+                      f"min = {min_val[i].item():.4f}, "
+                      f"max = {max_val[i].item():.4f}")
 
         for i, alg in enumerate(self._algorithms):
             print(f"=== Algorithm #{i} ===")
