@@ -79,6 +79,15 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
         self._debug_count = 0
         self._log_every_n_steps = log_every_n_steps
 
+        # Validate that all sub-algorithms have actor networks when using repulsion
+        if self._repulsion_alpha > 0:
+            for i, alg in enumerate(self._algorithms):
+                assert alg._actor_network is not None, (
+                    f"ActionRepulsionAlgorithm with repulsion_alpha > 0 requires all "
+                    f"sub-algorithms to have actor networks. Algorithm {i} has no actor. "
+                    f"For discrete actions, set use_discrete_actor=True in algorithm_ctor."
+                )
+
         logging.info(
             f"ActionRepulsionAlgorithm instantiated with: "
             f"num_copies={num_copies}, repulsion_alpha={repulsion_alpha}, "
@@ -108,88 +117,125 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
                                           batch_info.positions)
         return observations, actions, rewards
 
-    def get_q_values(self, alg_index: int, observations: torch.Tensor,
-                     actions: torch.Tensor):
+    def get_action_distribution_params(self, alg_index: int,
+                                       observations: torch.Tensor):
+        """Get action distribution parameters from actor network.
+
+        Args:
+            alg_index: index of the algorithm
+            observations: [B, obs_dim] tensor of observations
+
+        Returns:
+            tensor: [B, param_dim] distribution parameters
+                - For discrete: probabilities [B, num_actions]
+                - For continuous: concatenated [mean, stddev] [B, action_dim * 2]
+        """
         assert 0 <= alg_index < self._num_copies, (
             f"alg_index {alg_index} out of range [0, {self._num_copies})")
 
         batch_size = observations.shape[0]
-        assert actions.shape[0] == batch_size, (
-            f"Batch size mismatch: observations {observations.shape[0]} vs actions {actions.shape[0]}"
-        )
-
         alg = self._algorithms[alg_index]
 
-        if self._action_spec.is_discrete:
-            q_values, _ = alg._compute_critics(alg._critic_networks,
-                                               observations,
-                                               None,
-                                               critics_state=(),
-                                               replica_min=True,
-                                               apply_reward_weights=True)
-            q_values = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
-        else:
-            q_values, _ = alg._compute_critics(alg._critic_networks,
-                                               observations,
-                                               actions,
-                                               critics_state=(),
-                                               replica_min=True,
-                                               apply_reward_weights=True)
-
-        assert q_values.shape == (batch_size, ), (
-            f"Output batch size mismatch: expected {batch_size}, got {q_values.shape}"
+        # Require actor network - no Q-value fallback
+        assert alg._actor_network is not None, (
+            f"Algorithm {alg_index} has no actor network. "
+            "ActionRepulsionAlgorithm requires use_discrete_actor=True for discrete actions."
         )
-        return q_values
 
-    def _get_policy_vector(self, alg_index: int, observations: torch.Tensor,
-                           actions: torch.Tensor):
-        B = observations.shape[0]
-        A = actions.shape[0]
+        # Get action distribution from actor network
+        action_dist, _ = alg._actor_network(observations, state=())
 
-        obs_expanded = observations.unsqueeze(1).expand(
-            B, A, *observations.shape[1:])
-        act_expanded = actions.unsqueeze(0).expand(B, A, *actions.shape[1:])
+        if self._action_spec.is_discrete:
+            # For discrete: extract probabilities
+            # action_dist should be Categorical
+            dist_params = action_dist.probs  # [B, num_actions]
+        else:
+            # For continuous: extract mean and stddev
+            if hasattr(action_dist, 'base_dist'):
+                # For transformed distributions (e.g., TanhNormal)
+                base = action_dist.base_dist
+            else:
+                base = action_dist
 
-        obs_flat = obs_expanded.reshape(B * A, *observations.shape[1:])
-        act_flat = act_expanded.reshape(B * A, *actions.shape[1:])
+            assert hasattr(base, 'mean') and hasattr(base, 'stddev'), (
+                f"Expected distribution with mean and stddev, got {type(base)}"
+            )
 
-        q_values = self.get_q_values(alg_index, obs_flat, act_flat)
-        q_values = q_values.reshape(B, A)
-        mean = q_values.mean(dim=1, keepdim=True)
-        std = q_values.std() + 1e-8
-        policy_vector = ((q_values - mean) / (std + 1e-8)).reshape(B * A)
+            # Concatenate mean and std: [B, action_dim * 2]
+            dist_params = torch.cat([base.mean, base.stddev], dim=-1)
+
+        assert dist_params.shape[0] == batch_size, (
+            f"Batch size mismatch: expected {batch_size}, got {dist_params.shape[0]}"
+        )
+
+        return dist_params
+
+    def _get_policy_vector(self, alg_index: int, observations: torch.Tensor):
+        """Get policy vector by concatenating distribution params across observations.
+
+        Args:
+            alg_index: index of the algorithm
+            observations: [B, obs_dim] - multiple observation states
+
+        Returns:
+            policy_vector: [B * dist_param_dim] - flattened vector representing
+                the policy's behavior across all sampled states
+        """
+        # Get distribution parameters for all observations: [B, param_dim]
+        dist_params = self.get_action_distribution_params(
+            alg_index, observations)
+
+        # Flatten to create policy vector: [B * param_dim]
+        policy_vector = dist_params.reshape(-1)
+
         return policy_vector
 
-    def _get_action_repulsion_loss(self, observations: torch.Tensor,
-                                   actions: torch.Tensor):
+    def _get_action_repulsion_loss(self, observations: torch.Tensor):
+        """Compute repulsion loss based on action distribution similarity.
+
+        Args:
+            observations: [B, obs_dim] sampled observations
+
+        Returns:
+            loss: scalar tensor (negative sum of pairwise distances)
+        """
         policy_vectors = []
         for i in range(self._num_copies):
-            policy_vectors.append(
-                self._get_policy_vector(i, observations, actions))
-        total_distance = torch.zeros(())
-        distance_matrix = torch.zeros((self._num_copies, self._num_copies),
-                                      dtype=torch.int32)
+            policy_vectors.append(self._get_policy_vector(i, observations))
+
+        total_distance = torch.zeros((), device=observations.device)
+
+        if self._debug_summaries:
+            distance_matrix = torch.zeros((self._num_copies, self._num_copies),
+                                          dtype=torch.float32,
+                                          device=observations.device)
+
         for i, j in combinations(range(self._num_copies), 2):
+            # L2 distance between policy vectors
             distance = torch.norm(policy_vectors[i] - policy_vectors[j], p=2)
-            distance_matrix[i, j] = int(distance.item() * 100)
-            total_distance = total_distance + distance.sum()
-        # print(f"distance_matrix:\n{distance_matrix.numpy()}")
+            total_distance = total_distance + distance
+
+            if self._debug_summaries:
+                distance_matrix[i, j] = distance
+                distance_matrix[j, i] = distance
+
+        if self._debug_summaries and self._debug_count % self._log_every_n_steps == 1:
+            print(f"Policy distance matrix (L2):")
+            print(distance_matrix.cpu().numpy())
+
+        # Negative because we want to maximize distance
         loss = -total_distance
         return loss
 
     def calc_loss(self, info) -> LossInfo:
         loss_info = super().calc_loss(info)
         if self._repulsion_alpha > 0:
-            observations, actions, _ = self.sample_state_action_distribution(
+            observations, _, _ = self.sample_state_action_distribution(
                 num_samples=self._repulsion_num_obs)
-            actions = torch.unique(actions, dim=0)
-            if observations is None or actions is None:
+            if observations is None:
                 warning("No data in replay buffer")
                 return loss_info
-            repulsion_loss = self._get_action_repulsion_loss(
-                observations, actions)
-            # print("repulsion_loss:", repulsion_loss.item(), "x",
-            #   self._repulsion_alpha)
+            repulsion_loss = self._get_action_repulsion_loss(observations)
             total_loss = loss_info.loss + self._repulsion_alpha * repulsion_loss
             loss_info = loss_info._replace(loss=total_loss)
         return loss_info
