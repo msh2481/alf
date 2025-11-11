@@ -22,10 +22,10 @@ from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetw
 from alf.utils.losses import element_wise_squared_loss
 
 BATCH_SIZE = 64
-ENV_COUNTS = 4
+ENV_COUNTS = 1
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
-NUM_COPIES = 4
+NUM_COPIES = 1
 SEED_VERSION = False
 
 # environment config

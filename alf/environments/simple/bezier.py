@@ -18,13 +18,16 @@ import numpy as np
 from scipy.stats import binom
 import matplotlib.pyplot as plt
 
-BEZIER = np.array([0.0, 0.5, 1.2, -1.0, -0.5, 2.5, -0.5, -1.0, 1.0, 0.5, 0.0],
-                  dtype=np.float32)
+# BEZIER = np.array([0.0, 0.5, 1.2, -1.0, -0.5, 2.5, -0.5, -1.0, 1.0, 0.5, 0.0],
+#                   dtype=np.float32)
+
+C = 0.1322964213813880
+BEZIER = np.array([0.0, -0.2, 1.1, -1.2, 1.0, -0.2, 0.0], dtype=np.float32) / C
 
 
 class Bezier(gym.Env):
 
-    def __init__(self, N=10):
+    def __init__(self, N=6):
         super().__init__()
         self.N = N
         assert len(
@@ -65,23 +68,54 @@ class Bezier(gym.Env):
         pass
 
     @staticmethod
-    def show_curve():
+    def show_curves():
         N = len(BEZIER) - 1
 
         def eval_prob(ps):
             ps = np.asarray(ps)
             x_vals = np.arange(N + 1)
-            prob_matrix = binom.pmf(x_vals[:, None], N, ps[None, :])
-            expectations = np.sum(BEZIER[:, None] * prob_matrix, axis=0)
-            return expectations
+            pn = binom.pmf(x_vals[:, None], N, ps[None, :])
+            pnm1 = binom.pmf(x_vals[:-1, None], N - 1, ps[None, :])
+            pr0 = np.zeros((N + 1, len(ps)))
+            pr0[:N, :] = pnm1
+            pr1 = np.zeros((N + 1, len(ps)))
+            pr1[1:, :] = pnm1
+            ex = np.sum(BEZIER[:, None] * pn, axis=0)
+            ex0 = np.sum(BEZIER[:, None] * pr0, axis=0)
+            ex1 = np.sum(BEZIER[:, None] * pr1, axis=0)
+            return ex, ex0, ex1
 
         ps = np.linspace(0, 1, 300)
-        expectations = eval_prob(ps)
-        plt.plot(ps, expectations)
-        plt.xlabel('P(right)')
-        plt.ylabel('Reward')
+        ex, ex0, ex1 = eval_prob(ps)
+        print(f"Max return: {np.max(ex)}")
+        plt.figure(figsize=(14, 8))
+        plt.plot(ps, ex, c="green", label='Overall')
+        plt.plot(ps,
+                 ex0,
+                 lw=1,
+                 linestyle="--",
+                 c="blue",
+                 label='After action 0')
+        plt.plot(ps,
+                 ex1,
+                 lw=1,
+                 linestyle="--",
+                 c="purple",
+                 label='After action 1')
+        plt.xlabel('P(action=1)')
+        plt.ylabel('Expected return')
+        plt.legend()
+        plt.ylim(-0.2, 1.2)
+        # plt.subplot(2, 1, 2)
+        # actor = np.exp(ex1) / (np.exp(ex0) + np.exp(ex1))
+        # plt.plot(ps, actor, c="red", label='Next actor')
+        # plt.plot(ps, ps, "--", c="blue", label='Current actor')
+        # plt.xlabel('P(action=1)')
+        # plt.ylabel('P(action=1)')
+        # plt.legend()
+        plt.tight_layout()
         plt.show()
 
 
 if __name__ == "__main__":
-    Bezier.show_curve()
+    Bezier.show_curves()
