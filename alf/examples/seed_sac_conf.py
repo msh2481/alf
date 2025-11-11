@@ -44,6 +44,8 @@ alf.config(
     'SeedSacAlgorithm' if SEED_VERSION else 'SacAlgorithm',
     q_network_cls=QNetwork,
     use_discrete_actor=True,
+    initial_log_alpha=-1.0,
+    alpha_optimizer=alf.optimizers.Adam(lr=1e-18, name='dont_optimize_alpha'),
     # q_network_cls=DebugLinearQNetwork,
 
     # num_critic_replicas=1,
