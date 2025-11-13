@@ -317,28 +317,28 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
         print(f" Mean: [{mean_str}]")
         print(f"  Std: [{std_str}]")
 
-        # Track policy evolution by showing average distribution parameters
-        print(f"\nAverage policy parameters across sampled states:")
-        for i in range(self._num_copies):
-            # Get distribution parameters for all observations
-            dist_params = self.get_action_distribution_params(i, observations)
-            # Compute average across observations: [B, param_dim] -> [param_dim]
-            avg_params = dist_params.mean(dim=0)
+        # # Track policy evolution by showing average distribution parameters
+        # print(f"\nAverage policy parameters across sampled states:")
+        # for i in range(self._num_copies):
+        #     # Get distribution parameters for all observations
+        #     dist_params = self.get_action_distribution_params(i, observations)
+        #     # Compute average across observations: [B, param_dim] -> [param_dim]
+        #     avg_params = dist_params.mean(dim=0)
 
-            if self._action_spec.is_discrete:
-                # For discrete: avg_params are average probabilities over actions
-                params_str = ', '.join([f"{val:.3f}" for val in avg_params])
-                print(f"  Agent {i} avg probs: [{params_str}]")
-            else:
-                # For continuous: first half is mean, second half is stddev
-                param_dim = avg_params.shape[0] // 2
-                avg_mean = avg_params[:param_dim]
-                avg_std = avg_params[param_dim:]
-                mean_str = ', '.join([f"{val:.3f}" for val in avg_mean])
-                std_str = ', '.join([f"{val:.3f}" for val in avg_std])
-                print(
-                    f"  Agent {i} avg mean: [{mean_str}], avg std: [{std_str}]"
-                )
+        #     if self._action_spec.is_discrete:
+        #         # For discrete: avg_params are average probabilities over actions
+        #         params_str = ', '.join([f"{val:.3f}" for val in avg_params])
+        #         print(f"  Agent {i} avg probs: [{params_str}]")
+        #     else:
+        #         # For continuous: first half is mean, second half is stddev
+        #         param_dim = avg_params.shape[0] // 2
+        #         avg_mean = avg_params[:param_dim]
+        #         avg_std = avg_params[param_dim:]
+        #         mean_str = ', '.join([f"{val:.3f}" for val in avg_mean])
+        #         std_str = ', '.join([f"{val:.3f}" for val in avg_std])
+        #         print(
+        #             f"  Agent {i} avg mean: [{mean_str}], avg std: [{std_str}]"
+        #         )
 
         print(f"\nVisited actions statistics:")
         if self._action_spec.is_discrete:
@@ -379,18 +379,44 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
                       f"min = {min_val[i].item():.4f}, "
                       f"max = {max_val[i].item():.4f}")
 
+        # for i, alg in enumerate(self._algorithms):
+        #     print(f"=== Algorithm #{i} ===")
+        #     critics = alg._critic_networks._networks
+        #     target_critics = alg._target_critic_networks._networks
+        #     for j, (critic,
+        #             target_critic) in enumerate(zip(critics, target_critics)):
+        #         if not hasattr(critic, '_log_parameters'):
+        #             continue
+        #         print(f"  Critic #{j}")
+        #         critic._log_parameters()
+        #         # print(f"  Target Critic #{j}")
+        #         # target_critic._log_parameters()
+
         for i, alg in enumerate(self._algorithms):
             print(f"=== Algorithm #{i} ===")
             critics = alg._critic_networks._networks
             target_critics = alg._target_critic_networks._networks
             for j, (critic,
                     target_critic) in enumerate(zip(critics, target_critics)):
-                if not hasattr(critic, '_log_parameters'):
-                    continue
-                print(f"  Critic #{j}")
-                critic._log_parameters()
-                # print(f"  Target Critic #{j}")
-                # target_critic._log_parameters()
+                critic_trainable = critic._trainable_net
+                critic_prior = critic._prior_net
+                target_critic_trainable = target_critic._trainable_net
+                target_critic_prior = target_critic._prior_net
+                if hasattr(critic_trainable, '_log_parameters'):
+                    print(f"  Critic #{j} Trainable:")
+                    critic_trainable._log_parameters()
+
+                if hasattr(critic_prior, '_log_parameters'):
+                    print(f"  Critic #{j} Prior:")
+                    critic_prior._log_parameters()
+
+                if hasattr(target_critic_trainable, '_log_parameters'):
+                    print(f"  Target Critic #{j} Trainable:")
+                    target_critic_trainable._log_parameters()
+
+                if hasattr(target_critic_prior, '_log_parameters'):
+                    print(f"  Target Critic #{j} Prior:")
+                    target_critic_prior._log_parameters()
 
         print("=" * 40 + "\n")
 

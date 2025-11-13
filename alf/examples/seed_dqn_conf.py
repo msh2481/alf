@@ -17,7 +17,7 @@ from alf.algorithms.seed_sampling import SeedDqnAlgorithm, SeedSacAlgorithm
 from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.dqn_algorithm import DqnAlgorithm
 from alf.algorithms.action_repulsion_algorithm import ActionRepulsionAlgorithm
-from alf.networks import QNetwork, QNetworkBase, DebugLinearQNetwork
+from alf.networks import QNetwork, QNetworkBase, DebugLinearQNetwork, RandomizedPriorQNetwork
 from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetwork
 from alf.utils.losses import element_wise_squared_loss
 
@@ -38,17 +38,25 @@ alf.config(
 
 # alf.config('QNetworkBase', fc_layer_params=(97, ))
 # alf.config('QNetworkBase', encoding_network_ctor=EncodingNetwork)
+
+# Randomized Prior Q-Network configuration
+alf.config('RandomizedPriorQNetwork',
+           network_ctor=DebugLinearQNetwork,
+           prior_scale=1.0)
+
 alf.config(
     'SeedDqnAlgorithm' if SEED_VERSION else 'DqnAlgorithm',
     rollout_epsilon_greedy=0.0,
     # q_network_cls=QNetworkBase,
-    q_network_cls=DebugLinearQNetwork,
+    # q_network_cls=DebugLinearQNetwork,
+    q_network_cls=RandomizedPriorQNetwork,
     num_critic_replicas=1,
     #    actor_optimizer=alf.optimizers.Adam(lr=1e-3, name='actor'),
     #    critic_optimizer=alf.optimizers.Adam(lr=1e-3, name='critic'),
     #    alpha_optimizer=alf.optimizers.Adam(lr=1e-3, name='alpha'),
-    parameter_target_std=0.1,
-    parameter_target_alpha=1e-9,
+    parameter_target_std=
+    0.0,  # IMPORTANT: don't turn this on together with RandomizedPriorQNetwork
+    parameter_target_alpha=0.0,
     reward_noise_std=0.0,
 )
 

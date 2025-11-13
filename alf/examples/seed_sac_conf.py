@@ -17,7 +17,7 @@ from alf.algorithms.seed_sampling import SeedDqnAlgorithm, SeedSacAlgorithm
 from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.dqn_algorithm import DqnAlgorithm
 from alf.algorithms.action_repulsion_algorithm import ActionRepulsionAlgorithm
-from alf.networks import QNetwork, QNetworkBase, DebugLinearQNetwork
+from alf.networks import QNetwork, QNetworkBase, DebugLinearQNetwork, RandomizedPriorQNetwork
 from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetwork
 from alf.utils.losses import element_wise_squared_loss
 
@@ -40,6 +40,10 @@ alf.config(
 alf.config('QNetwork', fc_layer_params=(100, ))
 # alf.config('QNetworkBase', encoding_network_ctor=EncodingNetwork)
 alf.config('QNetwork', use_naive_parallel_network=True)
+
+# Randomized Prior Q-Network configuration
+alf.config('RandomizedPriorQNetwork', network_ctor=QNetwork, prior_scale=1.0)
+
 alf.config(
     'SeedSacAlgorithm' if SEED_VERSION else 'SacAlgorithm',
     q_network_cls=QNetwork,

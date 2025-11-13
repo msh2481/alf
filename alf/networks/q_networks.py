@@ -309,6 +309,91 @@ class QRNNNetwork(QNetworkBase):
 
 
 @alf.configurable
+class RandomizedPriorQNetwork(Network):
+    """A Q-Network augmented with a randomized prior function.
+
+    This network creates two instances of the same Q-network architecture:
+    one trainable network and one frozen prior network. The outputs are summed
+    to give the final Q-values. This implements the randomized prior functions
+    technique for improved exploration.
+
+    Can wrap any Q-network type (QNetwork, QRNNNetwork, DebugLinearQNetwork, etc.)
+    """
+
+    def __init__(self,
+                 network_ctor: Callable,
+                 input_tensor_spec: TensorSpec,
+                 action_spec: BoundedTensorSpec,
+                 prior_scale: float = 1.0,
+                 name="RandomizedPriorQNetwork",
+                 **network_kwargs):
+        """Creates a Q-Network with randomized prior.
+
+        Args:
+            network_ctor: Constructor for the base Q-network (e.g., QNetwork,
+                DebugLinearQNetwork)
+            input_tensor_spec: the tensor spec of the input
+            action_spec: the tensor spec of the action
+            prior_scale: standard deviation for initializing the prior network's
+                final layer weights. Bias is initialized to zero.
+            name: name of the network
+            **network_kwargs: additional arguments passed to network_ctor
+        """
+        super().__init__(input_tensor_spec=input_tensor_spec, name=name)
+
+        # Create trainable network
+        self._trainable_net = network_ctor(input_tensor_spec=input_tensor_spec,
+                                           action_spec=action_spec,
+                                           **network_kwargs)
+
+        # Create frozen prior network with different random initialization
+        self._prior_net = network_ctor(input_tensor_spec=input_tensor_spec,
+                                       action_spec=action_spec,
+                                       **network_kwargs)
+
+        # Re-initialize the prior network's final layer with the specified scale
+        torch.nn.init.normal_(self._prior_net._final_layer.weight,
+                              mean=0.0,
+                              std=prior_scale)
+        torch.nn.init.zeros_(self._prior_net._final_layer.bias)
+
+        # Freeze the prior network
+        for param in self._prior_net.parameters():
+            param.requires_grad = False
+
+        self._output_spec = self._trainable_net.output_spec
+
+    def forward(self, observation, state=()):
+        """Computes action values by summing trainable network and prior.
+
+        Args:
+            observation (nest): consistent with input_tensor_spec
+            state: network state (for RNN-based networks)
+
+        Returns:
+            tuple:
+            - action_value (torch.Tensor): sum of trainable and prior Q-values
+            - state: updated state
+        """
+        q_vals, state = self._trainable_net(observation, state)
+        with torch.no_grad():
+            prior_vals, _ = self._prior_net(observation, state)
+        return q_vals + prior_vals, state
+
+    def make_parallel(self, n):
+        """Create parallel version using NaiveParallelNetwork.
+
+        Each replica will have its own independent trainable and prior networks.
+        """
+        return alf.networks.NaiveParallelNetwork(self, n)
+
+    @property
+    def state_spec(self):
+        """Return the state spec (delegates to trainable network)."""
+        return self._trainable_net.state_spec
+
+
+@alf.configurable
 class DebugLinearQNetwork(QNetworkBase):
     """A purely linear QNetwork with periodic parameter logging.
 
@@ -342,6 +427,8 @@ class DebugLinearQNetwork(QNetworkBase):
             use_naive_parallel_network=False,
             name=name,
         )
+        # Re-initialize bias to zero (instead of -0.2 from QNetworkBase)
+        torch.nn.init.zeros_(self._final_layer.bias)
         self._forward_count = 0
 
     def forward(self, observation, state=()):

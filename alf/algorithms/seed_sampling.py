@@ -48,20 +48,24 @@ class SeedSamplingMixin:
         self._seed_sampling_exploration_seed = exploration_seed
         self._seed_sampling_parameter_targets = {}
 
-        for param_name, param in self.named_parameters():
-            if param.requires_grad:
-                buffer = torch.zeros_like(param)
-                buffer.normal_(
-                    mean=0.0,
-                    std=0.0 if "bias" in param_name else parameter_target_std)
-                self.register_buffer(
-                    f"_param_target_{param_name.replace('.', '_')}", buffer)
-                self._seed_sampling_parameter_targets[param_name] = buffer
-                # Initialize parameter data to equal the buffer value
-                param.data.copy_(buffer)
+        parameter_noise_on = self._seed_sampling_parameter_target_std > 0 or self._seed_sampling_parameter_target_alpha > 0
+        if parameter_noise_on:
+            for param_name, param in self.named_parameters():
+                if param.requires_grad:
+                    buffer = torch.zeros_like(param)
+                    buffer.normal_(mean=0.0,
+                                   std=0.0 if "bias" in param_name else
+                                   parameter_target_std)
+                    self.register_buffer(
+                        f"_param_target_{param_name.replace('.', '_')}",
+                        buffer)
+                    self._seed_sampling_parameter_targets[param_name] = buffer
+                    # Initialize parameter data to equal the buffer value
+                    param.data.copy_(buffer)
 
     def _seed_sampling_calc_loss_addition(self, loss_info: LossInfo):
-        if self._seed_sampling_parameter_target_alpha > 0:
+        parameter_noise_on = self._seed_sampling_parameter_target_std > 0 or self._seed_sampling_parameter_target_alpha > 0
+        if parameter_noise_on:
             reg_loss = 0.0
             for param_name, param in self.named_parameters():
                 if param.requires_grad and param_name in self._seed_sampling_parameter_targets:
