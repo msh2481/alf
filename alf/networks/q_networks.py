@@ -394,6 +394,89 @@ class RandomizedPriorQNetwork(Network):
 
 
 @alf.configurable
+class OptimisticQNetwork(QNetwork):
+    """A Q-Network with configurable optimistic initialization.
+
+    This network allows control over the initialization of the final layer
+    through mean and std parameters, useful for implementing optimistic
+    initialization strategies.
+    """
+
+    def __init__(self,
+                 input_tensor_spec: TensorSpec,
+                 action_spec: BoundedTensorSpec,
+                 init_mean: float = 0.0,
+                 init_std: float = 1.0,
+                 name="OptimisticQNetwork",
+                 **kwargs):
+        """Creates a Q-Network with optimistic initialization.
+
+        Args:
+            input_tensor_spec: the tensor spec of the input
+            action_spec: the tensor spec of the action
+            init_mean: mean for initializing final layer weights
+            init_std: standard deviation for initializing final layer weights
+            name: name of the network
+            **kwargs: additional arguments passed to QNetwork
+        """
+        super(OptimisticQNetwork, self).__init__(input_tensor_spec,
+                                                 action_spec,
+                                                 name=name,
+                                                 **kwargs)
+
+        num_actions = (action_spec.maximum - action_spec.minimum + 1).item()
+        custom_kernel_initializer = functools.partial(torch.nn.init.normal_,
+                                                      mean=init_mean,
+                                                      std=init_std)
+        self._final_layer = layers.FC(
+            self._encoding_net.output_spec.shape[0],
+            num_actions,
+            activation=math_ops.identity,
+            kernel_initializer=custom_kernel_initializer,
+            bias_init_value=0.0)
+
+    def log_parameters(self):
+        """Compute and log a linear approximation of the network.
+
+        Evaluates the network on basis vectors (one-hot inputs) and all-zeros
+        to compute a first-order approximation around zero.
+        """
+        # Get input dimension
+        input_dim = self.input_tensor_spec.shape[0]
+
+        # Create batch: all zeros + all one-hot basis vectors
+        batch_size = input_dim + 1
+        inputs = torch.zeros(batch_size, input_dim)
+        for i in range(input_dim):
+            inputs[i + 1, i] = 1.0
+
+        # Evaluate network
+        with torch.no_grad():
+            outputs, _ = self.forward(inputs)
+
+        # Extract bias (output at all zeros) and coefficients (differences)
+        bias = outputs[0]  # shape: (num_actions,)
+        coeffs = outputs[1:] - bias  # shape: (input_dim, num_actions)
+
+        # Print for each action
+        totals = []
+        for action_idx in range(bias.shape[0]):
+            bias_val = bias[action_idx].item()
+            weights = coeffs[:, action_idx]  # shape: (input_dim,)
+            total = torch.cat([torch.tensor([bias_val]), weights])
+            weight_str = ', '.join([f"{val:.2f}" for val in total])
+            print(
+                f"Action {action_idx}: [{weight_str}] (bias = {bias_val:.2f})")
+            totals.append(total)
+
+        # If 2 actions, print delta
+        if len(totals) == 2:
+            delta = totals[1] - totals[0]
+            delta_str = ', '.join([f"{val:.2f}" for val in delta])
+            print(f"Delta: [{delta_str}]")
+
+
+@alf.configurable
 class DebugLinearQNetwork(QNetworkBase):
     """A purely linear QNetwork with periodic parameter logging.
 

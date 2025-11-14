@@ -17,7 +17,7 @@ from alf.algorithms.seed_sampling import SeedDqnAlgorithm, SeedSacAlgorithm
 from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.dqn_algorithm import DqnAlgorithm
 from alf.algorithms.action_repulsion_algorithm import ActionRepulsionAlgorithm
-from alf.networks import QNetwork, QNetworkBase, DebugLinearQNetwork, RandomizedPriorQNetwork
+from alf.networks import QNetwork, QNetworkBase, DebugLinearQNetwork, RandomizedPriorQNetwork, OptimisticQNetwork
 from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetwork
 from alf.utils.losses import element_wise_squared_loss
 
@@ -27,6 +27,14 @@ UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
 NUM_COPIES = 4
 SEED_VERSION = True
+
+PRIOR_SCALE = 1.0
+PARAMETER_TARGET_STD = 0.0
+PARAMETER_TARGET_ALPHA = 0.0
+REWARD_NOISE_STD = 0.0
+assert (PRIOR_SCALE == 0.0) or (
+    PARAMETER_TARGET_STD == 0.0 and PARAMETER_TARGET_ALPHA == 0.0
+), "Don't turn on both PRIOR_SCALE and PARAMETER_TARGET_STD/PARAMETER_TARGET_ALPHA"
 
 # environment config
 alf.config(
@@ -39,10 +47,10 @@ alf.config(
 # alf.config('QNetworkBase', fc_layer_params=(97, ))
 # alf.config('QNetworkBase', encoding_network_ctor=EncodingNetwork)
 
-# Randomized Prior Q-Network configuration
+alf.config('OptimisticQNetwork', init_mean=0.0, init_std=1.0)
 alf.config('RandomizedPriorQNetwork',
-           network_ctor=DebugLinearQNetwork,
-           prior_scale=1.0)
+           network_ctor=OptimisticQNetwork,
+           prior_scale=PRIOR_SCALE)
 
 alf.config(
     'SeedDqnAlgorithm' if SEED_VERSION else 'DqnAlgorithm',
@@ -54,10 +62,9 @@ alf.config(
     #    actor_optimizer=alf.optimizers.Adam(lr=1e-3, name='actor'),
     #    critic_optimizer=alf.optimizers.Adam(lr=1e-3, name='critic'),
     #    alpha_optimizer=alf.optimizers.Adam(lr=1e-3, name='alpha'),
-    parameter_target_std=
-    0.0,  # IMPORTANT: don't turn this on together with RandomizedPriorQNetwork
-    parameter_target_alpha=0.0,
-    reward_noise_std=0.0,
+    parameter_target_std=PARAMETER_TARGET_STD,
+    parameter_target_alpha=PARAMETER_TARGET_ALPHA,
+    reward_noise_std=REWARD_NOISE_STD,
 )
 
 alf.config('OneStepTDLoss',
