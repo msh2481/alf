@@ -21,14 +21,14 @@ from alf.networks import QNetwork, QNetworkBase, DebugLinearQNetwork, Randomized
 from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetwork
 from alf.utils.losses import element_wise_squared_loss
 
-BATCH_SIZE = 256
-ENV_COUNTS = 4
+BATCH_SIZE = 10000
+ENV_COUNTS = 10
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
-NUM_COPIES = 4
+NUM_COPIES = 10
 SEED_VERSION = True
 
-PRIOR_SCALE = 1.0
+PRIOR_SCALE = 0.1
 PARAMETER_TARGET_STD = 0.0
 PARAMETER_TARGET_ALPHA = 0.0
 REWARD_NOISE_STD = 0.0
@@ -44,11 +44,19 @@ alf.config(
     # env_name="Pendulum-v0",
     num_parallel_environments=ENV_COUNTS)
 
-alf.config('QNetwork', fc_layer_params=(100, ))
-alf.config('OptimisticQNetwork', init_mean=0.0, init_std=1.0)
-alf.config('RandomizedPriorQNetwork',
-           network_ctor=DebugLinearQNetwork,
-           prior_scale=PRIOR_SCALE)
+alf.config(
+    'ReplayBuffer',
+    recent_data_steps=500,
+    recent_data_ratio=0.3,
+)
+
+alf.config('QNetwork', fc_layer_params=(256, ))
+alf.config('OptimisticQNetwork', init_mean=0.0, init_std=1e-3)
+alf.config(
+    'RandomizedPriorQNetwork',
+    #    network_ctor=OptimisticQNetwork,
+    network_ctor=DebugLinearQNetwork,
+    prior_scale=PRIOR_SCALE)
 
 alf.config(
     'SeedDqnAlgorithm' if SEED_VERSION else 'DqnAlgorithm',
@@ -88,7 +96,7 @@ alf.config(
 alf.config(
     'TrainerConfig',
     algorithm_ctor=ActionRepulsionAlgorithm,
-    initial_collect_steps=10,
+    initial_collect_steps=200,
     mini_batch_length=MINI_BATCH_LENGTH,
     mini_batch_size=BATCH_SIZE,
     unroll_length=UNROLL_LENGTH,
@@ -99,7 +107,7 @@ alf.config(
     eval_interval=100,
     debug_summaries=True,
     summary_interval=100,
-    replay_buffer_length=100000,
+    replay_buffer_length=2000,
     random_seed=42,
     whole_replay_buffer_training=False,
     clear_replay_buffer=False,
