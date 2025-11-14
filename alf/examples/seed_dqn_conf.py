@@ -21,7 +21,7 @@ from alf.networks import QNetwork, QNetworkBase, DebugLinearQNetwork, Randomized
 from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetwork
 from alf.utils.losses import element_wise_squared_loss
 
-BATCH_SIZE = 64
+BATCH_SIZE = 256
 ENV_COUNTS = 4
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
@@ -44,15 +44,10 @@ alf.config(
     # env_name="Pendulum-v0",
     num_parallel_environments=ENV_COUNTS)
 
-# alf.config('QNetworkBase', fc_layer_params=(97, ))
-# alf.config('QNetworkBase', encoding_network_ctor=EncodingNetwork)
-
-alf.config('OptimisticQNetwork',
-           init_mean=0.0,
-           init_std=1.0,
-           use_naive_parallel_network=True)
+alf.config('QNetwork', fc_layer_params=(100, ))
+alf.config('OptimisticQNetwork', init_mean=0.0, init_std=1.0)
 alf.config('RandomizedPriorQNetwork',
-           network_ctor=OptimisticQNetwork,
+           network_ctor=DebugLinearQNetwork,
            prior_scale=PRIOR_SCALE)
 
 alf.config(
@@ -90,20 +85,22 @@ alf.config(
 )
 
 # training config
-alf.config('TrainerConfig',
-           algorithm_ctor=ActionRepulsionAlgorithm,
-           initial_collect_steps=10,
-           mini_batch_length=MINI_BATCH_LENGTH,
-           mini_batch_size=BATCH_SIZE,
-           unroll_length=UNROLL_LENGTH,
-           num_updates_per_train_iter=4,
-           num_iterations=10000,
-           num_checkpoints=3,
-           evaluate=False,
-           eval_interval=100,
-           debug_summaries=True,
-           summary_interval=100,
-           replay_buffer_length=100000,
-           random_seed=42,
-           whole_replay_buffer_training=False,
-           clear_replay_buffer=False)
+alf.config(
+    'TrainerConfig',
+    algorithm_ctor=ActionRepulsionAlgorithm,
+    initial_collect_steps=10,
+    mini_batch_length=MINI_BATCH_LENGTH,
+    mini_batch_size=BATCH_SIZE,
+    unroll_length=UNROLL_LENGTH,
+    num_updates_per_train_iter=2,
+    num_iterations=10000,
+    num_checkpoints=3,
+    evaluate=False,
+    eval_interval=100,
+    debug_summaries=True,
+    summary_interval=100,
+    replay_buffer_length=100000,
+    random_seed=42,
+    whole_replay_buffer_training=False,
+    clear_replay_buffer=False,
+)

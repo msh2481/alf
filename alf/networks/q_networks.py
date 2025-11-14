@@ -392,6 +392,43 @@ class RandomizedPriorQNetwork(Network):
         """Return the state spec (delegates to trainable network)."""
         return self._trainable_net.state_spec
 
+    def _log_parameters(self):
+        """Compute and log linear approximation of the combined network.
+
+        Evaluates the network on basis vectors (one-hot inputs) and all-zeros
+        to compute a first-order approximation around zero.
+        """
+        # Get input dimension
+        input_dim = self.input_tensor_spec.shape[0]
+
+        # Create batch: all zeros + all one-hot basis vectors
+        batch_size = input_dim + 1
+        inputs = torch.zeros(batch_size, input_dim)
+        for i in range(input_dim):
+            inputs[i + 1, i] = 1.0
+
+        # Evaluate combined network
+        with torch.no_grad():
+            outputs, _ = self.forward(inputs)
+
+        bias = outputs[0]  # shape: (num_actions,)
+        coeffs_plus_bias = outputs[1:]  # shape: (input_dim, num_actions)
+
+        totals = []
+        for action_idx in range(bias.shape[0]):
+            bias_val = bias[action_idx].item()
+            weights = coeffs_plus_bias[:, action_idx]  # shape: (input_dim,)
+            weight_str = ', '.join([f"{val:.2f}" for val in weights])
+            print(
+                f"Action {action_idx}: [{weight_str}] (bias = {bias_val:.2f})")
+            totals.append(weights)
+
+        # If 2 actions, print delta
+        if len(totals) == 2:
+            delta = totals[1] - totals[0]
+            delta_str = ', '.join([f"{val:.2f}" for val in delta])
+            print(f"Delta: [{delta_str}]")
+
 
 @alf.configurable
 class OptimisticQNetwork(QNetwork):

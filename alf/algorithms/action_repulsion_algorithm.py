@@ -398,25 +398,12 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
             target_critics = alg._target_critic_networks._networks
             for j, (critic,
                     target_critic) in enumerate(zip(critics, target_critics)):
-                critic_trainable = critic._trainable_net
-                critic_prior = critic._prior_net
-                target_critic_trainable = target_critic._trainable_net
-                target_critic_prior = target_critic._prior_net
-                if hasattr(critic_trainable, '_log_parameters'):
-                    print(f"  Critic #{j} Trainable:")
-                    critic_trainable._log_parameters()
-
-                if hasattr(critic_prior, '_log_parameters'):
-                    print(f"  Critic #{j} Prior:")
-                    critic_prior._log_parameters()
-
-                if hasattr(target_critic_trainable, '_log_parameters'):
-                    print(f"  Target Critic #{j} Trainable:")
-                    target_critic_trainable._log_parameters()
-
-                if hasattr(target_critic_prior, '_log_parameters'):
-                    print(f"  Target Critic #{j} Prior:")
-                    target_critic_prior._log_parameters()
+                if hasattr(critic, '_log_parameters'):
+                    print(f"  Critic #{j}:")
+                    critic._log_parameters()
+                # if hasattr(target_critic, '_log_parameters'):
+                #     print(f"  Target Critic #{j}:")
+                #     target_critic._log_parameters()
 
         print("=" * 40 + "\n")
 

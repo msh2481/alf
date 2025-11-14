@@ -39,9 +39,7 @@ alf.config(
 
 alf.config('QNetwork', fc_layer_params=(100, ))
 # alf.config('QNetworkBase', encoding_network_ctor=EncodingNetwork)
-alf.config('QNetwork', use_naive_parallel_network=True)
-
-# Randomized Prior Q-Network configuration
+alf.config('QNetwork', use_naive_parallel_network=False)
 alf.config('RandomizedPriorQNetwork', network_ctor=QNetwork, prior_scale=1.0)
 
 # Optimistic Q-Network configuration
