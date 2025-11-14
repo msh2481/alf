@@ -408,6 +408,7 @@ class OptimisticQNetwork(QNetwork):
                  init_mean: float = 0.0,
                  init_std: float = 1.0,
                  name="OptimisticQNetwork",
+                 use_naive_parallel_network=False,
                  **kwargs):
         """Creates a Q-Network with optimistic initialization.
 
@@ -419,10 +420,12 @@ class OptimisticQNetwork(QNetwork):
             name: name of the network
             **kwargs: additional arguments passed to QNetwork
         """
-        super(OptimisticQNetwork, self).__init__(input_tensor_spec,
-                                                 action_spec,
-                                                 name=name,
-                                                 **kwargs)
+        super(OptimisticQNetwork, self).__init__(
+            input_tensor_spec,
+            action_spec,
+            name=name,
+            use_naive_parallel_network=use_naive_parallel_network,
+            **kwargs)
 
         num_actions = (action_spec.maximum - action_spec.minimum + 1).item()
         custom_kernel_initializer = functools.partial(torch.nn.init.normal_,
@@ -435,39 +438,30 @@ class OptimisticQNetwork(QNetwork):
             kernel_initializer=custom_kernel_initializer,
             bias_init_value=0.0)
 
-    def log_parameters(self):
+    def _log_parameters(self):
         """Compute and log a linear approximation of the network.
 
         Evaluates the network on basis vectors (one-hot inputs) and all-zeros
         to compute a first-order approximation around zero.
         """
-        # Get input dimension
         input_dim = self.input_tensor_spec.shape[0]
-
-        # Create batch: all zeros + all one-hot basis vectors
         batch_size = input_dim + 1
         inputs = torch.zeros(batch_size, input_dim)
         for i in range(input_dim):
             inputs[i + 1, i] = 1.0
-
-        # Evaluate network
         with torch.no_grad():
             outputs, _ = self.forward(inputs)
-
-        # Extract bias (output at all zeros) and coefficients (differences)
         bias = outputs[0]  # shape: (num_actions,)
-        coeffs = outputs[1:] - bias  # shape: (input_dim, num_actions)
+        coeffs_plus_bias = outputs[1:]  # shape: (input_dim, num_actions)
 
-        # Print for each action
         totals = []
         for action_idx in range(bias.shape[0]):
             bias_val = bias[action_idx].item()
-            weights = coeffs[:, action_idx]  # shape: (input_dim,)
-            total = torch.cat([torch.tensor([bias_val]), weights])
-            weight_str = ', '.join([f"{val:.2f}" for val in total])
+            weights = coeffs_plus_bias[:, action_idx]  # shape: (input_dim,)
+            weight_str = ', '.join([f"{val:.2f}" for val in weights])
             print(
                 f"Action {action_idx}: [{weight_str}] (bias = {bias_val:.2f})")
-            totals.append(total)
+            totals.append(weights)
 
         # If 2 actions, print delta
         if len(totals) == 2:
