@@ -23,10 +23,10 @@ from alf.utils.losses import element_wise_squared_loss
 from alf.environments.simple.randomized_bipolar_chain import RandomizedBipolarChain
 
 BATCH_SIZE = 12000
-ENV_COUNTS = 4
+ENV_COUNTS = 10
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
-NUM_COPIES = 4
+NUM_COPIES = 10
 SEED_VERSION = True
 
 PRIOR_SCALE = 0.1
@@ -45,11 +45,11 @@ alf.config(
     # env_name="Pendulum-v0",
     num_parallel_environments=ENV_COUNTS)
 
-alf.config(
-    'ReplayBuffer',
-    recent_data_steps=500,
-    recent_data_ratio=0.3,
-)
+# alf.config(
+#     'ReplayBuffer',
+#     recent_data_steps=500,
+#     recent_data_ratio=0.3,
+# )
 
 alf.config('QNetwork', fc_layer_params=(256, ))
 alf.config('OptimisticQNetwork', init_mean=0.0, init_std=1e-3)
@@ -75,7 +75,7 @@ alf.config(
 )
 alf.config(
     'SacAlgorithm',
-    target_update_tau=0.5,
+    target_update_tau=0.05,
     target_update_period=1,
     # parameter_reset_period=500,
 )
@@ -94,7 +94,7 @@ alf.config(
     unroll_length=UNROLL_LENGTH,
     mini_batch_length=MINI_BATCH_LENGTH,
     # repulsion_num_obs=100,
-    log_every_n_steps=100,
+    log_every_n_steps=200,
     use_exploration_seeds=SEED_VERSION,
     env_class=RandomizedBipolarChain,
 )

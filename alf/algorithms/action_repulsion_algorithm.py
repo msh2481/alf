@@ -335,7 +335,9 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
                 im_t = ax_t.imshow(data_t,
                                    aspect='auto',
                                    cmap='Blues',
-                                   origin='lower')
+                                   origin='lower',
+                                   vmin=0,
+                                   vmax=5)
                 ax_t.set_xlabel('Position')
                 ax_t.set_ylabel('Time')
                 ax_t.set_title(f'Transitions {action_name}')
@@ -376,8 +378,8 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
                                        aspect='auto',
                                        cmap='viridis',
                                        origin='lower',
-                                       vmin=-0.1,
-                                       vmax=1.0)
+                                       vmin=-0.05,
+                                       vmax=0.05)
                     ax_q.set_xlabel('Position')
                     ax_q.set_ylabel('Time')
                     ax_q.set_title(f'Algorithm {i} Q-values {action_name}')
