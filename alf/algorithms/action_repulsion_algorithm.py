@@ -13,7 +13,9 @@
 # limitations under the License.
 
 from typing import Callable, Optional
+import os
 import torch
+import pandas as pd
 import alf
 from absl import logging
 from alf.algorithms.config import TrainerConfig
@@ -283,134 +285,137 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
             loss_info = loss_info._replace(loss=total_loss)
         return loss_info
 
-    def debug_metrics(self, observations, actions, rewards=None):
+    def debug_metrics(self,
+                      observations,
+                      actions,
+                      rewards=None,
+                      iter_number=None):
         self._debug_count += 1
         if self._debug_count % self._log_every_n_steps != 1:
             return
 
-        print("\n=== Action Repulsion Debug Metrics ===")
+        os.makedirs('logs', exist_ok=True)
+        if iter_number is None:
+            iter_number = self._debug_count
+        log_file_path = f'logs/{iter_number}.txt'
 
-        if observations is None or actions is None:
-            print("No data in replay buffer")
-            print("=" * 40 + "\n")
-            return
+        with open(log_file_path, 'w') as f:
+            f.write("\n=== Action Repulsion Debug Metrics ===\n")
 
-        num_samples = observations.shape[0]
-        replay_buffer = self._replay_buffer
-        total_size = replay_buffer.total_size.item(
-        ) if replay_buffer is not None else 0
-        print(f"Sampled {num_samples} out of {total_size} experiences")
+            if observations is None or actions is None:
+                f.write("No data in replay buffer\n")
+                f.write("=" * 40 + "\n")
+                logging.info(f"Written debug metrics to {log_file_path}")
+                return
 
-        if rewards is not None:
-            mean_reward = rewards.mean().item()
-            print(f"\nMean reward: {mean_reward:.4f}")
+            num_samples = observations.shape[0]
+            replay_buffer = self._replay_buffer
+            total_size = replay_buffer.total_size.item(
+            ) if replay_buffer is not None else 0
+            f.write(f"Sampled {num_samples} out of {total_size} experiences\n")
 
-        if observations.dim() > 1:
-            obs_flat = observations.reshape(observations.shape[0], -1)
-        else:
-            obs_flat = observations.unsqueeze(-1)
-        mean = obs_flat.mean(dim=0)
-        std = obs_flat.std(dim=0)
-        print(f"\nObservation statistics:")
-        mean_str = ', '.join([f"{val:.2f}" for val in mean])
-        std_str = ', '.join([f"{val:.2f}" for val in std])
-        print(f" Mean: [{mean_str}]")
-        print(f"  Std: [{std_str}]")
+            if rewards is not None:
+                mean_reward = rewards.mean().item()
+                f.write(f"\nMean reward: {mean_reward:.4f}\n")
 
-        # # Track policy evolution by showing average distribution parameters
-        # print(f"\nAverage policy parameters across sampled states:")
-        # for i in range(self._num_copies):
-        #     # Get distribution parameters for all observations
-        #     dist_params = self.get_action_distribution_params(i, observations)
-        #     # Compute average across observations: [B, param_dim] -> [param_dim]
-        #     avg_params = dist_params.mean(dim=0)
-
-        #     if self._action_spec.is_discrete:
-        #         # For discrete: avg_params are average probabilities over actions
-        #         params_str = ', '.join([f"{val:.3f}" for val in avg_params])
-        #         print(f"  Agent {i} avg probs: [{params_str}]")
-        #     else:
-        #         # For continuous: first half is mean, second half is stddev
-        #         param_dim = avg_params.shape[0] // 2
-        #         avg_mean = avg_params[:param_dim]
-        #         avg_std = avg_params[param_dim:]
-        #         mean_str = ', '.join([f"{val:.3f}" for val in avg_mean])
-        #         std_str = ', '.join([f"{val:.3f}" for val in avg_std])
-        #         print(
-        #             f"  Agent {i} avg mean: [{mean_str}], avg std: [{std_str}]"
-        #         )
-
-        print(f"\nVisited actions statistics:")
-        if self._action_spec.is_discrete:
-            unique_actions, counts = torch.unique(actions,
-                                                  return_counts=True,
-                                                  dim=0)
-            sorted_indices = torch.argsort(unique_actions, dim=0)
-            unique_actions = unique_actions[sorted_indices]
-            counts = counts[sorted_indices]
-
-            print(f"  Unique actions and their counts:")
-            for action, count in zip(unique_actions, counts):
-                percentage = 100.0 * count.item() / num_samples
-                q_values = []
-                for i in range(self._num_copies):
-                    q_val = self._get_q_values(i, observations[:1],
-                                               action.unsqueeze(0))
-                    q_values.append(q_val[0].item())
-                q_str = ", ".join(
-                    [f"Q{i}={q:.3f}" for i, q in enumerate(q_values)])
-                print(
-                    f"    Action {action.item()}: {count.item()} ({percentage:.1f}%), [{q_str}]"
-                )
-        else:
-            if actions.dim() > 1:
-                action_flat = actions.reshape(actions.shape[0], -1)
+            if observations.dim() > 1:
+                obs_flat = observations.reshape(observations.shape[0], -1)
             else:
-                action_flat = actions.unsqueeze(-1)
+                obs_flat = observations.unsqueeze(-1)
+            mean = obs_flat.mean(dim=0)
+            std = obs_flat.std(dim=0)
+            f.write(f"\nObservation statistics:\n")
+            mean_str = ', '.join([f"{val:.2f}" for val in mean])
+            std_str = ', '.join([f"{val:.2f}" for val in std])
+            f.write(f" Mean: [{mean_str}]\n")
+            f.write(f"  Std: [{std_str}]\n")
 
-            mean = action_flat.mean(dim=0)
-            std = action_flat.std(dim=0)
-            min_val = action_flat.min(dim=0)[0]
-            max_val = action_flat.max(dim=0)[0]
+            f.write(f"\nVisited actions statistics:\n")
+            if self._action_spec.is_discrete:
+                unique_actions, counts = torch.unique(actions,
+                                                      return_counts=True,
+                                                      dim=0)
+                sorted_indices = torch.argsort(unique_actions, dim=0)
+                unique_actions = unique_actions[sorted_indices]
+                counts = counts[sorted_indices]
 
-            for i in range(action_flat.shape[1]):
-                print(f"  Action dim {i}: mean = {mean[i].item():.4f}, "
-                      f"std = {std[i].item():.4f}, "
-                      f"min = {min_val[i].item():.4f}, "
-                      f"max = {max_val[i].item():.4f}")
+                f.write(f"  Unique actions and their counts:\n")
+                for action, count in zip(unique_actions, counts):
+                    percentage = 100.0 * count.item() / num_samples
+                    q_values = []
+                    for i in range(self._num_copies):
+                        q_val = self._get_q_values(i, observations[:1],
+                                                   action.unsqueeze(0))
+                        q_values.append(q_val[0].item())
+                    q_str = ", ".join(
+                        [f"Q{i}={q:.3f}" for i, q in enumerate(q_values)])
+                    f.write(
+                        f"    Action {action.item()}: {count.item()} ({percentage:.1f}%), [{q_str}]\n"
+                    )
+            else:
+                if actions.dim() > 1:
+                    action_flat = actions.reshape(actions.shape[0], -1)
+                else:
+                    action_flat = actions.unsqueeze(-1)
 
-        # for i, alg in enumerate(self._algorithms):
-        #     print(f"=== Algorithm #{i} ===")
-        #     critics = alg._critic_networks._networks
-        #     target_critics = alg._target_critic_networks._networks
-        #     for j, (critic,
-        #             target_critic) in enumerate(zip(critics, target_critics)):
-        #         if not hasattr(critic, '_log_parameters'):
-        #             continue
-        #         print(f"  Critic #{j}")
-        #         critic._log_parameters()
-        #         # print(f"  Target Critic #{j}")
-        #         # target_critic._log_parameters()
+                mean = action_flat.mean(dim=0)
+                std = action_flat.std(dim=0)
+                min_val = action_flat.min(dim=0)[0]
+                max_val = action_flat.max(dim=0)[0]
 
-        for i, alg in enumerate(self._algorithms):
-            print(f"=== Algorithm #{i} ===")
-            critics = alg._critic_networks._networks
-            target_critics = alg._target_critic_networks._networks
-            for j, (critic,
-                    target_critic) in enumerate(zip(critics, target_critics)):
-                if hasattr(critic, '_log_parameters'):
-                    print(f"  Critic #{j}:")
-                    critic._log_parameters()
-                # if hasattr(target_critic, '_log_parameters'):
-                #     print(f"  Target Critic #{j}:")
-                #     target_critic._log_parameters()
+                for i in range(action_flat.shape[1]):
+                    f.write(f"  Action dim {i}: mean = {mean[i].item():.4f}, "
+                            f"std = {std[i].item():.4f}, "
+                            f"min = {min_val[i].item():.4f}, "
+                            f"max = {max_val[i].item():.4f}\n")
 
-        print("=" * 40 + "\n")
+            for i, alg in enumerate(self._algorithms):
+                f.write(f"=== Algorithm #{i} ===\n")
+                critics = alg._critic_networks._networks
+                target_critics = alg._target_critic_networks._networks
+                for j, (critic, target_critic) in enumerate(
+                        zip(critics, target_critics)):
+                    if hasattr(critic, '_log_parameters'):
+                        f.write(f"  Critic #{j}:\n")
+                        log_str = critic._log_parameters()
+                        f.write(log_str + "\n")
+            if self._env is not None and hasattr(self._env,
+                                                 'get_q_value_table'):
+                f.write("\n")
+                for i in range(self._num_copies):
+
+                    def q_func(obs, action, alg_index=i):
+                        obs = obs.to(self._device)
+                        action = action.to(self._device)
+                        return self._get_q_values(
+                            alg_index, obs.unsqueeze(0),
+                            action.unsqueeze(0))[0].item()
+
+                    q_table = self._env.get_q_value_table(q_func)
+                    f.write(
+                        f"=== Algorithm #{i} Q-values (decoded actions) ===\n")
+                    f.write(q_table.to_string())
+                    f.write("\n\n")
+
+            if self._env is not None and hasattr(
+                    self._env, 'get_transition_counts_table'):
+                transition_table = self._env.get_transition_counts_table(
+                    self._replay_buffer)
+                f.write("=== Transition Counts (decoded actions) ===\n")
+                f.write(transition_table.to_string())
+                f.write("\n\n")
+
+            f.write("=" * 40 + "\n")
+
+        logging.info(f"Written debug metrics to {log_file_path}")
 
     def _call_debug_metrics(self):
         observations, actions, rewards = self.sample_state_action_distribution(
             num_samples=1000)
-        self.debug_metrics(observations, actions, rewards)
+        self.debug_metrics(observations,
+                           actions,
+                           rewards,
+                           iter_number=self._debug_count)
 
     def after_train_iter(self, inputs, info):
         super().after_train_iter(inputs, info)

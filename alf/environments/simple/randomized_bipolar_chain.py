@@ -13,6 +13,8 @@
 # limitations under the License.
 
 import numpy as np
+import pandas as pd
+import torch
 from alf.environments.simple.bipolar_chain import BipolarChain
 
 
@@ -42,3 +44,73 @@ class RandomizedBipolarChain(BipolarChain):
         obs = np.zeros(self.num_states, dtype=np.float32)
         obs[self.state + self.k] = 1.0
         return obs, reward, done, {}
+
+    def get_q_value_table(self, q_function_callable):
+        q_values_right = []
+        q_values_left = []
+
+        for state in range(-self.k, self.k + 1):
+            obs = np.zeros(self.num_states, dtype=np.float32)
+            obs[state + self.k] = 1.0
+            obs_tensor = torch.from_numpy(obs)
+
+            q_action_0 = q_function_callable(obs_tensor, torch.tensor(0))
+            q_action_1 = q_function_callable(obs_tensor, torch.tensor(1))
+
+            flip_bit = self.action_flip_bits[state + self.k]
+            actual_right_action = 0 ^ flip_bit
+
+            if actual_right_action == 0:
+                q_values_right.append(q_action_0)
+                q_values_left.append(q_action_1)
+            else:
+                q_values_right.append(q_action_1)
+                q_values_left.append(q_action_0)
+
+        states = list(range(-self.k, self.k + 1))
+        return pd.DataFrame([q_values_right, q_values_left],
+                            index=["Right (↑)", "Left (↓)"],
+                            columns=states)
+
+    def get_transition_counts_table(self, replay_buffer):
+        counts_right = np.zeros(2 * self.k + 1, dtype=np.int64)
+        counts_left = np.zeros(2 * self.k + 1, dtype=np.int64)
+
+        if replay_buffer is None or replay_buffer.total_size == 0:
+            states = list(range(-self.k, self.k + 1))
+            return pd.DataFrame([counts_right, counts_left],
+                                index=["Right (↑)", "Left (↓)"],
+                                columns=states)
+
+        batch_size = min(10000, replay_buffer.total_size.item())
+        batch_info = replay_buffer._sample(batch_size=batch_size,
+                                           batch_length=1)
+        observations = replay_buffer.get_field('observation',
+                                               batch_info.env_ids,
+                                               batch_info.positions)
+        actions = replay_buffer.get_field('action', batch_info.env_ids,
+                                          batch_info.positions)
+
+        for obs, action in zip(observations, actions):
+            if isinstance(obs, torch.Tensor):
+                state_idx = torch.argmax(obs).item()
+            else:
+                state_idx = np.argmax(obs)
+
+            if isinstance(action, torch.Tensor):
+                action_val = action.item()
+            else:
+                action_val = int(action)
+
+            flip_bit = self.action_flip_bits[state_idx]
+            decoded_action = action_val ^ flip_bit
+
+            if decoded_action == (0 ^ flip_bit):
+                counts_right[state_idx] += 1
+            else:
+                counts_left[state_idx] += 1
+
+        states = list(range(-self.k, self.k + 1))
+        return pd.DataFrame([counts_right, counts_left],
+                            index=["Right (↑)", "Left (↓)"],
+                            columns=states)
