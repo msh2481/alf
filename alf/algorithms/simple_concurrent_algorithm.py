@@ -20,6 +20,8 @@ from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
 from alf.data_structures import AlgStep, Experience, LossInfo, TimeStep
 from alf.tensor_specs import TensorSpec
 from alf.utils.common import slice_nested, scatter_and_sum_nested
+from alf.nest_formatter import format_nest
+from alf.utils.dist_utils import distributions_to_params, params_to_distributions, extract_spec
 
 
 @alf.configurable
@@ -171,11 +173,49 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         return scatter_and_sum_nested(
             results, self._env_counts)._replace(state=new_states)
 
+    def _get_indices_of_unique(self, observations, actions):
+
+        def unique(x, dim):
+            unique, inverse = torch.unique(x, return_inverse=True, dim=dim)
+            perm = torch.arange(inverse.size(dim),
+                                dtype=inverse.dtype,
+                                device=inverse.device)
+            inverse, perm = inverse.flip([dim]), perm.flip([dim])
+            return unique, inverse.new_empty(unique.size(dim)).scatter_(
+                dim, inverse, perm)
+
+        batch_size, obs_dim = observations.shape
+        assert actions.shape == (
+            batch_size, ), f"actions shape: {actions.shape}"
+        obs_action_pairs = torch.cat(
+            [observations, actions.unsqueeze(1)], dim=1)
+        _, indices_of_unique = unique(obs_action_pairs, dim=0)
+        # now sample len(observations) indices with replacement from indices
+        n_full = len(observations)
+        n_unique = len(indices_of_unique)
+        indices = torch.randint(0,
+                                n_unique, (n_full, ),
+                                device=indices_of_unique.device)
+        return indices_of_unique[indices]
+
+    def _take_from_indices(self, data, indices):
+        spec = extract_spec(data)
+        data_params = distributions_to_params(data)
+        masked = alf.nest.map_structure(lambda x: x[indices], data_params)
+        return params_to_distributions(masked, spec)
+
     def train_step(self, inputs: TimeStep, state, rollout_info) -> AlgStep:
         total_batch_size = self._mini_batch_length * self._batch_size
         assert alf.nest.get_nest_size(
             inputs, dim=0
         ) == total_batch_size, f"inputs shape: {alf.nest.get_nest_shape(inputs)}"
+
+        # Re-sample to give equal weight to each (state, action) pair
+        indices = self._get_indices_of_unique(inputs.observation,
+                                              rollout_info.action)
+        inputs = self._take_from_indices(inputs, indices)
+        state = self._take_from_indices(state, indices)
+        rollout_info = self._take_from_indices(rollout_info, indices)
 
         sliced = self._slice_batch(inputs, state, rollout_info)
         results = {}

@@ -26,7 +26,7 @@ class RandomizedBipolarChain(BipolarChain):
     flipped (XOR operation with the action).
     """
 
-    def __init__(self, k=10):
+    def __init__(self, k=30):
         super().__init__(k)
         rng = np.random.RandomState(42)
         self.action_flip_bits = rng.randint(0, 2, size=self.num_states)

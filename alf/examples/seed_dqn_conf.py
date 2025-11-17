@@ -23,10 +23,10 @@ from alf.utils.losses import element_wise_squared_loss
 from alf.environments.simple.randomized_bipolar_chain import RandomizedBipolarChain
 
 BATCH_SIZE = 10000
-ENV_COUNTS = 10
+ENV_COUNTS = 4
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
-NUM_COPIES = 10
+NUM_COPIES = 4
 SEED_VERSION = True
 
 PRIOR_SCALE = 0.1
@@ -73,6 +73,12 @@ alf.config(
     parameter_target_alpha=PARAMETER_TARGET_ALPHA,
     reward_noise_std=REWARD_NOISE_STD,
 )
+alf.config(
+    'SacAlgorithm',
+    target_update_tau=0.5,
+    target_update_period=1,
+    # parameter_reset_period=500,
+)
 
 alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
@@ -87,8 +93,8 @@ alf.config(
     env_counts=ENV_COUNTS,
     unroll_length=UNROLL_LENGTH,
     mini_batch_length=MINI_BATCH_LENGTH,
-    repulsion_num_obs=100,
-    log_every_n_steps=500,
+    # repulsion_num_obs=100,
+    log_every_n_steps=100,
     use_exploration_seeds=SEED_VERSION,
     env_class=RandomizedBipolarChain,
 )
