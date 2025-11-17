@@ -15,15 +15,17 @@
 from typing import Callable, Optional
 import os
 import torch
-import pandas as pd
 import alf
 from absl import logging
+import matplotlib.pyplot as plt
+import matplotlib
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.simple_concurrent_algorithm import SimpleConcurrentAlgorithm
 from alf.data_structures import LossInfo
 from alf.tensor_specs import TensorSpec
 from itertools import combinations
 from alf.utils.common import warning
+import numpy as np
 
 
 @alf.configurable
@@ -317,6 +319,46 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
                 f"Environment {type(self._debug_env)} missing get_transition_counts_table method"
 
             device = alf.get_default_device()
+            k = self._debug_env.k
+            positions = list(range(-k, k + 1))
+
+            fig, axes = plt.subplots(self._num_copies + 1,
+                                     2,
+                                     figsize=(24, 6 * (self._num_copies + 1)))
+
+            transition_counts = self._debug_env.get_transition_counts_table(
+                self._replay_buffer)
+
+            for action_idx, action_name in enumerate(['Left', 'Right']):
+                ax_t = axes[0, action_idx]
+                data_t = transition_counts[:, :, action_idx].T
+                im_t = ax_t.imshow(data_t,
+                                   aspect='auto',
+                                   cmap='Blues',
+                                   origin='lower')
+                ax_t.set_xlabel('Position')
+                ax_t.set_ylabel('Time')
+                ax_t.set_title(f'Transitions {action_name}')
+                ax_t.set_xticks(range(0, 2 * k + 1, max(1, (2 * k + 1) // 8)))
+                ax_t.set_xticklabels([
+                    positions[j]
+                    for j in range(0, 2 * k + 1, max(1, (2 * k + 1) // 8))
+                ])
+                ax_t.set_yticks(range(k + 1))
+                plt.colorbar(im_t, ax=ax_t)
+
+                for pos_idx in range(2 * k + 1):
+                    for time_idx in range(k + 1):
+                        value = data_t[time_idx, pos_idx]
+                        ax_t.text(
+                            pos_idx,
+                            time_idx,
+                            f"{int(value) if not np.isnan(value) else ''}",
+                            ha="center",
+                            va="center",
+                            color="black",
+                            fontsize=6)
+
             for i in range(self._num_copies):
 
                 def q_func(obs, action, alg_index=i):
@@ -325,17 +367,45 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
                     return self._get_q_values(alg_index, obs.unsqueeze(0),
                                               action.unsqueeze(0))[0].item()
 
-                q_table = self._debug_env.get_q_value_table(q_func)
-                f.write(
-                    f"\n=== Algorithm #{i} Q-values (decoded actions) ===\n")
-                f.write(q_table.to_string(float_format=lambda x: f"{x:.3f}"))
-                f.write("\n")
+                q_values = self._debug_env.get_q_value_table(q_func)
 
-            transition_table = self._debug_env.get_transition_counts_table(
-                self._replay_buffer)
-            f.write("\n=== Transition Counts (decoded actions) ===\n")
-            f.write(transition_table.to_string())
-            f.write("\n")
+                for action_idx, action_name in enumerate(['Left', 'Right']):
+                    ax_q = axes[i + 1, action_idx]
+                    data_q = q_values[:, :, action_idx].T
+                    im_q = ax_q.imshow(data_q,
+                                       aspect='auto',
+                                       cmap='viridis',
+                                       origin='lower',
+                                       vmin=-0.1,
+                                       vmax=1.0)
+                    ax_q.set_xlabel('Position')
+                    ax_q.set_ylabel('Time')
+                    ax_q.set_title(f'Algorithm {i} Q-values {action_name}')
+                    ax_q.set_xticks(
+                        range(0, 2 * k + 1, max(1, (2 * k + 1) // 8)))
+                    ax_q.set_xticklabels([
+                        positions[j]
+                        for j in range(0, 2 * k + 1, max(1, (2 * k + 1) // 8))
+                    ])
+                    ax_q.set_yticks(range(k + 1))
+                    plt.colorbar(im_q, ax=ax_q)
+
+                    for pos_idx in range(2 * k + 1):
+                        for time_idx in range(k + 1):
+                            value = data_q[time_idx, pos_idx]
+                            ax_q.text(pos_idx,
+                                      time_idx,
+                                      f"{value:.3f}",
+                                      ha="center",
+                                      va="center",
+                                      color="white",
+                                      fontsize=6)
+
+            plt.tight_layout()
+            plot_path = f'logs/{iter_number}.png'
+            plt.savefig(plot_path, dpi=150)
+            plt.close()
+            logging.info(f"Written plot to {plot_path}")
 
             num_samples = observations.shape[0]
             replay_buffer = self._replay_buffer

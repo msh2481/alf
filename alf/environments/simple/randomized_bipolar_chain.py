@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import numpy as np
-import pandas as pd
 import torch
 import gym
 from gym import spaces
@@ -75,11 +74,17 @@ class RandomizedBipolarChain(gym.Env):
         obs = self._get_observation()
         return obs, reward, done, {}
 
-    def get_q_value_table(self, q_function_callable, time=True):
-        q_values = np.zeros((2 * self.k + 1, self.k + 1, 2))
+    def get_q_value_table(self, q_function_callable):
+        q_values = np.full((2 * self.k + 1, self.k + 1, 2),
+                           np.nan,
+                           dtype=np.float32)
 
         for position in range(-self.k, self.k + 1):
             for time_step in range(self.k + 1):
+                if abs(position
+                       ) > time_step or abs(position) % 2 != time_step % 2:
+                    continue
+
                 obs = np.zeros(self.num_states, dtype=np.float32)
                 flat_idx = self._state_to_idx(position, time_step)
                 obs[flat_idx] = 1.0
@@ -94,29 +99,9 @@ class RandomizedBipolarChain(gym.Env):
                     q_values[position + self.k, time_step,
                              decoded_action] = q_value
 
-        states = list(range(-self.k, self.k + 1))
-        if not time:
-            q_values_left = []
-            q_values_right = []
-            for position in range(-self.k, self.k + 1):
-                time_step = abs(position)
-                q_values_left.append(q_values[position + self.k, time_step, 0])
-                q_values_right.append(q_values[position + self.k, time_step,
-                                               1])
-            return pd.DataFrame([q_values_left, q_values_right],
-                                index=["Left (↓)", "Right (↑)"],
-                                columns=states)
-        else:
-            all_rows = []
-            row_names = []
-            for time_step in range(self.k + 1):
-                all_rows.append(q_values[:, time_step, 0].tolist())
-                all_rows.append(q_values[:, time_step, 1].tolist())
-                row_names.append(f"Left t={time_step}")
-                row_names.append(f"Right t={time_step}")
-            return pd.DataFrame(all_rows, index=row_names, columns=states)
+        return q_values
 
-    def get_transition_counts_table(self, replay_buffer, time=True):
+    def get_transition_counts_table(self, replay_buffer):
         counts = np.zeros((self.num_states, 2), dtype=np.int64)
 
         if replay_buffer is not None and replay_buffer.total_size > 0:
@@ -142,32 +127,20 @@ class RandomizedBipolarChain(gym.Env):
 
                 counts[flat_idx, action_val] += 1
 
-        states = list(range(-self.k, self.k + 1))
-        if not time:
-            counts_left = []
-            counts_right = []
-            for position in range(-self.k, self.k + 1):
-                time_step = abs(position)
+        result = np.full((2 * self.k + 1, self.k + 1, 2),
+                         np.nan,
+                         dtype=np.float32)
+        for position in range(-self.k, self.k + 1):
+            for time_step in range(self.k + 1):
+                if abs(position
+                       ) > time_step or abs(position) % 2 != time_step % 2:
+                    continue
+
                 flat_idx = self._state_to_idx(position, time_step)
                 flip_bit = self.action_flip_bits[position + self.k]
-                counts_left.append(counts[flat_idx, flip_bit])
-                counts_right.append(counts[flat_idx, 1 ^ flip_bit])
-            return pd.DataFrame([counts_left, counts_right],
-                                index=["Left (↓)", "Right (↑)"],
-                                columns=states)
-        else:
-            all_rows = []
-            row_names = []
-            for time_step in range(self.k + 1):
-                counts_left = []
-                counts_right = []
-                for position in range(-self.k, self.k + 1):
-                    flat_idx = self._state_to_idx(position, time_step)
-                    flip_bit = self.action_flip_bits[position + self.k]
-                    counts_left.append(counts[flat_idx, flip_bit])
-                    counts_right.append(counts[flat_idx, 1 ^ flip_bit])
-                all_rows.append(counts_left)
-                all_rows.append(counts_right)
-                row_names.append(f"Left t={time_step}")
-                row_names.append(f"Right t={time_step}")
-            return pd.DataFrame(all_rows, index=row_names, columns=states)
+                result[position + self.k, time_step, 0] = counts[flat_idx,
+                                                                 flip_bit]
+                result[position + self.k, time_step, 1] = counts[flat_idx,
+                                                                 1 ^ flip_bit]
+
+        return result
