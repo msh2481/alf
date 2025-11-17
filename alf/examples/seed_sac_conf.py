@@ -76,10 +76,10 @@ alf.config(
     env_counts=ENV_COUNTS,
     unroll_length=UNROLL_LENGTH,
     mini_batch_length=MINI_BATCH_LENGTH,
-    # repulsion_alpha=1e-4,
     repulsion_num_obs=100,
     log_every_n_steps=500,
     use_exploration_seeds=SEED_VERSION,
+    env_class=None,
 )
 
 # training config

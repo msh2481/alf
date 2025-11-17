@@ -2,6 +2,7 @@ log.txt
 /*.sh
 .cursor
 *.png
+logs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

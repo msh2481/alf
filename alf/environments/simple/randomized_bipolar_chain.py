@@ -58,7 +58,7 @@ class RandomizedBipolarChain(BipolarChain):
             q_action_1 = q_function_callable(obs_tensor, torch.tensor(1))
 
             flip_bit = self.action_flip_bits[state + self.k]
-            actual_right_action = 0 ^ flip_bit
+            actual_right_action = 1 ^ flip_bit
 
             if actual_right_action == 0:
                 q_values_right.append(q_action_0)
@@ -105,7 +105,7 @@ class RandomizedBipolarChain(BipolarChain):
             flip_bit = self.action_flip_bits[state_idx]
             decoded_action = action_val ^ flip_bit
 
-            if decoded_action == (0 ^ flip_bit):
+            if decoded_action == 1:
                 counts_right[state_idx] += 1
             else:
                 counts_left[state_idx] += 1

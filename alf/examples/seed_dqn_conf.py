@@ -20,6 +20,7 @@ from alf.algorithms.action_repulsion_algorithm import ActionRepulsionAlgorithm
 from alf.networks import QNetwork, QNetworkBase, DebugLinearQNetwork, RandomizedPriorQNetwork, OptimisticQNetwork
 from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetwork
 from alf.utils.losses import element_wise_squared_loss
+from alf.environments.simple.randomized_bipolar_chain import RandomizedBipolarChain
 
 BATCH_SIZE = 10000
 ENV_COUNTS = 10
@@ -86,10 +87,10 @@ alf.config(
     env_counts=ENV_COUNTS,
     unroll_length=UNROLL_LENGTH,
     mini_batch_length=MINI_BATCH_LENGTH,
-    # repulsion_alpha=1e-4,
     repulsion_num_obs=100,
     log_every_n_steps=500,
     use_exploration_seeds=SEED_VERSION,
+    env_class=RandomizedBipolarChain,
 )
 
 # training config

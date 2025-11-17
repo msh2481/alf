@@ -56,6 +56,7 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
         repulsion_num_obs: int = 100,
         use_exploration_seeds: bool = True,
         log_every_n_steps: int = 100,
+        env_class=None,
     ):
         super().__init__(
             observation_spec=observation_spec,
@@ -80,6 +81,7 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
         self._repulsion_num_obs = repulsion_num_obs
         self._debug_count = 0
         self._log_every_n_steps = log_every_n_steps
+        self._debug_env = env_class() if env_class is not None else None
 
         # Validate that all sub-algorithms have actor networks when using repulsion
         if self._repulsion_alpha > 0:
@@ -308,6 +310,33 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
                 logging.info(f"Written debug metrics to {log_file_path}")
                 return
 
+            assert self._debug_env is not None, "env_class is None - must be passed to ActionRepulsionAlgorithm"
+            assert hasattr(self._debug_env, 'get_q_value_table'), \
+                f"Environment {type(self._debug_env)} missing get_q_value_table method"
+            assert hasattr(self._debug_env, 'get_transition_counts_table'), \
+                f"Environment {type(self._debug_env)} missing get_transition_counts_table method"
+
+            device = alf.get_default_device()
+            for i in range(self._num_copies):
+
+                def q_func(obs, action, alg_index=i):
+                    obs = obs.to(device)
+                    action = action.to(device)
+                    return self._get_q_values(alg_index, obs.unsqueeze(0),
+                                              action.unsqueeze(0))[0].item()
+
+                q_table = self._debug_env.get_q_value_table(q_func)
+                f.write(
+                    f"\n=== Algorithm #{i} Q-values (decoded actions) ===\n")
+                f.write(q_table.to_string(float_format=lambda x: f"{x:.3f}"))
+                f.write("\n")
+
+            transition_table = self._debug_env.get_transition_counts_table(
+                self._replay_buffer)
+            f.write("\n=== Transition Counts (decoded actions) ===\n")
+            f.write(transition_table.to_string())
+            f.write("\n")
+
             num_samples = observations.shape[0]
             replay_buffer = self._replay_buffer
             total_size = replay_buffer.total_size.item(
@@ -370,7 +399,7 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
                             f"max = {max_val[i].item():.4f}\n")
 
             for i, alg in enumerate(self._algorithms):
-                f.write(f"=== Algorithm #{i} ===\n")
+                f.write(f"\n=== Algorithm #{i} ===\n")
                 critics = alg._critic_networks._networks
                 target_critics = alg._target_critic_networks._networks
                 for j, (critic, target_critic) in enumerate(
@@ -379,31 +408,6 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
                         f.write(f"  Critic #{j}:\n")
                         log_str = critic._log_parameters()
                         f.write(log_str + "\n")
-            if self._env is not None and hasattr(self._env,
-                                                 'get_q_value_table'):
-                f.write("\n")
-                for i in range(self._num_copies):
-
-                    def q_func(obs, action, alg_index=i):
-                        obs = obs.to(self._device)
-                        action = action.to(self._device)
-                        return self._get_q_values(
-                            alg_index, obs.unsqueeze(0),
-                            action.unsqueeze(0))[0].item()
-
-                    q_table = self._env.get_q_value_table(q_func)
-                    f.write(
-                        f"=== Algorithm #{i} Q-values (decoded actions) ===\n")
-                    f.write(q_table.to_string())
-                    f.write("\n\n")
-
-            if self._env is not None and hasattr(
-                    self._env, 'get_transition_counts_table'):
-                transition_table = self._env.get_transition_counts_table(
-                    self._replay_buffer)
-                f.write("=== Transition Counts (decoded actions) ===\n")
-                f.write(transition_table.to_string())
-                f.write("\n\n")
 
             f.write("=" * 40 + "\n")
 
