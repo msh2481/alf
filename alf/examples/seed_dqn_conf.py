@@ -22,7 +22,7 @@ from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetw
 from alf.utils.losses import element_wise_squared_loss
 from alf.environments.simple.randomized_bipolar_chain import RandomizedBipolarChain
 
-BATCH_SIZE = 10000
+BATCH_SIZE = 12000
 ENV_COUNTS = 4
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
