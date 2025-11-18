@@ -23,10 +23,10 @@ from alf.utils.losses import element_wise_squared_loss
 from alf.environments.simple.randomized_bipolar_chain import RandomizedBipolarChain
 
 BATCH_SIZE = 12000
-ENV_COUNTS = 10
+ENV_COUNTS = 12
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
-NUM_COPIES = 10
+NUM_COPIES = 12
 SEED_VERSION = True
 
 PRIOR_SCALE = 0.1
@@ -65,7 +65,7 @@ alf.config(
     # q_network_cls=QNetworkBase,
     # q_network_cls=DebugLinearQNetwork,
     q_network_cls=RandomizedPriorQNetwork,
-    num_critic_replicas=1,
+    num_critic_replicas=2,
     #    actor_optimizer=alf.optimizers.Adam(lr=1e-3, name='actor'),
     #    critic_optimizer=alf.optimizers.Adam(lr=1e-3, name='critic'),
     #    alpha_optimizer=alf.optimizers.Adam(lr=1e-3, name='alpha'),

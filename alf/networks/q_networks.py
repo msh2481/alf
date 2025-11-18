@@ -352,10 +352,14 @@ class RandomizedPriorQNetwork(Network):
                                        **network_kwargs)
 
         # Re-initialize the prior network's final layer with the specified scale
-        torch.nn.init.normal_(self._prior_net._final_layer.weight,
-                              mean=0.0,
-                              std=prior_scale)
-        torch.nn.init.zeros_(self._prior_net._final_layer.bias)
+        self._prior_net._final_layer = layers.FC(
+            input_size=self._prior_net._encoding_net.output_spec.shape[0],
+            output_size=action_spec.maximum - action_spec.minimum + 1,
+            activation=math_ops.identity,
+            kernel_initializer=functools.partial(torch.nn.init.normal_,
+                                                 std=prior_scale),
+            bias_init_value=0.0,
+        )
 
         # Freeze the prior network
         for param in self._prior_net.parameters():
@@ -531,8 +535,13 @@ class DebugLinearQNetwork(QNetworkBase):
             use_naive_parallel_network=False,
             name=name,
         )
-        # Re-initialize bias to zero (instead of -0.2 from QNetworkBase)
-        torch.nn.init.zeros_(self._final_layer.bias)
+        self._final_layer = layers.FC(
+            input_size=input_tensor_spec.shape[0],
+            output_size=action_spec.maximum - action_spec.minimum + 1,
+            activation=math_ops.identity,
+            kernel_initializer=torch.nn.init.normal_,
+            # bias_init_value=0.0,
+            use_bias=False)
         self._forward_count = 0
 
     def forward(self, observation, state=()):

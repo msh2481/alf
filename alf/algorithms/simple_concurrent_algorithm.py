@@ -210,12 +210,12 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
             inputs, dim=0
         ) == total_batch_size, f"inputs shape: {alf.nest.get_nest_shape(inputs)}"
 
-        # Re-sample to give equal weight to each (state, action) pair
-        indices = self._get_indices_of_unique(inputs.observation,
-                                              rollout_info.action)
-        inputs = self._take_from_indices(inputs, indices)
-        state = self._take_from_indices(state, indices)
-        rollout_info = self._take_from_indices(rollout_info, indices)
+        # # Re-sample to give equal weight to each (state, action) pair
+        # indices = self._get_indices_of_unique(inputs.observation,
+        #                                       rollout_info.action)
+        # inputs = self._take_from_indices(inputs, indices)
+        # state = self._take_from_indices(state, indices)
+        # rollout_info = self._take_from_indices(rollout_info, indices)
 
         sliced = self._slice_batch(inputs, state, rollout_info)
         results = {}

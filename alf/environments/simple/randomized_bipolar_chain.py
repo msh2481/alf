@@ -26,7 +26,7 @@ class RandomizedBipolarChain(gym.Env):
     flipped (XOR operation with the action).
     """
 
-    def __init__(self, k=8):
+    def __init__(self, k=30):
         super().__init__()
         self.k = k
         self.num_states = (2 * self.k + 1) * (self.k + 1)
