@@ -13,7 +13,7 @@
 # limitations under the License.
 """Simple Concurrent SAC Demo Configuration.
 
-This demonstrates SimpleConcurrentAlgorithm with SAC on CartPole-v0.
+This demonstrates ConcurrentAlgorithm with SAC on CartPole-v0.
 The algorithm creates multiple independent SAC copies that learn concurrently.
 """
 
@@ -21,7 +21,7 @@ import alf
 
 alf.import_config("sac_conf.py")
 from alf.algorithms.sac_algorithm import SacAlgorithm
-from alf.algorithms.simple_concurrent_algorithm import SimpleConcurrentAlgorithm
+from alf.algorithms.concurrent_algorithm import ConcurrentAlgorithm
 from alf.networks import QNetwork
 from alf.utils.losses import element_wise_squared_loss
 
@@ -50,7 +50,7 @@ alf.config('OneStepTDLoss',
            gamma=0.98)
 
 alf.config(
-    "SimpleConcurrentAlgorithm",
+    "ConcurrentAlgorithm",
     algorithm_ctor=SacAlgorithm,
     num_copies=2,
     batch_size=BATCH_SIZE,
@@ -61,7 +61,7 @@ alf.config(
 
 # training config
 alf.config('TrainerConfig',
-           algorithm_ctor=SimpleConcurrentAlgorithm,
+           algorithm_ctor=ConcurrentAlgorithm,
            initial_collect_steps=10,
            mini_batch_length=MINI_BATCH_LENGTH,
            mini_batch_size=BATCH_SIZE,

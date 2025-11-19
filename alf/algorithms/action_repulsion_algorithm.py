@@ -20,7 +20,7 @@ from absl import logging
 import matplotlib.pyplot as plt
 import matplotlib
 from alf.algorithms.config import TrainerConfig
-from alf.algorithms.simple_concurrent_algorithm import SimpleConcurrentAlgorithm
+from alf.algorithms.concurrent_algorithm import ConcurrentAlgorithm
 from alf.data_structures import LossInfo
 from alf.tensor_specs import TensorSpec
 from itertools import combinations
@@ -29,7 +29,7 @@ import numpy as np
 
 
 @alf.configurable
-class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
+class ActionRepulsionAlgorithm(ConcurrentAlgorithm):
     """Action Repulsion Algorithm with multiple concurrent learners.
 
     Encourages diversity between sub-algorithms by penalizing similar Q-value
@@ -495,5 +495,5 @@ class ActionRepulsionAlgorithm(SimpleConcurrentAlgorithm):
 
     def after_train_iter(self, inputs, info):
         super().after_train_iter(inputs, info)
-        if self._debug_summaries and self._env is not None:
+        if self._env is not None:
             self._call_debug_metrics()

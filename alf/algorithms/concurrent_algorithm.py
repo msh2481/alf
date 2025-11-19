@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Callable, Optional
+from concurrent.futures import ThreadPoolExecutor
 import torch
 import torch.nn as nn
 import alf
@@ -25,7 +26,7 @@ from alf.utils.dist_utils import distributions_to_params, params_to_distribution
 
 
 @alf.configurable
-class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
+class ConcurrentAlgorithm(OffPolicyAlgorithm):
 
     def __init__(
         self,
@@ -39,12 +40,14 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         checkpoint: Optional[str] = None,
         optimizer=None,
         debug_summaries: bool = False,
-        name: str = "SimpleConcurrentAlgorithm",
+        name: str = "ConcurrentAlgorithm",
         batch_size=None,
         env_counts=None,
         unroll_length=None,
         mini_batch_length=None,
         use_exploration_seeds: bool = True,
+        use_parallel_training: bool = True,
+        num_parallel_workers: Optional[int] = None,
     ):
         assert batch_size is not None, "batch_size must be provided"
         assert env_counts is not None, "env_counts must be provided"
@@ -109,6 +112,24 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
         else:
             self._algorithms = nn.ModuleList(
                 [algorithm_ctor(**get_kwargs(i)) for i in range(num_copies)])
+
+        # Initialize parallel training executor
+        self._use_parallel_training = use_parallel_training
+        if self._use_parallel_training:
+            self._num_workers = num_parallel_workers or num_copies
+            self._executor = ThreadPoolExecutor(max_workers=self._num_workers)
+        else:
+            self._executor = None
+
+    def close(self):
+        """Clean up resources, including shutting down the thread pool executor."""
+        if hasattr(self, '_executor') and self._executor is not None:
+            self._executor.shutdown(wait=True)
+            self._executor = None
+
+    def __del__(self):
+        """Destructor to ensure executor is cleaned up."""
+        self.close()
 
     def get_initial_predict_state(self, batch_size):
         return [
@@ -210,26 +231,35 @@ class SimpleConcurrentAlgorithm(OffPolicyAlgorithm):
             inputs, dim=0
         ) == total_batch_size, f"inputs shape: {alf.nest.get_nest_shape(inputs)}"
 
-        # # Re-sample to give equal weight to each (state, action) pair
-        # indices = self._get_indices_of_unique(inputs.observation,
-        #                                       rollout_info.action)
-        # inputs = self._take_from_indices(inputs, indices)
-        # state = self._take_from_indices(state, indices)
-        # rollout_info = self._take_from_indices(rollout_info, indices)
-
         sliced = self._slice_batch(inputs, state, rollout_info)
-        results = {}
-        new_states = [None] * self._num_copies
-        for alg_idx, (
-                sliced_time_step,
-                sliced_state,
-                sliced_rollout_info,
-                batch_indices,
-        ) in sliced.items():
+
+        def worker(alg_idx, sliced_data):
+            """Worker function for agent training."""
+            sliced_time_step, sliced_state, sliced_rollout_info, batch_indices = sliced_data
             alg_step = self._algorithms[alg_idx].train_step(
                 sliced_time_step, sliced_state, sliced_rollout_info)
-            new_states[alg_idx] = alg_step.state
-            results[alg_idx] = (alg_step._replace(state=()), batch_indices)
+            return alg_idx, alg_step, batch_indices
+
+        results = {}
+        new_states = [None] * self._num_copies
+
+        if self._use_parallel_training:
+            # Parallel execution using ThreadPoolExecutor
+            futures = [
+                self._executor.submit(worker, alg_idx, sliced[alg_idx])
+                for alg_idx in range(self._num_copies)
+            ]
+            for future in futures:
+                alg_idx, alg_step, batch_indices = future.result()
+                new_states[alg_idx] = alg_step.state
+                results[alg_idx] = (alg_step._replace(state=()), batch_indices)
+        else:
+            # Sequential execution
+            for alg_idx, sliced_data in sliced.items():
+                alg_idx, alg_step, batch_indices = worker(alg_idx, sliced_data)
+                new_states[alg_idx] = alg_step.state
+                results[alg_idx] = (alg_step._replace(state=()), batch_indices)
+
         return scatter_and_sum_nested(
             results, total_batch_size)._replace(state=new_states)
 

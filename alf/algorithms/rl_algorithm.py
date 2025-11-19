@@ -862,6 +862,7 @@ class RLAlgorithm(Algorithm):
             return 0
 
         self.train()
+
         steps = self.train_from_replay_buffer(update_global_counter=True)
 
         if unrolled:

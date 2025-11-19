@@ -22,11 +22,11 @@ from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetw
 from alf.utils.losses import element_wise_squared_loss
 from alf.environments.simple.randomized_bipolar_chain import RandomizedBipolarChain
 
-BATCH_SIZE = 12000
-ENV_COUNTS = 12
+BATCH_SIZE = 4000
+ENV_COUNTS = 4
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
-NUM_COPIES = 12
+NUM_COPIES = 4
 SEED_VERSION = True
 
 PRIOR_SCALE = 0.1
@@ -112,10 +112,12 @@ alf.config(
     num_checkpoints=3,
     evaluate=False,
     eval_interval=100,
-    debug_summaries=True,
-    summary_interval=100,
     replay_buffer_length=2000,
     random_seed=42,
     whole_replay_buffer_training=False,
     clear_replay_buffer=False,
+    summarize_grads_and_vars=False,
+    debug_summaries=False,
+    summary_interval=100,
+    summarize_first_interval=False,
 )
