@@ -22,11 +22,11 @@ from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetw
 from alf.utils.losses import element_wise_squared_loss
 from alf.environments.simple.randomized_bipolar_chain import RandomizedBipolarChain
 
-BATCH_SIZE = 4000
-ENV_COUNTS = 4
+BATCH_SIZE = 12000
+ENV_COUNTS = 12
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
-NUM_COPIES = 4
+NUM_COPIES = 12
 SEED_VERSION = True
 
 PRIOR_SCALE = 0.1
@@ -51,12 +51,12 @@ alf.config(
 #     recent_data_ratio=0.3,
 # )
 
-alf.config('QNetwork', fc_layer_params=(256, ))
+alf.config('QNetwork', fc_layer_params=(1024, ))
 alf.config('OptimisticQNetwork', init_mean=0.0, init_std=1e-3)
 alf.config(
     'RandomizedPriorQNetwork',
-    #    network_ctor=OptimisticQNetwork,
-    network_ctor=DebugLinearQNetwork,
+    network_ctor=OptimisticQNetwork,
+    # network_ctor=DebugLinearQNetwork,
     prior_scale=PRIOR_SCALE)
 
 alf.config(
@@ -112,7 +112,7 @@ alf.config(
     num_checkpoints=3,
     evaluate=False,
     eval_interval=100,
-    replay_buffer_length=2000,
+    replay_buffer_length=10000,
     random_seed=42,
     whole_replay_buffer_training=False,
     clear_replay_buffer=False,
