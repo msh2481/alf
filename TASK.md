@@ -196,3 +196,13 @@ def train_step(self, inputs: TimeStep, state: SacState, rollout_info: SacInfo):
     return AlgStep(action, new_state, info)
 
 ```
+
+## Installations / troubleshooting
+```
+sudo apt install python3.12-dev
+sudo apt install swig
+sudo apt install cmake
+sudo apt install libgl1
+sudo apt install ninja-build
+sudo apt install libboost-all-dev
+```

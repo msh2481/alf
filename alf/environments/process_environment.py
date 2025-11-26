@@ -43,11 +43,14 @@ DIR = pathlib.Path(__file__).parent.absolute()
 boost_include = os.path.join(os.path.expanduser('~'),
                              'opt/homebrew/opt/boost/include')
 if not os.path.exists(boost_include):
-    brew_boost = subprocess.run(['brew', '--prefix', 'boost'],
-                                capture_output=True,
-                                text=True)
-    if brew_boost.returncode == 0:
-        boost_include = os.path.join(brew_boost.stdout.strip(), 'include')
+    try:
+        brew_boost = subprocess.run(['brew', '--prefix', 'boost'],
+                                    capture_output=True,
+                                    text=True)
+        if brew_boost.returncode == 0:
+            boost_include = os.path.join(brew_boost.stdout.strip(), 'include')
+    except Exception as e:
+        pass
 extra_cflags = [
     '-O3', '-Wall', '-shared', '-std=c++17', '-fPIC', '-fvisibility=hidden'
 ]
