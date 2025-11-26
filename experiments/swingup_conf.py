@@ -23,10 +23,10 @@ from alf.utils.math_ops import clipped_exp
 from alf.utils.losses import element_wise_squared_loss
 
 BATCH_SIZE = 256
-ENV_COUNTS = 4
+ENV_COUNTS = 1
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
-NUM_COPIES = 4
+NUM_COPIES = 1
 SEED_VERSION = True
 
 # HIDDEN_LAYERS = (256, 256)
@@ -40,7 +40,7 @@ alf.config('create_environment',
 
 alf.config('suite_dmc.load',
            from_pixels=False,
-           max_episode_steps=1000,
+           max_episode_steps=125,
            gym_env_wrappers=(partial(FrameSkip, skip=8), ))
 
 # actor network for continuous actions
