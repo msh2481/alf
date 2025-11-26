@@ -13,13 +13,16 @@
 # limitations under the License.
 from typing import Callable, Optional
 from concurrent.futures import ThreadPoolExecutor
+import os
 import torch
 import torch.nn as nn
+from absl import logging
 import alf
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
 from alf.data_structures import AlgStep, Experience, LossInfo, TimeStep
 from alf.tensor_specs import TensorSpec
+from alf.utils import common
 from alf.utils.common import slice_nested, scatter_and_sum_nested
 from alf.nest_formatter import format_nest
 from alf.utils.dist_utils import distributions_to_params, params_to_distributions, extract_spec
@@ -48,6 +51,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         use_exploration_seeds: bool = True,
         use_parallel_training: bool = True,
         num_parallel_workers: Optional[int] = None,
+        video_record_interval: int | None = None,
     ):
         assert batch_size is not None, "batch_size must be provided"
         assert env_counts is not None, "env_counts must be provided"
@@ -120,6 +124,10 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             self._executor = ThreadPoolExecutor(max_workers=self._num_workers)
         else:
             self._executor = None
+
+        # Video recording
+        self._video_record_interval = video_record_interval
+        self._train_step_counter = 0
 
     def close(self):
         """Clean up resources, including shutting down the thread pool executor."""
@@ -298,6 +306,12 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         return scatter_and_sum_nested(
             results, self._batch_size)._replace(state=new_states)
 
+    def _make_single_env(self):
+        """Create a single environment using the configured env_load_fn and env_name."""
+        env_load_fn = alf.get_config_value("create_environment.env_load_fn")
+        env_name = alf.get_config_value("create_environment.env_name")
+        return env_load_fn(env_name, env_id=0)
+
     def after_train_iter(self, inputs: TimeStep, info):
         assert alf.nest.get_nest_shape(inputs)[:2] == (
             self._unroll_length, self._env_counts
@@ -309,6 +323,15 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                 _batch_indices,
         ) in sliced.items():
             self._algorithms[alg_idx].after_train_iter(sliced_inputs, info)
+
+        self._train_step_counter += 1
+        if (self._video_record_interval is not None and
+                self._train_step_counter % self._video_record_interval == 0):
+            video_dir = os.path.join(
+                self._config.root_dir if self._config else ".", "videos")
+            self.record_videos(output_dir=video_dir,
+                               num_episodes=1,
+                               step_label=self._train_step_counter)
 
     def after_update(self, root_inputs, info):
         assert alf.nest.get_nest_shape(root_inputs)[:2] == (
@@ -323,3 +346,81 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         ) in sliced.items():
             self._algorithms[alg_idx].after_update(sliced_time_step,
                                                    sliced_info)
+
+    @torch.no_grad()
+    def record_videos(
+        self,
+        output_dir: str,
+        env_ctor: Callable | None = None,
+        num_episodes: int = 1,
+        max_steps_per_episode: int = 1000,
+        step_label: int | str = "",
+        fps: int = 30,
+        parallel: bool = True,
+    ):
+        """Record videos of each sub-agent's policy.
+
+        Args:
+            output_dir: Directory to save video files.
+            env_ctor: Callable that creates a single environment instance.
+                If None, uses the configured env_load_fn and env_name.
+            num_episodes: Number of episodes to record per agent.
+            max_steps_per_episode: Maximum steps per episode.
+            step_label: Label to include in filename (e.g., training step).
+            fps: Frames per second for output video.
+            parallel: If True, record all agents in parallel using threads.
+        """
+        if env_ctor is None:
+            env_ctor = self._make_single_env
+        os.makedirs(output_dir, exist_ok=True)
+        was_training = self.training
+        self.eval()
+        logging.info(
+            f"Recording videos for {self._num_copies} agents (step={step_label})..."
+        )
+
+        def record_single_agent(agent_idx: int, alg):
+            frames = []
+            env = env_ctor()
+            try:
+                for ep in range(num_episodes):
+                    env.reset()
+                    time_step = common.get_initial_time_step(env)
+                    state = alg.get_initial_predict_state(env.batch_size)
+                    for _ in range(max_steps_per_episode):
+                        frame = env.render(mode='rgb_array')
+                        if frame is not None:
+                            frames.append(frame)
+                        state = common.reset_state_if_necessary(
+                            state,
+                            alg.get_initial_predict_state(env.batch_size),
+                            time_step.is_first())
+                        alg_step = alg.predict_step(time_step, state)
+                        state = alg_step.state
+                        time_step = env.step(alg_step.output)
+                        if time_step.is_last():
+                            break
+            finally:
+                env.close()
+
+            if frames:
+                filename = f"agent_{agent_idx}_{step_label}.mp4"
+                output_path = os.path.join(output_dir, filename)
+                common.save_video(frames, output_path, fps=fps)
+
+        if parallel:
+            with ThreadPoolExecutor(max_workers=self._num_copies) as executor:
+                futures = [
+                    executor.submit(record_single_agent, i, alg)
+                    for i, alg in enumerate(self._algorithms)
+                ]
+                for f in futures:
+                    f.result()
+        else:
+            for i, alg in enumerate(self._algorithms):
+                record_single_agent(i, alg)
+
+        logging.info(f"Finished recording videos to {output_dir}")
+
+        if was_training:
+            self.train()

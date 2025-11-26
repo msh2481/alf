@@ -75,8 +75,6 @@ class SeedSamplingMixin:
 
             reg_loss = reg_loss * self._seed_sampling_parameter_target_alpha
             loss_info = loss_info._replace(loss=loss_info.loss + reg_loss)
-
-        log(f"loss_patched", format_nest(loss_info.loss))
         return loss_info
 
     def _seed_sampling_train_step_preprocessing(self, inputs: TimeStep):
