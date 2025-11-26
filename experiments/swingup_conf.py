@@ -74,7 +74,7 @@ alf.config(
     mini_batch_length=MINI_BATCH_LENGTH,
     log_every_n_steps=500,
     use_exploration_seeds=SEED_VERSION,
-    video_record_interval=5000,
+    video_record_interval=500,
 )
 
 # training config
@@ -87,8 +87,7 @@ alf.config('TrainerConfig',
            num_updates_per_train_iter=1,
            num_iterations=50000,
            num_checkpoints=3,
-           evaluate=True,
-           eval_interval=1000,
+           evaluate=False,
            debug_summaries=False,
            summary_interval=200,
            replay_buffer_length=100000,

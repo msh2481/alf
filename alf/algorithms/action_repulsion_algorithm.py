@@ -488,6 +488,8 @@ class ActionRepulsionAlgorithm(ConcurrentAlgorithm):
         logging.info(f"Written debug metrics to {log_file_path}")
 
     def _call_debug_metrics(self):
+        if self._debug_env is None:
+            return
         observations, actions, rewards = self.sample_state_action_distribution(
             num_samples=1000)
         self.debug_metrics(observations,

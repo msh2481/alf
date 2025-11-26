@@ -887,6 +887,10 @@ class _ReplicateInputForParallel(Network):
         self._n = n
         self._pnet = pnet
 
+    @property
+    def _networks(self):
+        return self._pnet._networks
+
     def forward(self, inputs, state=()):
         outer_rank = get_outer_rank(inputs, self._input_tensor_spec)
         if outer_rank == 1:

@@ -14,6 +14,7 @@
 from typing import Callable, Optional
 from concurrent.futures import ThreadPoolExecutor
 import os
+import sys
 import torch
 import torch.nn as nn
 from absl import logging
@@ -287,9 +288,21 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                                       time_major=True)
 
     def predict_step(self, inputs: TimeStep, state) -> AlgStep:
-        assert alf.nest.get_nest_size(
-            inputs, dim=0
-        ) == self._batch_size, f"inputs shape: {alf.nest.get_nest_shape(inputs)}"
+        batch_size = alf.nest.get_nest_size(inputs, dim=0)
+        # During evaluation, batch_size may differ from training batch_size.
+        # In that case, use the first sub-algorithm for prediction.
+        if batch_size != self._batch_size:
+            common.warning_once(
+                f"predict_step batch_size mismatch: got {batch_size}, "
+                f"expected {self._batch_size}. Using first sub-algorithm.")
+            if isinstance(state, list) and len(state) == self._num_copies:
+                alg_state = state[0]
+            else:
+                alg_state = self._algorithms[0].get_initial_predict_state(
+                    batch_size)
+            alg_step = self._algorithms[0].predict_step(inputs, alg_state)
+            new_state = [alg_step.state] + [None] * (self._num_copies - 1)
+            return alg_step._replace(state=new_state)
 
         sliced = self._slice_batch(inputs, state)
         results = {}
@@ -379,26 +392,48 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             f"Recording videos for {self._num_copies} agents (step={step_label})..."
         )
 
+        def to_tensor(x):
+            if isinstance(x, torch.Tensor):
+                return x
+            return torch.as_tensor(x, dtype=torch.float32)
+
+        def tensorize_time_step(ts):
+            return ts._replace(
+                observation=to_tensor(ts.observation),
+                reward=to_tensor(ts.reward),
+                step_type=torch.as_tensor(ts.step_type),
+                discount=to_tensor(ts.discount),
+            )
+
         def record_single_agent(agent_idx: int, alg):
             frames = []
             env = env_ctor()
             try:
                 for ep in range(num_episodes):
                     env.reset()
-                    time_step = common.get_initial_time_step(env)
+                    time_step = tensorize_time_step(
+                        common.get_initial_time_step(env))
                     state = alg.get_initial_predict_state(env.batch_size)
                     for _ in range(max_steps_per_episode):
                         frame = env.render(mode='rgb_array')
                         if frame is not None:
                             frames.append(frame)
+                        is_first = time_step.is_first()
+                        if not isinstance(is_first, torch.Tensor):
+                            is_first = torch.tensor(is_first)
                         state = common.reset_state_if_necessary(
                             state,
                             alg.get_initial_predict_state(env.batch_size),
-                            time_step.is_first())
+                            is_first)
                         alg_step = alg.predict_step(time_step, state)
                         state = alg_step.state
-                        time_step = env.step(alg_step.output)
-                        if time_step.is_last():
+                        action = alg_step.output
+                        if isinstance(action, torch.Tensor):
+                            action = action.detach().cpu().numpy()
+                        time_step = tensorize_time_step(env.step(action))
+                        if time_step.is_last().any() if hasattr(
+                                time_step.is_last(),
+                                'any') else time_step.is_last():
                             break
             finally:
                 env.close()
@@ -407,6 +442,13 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                 filename = f"agent_{agent_idx}_{step_label}.mp4"
                 output_path = os.path.join(output_dir, filename)
                 common.save_video(frames, output_path, fps=fps)
+
+        # On macOS, GLFW requires window creation on main thread - no parallel
+        if parallel and sys.platform == 'darwin':
+            logging.warning(
+                "Disabling parallel video recording on macOS (GLFW main thread requirement)"
+            )
+            parallel = False
 
         if parallel:
             with ThreadPoolExecutor(max_workers=self._num_copies) as executor:
