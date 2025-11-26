@@ -18,6 +18,7 @@ from alf.algorithms.seed_sampling import SeedSacAlgorithm
 from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.action_repulsion_algorithm import ActionRepulsionAlgorithm
 from alf.environments import suite_dmc
+from alf.environments.gym_wrappers import FrameSkip
 from alf.utils.math_ops import clipped_exp
 from alf.utils.losses import element_wise_squared_loss
 
@@ -37,7 +38,10 @@ alf.config('create_environment',
            env_load_fn=suite_dmc.load,
            num_parallel_environments=ENV_COUNTS)
 
-alf.config('suite_dmc.load', from_pixels=False, max_episode_steps=1000)
+alf.config('suite_dmc.load',
+           from_pixels=False,
+           max_episode_steps=1000,
+           gym_env_wrappers=(partial(FrameSkip, skip=8), ))
 
 # actor network for continuous actions
 alf.config('ActorDistributionNetwork',
