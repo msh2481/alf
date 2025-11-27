@@ -60,7 +60,7 @@ class ActionRepulsionAlgorithm(ConcurrentAlgorithm):
         log_every_n_steps: int = 100,
         env_class=None,
         video_record_interval: int | None = None,
-        return_logging_interval: int = 10,
+        return_logging_interval: int = 100,
     ):
         super().__init__(
             observation_spec=observation_spec,

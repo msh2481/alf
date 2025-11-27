@@ -22,11 +22,11 @@ from alf.environments.gym_wrappers import FrameSkip
 from alf.utils.math_ops import clipped_exp
 from alf.utils.losses import element_wise_squared_loss
 
-BATCH_SIZE = 256
-ENV_COUNTS = 1
+NUM_COPIES = 4
+BATCH_SIZE = 256 * NUM_COPIES
+ENV_COUNTS = NUM_COPIES
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
-NUM_COPIES = 1
 SEED_VERSION = True
 
 # HIDDEN_LAYERS = (256, 256)

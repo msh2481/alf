@@ -53,7 +53,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         use_parallel_training: bool = True,
         num_parallel_workers: Optional[int] = None,
         video_record_interval: int | None = None,
-        return_logging_interval: int = 10,
+        return_logging_interval: int = 100,
     ):
         assert batch_size is not None, "batch_size must be provided"
         assert env_counts is not None, "env_counts must be provided"
@@ -532,4 +532,3 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             path = os.path.join(output_dir, "episode_returns.txt")
             with open(path, "w") as f:
                 f.write("\n\n".join(plots))
-            logging.info(f"Saved {len(plots)} ASCII plots to {path}")
