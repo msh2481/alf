@@ -634,9 +634,12 @@ class RandomizedPriorCriticNetwork(Network):
 class _ParallelRandomizedPriorCriticNetwork(Network):
     """Parallel version of RandomizedPriorCriticNetwork."""
 
-    def __init__(self, parallel_trainable, parallel_prior, input_tensor_spec):
-        super().__init__(input_tensor_spec=input_tensor_spec,
-                         name="ParallelRandomizedPriorCriticNetwork")
+    def __init__(self,
+                 parallel_trainable,
+                 parallel_prior,
+                 input_tensor_spec,
+                 name="ParallelRandomizedPriorCriticNetwork"):
+        super().__init__(input_tensor_spec=input_tensor_spec, name=name)
         self._trainable_net = parallel_trainable
         self._prior_net = parallel_prior
         self._output_spec = parallel_trainable.output_spec

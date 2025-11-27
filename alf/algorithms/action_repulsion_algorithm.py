@@ -476,6 +476,8 @@ class ActionRepulsionAlgorithm(ConcurrentAlgorithm):
 
             for i, alg in enumerate(self._algorithms):
                 f.write(f"\n=== Algorithm #{i} ===\n")
+                if not hasattr(alg._critic_networks, '_networks'):
+                    continue
                 critics = alg._critic_networks._networks
                 target_critics = alg._target_critic_networks._networks
                 for j, (critic, target_critic) in enumerate(
