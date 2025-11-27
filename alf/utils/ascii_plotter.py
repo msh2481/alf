@@ -30,8 +30,8 @@ class AsciiMetricPlotter:
         self,
         metrics_to_plot: list[str] | None = None,
         smoothing_fraction: float = 0.1,
-        width: int = 120,
-        height: int = 40,
+        width: int = 140,
+        height: int = 25,
     ):
         if metrics_to_plot is None:
             metrics_to_plot = ["AverageReturn", "AverageEpisodeLength"]
@@ -124,7 +124,7 @@ class AsciiMetricPlotter:
                  label=f"smooth({self._smoothing_fraction:.0%})")
 
         header = f"=== {metric_name} (last={values[-1]:.3f}, smooth={smoothed[-1]:.3f}) ==="
-        result = header + "\n" + fig.show(legend=True)
+        result = header + "\n" + fig.show(legend=False)
 
         if not use_colors:
             result = _strip_ansi(result)

@@ -15,6 +15,7 @@
 
 import functools
 import math
+from typing import Callable
 
 import torch
 
@@ -25,7 +26,9 @@ from alf.initializers import variance_scaling_init
 from alf.tensor_specs import TensorSpec
 
 from .encoding_networks import EncodingNetwork, LSTMEncodingNetwork, ParallelEncodingNetwork
+from .network import Network
 from .preprocessors import CosineEmbeddingPreprocessor
+import alf.layers as layers
 
 
 def _check_action_specs_for_critic_networks(action_spec,
@@ -86,6 +89,7 @@ class CriticNetwork(EncodingNetwork):
                  last_use_fc_bn=False,
                  last_use_fc_ln=False,
                  last_layer_activation=math_ops.identity,
+                 last_kernel_initializer=None,
                  use_naive_parallel_network=False,
                  name="CriticNetwork"):
         """
@@ -133,6 +137,8 @@ class CriticNetwork(EncodingNetwork):
                 FC layers (i.e. FC layers beside the last one).
             use_fc_ln (bool): whether use Layer Normalization for the internal
                 FC layers (i.e. FC layers beside the last one).
+            last_kernel_initializer (Callable): initializer for the last layer.
+                If None, defaults to uniform initialization in [-0.003, 0.003].
             use_naive_parallel_network (bool): if True, will use
                 ``NaiveParallelNetwork`` when ``make_parallel`` is called. This
                 might be useful in cases when the ``NaiveParallelNetwork``
@@ -177,9 +183,10 @@ class CriticNetwork(EncodingNetwork):
             use_fc_ln=use_fc_ln,
             name=name + ".action_encoder")
 
-        last_kernel_initializer = functools.partial(torch.nn.init.uniform_,
-                                                    a=-0.003,
-                                                    b=0.003)
+        if last_kernel_initializer is None:
+            last_kernel_initializer = functools.partial(torch.nn.init.uniform_,
+                                                        a=-0.003,
+                                                        b=0.003)
 
         if observation_action_combiner is None:
             observation_action_combiner = alf.layers.NestConcat(dim=-1)
@@ -514,3 +521,132 @@ class CriticQuantileNetwork(EncodingNetwork):
             return alf.networks.NaiveParallelNetwork(self, n)
         else:
             return super().make_parallel(n, True)
+
+
+@alf.configurable
+class RandomizedPriorCriticNetwork(Network):
+    """A CriticNetwork augmented with a randomized prior function.
+
+    This network creates two instances of a critic network: one trainable
+    network and one frozen prior network. The outputs are summed to give
+    the final critic value. This implements the randomized prior functions
+    technique for improved exploration in continuous control tasks.
+
+    Similar to RandomizedPriorQNetwork but for continuous action critics.
+    """
+
+    def __init__(self,
+                 network_ctor: Callable = CriticNetwork,
+                 input_tensor_spec=None,
+                 prior_scale: float = 1.0,
+                 trainable_init_std: float = 1e-3,
+                 name="RandomizedPriorCriticNetwork",
+                 **network_kwargs):
+        """Creates a CriticNetwork with randomized prior.
+
+        Args:
+            network_ctor: Constructor for the base critic network (e.g.,
+                CriticNetwork).
+            input_tensor_spec: A tuple of TensorSpecs (observation_spec, action_spec)
+                representing the inputs.
+            prior_scale: Target standard deviation for the prior network's output.
+                The weight initialization is scaled so the output has this std.
+            trainable_init_std: Target standard deviation for the trainable
+                network's output. Typically small (e.g., 1e-3) so the network
+                starts near zero.
+            name: Name of the network.
+            **network_kwargs: Additional arguments passed to network_ctor.
+        """
+        super().__init__(input_tensor_spec=input_tensor_spec, name=name)
+
+        # Compute last layer input dimension to scale weights correctly
+        # output_std = weight_std * sqrt(input_dim), so weight_std = output_std / sqrt(input_dim)
+        temp_net = network_ctor(input_tensor_spec=input_tensor_spec,
+                                **network_kwargs)
+        last_layer_input_dim = self._get_last_layer_input_dim(temp_net)
+        del temp_net
+
+        # Scale weights so OUTPUT has desired std
+        trainable_weight_std = trainable_init_std / math.sqrt(
+            last_layer_input_dim)
+        prior_weight_std = prior_scale / math.sqrt(last_layer_input_dim)
+
+        # Trainable network with small initialization
+        trainable_init = functools.partial(torch.nn.init.normal_,
+                                           std=trainable_weight_std)
+        self._trainable_net = network_ctor(
+            input_tensor_spec=input_tensor_spec,
+            last_kernel_initializer=trainable_init,
+            **network_kwargs)
+
+        # Prior network with larger random initialization
+        prior_init = functools.partial(torch.nn.init.normal_,
+                                       std=prior_weight_std)
+        self._prior_net = network_ctor(input_tensor_spec=input_tensor_spec,
+                                       last_kernel_initializer=prior_init,
+                                       **network_kwargs)
+
+        # Freeze the prior network
+        for param in self._prior_net.parameters():
+            param.requires_grad = False
+
+        self._output_spec = self._trainable_net.output_spec
+
+    def _get_last_layer_input_dim(self, net):
+        """Find the input dimension of the last FC layer."""
+        last_fc = None
+        for module in net.modules():
+            if isinstance(module, layers.FC):
+                last_fc = module
+        return last_fc.weight.shape[1] if last_fc else 1
+
+    def forward(self, observation, state=()):
+        """Computes critic values by summing trainable network and prior.
+
+        Args:
+            observation: Tuple of (observation, action) consistent with input_tensor_spec.
+            state: Network state (for RNN-based networks).
+
+        Returns:
+            tuple:
+            - critic_value (torch.Tensor): Sum of trainable and prior critic values.
+            - state: Updated state.
+        """
+        q_vals, state = self._trainable_net(observation, state)
+        with torch.no_grad():
+            prior_vals, _ = self._prior_net(observation, state)
+        return q_vals + prior_vals, state
+
+    @property
+    def state_spec(self):
+        """Return the state spec (delegates to trainable network)."""
+        return self._trainable_net.state_spec
+
+    def make_parallel(self, n):
+        """Make both sub-networks parallel for better performance."""
+        parallel_trainable = self._trainable_net.make_parallel(n)
+        parallel_prior = self._prior_net.make_parallel(n)
+        return _ParallelRandomizedPriorCriticNetwork(parallel_trainable,
+                                                     parallel_prior,
+                                                     self.input_tensor_spec)
+
+
+class _ParallelRandomizedPriorCriticNetwork(Network):
+    """Parallel version of RandomizedPriorCriticNetwork."""
+
+    def __init__(self, parallel_trainable, parallel_prior, input_tensor_spec):
+        super().__init__(input_tensor_spec=input_tensor_spec,
+                         name="ParallelRandomizedPriorCriticNetwork")
+        self._trainable_net = parallel_trainable
+        self._prior_net = parallel_prior
+        self._output_spec = parallel_trainable.output_spec
+
+    def forward(self, observation, state=()):
+        q_vals, state = self._trainable_net(observation, state)
+        with torch.no_grad():
+            prior_vals, _ = self._prior_net(observation, state)
+        return q_vals + prior_vals, state
+
+    @property
+    def state_spec(self):
+        return self._trainable_net.state_spec

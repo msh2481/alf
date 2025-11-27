@@ -29,12 +29,11 @@ UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
 SEED_VERSION = True
 
-# HIDDEN_LAYERS = (256, 256)
 HIDDEN_LAYERS = (256, )
 
 # environment config
 alf.config('create_environment',
-           env_name="cartpole:swingup",
+           env_name="pendulum:swingup",
            env_load_fn=suite_dmc.load,
            num_parallel_environments=ENV_COUNTS)
 
