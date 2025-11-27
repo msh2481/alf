@@ -17,6 +17,7 @@ from functools import partial
 from alf.algorithms.seed_sampling import SeedSacAlgorithm
 from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.action_repulsion_algorithm import ActionRepulsionAlgorithm
+from alf.networks import RandomizedPriorCriticNetwork
 from alf.environments import suite_dmc
 from alf.environments.gym_wrappers import FrameSkip
 from alf.utils.math_ops import clipped_exp
@@ -51,13 +52,16 @@ alf.config('ActorDistributionNetwork',
                scale_distribution=True,
                std_transform=clipped_exp))
 
-# critic network
+# critic network with randomized prior
 alf.config('CriticNetwork', joint_fc_layer_params=HIDDEN_LAYERS)
+alf.config('RandomizedPriorCriticNetwork',
+           prior_scale=100.0,
+           trainable_init_std=1e-3)
 
 alf.config(
     'SeedSacAlgorithm' if SEED_VERSION else 'SacAlgorithm',
     actor_network_cls=alf.networks.ActorDistributionNetwork,
-    critic_network_cls=alf.networks.CriticNetwork,
+    critic_network_cls=RandomizedPriorCriticNetwork,
     target_update_tau=0.005,
     target_update_period=1,
 )

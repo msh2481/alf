@@ -567,9 +567,9 @@ class RandomizedPriorCriticNetwork(Network):
         del temp_net
 
         # Scale weights so OUTPUT has desired std
-        trainable_weight_std = trainable_init_std / math.sqrt(
+        trainable_weight_std = 3 * trainable_init_std / math.sqrt(
             last_layer_input_dim)
-        prior_weight_std = prior_scale / math.sqrt(last_layer_input_dim)
+        prior_weight_std = 3 * prior_scale / math.sqrt(last_layer_input_dim)
 
         # Trainable network with small initialization
         trainable_init = functools.partial(torch.nn.init.normal_,

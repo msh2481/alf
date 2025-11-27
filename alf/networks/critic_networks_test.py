@@ -21,7 +21,7 @@ import torch
 
 import alf
 from alf.tensor_specs import TensorSpec, BoundedTensorSpec
-from alf.networks import CriticNetwork, CriticRNNNetwork
+from alf.networks import CriticNetwork, CriticRNNNetwork, RandomizedPriorCriticNetwork
 from alf.networks.network import NaiveParallelNetwork
 from alf.networks.network_test import test_net_copy
 from alf.networks.preprocessors import EmbeddingPreprocessor
@@ -170,6 +170,48 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
         # ... unless a combiner is specified
         net_ctor((obs_spec, action_spec),
                  action_preprocessing_combiner=NestConcat())
+
+    def test_randomized_prior_critic(self):
+        """Test RandomizedPriorCriticNetwork with parallel execution."""
+        obs_spec = TensorSpec((8, ))
+        action_spec = BoundedTensorSpec((2, ), minimum=-1, maximum=1)
+        input_spec = (obs_spec, action_spec)
+
+        prior_scale = 1.0
+        trainable_init_std = 1e-3
+        critic = RandomizedPriorCriticNetwork(
+            input_tensor_spec=input_spec,
+            prior_scale=prior_scale,
+            trainable_init_std=trainable_init_std,
+            joint_fc_layer_params=(256, ))
+
+        # Test single network with N(0,1) inputs
+        batch_size = 1000
+        obs = torch.randn(batch_size, 8)
+        action = torch.randn(batch_size, 2)
+        output, _ = critic((obs, action))
+
+        # Check output shape
+        self.assertEqual(output.shape, (batch_size, ))
+
+        # Check output statistics (approximate, due to randomness)
+        # Output std should be close to prior_scale (within 50% tolerance)
+        self.assertGreater(output.std().item(), prior_scale * 0.5)
+        self.assertLess(output.std().item(), prior_scale * 2.0)
+
+        # Make parallel
+        n_replicas = 3
+        parallel_critic = critic.make_parallel(n_replicas)
+        output_parallel, _ = parallel_critic((obs, action))
+
+        # Check parallel output shape
+        self.assertEqual(output_parallel.shape, (batch_size, n_replicas))
+
+        # Each replica should have similar statistics
+        for i in range(n_replicas):
+            replica_out = output_parallel[:, i]
+            self.assertGreater(replica_out.std().item(), prior_scale * 0.5)
+            self.assertLess(replica_out.std().item(), prior_scale * 2.0)
 
 
 if __name__ == "__main__":
