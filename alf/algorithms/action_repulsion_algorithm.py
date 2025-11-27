@@ -60,6 +60,7 @@ class ActionRepulsionAlgorithm(ConcurrentAlgorithm):
         log_every_n_steps: int = 100,
         env_class=None,
         video_record_interval: int | None = None,
+        return_logging_interval: int = 10,
     ):
         super().__init__(
             observation_spec=observation_spec,
@@ -79,6 +80,7 @@ class ActionRepulsionAlgorithm(ConcurrentAlgorithm):
             mini_batch_length=mini_batch_length,
             use_exploration_seeds=use_exploration_seeds,
             video_record_interval=video_record_interval,
+            return_logging_interval=return_logging_interval,
         )
 
         self._repulsion_alpha = repulsion_alpha

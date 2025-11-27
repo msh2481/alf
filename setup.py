@@ -37,6 +37,7 @@ setup(
         'opencv-python==4.11.0.86',
         'pathos==0.3.3',
         'pillow>=8',
+        'plotille',
         'pre-commit==3.6.2',
         'protobuf==6.30.2',
         'psutil==7.0.0',

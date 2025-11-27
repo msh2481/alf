@@ -53,6 +53,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         use_parallel_training: bool = True,
         num_parallel_workers: Optional[int] = None,
         video_record_interval: int | None = None,
+        return_logging_interval: int = 10,
     ):
         assert batch_size is not None, "batch_size must be provided"
         assert env_counts is not None, "env_counts must be provided"
@@ -128,7 +129,16 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
 
         # Video recording
         self._video_record_interval = video_record_interval
+        self._return_logging_interval = return_logging_interval
         self._train_step_counter = 0
+
+        # Per-algorithm episode return tracking
+        self._per_env_cumulative_reward = torch.zeros(env_counts)
+        self._per_alg_returns: dict[int, list[tuple[int, float]]] = {
+            i: []
+            for i in range(num_copies)
+        }
+        self._total_env_steps = 0
 
     def close(self):
         """Clean up resources, including shutting down the thread pool executor."""
@@ -187,6 +197,10 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         assert alf.nest.get_nest_size(
             inputs, dim=0
         ) == self._env_counts, f"inputs shape: {alf.nest.get_nest_shape(inputs)}"
+
+        # Track per-algorithm episode returns
+        self._track_episode_returns(inputs)
+
         sliced = self._slice_batch(inputs, state)
 
         results = {}
@@ -202,6 +216,36 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             results[alg_idx] = (alg_step._replace(state=()), batch_indices)
         return scatter_and_sum_nested(
             results, self._env_counts)._replace(state=new_states)
+
+    def _track_episode_returns(self, inputs: TimeStep):
+        device = inputs.reward.device
+        if self._per_env_cumulative_reward.device != device:
+            self._per_env_cumulative_reward = self._per_env_cumulative_reward.to(
+                device)
+        self._total_env_steps += self._env_counts
+        self._per_env_cumulative_reward += inputs.reward
+        is_last = inputs.is_last()
+        if is_last.any():
+            for env_idx in is_last.nonzero(as_tuple=True)[0]:
+                alg_idx = env_idx.item() % self._num_copies
+                episode_return = self._per_env_cumulative_reward[env_idx].item(
+                )
+                num_episodes = len(self._per_alg_returns[alg_idx]) + 1
+                logging.info(
+                    f"Agent {alg_idx} episode {num_episodes} done: "
+                    f"return={episode_return:.2f}, env_steps={self._total_env_steps}"
+                )
+                self._per_alg_returns[alg_idx].append(
+                    (self._total_env_steps, episode_return))
+                self._per_env_cumulative_reward[env_idx] = 0.0
+
+    def get_per_algorithm_returns(self) -> dict[int, list[tuple[int, float]]]:
+        """Get recorded episode returns for each sub-algorithm.
+        
+        Returns:
+            Dict mapping algorithm index to list of (env_steps, episode_return) tuples.
+        """
+        return self._per_alg_returns
 
     def _get_indices_of_unique(self, observations, actions):
 
@@ -338,13 +382,16 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             self._algorithms[alg_idx].after_train_iter(sliced_inputs, info)
 
         self._train_step_counter += 1
+        root_dir = self._config.root_dir if self._config else "."
         if (self._video_record_interval is not None and
                 self._train_step_counter % self._video_record_interval == 0):
-            video_dir = os.path.join(
-                self._config.root_dir if self._config else ".", "videos")
+            video_dir = os.path.join(root_dir, "videos")
             self.record_videos(output_dir=video_dir,
                                num_episodes=1,
                                step_label=self._train_step_counter)
+        if self._train_step_counter % self._return_logging_interval == 0:
+            plot_dir = os.path.join(root_dir, "plots")
+            self.save_ascii_plots(output_dir=plot_dir)
 
     def after_update(self, root_inputs, info):
         assert alf.nest.get_nest_shape(root_inputs)[:2] == (
@@ -466,3 +513,23 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
 
         if was_training:
             self.train()
+
+    def save_ascii_plots(self, output_dir: str):
+        """Save ASCII plots of per-algorithm episode returns to a single file."""
+        from alf.utils.ascii_plotter import AsciiMetricPlotter
+        os.makedirs(output_dir, exist_ok=True)
+        plotter = AsciiMetricPlotter(metrics_to_plot=[],
+                                     smoothing_fraction=0.1)
+        for alg_idx in sorted(self._per_alg_returns.keys()):
+            returns = self._per_alg_returns[alg_idx]
+            if returns:
+                plotter.set_history(f"EpisodeReturn/alg_{alg_idx}", returns)
+        plots = [
+            plotter.get_plot_string(name)
+            for name in plotter.get_metric_names()
+        ]
+        if plots:
+            path = os.path.join(output_dir, "episode_returns.txt")
+            with open(path, "w") as f:
+                f.write("\n\n".join(plots))
+            logging.info(f"Saved {len(plots)} ASCII plots to {path}")
