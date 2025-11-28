@@ -869,7 +869,14 @@ class IdentityEncodingNetwork(_Sequential):
     layer performs computation.
     """
 
-    def __init__(self, input_tensor_spec, name="IdentityEncodingNetwork"):
+    def __init__(self,
+                 input_tensor_spec,
+                 use_fc_bn=False,
+                 use_fc_ln=False,
+                 name="IdentityEncodingNetwork",
+                 **kwargs):
+        # use_fc_bn, use_fc_ln, and other kwargs are accepted for API
+        # compatibility but ignored since this network has no FC layers
         nets = [alf.layers.Identity()]
         super().__init__(nets, input_tensor_spec=input_tensor_spec, name=name)
 

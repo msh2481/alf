@@ -42,6 +42,8 @@ class QNetworkBase(Network):
                  action_spec: BoundedTensorSpec,
                  encoding_network_ctor: Callable,
                  use_naive_parallel_network: bool = False,
+                 use_fc_bn: bool = False,
+                 use_fc_ln: bool = False,
                  last_kernel_initializer=None,
                  name: str = "QNetworkBase",
                  bias_init_value: float = -0.2,
@@ -58,6 +60,10 @@ class QNetworkBase(Network):
                 has an advantange in terms of speed over ``ParallelNetwork``.
                 You have to test to see which way is faster for your particular
                 situation.
+            use_fc_bn (bool): whether use Batch Normalization for the internal
+                FC layers (i.e. FC layers beside the last one).
+            use_fc_ln (bool): whether use Layer Normalization for the internal
+                FC layers (i.e. FC layers beside the last one).
             last_kernel_initializer: initializer for the final layer weights.
                 If None, uses uniform initialization with range [-0.003, 0.003].
             name: name of the network
@@ -75,7 +81,10 @@ class QNetworkBase(Network):
         self._output_spec = TensorSpec((num_actions, ))
 
         self._encoding_net = encoding_network_ctor(
-            input_tensor_spec=input_tensor_spec, **encoder_kwargs)
+            input_tensor_spec=input_tensor_spec,
+            use_fc_bn=use_fc_bn,
+            use_fc_ln=use_fc_ln,
+            **encoder_kwargs)
 
         if last_kernel_initializer is None:
             last_kernel_initializer = functools.partial(torch.nn.init.uniform_,
@@ -138,6 +147,8 @@ class QNetwork(QNetworkBase):
                  activation=torch.relu_,
                  kernel_initializer=None,
                  use_naive_parallel_network=False,
+                 use_fc_bn=False,
+                 use_fc_ln=False,
                  last_kernel_initializer=None,
                  bias_init_value: float = -0.2,
                  name="QNetwork"):
@@ -181,6 +192,10 @@ class QNetwork(QNetworkBase):
                 has an advantange in terms of speed over ``ParallelNetwork``.
                 You have to test to see which way is faster for your particular
                 situation.
+            use_fc_bn (bool): whether use Batch Normalization for the internal
+                FC layers (i.e. FC layers beside the last one).
+            use_fc_ln (bool): whether use Layer Normalization for the internal
+                FC layers (i.e. FC layers beside the last one).
             last_kernel_initializer: initializer for the final layer weights.
                 If None, uses uniform initialization with range [-0.003, 0.003].
         """
@@ -189,6 +204,8 @@ class QNetwork(QNetworkBase):
             action_spec,
             encoding_network_ctor=EncodingNetwork,
             use_naive_parallel_network=use_naive_parallel_network,
+            use_fc_bn=use_fc_bn,
+            use_fc_ln=use_fc_ln,
             last_kernel_initializer=last_kernel_initializer,
             name=name,
             input_preprocessors=input_preprocessors,
@@ -552,6 +569,8 @@ class DebugLinearQNetwork(QNetworkBase):
     def __init__(self,
                  input_tensor_spec: TensorSpec,
                  action_spec: BoundedTensorSpec,
+                 last_kernel_initializer=None,
+                 bias_init_value=0.0,
                  name="DebugLinearQNetwork"):
         """Creates a linear QNetwork with parameter logging.
 
@@ -572,13 +591,14 @@ class DebugLinearQNetwork(QNetworkBase):
             use_naive_parallel_network=False,
             name=name,
         )
+        if last_kernel_initializer is None:
+            last_kernel_initializer = torch.nn.init.normal_
         self._final_layer = layers.FC(
             input_size=input_tensor_spec.shape[0],
             output_size=action_spec.maximum - action_spec.minimum + 1,
             activation=math_ops.identity,
-            kernel_initializer=torch.nn.init.normal_,
-            # bias_init_value=0.0,
-            use_bias=False)
+            kernel_initializer=last_kernel_initializer,
+            bias_init_value=bias_init_value)
         self._forward_count = 0
 
     def forward(self, observation, state=()):

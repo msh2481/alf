@@ -22,16 +22,16 @@ from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetw
 from alf.utils.losses import element_wise_squared_loss
 from alf.environments.simple.randomized_bipolar_chain import RandomizedBipolarChain
 
-NUM_COPIES = 4
-BATCH_SIZE = 1024 * NUM_COPIES
+NUM_COPIES = 12
+BATCH_SIZE = 1000 * NUM_COPIES
 ENV_COUNTS = NUM_COPIES
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
 SEED_VERSION = True
 
-HIDDEN_LAYERS = (256, )
+HIDDEN_LAYERS = (1024, )
 
-PRIOR_SCALE = 1.0
+PRIOR_SCALE = 0.1
 PARAMETER_TARGET_STD = 0.0
 PARAMETER_TARGET_ALPHA = 0.0
 REWARD_NOISE_STD = 0.0
@@ -46,9 +46,11 @@ alf.config('create_environment',
 
 alf.config('QNetwork', fc_layer_params=HIDDEN_LAYERS)
 alf.config('OptimisticQNetwork', init_mean=0.0, init_std=1e-3)
-alf.config('RandomizedPriorQNetwork',
-           network_ctor=QNetwork,
-           prior_scale=PRIOR_SCALE)
+alf.config(
+    'RandomizedPriorQNetwork',
+    #    network_ctor=QNetwork,
+    network_ctor=DebugLinearQNetwork,
+    prior_scale=PRIOR_SCALE)
 
 alf.config(
     'SeedDqnAlgorithm' if SEED_VERSION else 'DqnAlgorithm',
@@ -91,12 +93,12 @@ alf.config('TrainerConfig',
            mini_batch_length=MINI_BATCH_LENGTH,
            mini_batch_size=BATCH_SIZE,
            unroll_length=UNROLL_LENGTH,
-           num_updates_per_train_iter=1,
+           num_updates_per_train_iter=2,
            num_iterations=10000,
            num_checkpoints=3,
            evaluate=False,
            eval_interval=100,
-           replay_buffer_length=10000,
+           replay_buffer_length=20000,
            random_seed=42,
            whole_replay_buffer_training=False,
            clear_replay_buffer=False,
