@@ -40,8 +40,8 @@ alf.config('create_environment',
 
 alf.config('suite_dmc.load',
            from_pixels=False,
-           max_episode_steps=125,
-           gym_env_wrappers=(partial(FrameSkip, skip=8), ))
+           max_episode_steps=250,
+           gym_env_wrappers=(partial(FrameSkip, skip=4), ))
 
 # actor network for continuous actions
 alf.config('ActorDistributionNetwork',
@@ -55,7 +55,7 @@ alf.config('ActorDistributionNetwork',
 # critic network with randomized prior
 alf.config('CriticNetwork', joint_fc_layer_params=HIDDEN_LAYERS)
 alf.config('RandomizedPriorCriticNetwork',
-           prior_scale=100.0,
+           prior_scale=1.0,
            trainable_init_std=1e-3)
 
 alf.config(
@@ -68,7 +68,7 @@ alf.config(
 
 alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
-           gamma=0.99)
+           gamma=0.998)
 
 alf.config(
     "ActionRepulsionAlgorithm",
@@ -92,7 +92,7 @@ alf.config('TrainerConfig',
            mini_batch_size=BATCH_SIZE,
            unroll_length=UNROLL_LENGTH,
            num_updates_per_train_iter=1,
-           num_iterations=50000,
+           num_iterations=100000,
            num_checkpoints=3,
            evaluate=False,
            debug_summaries=False,
