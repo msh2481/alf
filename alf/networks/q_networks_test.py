@@ -23,7 +23,7 @@ import alf
 from alf.tensor_specs import TensorSpec, BoundedTensorSpec
 from alf.networks import QNetwork
 from alf.networks import QRNNNetwork
-from alf.networks.q_networks import ParallelQNetwork
+from alf.networks.q_networks import ParallelQNetwork, RandomizedPriorQNetwork
 from alf.utils import common
 from alf.nest.utils import NestSum
 
@@ -107,6 +107,50 @@ class TestQNetworks(parameterized.TestCase, unittest.TestCase):
         q_value, _ = pnet(inputs, state)
         self.assertEqual(q_value.shape,
                          (batch_size, replicas, self._num_actions))
+
+    def test_randomized_prior_q(self):
+        """Test RandomizedPriorQNetwork with parallel execution."""
+        obs_spec = TensorSpec((8, ))
+        action_spec = BoundedTensorSpec((),
+                                        dtype='int64',
+                                        minimum=0,
+                                        maximum=3)
+
+        prior_scale = 1.0
+        trainable_init_std = 1e-3
+        q_net = RandomizedPriorQNetwork(network_ctor=QNetwork,
+                                        input_tensor_spec=obs_spec,
+                                        action_spec=action_spec,
+                                        prior_scale=prior_scale,
+                                        trainable_init_std=trainable_init_std,
+                                        fc_layer_params=(256, ))
+
+        # Test with N(0,1) inputs
+        batch_size = 1000
+        obs = torch.randn(batch_size, 8)
+        output, _ = q_net(obs)
+
+        # Check output shape (batch_size, num_actions)
+        self.assertEqual(output.shape, (batch_size, 4))
+
+        # Check output statistics (approximate, due to randomness)
+        # Output std should be close to prior_scale (within 50% tolerance)
+        self.assertGreater(output.std().item(), prior_scale * 0.5)
+        self.assertLess(output.std().item(), prior_scale * 2.0)
+
+        # Make parallel
+        n_replicas = 3
+        parallel_q = q_net.make_parallel(n_replicas)
+        output_parallel, _ = parallel_q(obs)
+
+        # Check parallel output shape
+        self.assertEqual(output_parallel.shape, (batch_size, n_replicas, 4))
+
+        # Each replica should have similar statistics
+        for i in range(n_replicas):
+            replica_out = output_parallel[:, i, :]
+            self.assertGreater(replica_out.std().item(), prior_scale * 0.5)
+            self.assertLess(replica_out.std().item(), prior_scale * 2.0)
 
 
 if __name__ == "__main__":

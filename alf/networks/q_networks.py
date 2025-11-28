@@ -14,6 +14,7 @@
 """QNetworks"""
 
 import functools
+import math
 from typing import Callable
 
 import torch
@@ -41,7 +42,9 @@ class QNetworkBase(Network):
                  action_spec: BoundedTensorSpec,
                  encoding_network_ctor: Callable,
                  use_naive_parallel_network: bool = False,
+                 last_kernel_initializer=None,
                  name: str = "QNetworkBase",
+                 bias_init_value: float = -0.2,
                  **encoder_kwargs):
         """
         Args:
@@ -55,6 +58,8 @@ class QNetworkBase(Network):
                 has an advantange in terms of speed over ``ParallelNetwork``.
                 You have to test to see which way is faster for your particular
                 situation.
+            last_kernel_initializer: initializer for the final layer weights.
+                If None, uses uniform initialization with range [-0.003, 0.003].
             name: name of the network
             encoder_kwargs: the extra keyword arguments to the encoding network
         """
@@ -72,15 +77,17 @@ class QNetworkBase(Network):
         self._encoding_net = encoding_network_ctor(
             input_tensor_spec=input_tensor_spec, **encoder_kwargs)
 
-        last_kernel_initializer = functools.partial(torch.nn.init.uniform_, \
-                                    a=-0.003, b=0.003)
+        if last_kernel_initializer is None:
+            last_kernel_initializer = functools.partial(torch.nn.init.uniform_,
+                                                        a=-0.003,
+                                                        b=0.003)
 
         self._final_layer = layers.FC(
             self._encoding_net.output_spec.shape[0],
             num_actions,
             activation=math_ops.identity,
             kernel_initializer=last_kernel_initializer,
-            bias_init_value=-0.2)
+            bias_init_value=bias_init_value)
 
     def forward(self, observation, state=()):
         """Computes action values given an observation.
@@ -131,6 +138,8 @@ class QNetwork(QNetworkBase):
                  activation=torch.relu_,
                  kernel_initializer=None,
                  use_naive_parallel_network=False,
+                 last_kernel_initializer=None,
+                 bias_init_value: float = -0.2,
                  name="QNetwork"):
         """Creates an instance of ``QNetwork`` for estimating action-value of
         discrete actions. The action-value is defined as the expected return
@@ -172,19 +181,23 @@ class QNetwork(QNetworkBase):
                 has an advantange in terms of speed over ``ParallelNetwork``.
                 You have to test to see which way is faster for your particular
                 situation.
+            last_kernel_initializer: initializer for the final layer weights.
+                If None, uses uniform initialization with range [-0.003, 0.003].
         """
         super(QNetwork, self).__init__(
             input_tensor_spec,
             action_spec,
             encoding_network_ctor=EncodingNetwork,
             use_naive_parallel_network=use_naive_parallel_network,
+            last_kernel_initializer=last_kernel_initializer,
             name=name,
             input_preprocessors=input_preprocessors,
             preprocessing_combiner=preprocessing_combiner,
             conv_layer_params=conv_layer_params,
             fc_layer_params=fc_layer_params,
             activation=activation,
-            kernel_initializer=kernel_initializer)
+            kernel_initializer=kernel_initializer,
+            bias_init_value=bias_init_value)
 
 
 class ParallelQNetwork(Network):
@@ -325,7 +338,9 @@ class RandomizedPriorQNetwork(Network):
                  input_tensor_spec: TensorSpec,
                  action_spec: BoundedTensorSpec,
                  prior_scale: float = 1.0,
+                 trainable_init_std: float = 1e-3,
                  name="RandomizedPriorQNetwork",
+                 bias_init_value: float = 0.0,
                  **network_kwargs):
         """Creates a Q-Network with randomized prior.
 
@@ -334,38 +349,60 @@ class RandomizedPriorQNetwork(Network):
                 DebugLinearQNetwork)
             input_tensor_spec: the tensor spec of the input
             action_spec: the tensor spec of the action
-            prior_scale: standard deviation for initializing the prior network's
-                final layer weights. Bias is initialized to zero.
+            prior_scale: Target standard deviation for the prior network's output.
+                The weight initialization is scaled so the output has this std.
+            trainable_init_std: Target standard deviation for the trainable
+                network's output. Typically small (e.g., 1e-3) so the network
+                starts near zero.
             name: name of the network
             **network_kwargs: additional arguments passed to network_ctor
         """
         super().__init__(input_tensor_spec=input_tensor_spec, name=name)
 
-        # Create trainable network
-        self._trainable_net = network_ctor(input_tensor_spec=input_tensor_spec,
-                                           action_spec=action_spec,
-                                           **network_kwargs)
+        # Create temp network to get last layer input dim
+        temp_net = network_ctor(input_tensor_spec=input_tensor_spec,
+                                action_spec=action_spec,
+                                **network_kwargs)
+        last_layer_input_dim = self._get_last_layer_input_dim(temp_net)
+        del temp_net
 
-        # Create frozen prior network with different random initialization
+        # Scale weights so OUTPUT has desired std
+        trainable_weight_std = trainable_init_std / math.sqrt(
+            last_layer_input_dim)
+        prior_weight_std = prior_scale / math.sqrt(last_layer_input_dim)
+
+        # Trainable network with small initialization
+        trainable_init = functools.partial(torch.nn.init.normal_,
+                                           std=trainable_weight_std)
+        self._trainable_net = network_ctor(
+            input_tensor_spec=input_tensor_spec,
+            action_spec=action_spec,
+            last_kernel_initializer=trainable_init,
+            bias_init_value=0.0,
+            **network_kwargs)
+
+        # Prior network with larger random initialization
+        prior_init = functools.partial(torch.nn.init.normal_,
+                                       std=prior_weight_std)
         self._prior_net = network_ctor(input_tensor_spec=input_tensor_spec,
                                        action_spec=action_spec,
+                                       last_kernel_initializer=prior_init,
+                                       bias_init_value=bias_init_value,
                                        **network_kwargs)
-
-        # Re-initialize the prior network's final layer with the specified scale
-        self._prior_net._final_layer = layers.FC(
-            input_size=self._prior_net._encoding_net.output_spec.shape[0],
-            output_size=action_spec.maximum - action_spec.minimum + 1,
-            activation=math_ops.identity,
-            kernel_initializer=functools.partial(torch.nn.init.normal_,
-                                                 std=prior_scale),
-            bias_init_value=0.0,
-        )
 
         # Freeze the prior network
         for param in self._prior_net.parameters():
             param.requires_grad = False
 
         self._output_spec = self._trainable_net.output_spec
+
+    def _get_last_layer_input_dim(self, net):
+        """Find the input dimension of the last FC layer."""
+        last_fc = None
+        for module in net.modules():
+            if isinstance(module, layers.FC):
+                last_fc = module
+        return last_fc.weight.shape[1] if last_fc else 1
 
     def forward(self, observation, state=()):
         """Computes action values by summing trainable network and prior.
