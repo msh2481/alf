@@ -144,6 +144,16 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         }
         self._total_env_steps = 0
 
+        # Per-algorithm loss tracking
+        self._per_alg_actor_losses: dict[int, list[tuple[int, float]]] = {
+            i: []
+            for i in range(num_copies)
+        }
+        self._per_alg_critic_losses: dict[int, list[tuple[int, float]]] = {
+            i: []
+            for i in range(num_copies)
+        }
+
         # Agent reset tracking
         self._agent_reset_period = agent_reset_period
         self._next_agent_to_reset = 0
@@ -349,12 +359,38 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         sliced = self._slice_batch(info, time_major=True)
         results = {}
         for alg_idx, (sliced_info, batch_indices) in sliced.items():
-            results[alg_idx] = (
-                self._algorithms[alg_idx].calc_loss(sliced_info),
-                batch_indices)
+            loss_info = self._algorithms[alg_idx].calc_loss(sliced_info)
+            results[alg_idx] = (loss_info, batch_indices)
+            self._save_losses(alg_idx, loss_info)
+
         return scatter_and_sum_nested(results,
                                       self._batch_size,
                                       time_major=True)
+
+    def _save_losses(self, alg_idx: int, loss_info: LossInfo):
+        """Extract and record actor and critic losses for a given algorithm."""
+        if not hasattr(loss_info, 'extra') or loss_info.extra == ():
+            return
+
+        extra = loss_info.extra
+
+        if hasattr(extra, 'critic'):
+            critic_extra = extra.critic
+            if critic_extra != () and isinstance(critic_extra, torch.Tensor):
+                critic_loss_mean = critic_extra.mean().item()
+                self._per_alg_critic_losses[alg_idx].append(
+                    (self._train_step_counter, critic_loss_mean))
+
+        if hasattr(extra, 'actor'):
+            actor_extra = extra.actor
+            if actor_extra != ():
+                if hasattr(actor_extra,
+                           'actor_loss') and actor_extra.actor_loss != ():
+                    actor_loss_tensor = actor_extra.actor_loss
+                    if isinstance(actor_loss_tensor, torch.Tensor):
+                        actor_loss_mean = actor_loss_tensor.mean().item()
+                        self._per_alg_actor_losses[alg_idx].append(
+                            (self._train_step_counter, actor_loss_mean))
 
     def predict_step(self, inputs: TimeStep, state) -> AlgStep:
         batch_size = alf.nest.get_nest_size(inputs, dim=0)
@@ -545,20 +581,51 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             self.train()
 
     def save_ascii_plots(self, output_dir: str):
-        """Save ASCII plots of per-algorithm episode returns to a single file."""
+        """Save ASCII plots of per-algorithm episode returns and losses."""
         from alf.utils.ascii_plotter import AsciiMetricPlotter
         os.makedirs(output_dir, exist_ok=True)
-        plotter = AsciiMetricPlotter(metrics_to_plot=[],
-                                     smoothing_fraction=0.1)
+
+        returns_plotter = AsciiMetricPlotter(metrics_to_plot=[],
+                                             smoothing_fraction=0.1)
         for alg_idx in sorted(self._per_alg_returns.keys()):
             returns = self._per_alg_returns[alg_idx]
             if returns:
-                plotter.set_history(f"EpisodeReturn/alg_{alg_idx}", returns)
-        plots = [
-            plotter.get_plot_string(name)
-            for name in plotter.get_metric_names()
+                returns_plotter.set_history(f"return/{alg_idx}", returns)
+        returns_plots = [
+            returns_plotter.get_plot_string(name)
+            for name in returns_plotter.get_metric_names()
         ]
-        if plots:
+        if returns_plots:
             path = os.path.join(output_dir, "episode_returns.txt")
             with open(path, "w") as f:
-                f.write("\n\n".join(plots))
+                f.write("\n\n".join(returns_plots))
+
+        actor_plotter = AsciiMetricPlotter(metrics_to_plot=[],
+                                           smoothing_fraction=0.1)
+        for alg_idx in sorted(self._per_alg_actor_losses.keys()):
+            actor_losses = self._per_alg_actor_losses[alg_idx]
+            if actor_losses:
+                actor_plotter.set_history(f"actor/{alg_idx}", actor_losses)
+        actor_plots = [
+            actor_plotter.get_plot_string(name)
+            for name in actor_plotter.get_metric_names()
+        ]
+        if actor_plots:
+            path = os.path.join(output_dir, "actor_losses.txt")
+            with open(path, "w") as f:
+                f.write("\n\n".join(actor_plots))
+
+        critic_plotter = AsciiMetricPlotter(metrics_to_plot=[],
+                                            smoothing_fraction=0.1)
+        for alg_idx in sorted(self._per_alg_critic_losses.keys()):
+            critic_losses = self._per_alg_critic_losses[alg_idx]
+            if critic_losses:
+                critic_plotter.set_history(f"critic/{alg_idx}", critic_losses)
+        critic_plots = [
+            critic_plotter.get_plot_string(name)
+            for name in critic_plotter.get_metric_names()
+        ]
+        if critic_plots:
+            path = os.path.join(output_dir, "critic_losses.txt")
+            with open(path, "w") as f:
+                f.write("\n\n".join(critic_plots))
