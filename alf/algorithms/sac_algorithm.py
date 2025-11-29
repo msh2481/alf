@@ -41,8 +41,6 @@ from alf.tensor_specs import TensorSpec, BoundedTensorSpec
 from alf.utils import losses, common, dist_utils, math_ops
 from alf.utils.normalizers import ScalarAdaptiveNormalizer
 from alf.utils.schedulers import Scheduler
-from alf.debug_logger import log
-from alf.nest_formatter import format_nest
 
 ActionType = Enum('ActionType', ('Discrete', 'Continuous', 'Mixed'))
 
@@ -161,7 +159,6 @@ class SacAlgorithm(OffPolicyAlgorithm):
                  reward_weights=None,
                  train_eps_greedy=1.0,
                  epsilon_greedy=None,
-                 use_discrete_actor=False,
                  use_entropy_reward=True,
                  use_mc_return=False,
                  normalize_entropy_reward=False,
@@ -230,12 +227,6 @@ class SacAlgorithm(OffPolicyAlgorithm):
                 Breakout. Only used for evaluation. If None, its value is taken
                 from ``config.epsilon_greedy`` and then
                 ``alf.get_config_value(TrainerConfig.epsilon_greedy)``.
-            use_discrete_actor (bool): if True, use an actor network for discrete
-                actions instead of sampling directly from Q-values. The actor will
-                be trained to maximize E_π[Q(s,a)] + αH(π), making the discrete
-                case consistent with continuous SAC. If False, actions are sampled
-                from p(a|s) ∝ exp(Q(s,a)/α) without a learnable actor network
-                (original SAC discrete action behavior). Default is False.
             use_entropy_reward (bool): whether to include entropy as reward
             use_mc_return (bool): whether to use Monte Carlo return (MC-return)
                 to lower-bound the target return calculation.
@@ -303,7 +294,6 @@ class SacAlgorithm(OffPolicyAlgorithm):
         if epsilon_greedy is None:
             epsilon_greedy = alf.utils.common.get_epsilon_greedy(config)
         self._epsilon_greedy = epsilon_greedy
-        self._use_discrete_actor = use_discrete_actor
 
         original_observation_spec = observation_spec
         if repr_alg_ctor is not None:
@@ -347,8 +337,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
             log_alpha = _init_log_alpha()
 
         action_state_spec = SacActionState(
-            actor_network=(() if (self._act_type == ActionType.Discrete
-                                  and not self._use_discrete_actor) else
+            actor_network=(() if self._act_type == ActionType.Discrete else
                            actor_network.state_spec),
             critic=(() if self._act_type == ActionType.Continuous
                     or critic_network_cls is None else
@@ -411,8 +400,9 @@ class SacAlgorithm(OffPolicyAlgorithm):
             self._target_critic_networks = self._critic_networks.copy(
                 name='target_critic_networks')
             # Set target networks to have the same weights as the critic networks initially
-            self._target_critic_networks.load_state_dict(
-                self._critic_networks.state_dict())
+            state_dict = self._critic_networks.state_dict()
+            state_dict = {k: v.clone().detach() for k, v in state_dict.items()}
+            self._target_critic_networks.load_state_dict(state_dict)
 
         if critic_loss_ctor is None:
             critic_loss_ctor = OneStepTDLoss
@@ -461,8 +451,6 @@ class SacAlgorithm(OffPolicyAlgorithm):
 
         self._repr_alg = repr_alg
         self._target_repr_alg = target_repr_alg
-
-        self._initial_debug_obs = None
 
         def _filter(x):
             return list(filter(lambda x: x is not None, x))
@@ -577,11 +565,6 @@ class SacAlgorithm(OffPolicyAlgorithm):
             else:
                 q_network = q_network_cls(input_tensor_spec=observation_spec,
                                           action_spec=action_spec)
-                # Create actor network for discrete actions if use_discrete_actor is True
-                if self._use_discrete_actor and continuous_actor_network_cls is not None:
-                    actor_network = continuous_actor_network_cls(
-                        input_tensor_spec=observation_spec,
-                        action_spec=discrete_action_spec)
             critic_networks = _make_parallel(q_network)
 
         return critic_networks, actor_network, act_type
@@ -616,35 +599,23 @@ class SacAlgorithm(OffPolicyAlgorithm):
 
         q_values = None
         if self._act_type != ActionType.Continuous:
-            # For discrete actions with actor network
-            if self._act_type == ActionType.Discrete and self._use_discrete_actor:
-                discrete_action_dist, actor_network_state = self._actor_network(
-                    observation, state=state.actor_network)
-                new_state = new_state._replace(
-                    actor_network=actor_network_state)
-                # Sample from actor distribution (no epsilon-greedy for actor-based policy)
+            q_values, critic_state = self._compute_critics(
+                self._critic_networks, *critic_network_inputs, state.critic)
+
+            new_state = new_state._replace(critic=critic_state)
+            if self._act_type == ActionType.Discrete:
+                alpha = torch.exp(self._log_alpha).detach()
+            else:
+                alpha = torch.exp(self._log_alpha[0]).detach()
+            # p(a|s) = exp(Q(s,a)/alpha) / Z;
+            logits = q_values / alpha
+            discrete_action_dist = td.Categorical(logits=logits)
+            if eps_greedy_sampling:
+                discrete_action = dist_utils.epsilon_greedy_sample(
+                    discrete_action_dist, epsilon_greedy)
+            else:
                 discrete_action = dist_utils.sample_action_distribution(
                     discrete_action_dist)
-            else:
-                # For discrete actions without actor (old behavior) or mixed actions
-                q_values, critic_state = self._compute_critics(
-                    self._critic_networks, *critic_network_inputs,
-                    state.critic)
-
-                new_state = new_state._replace(critic=critic_state)
-                if self._act_type == ActionType.Discrete:
-                    alpha = torch.exp(self._log_alpha).detach()
-                else:
-                    alpha = torch.exp(self._log_alpha[0]).detach()
-                # p(a|s) = exp(Q(s,a)/alpha) / Z;
-                logits = q_values / alpha
-                discrete_action_dist = td.Categorical(logits=logits)
-                if eps_greedy_sampling:
-                    discrete_action = dist_utils.epsilon_greedy_sample(
-                        discrete_action_dist, epsilon_greedy)
-                else:
-                    discrete_action = dist_utils.sample_action_distribution(
-                        discrete_action_dist)
 
         if self._act_type == ActionType.Mixed:
             # Note that in this case ``action_dist`` is not the valid joint
@@ -830,36 +801,8 @@ class SacAlgorithm(OffPolicyAlgorithm):
         neg_entropy = sum(nest.flatten(log_pi))
 
         if self._act_type == ActionType.Discrete:
-            if not self._use_discrete_actor:
-                # Pure discrete case without actor network doesn't need to learn
-                return (), LossInfo(extra=SacActorInfo(
-                    neg_entropy=neg_entropy))
-
-            # Discrete case with actor network: maximize E_π[Q(s,a)] + αH(π)
-            # Compute Q-values for all actions
-            q_values, critics_state = self._compute_critics(
-                self._critic_networks, observation, None, state)
-            # q_values shape: [B, num_actions] (after replica_min and reward_weights)
-
-            alpha = torch.exp(self._log_alpha).detach()
-
-            # Get action probabilities from the actor distribution
-            action_probs = action_distribution.probs  # shape: [B, num_actions]
-
-            # Expected Q-value: E_π[Q(s,a)] = sum_a π(a|s) * Q(s,a)
-            expected_q = (action_probs * q_values).sum(dim=-1)  # shape: [B]
-
-            # Entropy: H(π) = -sum_a π(a|s) * log π(a|s)
-            entropy = action_distribution.entropy()  # shape: [B]
-
-            # Actor objective: maximize E_π[Q(s,a)] + αH(π)
-            # Loss: minimize -(E_π[Q(s,a)] + αH(π))
-            actor_loss = -(expected_q + alpha * entropy)
-
-            return critics_state, LossInfo(loss=actor_loss,
-                                           extra=SacActorInfo(
-                                               actor_loss=actor_loss,
-                                               neg_entropy=neg_entropy))
+            # Pure discrete case doesn't need to learn an actor network
+            return (), LossInfo(extra=SacActorInfo(neg_entropy=neg_entropy))
 
         if self._act_type == ActionType.Continuous:
             q_value, critics_state = self._compute_critics(
@@ -1005,11 +948,9 @@ class SacAlgorithm(OffPolicyAlgorithm):
         actor_state, actor_loss = self._actor_train_step(
             observation, state.actor, action, critics, log_pi,
             action_distribution)
-
         critic_state, critic_info = self._critic_train_step(
             observation, target_observation, state.critic, rollout_info,
             action, action_distribution)
-
         alpha_loss = self._alpha_train_step(log_pi)
 
         new_state = new_state._replace(action=action_state,
@@ -1036,124 +977,8 @@ class SacAlgorithm(OffPolicyAlgorithm):
                 lambda la: la.data.copy_(torch.min(la, self._max_log_alpha)),
                 self._log_alpha)
 
-    def debug_metrics(self,
-                      initial_obs,
-                      actions,
-                      q_function,
-                      visited_states=None,
-                      visited_actions=None):
-        """Debug metrics for analyzing Q-values.
-
-        Args:
-            initial_obs (Tensor): initial observation
-            actions (Tensor): actions to evaluate
-            q_function (callable): function that takes (obs, action) and returns Q-value
-            visited_states (Tensor): tensor of visited states from replay buffer
-            visited_actions (Tensor): tensor of actions taken in sampled experiences
-        """
-        if torch.rand(1).item() > 0.0:
-            return
-        print("\n=== Debug Metrics ===")
-
-        if visited_states is not None:
-            print(
-                f"\nVisited states statistics (n={visited_states.shape[0]}):")
-            # Flatten observation if it's nested or has batch dimension
-            if visited_states.dim() > 1:
-                # Shape is [num_samples, obs_dim] or [num_samples, ...]
-                obs_flat = visited_states.reshape(visited_states.shape[0], -1)
-            else:
-                obs_flat = visited_states.unsqueeze(-1)
-
-            mean = obs_flat.mean(dim=0)
-            std = obs_flat.std(dim=0)
-
-            for i in range(min(obs_flat.shape[1],
-                               20)):  # Print up to 20 dimensions
-                print(
-                    f"  Obs dim {i}: mean = {mean[i].item():.4f}, std = {std[i].item():.4f}"
-                )
-
-            if obs_flat.shape[1] > 20:
-                print(f"  ... ({obs_flat.shape[1] - 20} more dimensions)")
-
-        if visited_actions is not None:
-            print(
-                f"\nVisited actions statistics (n={visited_actions.shape[0]}):"
-            )
-            # Get unique actions and their counts
-            unique_actions, counts = torch.unique(visited_actions,
-                                                  return_counts=True,
-                                                  dim=0)
-            # Sort by action value
-            sorted_indices = torch.argsort(unique_actions, dim=0)
-            unique_actions = unique_actions[sorted_indices]
-            counts = counts[sorted_indices]
-
-            print(f"  Unique actions and their counts:")
-            for action, count in zip(unique_actions, counts):
-                percentage = 100.0 * count.item() / visited_actions.shape[0]
-                log("obs spec", self._observation_spec)
-                log("action spec", self._action_spec)
-                log("initial_obs", initial_obs)
-                log("action", action)
-                q_value = q_function(initial_obs, action)
-                print(
-                    f"    Action {action.item()}: {count.item()} ({percentage:.1f}%), Q(s_0, a) = {q_value.item():.4f}"
-                )
-
-        print("=" * 40 + "\n")
-
-    def _call_debug_metrics(self):
-        """Helper to call debug_metrics with appropriate arguments."""
-
-        with torch.no_grad():
-            if self._initial_debug_obs is None:
-                initial_time_step = self._env.reset()
-                self._initial_debug_obs = initial_time_step.observation[
-                    0:1].clone()
-
-            num_actions = nest.flatten(self._action_spec)[0].maximum + 1
-            actions = torch.arange(num_actions)
-
-            def q_function(obs, action):
-                if self._act_type == ActionType.Discrete:
-                    q_values, _ = self._compute_critics(
-                        self._critic_networks, obs, None, ())
-                    return q_values[0, action]
-                elif self._act_type == ActionType.Continuous:
-                    q_values, _ = self._compute_critics(
-                        self._critic_networks, obs, action, ())
-                    log("q_values", q_values)
-                    return q_values[0]
-                else:
-                    raise ValueError(
-                        f"Unsupported action type: {self._act_type}")
-
-            # Fetch random visited states and actions from replay buffer
-            visited_states = None
-            visited_actions = None
-            if self._replay_buffer is not None and self._replay_buffer.total_size > 0:
-                num_samples = min(10, self._replay_buffer.total_size.item())
-                # Use the replay buffer's _sample method to get random positions
-                batch_info = self._replay_buffer._sample(
-                    batch_size=num_samples, batch_length=1)
-                # Fetch observations and actions at these positions
-                visited_states = self._replay_buffer.get_field(
-                    'observation', batch_info.env_ids,
-                    batch_info.positions).reshape(
-                        -1, *self._observation_spec.shape)
-                visited_actions = self._replay_buffer.get_field(
-                    'action', batch_info.env_ids,
-                    batch_info.positions).reshape(-1, *self._action_spec.shape)
-
-            self.debug_metrics(self._initial_debug_obs, actions, q_function,
-                               visited_states, visited_actions)
-
     def after_train_iter(self, inputs: TimeStep, info: SacInfo):
         self._periodic_reset()
-        if self._debug_summaries and self._env is not None:
-            self._call_debug_metrics()
 
     def calc_loss(self, info: SacInfo):
         assert not self._is_eval

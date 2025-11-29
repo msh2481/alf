@@ -56,8 +56,7 @@ alf.config(
 
 alf.config(
     'SeedSacAlgorithm' if SEED_VERSION else 'SacAlgorithm',
-    # rollout_epsilon_greedy=0.0,
-    # use_entropy_reward=True,
+    use_entropy_reward=False,
     q_network_cls=RandomizedPriorQNetwork,
     parameter_target_std=PARAMETER_TARGET_STD,
     parameter_target_alpha=PARAMETER_TARGET_ALPHA,
@@ -66,7 +65,6 @@ alf.config(
 alf.config(
     'SacAlgorithm',
     num_critic_replicas=1,
-    use_discrete_actor=False,
     target_update_tau=0.05,
     target_update_period=1,
 )
@@ -84,7 +82,6 @@ alf.config(
     env_counts=ENV_COUNTS,
     unroll_length=UNROLL_LENGTH,
     mini_batch_length=MINI_BATCH_LENGTH,
-    # repulsion_num_obs=100,
     log_every_n_steps=100,
     use_exploration_seeds=SEED_VERSION,
     debug_env=suite_gym.load(ENV_NAME),
@@ -94,7 +91,7 @@ alf.config(
 # training config
 alf.config('TrainerConfig',
            algorithm_ctor=ActionRepulsionAlgorithm,
-           initial_collect_steps=200,
+           initial_collect_steps=10,
            mini_batch_length=MINI_BATCH_LENGTH,
            mini_batch_size=BATCH_SIZE,
            unroll_length=UNROLL_LENGTH,

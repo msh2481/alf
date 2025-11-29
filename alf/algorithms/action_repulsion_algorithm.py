@@ -18,7 +18,7 @@ import torch
 import alf
 from absl import logging
 import matplotlib.pyplot as plt
-import matplotlib
+from matplotlib import colors as mcolors
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.concurrent_algorithm import ConcurrentAlgorithm
 from alf.data_structures import LossInfo
@@ -26,6 +26,14 @@ from alf.tensor_specs import TensorSpec
 from itertools import combinations
 from alf.utils.common import warning
 import numpy as np
+
+
+def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=256):
+    if isinstance(cmap, str):
+        cmap = plt.get_cmap(cmap)
+    return mcolors.LinearSegmentedColormap.from_list(
+        f'trunc({cmap.name},{minval:.2f},{maxval:.2f})',
+        cmap(np.linspace(minval, maxval, n)))
 
 
 @alf.configurable
@@ -338,7 +346,7 @@ class ActionRepulsionAlgorithm(ConcurrentAlgorithm):
                 data_t = transition_counts[:, :, action_idx].T
                 im_t = ax_t.imshow(data_t,
                                    aspect='auto',
-                                   cmap='Blues',
+                                   cmap=truncate_colormap("Blues", 0, 0.5),
                                    origin='lower',
                                    vmin=0,
                                    vmax=5)
@@ -363,7 +371,7 @@ class ActionRepulsionAlgorithm(ConcurrentAlgorithm):
                             ha="center",
                             va="center",
                             color="black",
-                            fontsize=6)
+                            fontsize=10)
 
             for i in range(self._num_copies):
 
@@ -380,10 +388,10 @@ class ActionRepulsionAlgorithm(ConcurrentAlgorithm):
                     data_q = q_values[:, :, action_idx].T
                     im_q = ax_q.imshow(data_q,
                                        aspect='auto',
-                                       cmap='viridis',
+                                       cmap='bwr',
                                        origin='lower',
-                                       vmin=-0.05,
-                                       vmax=0.05)
+                                       vmin=-0.5,
+                                       vmax=0.5)
                     ax_q.set_xlabel('Position')
                     ax_q.set_ylabel('Time')
                     ax_q.set_title(f'Algorithm {i} Q-values {action_name}')
@@ -399,13 +407,15 @@ class ActionRepulsionAlgorithm(ConcurrentAlgorithm):
                     for pos_idx in range(2 * k + 1):
                         for time_idx in range(k + 1):
                             value = data_q[time_idx, pos_idx]
+                            if np.isnan(value):
+                                continue
                             ax_q.text(pos_idx,
                                       time_idx,
                                       f"{value:.3f}",
                                       ha="center",
                                       va="center",
-                                      color="white",
-                                      fontsize=6)
+                                      color="black",
+                                      fontsize=10)
 
             plt.tight_layout()
             plot_path = f'logs/{iter_number}.png'
