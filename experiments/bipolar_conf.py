@@ -23,9 +23,9 @@ from alf.utils.losses import element_wise_squared_loss
 from alf.environments.simple.bipolar_chain import BipolarChain
 from alf.environments import suite_gym
 
-ENV_NAME = "BipolarChain-small-sparse-onehot-v0"
-NUM_COPIES = 1
-BATCH_SIZE = 1000 * NUM_COPIES
+ENV_NAME = "BipolarChain-medium-sparse-onehot-v0"
+NUM_COPIES = 6
+BATCH_SIZE = 100 * NUM_COPIES
 ENV_COUNTS = NUM_COPIES
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
@@ -33,7 +33,7 @@ SEED_VERSION = True
 
 HIDDEN_LAYERS = (1024, )
 
-PRIOR_SCALE = 0.1
+PRIOR_SCALE = 10.0
 PARAMETER_TARGET_STD = 0.0
 PARAMETER_TARGET_ALPHA = 0.0
 REWARD_NOISE_STD = 0.0
@@ -76,7 +76,7 @@ alf.config('OneStepTDLoss',
 alf.config(
     "ActionRepulsionAlgorithm",
     algorithm_ctor=SeedSacAlgorithm if SEED_VERSION else SacAlgorithm,
-    optimizer=alf.optimizers.Adam(lr=5e-3, name='main'),
+    optimizer=alf.optimizers.Adam(lr=1e-2, name='main'),
     num_copies=NUM_COPIES,
     batch_size=BATCH_SIZE,
     env_counts=ENV_COUNTS,
@@ -95,7 +95,7 @@ alf.config('TrainerConfig',
            mini_batch_length=MINI_BATCH_LENGTH,
            mini_batch_size=BATCH_SIZE,
            unroll_length=UNROLL_LENGTH,
-           num_updates_per_train_iter=2,
+           num_updates_per_train_iter=5,
            num_iterations=10000,
            num_checkpoints=3,
            evaluate=False,
