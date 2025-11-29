@@ -31,7 +31,10 @@ UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
 SEED_VERSION = True
 
-HIDDEN_LAYERS = (1024, )
+HIDDEN_LAYERS = (
+    256,
+    256,
+)
 
 PRIOR_SCALE = 10.0
 PARAMETER_TARGET_STD = 0.0
@@ -46,12 +49,11 @@ alf.config('create_environment',
            env_name=ENV_NAME,
            num_parallel_environments=ENV_COUNTS)
 
-alf.config('QNetwork', fc_layer_params=HIDDEN_LAYERS)
-alf.config('OptimisticQNetwork', init_mean=0.0, init_std=1e-3)
+alf.config('QNetwork', fc_layer_params=HIDDEN_LAYERS, use_fc_ln=True)
 alf.config(
     'RandomizedPriorQNetwork',
-    #    network_ctor=QNetwork,
-    network_ctor=DebugLinearQNetwork,
+    network_ctor=QNetwork,
+    # network_ctor=DebugLinearQNetwork,
     prior_scale=PRIOR_SCALE)
 
 alf.config(

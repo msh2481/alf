@@ -16,16 +16,16 @@
 from absl.testing import parameterized
 import unittest
 import functools
-
 import torch
 
 import alf
 from alf.tensor_specs import TensorSpec, BoundedTensorSpec
 from alf.networks import QNetwork
 from alf.networks import QRNNNetwork
-from alf.networks.q_networks import ParallelQNetwork, RandomizedPriorQNetwork
+from alf.networks.q_networks import ParallelQNetwork, RandomizedPriorQNetwork, DebugLinearQNetwork
 from alf.utils import common
 from alf.nest.utils import NestSum
+import logging
 
 
 class TestQNetworks(parameterized.TestCase, unittest.TestCase):
@@ -151,6 +151,111 @@ class TestQNetworks(parameterized.TestCase, unittest.TestCase):
             replica_out = output_parallel[:, i, :]
             self.assertGreater(replica_out.std().item(), prior_scale * 0.5)
             self.assertLess(replica_out.std().item(), prior_scale * 2.0)
+
+    def _create_onehot_data(self, num_inputs):
+        X_train = torch.eye(num_inputs, dtype=torch.float32)
+        y_train = torch.arange(num_inputs, dtype=torch.float32).unsqueeze(1)
+        return X_train, y_train
+
+    def _create_dary_data(self, num_inputs, base=2):
+        import math
+        num_bits = math.ceil(math.log(num_inputs, base))
+        X_train = torch.zeros((num_inputs, num_bits), dtype=torch.float32)
+        for i in range(num_inputs):
+            val = i
+            for bit_idx in range(num_bits):
+                X_train[i, bit_idx] = val % base
+                val //= base
+        y_train = torch.arange(num_inputs, dtype=torch.float32).unsqueeze(1)
+        return X_train, y_train
+
+    def test_representation_learning(self):
+        sub_ctor = functools.partial(QNetwork,
+                                     fc_layer_params=(256, ),
+                                     use_fc_ln=True)
+        qnet_ctor = functools.partial(RandomizedPriorQNetwork, sub_ctor)
+        num_trials = 20
+        num_inputs = 64
+        lr = 0.02
+        max_steps = 10000
+        batch_ratio = 0.1
+        batch_size = int(num_inputs * batch_ratio)
+        print("\n" + "=" * 60)
+        print(f"Starting representation learning test")
+        print(
+            f"Num inputs: {num_inputs}, Batch size: {batch_size}, LR: {lr}, Max steps: {max_steps}"
+        )
+        print("=" * 60)
+        convergence_steps = []
+        for trial in range(num_trials):
+            print(f"\nTrial {trial + 1}/{num_trials}")
+            # X_train, y_train = self._create_dary_data(num_inputs)
+            X_train, y_train = self._create_onehot_data(num_inputs)
+            obs_size = X_train.shape[1]
+            obs_spec = TensorSpec((obs_size, ), torch.float32)
+            action_spec = BoundedTensorSpec((),
+                                            torch.int64,
+                                            minimum=0,
+                                            maximum=1)
+            q_net = qnet_ctor(input_tensor_spec=obs_spec,
+                              action_spec=action_spec)
+            optimizer = alf.optimizers.Adam(lr=lr)
+            from alf.optimizers import NeroPlus
+            NeroPlus.initialize(q_net)
+            optimizer.add_param_group({'params': list(q_net.parameters())})
+            converged = False
+            for step in range(max_steps):
+                with torch.no_grad():
+                    q_values_full, _ = q_net(X_train)
+                    predictions_full = q_values_full[:, 0]
+                    is_sorted = torch.all(
+                        predictions_full[1:] >= predictions_full[:-1]).item()
+                if is_sorted:
+                    converged = True
+                    print(f"  Converged at step {step}")
+                    convergence_steps.append(step)
+                    break
+                batch_indices = torch.randperm(num_inputs)[:batch_size]
+                X_batch = X_train[batch_indices]
+                y_batch = y_train[batch_indices]
+                q_values, _ = q_net(X_batch)
+                predictions = q_values[:, 0]
+                loss = ((predictions.unsqueeze(1) - y_batch)**2).mean()
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+            if not converged:
+                print(
+                    f"  Trial {trial + 1} did not converge within {max_steps} steps"
+                )
+                convergence_steps.append(max_steps)
+        print("\n" + "=" * 60)
+        print("Representation learning test summary")
+        print("=" * 60)
+        print(f"Convergence steps across {num_trials} trials:")
+        for i, steps in enumerate(convergence_steps):
+            status = "✓" if steps < max_steps else "✗"
+            print(f"  Trial {i+1}: {steps:5d} steps {status}")
+        converged_trials = sum(1 for s in convergence_steps if s < max_steps)
+        print(
+            f"\nSuccessfully converged: {converged_trials}/{num_trials} trials"
+        )
+        if converged_trials > 0:
+            converged_steps_only = [
+                s for s in convergence_steps if s < max_steps
+            ]
+            sorted_steps = sorted(converged_steps_only)
+            n = len(sorted_steps)
+            q1_idx = n // 4
+            q3_idx = 3 * n // 4
+            iqm_steps = sum(sorted_steps[q1_idx:q3_idx]) / (
+                q3_idx - q1_idx) if q3_idx > q1_idx else sorted_steps[0]
+            print(
+                f"Interquartile mean steps (converged trials): {iqm_steps:.1f}"
+            )
+        print("=" * 60 + "\n")
+        self.assertGreater(converged_trials, 0,
+                           "At least one trial should converge")
 
 
 if __name__ == "__main__":
