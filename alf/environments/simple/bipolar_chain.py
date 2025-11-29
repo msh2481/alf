@@ -26,13 +26,20 @@ class BipolarChain(gym.Env):
     flipped (XOR operation with the action).
     """
 
-    def __init__(self, k=12, dense=False, factored=False):
+    def __init__(self, k=12, dense=False, factored=False, continuous=False):
         super().__init__()
         self.k = k
         self.dense = dense
         self.factored = factored
+        self.continuous = continuous
 
-        self.action_space = spaces.Discrete(2)
+        if self.continuous:
+            self.action_space = spaces.Box(low=-1.0,
+                                           high=1.0,
+                                           shape=(1, ),
+                                           dtype=np.float32)
+        else:
+            self.action_space = spaces.Discrete(2)
 
         if self.factored:
             # Two integers: position (-k to k), time_step (0 to k)
@@ -86,6 +93,14 @@ class BipolarChain(gym.Env):
             return position, time_step
 
     def step(self, action):
+        if self.continuous:
+            action_val = action[0] if isinstance(action, (np.ndarray,
+                                                          list)) else action
+            if isinstance(action_val, torch.Tensor):
+                action_val = action_val.item()
+            action_val = float(action_val)
+            assert -1.0 <= action_val <= 1.0, f"Action {action_val} not in [-1, 1]"
+            action = int(action_val >= 0)
         flip_bit = self.action_flip_bits[self.state + self.k]
         action = action ^ flip_bit
 
@@ -120,8 +135,12 @@ class BipolarChain(gym.Env):
                 flip_bit = self.action_flip_bits[position + self.k]
 
                 for action in range(2):
-                    q_value = q_function_callable(obs_tensor,
-                                                  torch.tensor(action))
+                    if self.continuous:
+                        action_tensor = torch.tensor([2 * action - 1.0],
+                                                     dtype=torch.float32)
+                    else:
+                        action_tensor = torch.tensor(action)
+                    q_value = q_function_callable(obs_tensor, action_tensor)
                     decoded_action = action ^ flip_bit
                     q_values[position + self.k, time_step,
                              decoded_action] = q_value
@@ -143,9 +162,22 @@ class BipolarChain(gym.Env):
 
             for obs, action in zip(observations, actions):
                 position, time_step = self._observation_to_state(obs)
-                action_val = int(action)
+                if self.continuous:
+                    if isinstance(action, torch.Tensor):
+                        action_val = action.item() if action.numel(
+                        ) == 1 else action[0].item()
+                    elif isinstance(action, np.ndarray):
+                        action_val = float(action[0] if len(action.shape) >
+                                           0 else action)
+                    else:
+                        action_val = float(action)
+                    assert -1.0 <= action_val <= 1.0, f"Action {action_val} not in [-1, 1]"
+                    action_val = int(action_val >= 0)
+                else:
+                    action_val = int(action)
                 flip_bit = self.action_flip_bits[position + self.k]
                 decoded_action = action_val ^ flip_bit
+                assert 0 <= decoded_action <= 1, f"Decoded action {decoded_action} not in [0, 1]"
                 counts[position + self.k, time_step, decoded_action] += 1
 
         # Convert to result format with NaN for invalid states

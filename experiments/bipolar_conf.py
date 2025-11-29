@@ -17,13 +17,16 @@ from alf.algorithms.seed_sampling import SeedDqnAlgorithm, SeedSacAlgorithm
 from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.dqn_algorithm import DqnAlgorithm
 from alf.algorithms.action_repulsion_algorithm import ActionRepulsionAlgorithm
-from alf.networks import QNetwork, QNetworkBase, DebugLinearQNetwork, RandomizedPriorQNetwork, OptimisticQNetwork
+from alf.networks import QNetwork, RandomizedPriorQNetwork, CriticNetwork, RandomizedPriorCriticNetwork
 from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetwork
 from alf.utils.losses import element_wise_squared_loss
+from alf.utils.math_ops import clipped_exp
+from functools import partial
 from alf.environments.simple.bipolar_chain import BipolarChain
 from alf.environments import suite_gym
 
-ENV_NAME = "BipolarChain-medium-sparse-onehot-v0"
+ENV_NAME = "BipolarChain-medium-sparse-onehot-continuous-v0"
+DISCRETE = False
 NUM_COPIES = 4
 BATCH_SIZE = 64 * NUM_COPIES
 ENV_COUNTS = NUM_COPIES
@@ -36,7 +39,7 @@ HIDDEN_LAYERS = (
     256,
 )
 
-PRIOR_SCALE = 10.0
+PRIOR_SCALE = 0.1
 PARAMETER_TARGET_STD = 0.0
 PARAMETER_TARGET_ALPHA = 0.0
 REWARD_NOISE_STD = 0.0
@@ -49,21 +52,44 @@ alf.config('create_environment',
            env_name=ENV_NAME,
            num_parallel_environments=ENV_COUNTS)
 
-alf.config('QNetwork', fc_layer_params=HIDDEN_LAYERS, use_fc_ln=True)
-alf.config(
-    'RandomizedPriorQNetwork',
-    network_ctor=QNetwork,
-    # network_ctor=DebugLinearQNetwork,
-    prior_scale=PRIOR_SCALE)
+if DISCRETE:
+    alf.config('QNetwork', fc_layer_params=HIDDEN_LAYERS, use_fc_ln=True)
+    alf.config('RandomizedPriorQNetwork',
+               network_ctor=QNetwork,
+               prior_scale=PRIOR_SCALE)
+    sac_kwargs = {
+        'use_entropy_reward': False,
+        'q_network_cls': RandomizedPriorQNetwork,
+        'parameter_target_std': PARAMETER_TARGET_STD,
+        'parameter_target_alpha': PARAMETER_TARGET_ALPHA,
+        'reward_noise_std': REWARD_NOISE_STD,
+    }
+else:
+    alf.config('ActorDistributionNetwork',
+               fc_layer_params=HIDDEN_LAYERS,
+               continuous_projection_net_ctor=partial(
+                   alf.networks.NormalProjectionNetwork,
+                   state_dependent_std=True,
+                   std_transform=clipped_exp,
+                   scale_distribution=True))
+    alf.config('CriticNetwork',
+               joint_fc_layer_params=HIDDEN_LAYERS,
+               use_fc_ln=True)
+    alf.config('RandomizedPriorCriticNetwork',
+               network_ctor=CriticNetwork,
+               prior_scale=PRIOR_SCALE,
+               trainable_init_std=1e-3)
+    sac_kwargs = {
+        'use_entropy_reward': False,
+        'actor_network_cls': alf.networks.ActorDistributionNetwork,
+        'critic_network_cls': RandomizedPriorCriticNetwork,
+        'parameter_target_std': PARAMETER_TARGET_STD,
+        'parameter_target_alpha': PARAMETER_TARGET_ALPHA,
+        'reward_noise_std': REWARD_NOISE_STD,
+    }
 
-alf.config(
-    'SeedSacAlgorithm' if SEED_VERSION else 'SacAlgorithm',
-    use_entropy_reward=False,
-    q_network_cls=RandomizedPriorQNetwork,
-    parameter_target_std=PARAMETER_TARGET_STD,
-    parameter_target_alpha=PARAMETER_TARGET_ALPHA,
-    reward_noise_std=REWARD_NOISE_STD,
-)
+alf.config('SeedSacAlgorithm' if SEED_VERSION else 'SacAlgorithm',
+           **sac_kwargs)
 alf.config(
     'SacAlgorithm',
     num_critic_replicas=1,
