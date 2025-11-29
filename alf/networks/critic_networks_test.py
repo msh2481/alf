@@ -213,6 +213,120 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
             self.assertGreater(replica_out.std().item(), prior_scale * 0.5)
             self.assertLess(replica_out.std().item(), prior_scale * 2.0)
 
+    def _create_onehot_data(self, num_inputs):
+        X_train = torch.eye(num_inputs, dtype=torch.float32)
+        signs = torch.randint(0, 2,
+                              (num_inputs, ), dtype=torch.float32) * 2 - 1
+        return X_train, signs
+
+    def _create_dary_data(self, num_inputs, base=2):
+        import math
+        num_bits = math.ceil(math.log(num_inputs, base))
+        X_train = torch.zeros((num_inputs, num_bits), dtype=torch.float32)
+        for i in range(num_inputs):
+            val = i
+            for bit_idx in range(num_bits):
+                X_train[i, bit_idx] = val % base
+                val //= base
+        signs = torch.randint(0, 2,
+                              (num_inputs, ), dtype=torch.float32) * 2 - 1
+        return X_train, signs
+
+    def test_representation_learning(self):
+        sub_ctor = functools.partial(CriticNetwork,
+                                     joint_fc_layer_params=(256, ),
+                                     use_fc_ln=True)
+        critic_ctor = functools.partial(RandomizedPriorCriticNetwork,
+                                        network_ctor=sub_ctor)
+        num_trials = 20
+        num_inputs = 4
+        lr = 0.001
+        max_steps = 10000
+        batch_ratio = 1.0
+        batch_size = int(num_inputs * batch_ratio)
+        print("\n" + "=" * 60)
+        print(f"Starting representation learning test")
+        print(
+            f"Num inputs: {num_inputs}, Batch size: {batch_size}, LR: {lr}, Max steps: {max_steps}"
+        )
+        print("=" * 60)
+        convergence_steps = []
+        for trial in range(num_trials):
+            print(f"\nTrial {trial + 1}/{num_trials}")
+            # X_train, signs = self._create_dary_data(num_inputs)
+            X_train, signs = self._create_onehot_data(num_inputs)
+            obs_size = X_train.shape[1]
+            obs_spec = TensorSpec((obs_size, ), torch.float32)
+            action_spec = BoundedTensorSpec((1, ),
+                                            torch.float32,
+                                            minimum=-1.0,
+                                            maximum=1.0)
+            input_spec = (obs_spec, action_spec)
+            critic = critic_ctor(input_tensor_spec=input_spec)
+            optimizer = alf.optimizers.Adam(lr=lr)
+            optimizer.add_param_group({'params': list(critic.parameters())})
+            converged = False
+            for step in range(max_steps):
+                with torch.no_grad():
+                    actions_pos = torch.ones(num_inputs,
+                                             1,
+                                             dtype=torch.float32)
+                    actions_neg = -torch.ones(
+                        num_inputs, 1, dtype=torch.float32)
+                    q_pos, _ = critic((X_train, actions_pos))
+                    q_neg, _ = critic((X_train, actions_neg))
+                    comparisons = (q_pos > q_neg).float() * 2 - 1
+                    matches_signs = (comparisons == signs).all().item()
+                if matches_signs:
+                    converged = True
+                    print(f"  Converged at step {step}")
+                    convergence_steps.append(step)
+                    break
+                batch_indices = torch.randperm(num_inputs)[:batch_size]
+                X_batch = X_train[batch_indices]
+                signs_batch = signs[batch_indices]
+                actions_batch = 2 * torch.randint(
+                    0, 2, (batch_size, 1), dtype=torch.float32) - 1
+                targets_batch = signs_batch.unsqueeze(
+                    1) * actions_batch.squeeze(1)
+                q_values, _ = critic((X_batch, actions_batch))
+                loss = ((q_values - targets_batch)**2).mean()
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+            if not converged:
+                print(
+                    f"  Trial {trial + 1} did not converge within {max_steps} steps"
+                )
+                convergence_steps.append(max_steps)
+        print("\n" + "=" * 60)
+        print("Representation learning test summary")
+        print("=" * 60)
+        print(f"Convergence steps across {num_trials} trials:")
+        for i, steps in enumerate(convergence_steps):
+            status = "✓" if steps < max_steps else "✗"
+            print(f"  Trial {i+1}: {steps:5d} steps {status}")
+        converged_trials = sum(1 for s in convergence_steps if s < max_steps)
+        print(
+            f"\nSuccessfully converged: {converged_trials}/{num_trials} trials"
+        )
+        if converged_trials > 0:
+            converged_steps_only = [
+                s for s in convergence_steps if s < max_steps
+            ]
+            sorted_steps = sorted(converged_steps_only)
+            n = len(sorted_steps)
+            q1_idx = n // 4
+            q3_idx = 3 * n // 4
+            iqm_steps = sum(sorted_steps[q1_idx:q3_idx]) / (
+                q3_idx - q1_idx) if q3_idx > q1_idx else sorted_steps[0]
+            print(
+                f"Interquartile mean steps (converged trials): {iqm_steps:.1f}"
+            )
+        print("=" * 60 + "\n")
+        self.assertGreater(converged_trials, 0,
+                           "At least one trial should converge")
+
 
 if __name__ == "__main__":
     alf.test.main()
