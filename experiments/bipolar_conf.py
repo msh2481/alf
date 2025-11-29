@@ -85,7 +85,7 @@ alf.config(
     # repulsion_num_obs=100,
     log_every_n_steps=100,
     use_exploration_seeds=SEED_VERSION,
-    env_class=RandomizedBipolarChain,
+    env_class=BipolarChain,
     video_record_interval=None,
 )
 

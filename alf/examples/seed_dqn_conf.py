@@ -96,7 +96,7 @@ alf.config(
     # repulsion_num_obs=100,
     log_every_n_steps=200,
     use_exploration_seeds=SEED_VERSION,
-    env_class=RandomizedBipolarChain,
+    env_class=BipolarChain,
 )
 
 # training config

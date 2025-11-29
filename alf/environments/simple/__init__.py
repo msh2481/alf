@@ -29,6 +29,19 @@ gym.register(
     entry_point='alf.environments.simple.bipolar_chain:BipolarChain',
 )
 
+for size_name, k in [('small', 6), ('medium', 12), ('big', 24)]:
+    for reward_name, dense in [('sparse', False), ('dense', True)]:
+        for obs_name, factored in [('onehot', False), ('factored', True)]:
+            env_id = f'BipolarChain-{size_name}-{reward_name}-{obs_name}-v0'
+            gym.register(id=env_id,
+                         entry_point=
+                         'alf.environments.simple.bipolar_chain:BipolarChain',
+                         kwargs={
+                             'k': k,
+                             'dense': dense,
+                             'factored': factored
+                         })
+
 gym.register(
     id='ParallelChains-v0',
     entry_point='alf.environments.simple.parallel_chains:ParallelChains',

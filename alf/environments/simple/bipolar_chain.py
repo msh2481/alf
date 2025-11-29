@@ -26,16 +26,28 @@ class BipolarChain(gym.Env):
     flipped (XOR operation with the action).
     """
 
-    def __init__(self, k=12):
+    def __init__(self, k=12, dense=False, factored=False):
         super().__init__()
         self.k = k
-        self.num_states = (2 * self.k + 1) * (self.k + 1)
+        self.dense = dense
+        self.factored = factored
 
         self.action_space = spaces.Discrete(2)
-        self.observation_space = spaces.Box(low=0.0,
-                                            high=1.0,
-                                            shape=(self.num_states, ),
-                                            dtype=np.float32)
+
+        if self.factored:
+            # Two integers: position (-k to k), time_step (0 to k)
+            self.observation_space = spaces.Box(low=np.array([-self.k, 0],
+                                                             dtype=np.int32),
+                                                high=np.array([self.k, self.k],
+                                                              dtype=np.int32),
+                                                dtype=np.int32)
+        else:
+            # One-hot encoding (current behavior)
+            self.num_states = (2 * self.k + 1) * (self.k + 1)
+            self.observation_space = spaces.Box(low=0.0,
+                                                high=1.0,
+                                                shape=(self.num_states, ),
+                                                dtype=np.float32)
 
         rng = np.random.RandomState(42)
         self.action_flip_bits = rng.randint(0, 2, size=2 * self.k + 1)
@@ -46,32 +58,51 @@ class BipolarChain(gym.Env):
     def reset(self):
         self.state = 0
         self.step_count = 0
-        return self._get_observation()
+        return self._state_to_observation(self.state, self.step_count)
 
-    def _state_to_idx(self, position, time_step):
-        pos_idx = position + self.k
-        time_idx = time_step
-        return pos_idx * (self.k + 1) + time_idx
+    def _state_to_observation(self, position, time_step):
+        assert abs(position) <= self.k
+        assert 0 <= time_step <= self.k
+        if self.factored:
+            return np.array([position, time_step], dtype=np.int32)
+        else:
+            # One-hot encoding
+            obs = np.zeros(self.num_states, dtype=np.float32)
+            flat_idx = (position + self.k) * (self.k + 1) + time_step
+            obs[flat_idx] = 1.0
+            return obs
 
-    def _get_observation(self):
-        assert abs(
-            self.state
-        ) <= self.step_count, f"state: {self.state}, step_count: {self.step_count}"
-        assert self.step_count <= self.k, f"step_count: {self.step_count}"
-        obs = np.zeros(self.num_states, dtype=np.float32)
-        flat_idx = self._state_to_idx(self.state, self.step_count)
-        obs[flat_idx] = 1.0
-        return obs
+    def _observation_to_state(self, obs):
+        if self.factored:
+            return int(obs[0]), int(obs[1])
+        else:
+            if isinstance(obs, torch.Tensor):
+                flat_idx = torch.argmax(obs).item()
+            else:
+                flat_idx = np.argmax(obs)
+            time_step = flat_idx % (self.k + 1)
+            pos_idx = flat_idx // (self.k + 1)
+            position = pos_idx - self.k
+            return position, time_step
 
     def step(self, action):
         flip_bit = self.action_flip_bits[self.state + self.k]
         action = action ^ flip_bit
 
+        prev_state = self.state
         self.step_count += 1
         self.state += 2 * action - 1
         done = abs(self.state) >= self.k or self.step_count >= self.k
-        reward = float(self.state == self.k)
-        obs = self._get_observation()
+
+        if self.dense:
+            # Incremental reward: +1/k for moving right, -1/k for moving left
+            state_change = self.state - prev_state
+            reward = state_change / self.k
+        else:
+            # Sparse reward: only at goal
+            reward = float(self.state == self.k)
+
+        obs = self._state_to_observation(self.state, self.step_count)
         return obs, reward, done, {}
 
     def get_q_value_table(self, q_function_callable):
@@ -84,12 +115,8 @@ class BipolarChain(gym.Env):
                 if abs(position
                        ) > time_step or abs(position) % 2 != time_step % 2:
                     continue
-
-                obs = np.zeros(self.num_states, dtype=np.float32)
-                flat_idx = self._state_to_idx(position, time_step)
-                obs[flat_idx] = 1.0
+                obs = self._state_to_observation(position, time_step)
                 obs_tensor = torch.from_numpy(obs)
-
                 flip_bit = self.action_flip_bits[position + self.k]
 
                 for action in range(2):
@@ -102,7 +129,7 @@ class BipolarChain(gym.Env):
         return q_values
 
     def get_transition_counts_table(self, replay_buffer):
-        counts = np.zeros((self.num_states, 2), dtype=np.int64)
+        counts = np.zeros((2 * self.k + 1, self.k + 1, 2), dtype=np.int64)
 
         if replay_buffer is not None and replay_buffer.total_size > 0:
             batch_size = replay_buffer.total_size.item()
@@ -115,18 +142,13 @@ class BipolarChain(gym.Env):
                                               batch_info.positions)
 
             for obs, action in zip(observations, actions):
-                if isinstance(obs, torch.Tensor):
-                    flat_idx = torch.argmax(obs).item()
-                else:
-                    flat_idx = np.argmax(obs)
+                position, time_step = self._observation_to_state(obs)
+                action_val = int(action)
+                flip_bit = self.action_flip_bits[position + self.k]
+                decoded_action = action_val ^ flip_bit
+                counts[position + self.k, time_step, decoded_action] += 1
 
-                if isinstance(action, torch.Tensor):
-                    action_val = action.item()
-                else:
-                    action_val = int(action)
-
-                counts[flat_idx, action_val] += 1
-
+        # Convert to result format with NaN for invalid states
         result = np.full((2 * self.k + 1, self.k + 1, 2),
                          np.nan,
                          dtype=np.float32)
@@ -135,12 +157,9 @@ class BipolarChain(gym.Env):
                 if abs(position
                        ) > time_step or abs(position) % 2 != time_step % 2:
                     continue
-
-                flat_idx = self._state_to_idx(position, time_step)
-                flip_bit = self.action_flip_bits[position + self.k]
-                result[position + self.k, time_step, 0] = counts[flat_idx,
-                                                                 flip_bit]
-                result[position + self.k, time_step, 1] = counts[flat_idx,
-                                                                 1 ^ flip_bit]
+                result[position + self.k, time_step,
+                       0] = counts[position + self.k, time_step, 0]
+                result[position + self.k, time_step,
+                       1] = counts[position + self.k, time_step, 1]
 
         return result
