@@ -30,12 +30,6 @@ gym.register(
 )
 
 gym.register(
-    id='RandomizedBipolarChain-v0',
-    entry_point=
-    'alf.environments.simple.randomized_bipolar_chain:RandomizedBipolarChain',
-)
-
-gym.register(
     id='ParallelChains-v0',
     entry_point='alf.environments.simple.parallel_chains:ParallelChains',
 )

@@ -20,7 +20,7 @@ from alf.algorithms.action_repulsion_algorithm import ActionRepulsionAlgorithm
 from alf.networks import QNetwork, QNetworkBase, DebugLinearQNetwork, RandomizedPriorQNetwork, OptimisticQNetwork
 from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetwork
 from alf.utils.losses import element_wise_squared_loss
-from alf.environments.simple.randomized_bipolar_chain import RandomizedBipolarChain
+from alf.environments.simple.bipolar_chain import BipolarChain
 
 BATCH_SIZE = 12000
 ENV_COUNTS = 4
@@ -40,7 +40,7 @@ assert (PRIOR_SCALE == 0.0) or (
 # environment config
 alf.config(
     'create_environment',
-    env_name="RandomizedBipolarChain-v0",
+    env_name="BipolarChain-v0",
     # env_name="CartPole-v0",
     # env_name="Pendulum-v0",
     num_parallel_environments=ENV_COUNTS)

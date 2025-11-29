@@ -31,7 +31,7 @@ SEED_VERSION = False
 # environment config
 alf.config(
     'create_environment',
-    # env_name="RandomizedBipolarChain-v0",
+    # env_name="BipolarChain-v0",
     # env_name="CartPole-v0",
     # env_name="Pendulum-v0",
     env_name="Bezier-v0",

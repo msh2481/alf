@@ -22,8 +22,6 @@ from alf.environments.simple.noisy_array import NoisyArray
 from alf.environments.simple.stochastic_with_risky_branch import StochasticWithRiskyBranch
 from alf.environments.simple.check_value import CheckValue
 from alf.environments.simple.check_policy import CheckPolicy
-from alf.environments.simple.bipolar_chain import BipolarChain
-from alf.environments.simple.randomized_bipolar_chain import RandomizedBipolarChain
 from alf.environments.simple.parallel_chains import ParallelChains
 from alf.environments.simple.bezier import Bezier
 from alf.environments.object_centric.bouncing_squares import BouncingSquares
@@ -61,18 +59,6 @@ def load(game,
         env = NoisyArray(**env_args)
     elif game == "StochasticWithRiskyBranch":
         env = StochasticWithRiskyBranch(**env_args)
-    elif game == "CheckValue":
-        env = CheckValue(**env_args)
-    elif game == "CheckPolicy":
-        env = CheckPolicy(**env_args)
-    elif game == "BipolarChain":
-        env = BipolarChain(**env_args)
-    elif game == "BipolarChain":
-        env = RandomizedBipolarChain(**env_args)
-    elif game == "ParallelChains":
-        env = ParallelChains(**env_args)
-    elif game == "Bezier":
-        env = Bezier(**env_args)
     elif game == "BouncingSquares":
         env = BouncingSquares(**env_args)
     else:

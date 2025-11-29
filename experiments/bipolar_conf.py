@@ -20,9 +20,9 @@ from alf.algorithms.action_repulsion_algorithm import ActionRepulsionAlgorithm
 from alf.networks import QNetwork, QNetworkBase, DebugLinearQNetwork, RandomizedPriorQNetwork, OptimisticQNetwork
 from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetwork
 from alf.utils.losses import element_wise_squared_loss
-from alf.environments.simple.randomized_bipolar_chain import RandomizedBipolarChain
+from alf.environments.simple.bipolar_chain import BipolarChain
 
-NUM_COPIES = 12
+NUM_COPIES = 4
 BATCH_SIZE = 1000 * NUM_COPIES
 ENV_COUNTS = NUM_COPIES
 UNROLL_LENGTH = 1
@@ -41,7 +41,7 @@ assert (PRIOR_SCALE == 0.0) or (
 
 # environment config
 alf.config('create_environment',
-           env_name="RandomizedBipolarChain-v0",
+           env_name="BipolarChain-v0",
            num_parallel_environments=ENV_COUNTS)
 
 alf.config('QNetwork', fc_layer_params=HIDDEN_LAYERS)
@@ -53,8 +53,9 @@ alf.config(
     prior_scale=PRIOR_SCALE)
 
 alf.config(
-    'SeedDqnAlgorithm' if SEED_VERSION else 'DqnAlgorithm',
-    rollout_epsilon_greedy=0.0,
+    'SeedSacAlgorithm' if SEED_VERSION else 'SacAlgorithm',
+    # rollout_epsilon_greedy=0.0,
+    # use_entropy_reward=True,
     q_network_cls=RandomizedPriorQNetwork,
     parameter_target_std=PARAMETER_TARGET_STD,
     parameter_target_alpha=PARAMETER_TARGET_ALPHA,
@@ -62,6 +63,8 @@ alf.config(
 )
 alf.config(
     'SacAlgorithm',
+    num_critic_replicas=1,
+    use_discrete_actor=False,
     target_update_tau=0.05,
     target_update_period=1,
 )
@@ -72,7 +75,7 @@ alf.config('OneStepTDLoss',
 
 alf.config(
     "ActionRepulsionAlgorithm",
-    algorithm_ctor=SeedDqnAlgorithm if SEED_VERSION else DqnAlgorithm,
+    algorithm_ctor=SeedSacAlgorithm if SEED_VERSION else SacAlgorithm,
     optimizer=alf.optimizers.Adam(lr=5e-3, name='main'),
     num_copies=NUM_COPIES,
     batch_size=BATCH_SIZE,
@@ -80,7 +83,7 @@ alf.config(
     unroll_length=UNROLL_LENGTH,
     mini_batch_length=MINI_BATCH_LENGTH,
     # repulsion_num_obs=100,
-    log_every_n_steps=200,
+    log_every_n_steps=100,
     use_exploration_seeds=SEED_VERSION,
     env_class=RandomizedBipolarChain,
     video_record_interval=None,
