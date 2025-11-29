@@ -54,6 +54,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         num_parallel_workers: Optional[int] = None,
         video_record_interval: int | None = None,
         return_logging_interval: int = 100,
+        agent_reset_period: int | None = None,
     ):
         assert batch_size is not None, "batch_size must be provided"
         assert env_counts is not None, "env_counts must be provided"
@@ -98,26 +99,29 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         )
 
         self._num_copies = num_copies
-
-        get_kwargs = lambda i: {
+        self._algorithm_ctor = algorithm_ctor
+        self._use_exploration_seeds = use_exploration_seeds
+        self._algorithm_base_kwargs = {
             "observation_spec": observation_spec,
             "action_spec": action_spec,
             "reward_spec": reward_spec,
             "env": None,
             "config": config,
             "debug_summaries": debug_summaries,
-            "name": f"{name}_copy_{i}",
         }
-        if use_exploration_seeds:
-            self._algorithms = nn.ModuleList([
-                algorithm_ctor(
-                    **get_kwargs(i),
-                    exploration_seed=i,
-                ) for i in range(num_copies)
-            ])
-        else:
-            self._algorithms = nn.ModuleList(
-                [algorithm_ctor(**get_kwargs(i)) for i in range(num_copies)])
+        self._algorithm_name = name
+
+        def make_algorithm(i):
+            kwargs = {
+                **self._algorithm_base_kwargs,
+                "name": f"{name}_copy_{i}",
+            }
+            if use_exploration_seeds:
+                kwargs["exploration_seed"] = i
+            return algorithm_ctor(**kwargs)
+
+        self._algorithms = nn.ModuleList(
+            [make_algorithm(i) for i in range(num_copies)])
 
         # Initialize parallel training executor
         self._use_parallel_training = use_parallel_training
@@ -139,6 +143,27 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             for i in range(num_copies)
         }
         self._total_env_steps = 0
+
+        # Agent reset tracking
+        self._agent_reset_period = agent_reset_period
+        self._next_agent_to_reset = 0
+
+    def _reset_agent(self, agent_idx: int):
+        """Reinitialize agent at given index with fresh parameters."""
+        logging.warning(f"Resetting agent {agent_idx} parameters")
+        kwargs = {
+            **self._algorithm_base_kwargs,
+            "name":
+                f"{self._algorithm_name}_copy_{agent_idx}",
+        }
+        if self._use_exploration_seeds:
+            kwargs["exploration_seed"] = agent_idx
+        new_alg = self._algorithm_ctor(**kwargs)
+        old_alg = self._algorithms[agent_idx]
+        for old_param, new_param in zip(old_alg.parameters(),
+                                        new_alg.parameters()):
+            old_param.data.copy_(new_param.data)
+        logging.info(f"Reset agent {agent_idx} parameters")
 
     def close(self):
         """Clean up resources, including shutting down the thread pool executor."""
@@ -392,6 +417,11 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         if self._train_step_counter % self._return_logging_interval == 0:
             plot_dir = os.path.join(root_dir, "plots")
             self.save_ascii_plots(output_dir=plot_dir)
+        if (self._agent_reset_period is not None
+                and self._train_step_counter % self._agent_reset_period == 0):
+            self._reset_agent(self._next_agent_to_reset)
+            self._next_agent_to_reset = (self._next_agent_to_reset +
+                                         1) % self._num_copies
 
     def after_update(self, root_inputs, info):
         assert alf.nest.get_nest_shape(root_inputs)[:2] == (
