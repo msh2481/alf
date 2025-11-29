@@ -58,7 +58,7 @@ class ActionRepulsionAlgorithm(ConcurrentAlgorithm):
         repulsion_num_obs: int = 100,
         use_exploration_seeds: bool = True,
         log_every_n_steps: int = 100,
-        env_class=None,
+        debug_env=None,
         video_record_interval: int | None = None,
         return_logging_interval: int = 100,
     ):
@@ -87,7 +87,7 @@ class ActionRepulsionAlgorithm(ConcurrentAlgorithm):
         self._repulsion_num_obs = repulsion_num_obs
         self._debug_count = 0
         self._log_every_n_steps = log_every_n_steps
-        self._debug_env = env_class() if env_class is not None else None
+        self._debug_env = debug_env
 
         # Validate that all sub-algorithms have actor networks when using repulsion
         if self._repulsion_alpha > 0:

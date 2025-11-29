@@ -21,8 +21,10 @@ from alf.networks import QNetwork, QNetworkBase, DebugLinearQNetwork, Randomized
 from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetwork
 from alf.utils.losses import element_wise_squared_loss
 from alf.environments.simple.bipolar_chain import BipolarChain
+from alf.environments import suite_gym
 
-NUM_COPIES = 4
+ENV_NAME = "BipolarChain-small-sparse-onehot-v0"
+NUM_COPIES = 1
 BATCH_SIZE = 1000 * NUM_COPIES
 ENV_COUNTS = NUM_COPIES
 UNROLL_LENGTH = 1
@@ -41,7 +43,7 @@ assert (PRIOR_SCALE == 0.0) or (
 
 # environment config
 alf.config('create_environment',
-           env_name="BipolarChain-v0",
+           env_name=ENV_NAME,
            num_parallel_environments=ENV_COUNTS)
 
 alf.config('QNetwork', fc_layer_params=HIDDEN_LAYERS)
@@ -85,7 +87,7 @@ alf.config(
     # repulsion_num_obs=100,
     log_every_n_steps=100,
     use_exploration_seeds=SEED_VERSION,
-    env_class=BipolarChain,
+    debug_env=suite_gym.load(ENV_NAME),
     video_record_interval=None,
 )
 
