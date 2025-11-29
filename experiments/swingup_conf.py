@@ -40,8 +40,8 @@ alf.config('create_environment',
 
 alf.config('suite_dmc.load',
            from_pixels=False,
-           max_episode_steps=250,
-           gym_env_wrappers=(partial(FrameSkip, skip=4), ))
+           max_episode_steps=1000,
+           gym_env_wrappers=(partial(FrameSkip, skip=1), ))
 
 # actor network for continuous actions
 alf.config('ActorDistributionNetwork',
@@ -81,7 +81,7 @@ alf.config(
     mini_batch_length=MINI_BATCH_LENGTH,
     log_every_n_steps=500,
     use_exploration_seeds=SEED_VERSION,
-    video_record_interval=500,
+    video_record_interval=10000,
 )
 
 # training config
@@ -92,7 +92,7 @@ alf.config('TrainerConfig',
            mini_batch_size=BATCH_SIZE,
            unroll_length=UNROLL_LENGTH,
            num_updates_per_train_iter=1,
-           num_iterations=100000,
+           num_iterations=400000,
            num_checkpoints=3,
            evaluate=False,
            debug_summaries=False,
