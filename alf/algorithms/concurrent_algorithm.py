@@ -158,6 +158,11 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         self._agent_reset_period = agent_reset_period
         self._next_agent_to_reset = 0
 
+    def _get_most_recently_reset_agent(self) -> int:
+        """Get the index of the most recently reset agent."""
+        return (self._next_agent_to_reset + self._num_copies -
+                1) % self._num_copies
+
     def _reset_agent(self, agent_idx: int):
         """Reinitialize agent at given index with fresh parameters."""
         logging.warning(f"Resetting agent {agent_idx} parameters")
@@ -319,53 +324,32 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             inputs, dim=0
         ) == total_batch_size, f"inputs shape: {alf.nest.get_nest_shape(inputs)}"
 
-        sliced = self._slice_batch(inputs, state, rollout_info)
+        active_agent_idx = self._get_most_recently_reset_agent()
+        active_state = state[active_agent_idx] if isinstance(state,
+                                                             list) else state
+        active_rollout_info = rollout_info[active_agent_idx] if isinstance(
+            rollout_info, list) else rollout_info
 
-        def worker(alg_idx, sliced_data):
-            """Worker function for agent training."""
-            sliced_time_step, sliced_state, sliced_rollout_info, batch_indices = sliced_data
-            alg_step = self._algorithms[alg_idx].train_step(
-                sliced_time_step, sliced_state, sliced_rollout_info)
-            return alg_idx, alg_step, batch_indices
+        alg_step = self._algorithms[active_agent_idx].train_step(
+            inputs, active_state, active_rollout_info)
 
-        results = {}
-        new_states = [None] * self._num_copies
-
-        if self._use_parallel_training:
-            # Parallel execution using ThreadPoolExecutor
-            futures = [
-                self._executor.submit(worker, alg_idx, sliced[alg_idx])
-                for alg_idx in range(self._num_copies)
-            ]
-            for future in futures:
-                alg_idx, alg_step, batch_indices = future.result()
-                new_states[alg_idx] = alg_step.state
-                results[alg_idx] = (alg_step._replace(state=()), batch_indices)
+        if isinstance(state, list):
+            new_states = list(state)
+            new_states[active_agent_idx] = alg_step.state
         else:
-            # Sequential execution
-            for alg_idx, sliced_data in sliced.items():
-                alg_idx, alg_step, batch_indices = worker(alg_idx, sliced_data)
-                new_states[alg_idx] = alg_step.state
-                results[alg_idx] = (alg_step._replace(state=()), batch_indices)
+            new_states = [alg_step.state] + [None] * (self._num_copies - 1)
 
-        return scatter_and_sum_nested(
-            results, total_batch_size)._replace(state=new_states)
+        return alg_step._replace(state=new_states)
 
     def calc_loss(self, info) -> LossInfo:
         assert alf.nest.get_nest_shape(info)[:2] == (
             self._mini_batch_length,
             self._batch_size), f"info shape: {alf.nest.get_nest_shape(info)}"
 
-        sliced = self._slice_batch(info, time_major=True)
-        results = {}
-        for alg_idx, (sliced_info, batch_indices) in sliced.items():
-            loss_info = self._algorithms[alg_idx].calc_loss(sliced_info)
-            results[alg_idx] = (loss_info, batch_indices)
-            self._save_losses(alg_idx, loss_info)
-
-        return scatter_and_sum_nested(results,
-                                      self._batch_size,
-                                      time_major=True)
+        active_agent_idx = self._get_most_recently_reset_agent()
+        loss_info = self._algorithms[active_agent_idx].calc_loss(info)
+        self._save_losses(active_agent_idx, loss_info)
+        return loss_info
 
     def _save_losses(self, alg_idx: int, loss_info: LossInfo):
         """Extract and record actor and critic losses for a given algorithm."""

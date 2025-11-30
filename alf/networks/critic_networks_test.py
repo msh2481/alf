@@ -16,6 +16,7 @@
 from absl.testing import parameterized
 from absl import logging
 import functools
+import random
 import time
 import torch
 
@@ -234,12 +235,13 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
 
     def test_representation_learning(self):
         sub_ctor = functools.partial(CriticNetwork,
-                                     joint_fc_layer_params=(32, 64, 512),
+                                     joint_fc_layer_params=(512, 512, 512),
                                      use_fc_ln=True)
         # sub_ctor = functools.partial(CriticNetwork, joint_fc_layer_params=(256, 256,), use_fc_ln=True)
         critic_ctor = functools.partial(RandomizedPriorCriticNetwork,
                                         network_ctor=sub_ctor)
-        num_trials = 20
+        num_trials = 200
+        num_bootstrap = 1000
         num_inputs = 64
         lr = 0.01
         max_steps = 10000
@@ -330,6 +332,24 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
                 q3_idx - q1_idx) if q3_idx > q1_idx else sorted_steps[0]
             print(
                 f"Interquartile mean steps (converged trials): {iqm_steps:.1f}"
+            )
+            bootstrap_means = []
+            for _ in range(num_bootstrap):
+                bootstrap_sample = random.choices(converged_steps_only,
+                                                  k=len(converged_steps_only))
+                mean_bs = sum(bootstrap_sample) / len(bootstrap_sample)
+                bootstrap_means.append(mean_bs)
+            bootstrap_means_sorted = sorted(bootstrap_means)
+            mean_estimate = sum(bootstrap_means) / len(bootstrap_means)
+            p10_idx = int(len(bootstrap_means_sorted) * 0.1)
+            p90_idx = int(len(bootstrap_means_sorted) * 0.9)
+            mean_p10 = bootstrap_means_sorted[p10_idx]
+            mean_p90 = bootstrap_means_sorted[p90_idx]
+            print(
+                f"\nBootstrap mean estimate ({num_bootstrap} iterations): {mean_estimate:.1f}"
+            )
+            print(
+                f"Bootstrap confidence bounds (10th/90th percentiles): [{mean_p10:.1f}, {mean_p90:.1f}]"
             )
         print("=" * 60 + "\n")
         self.assertGreater(converged_trials, 0,

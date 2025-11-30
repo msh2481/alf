@@ -25,18 +25,19 @@ from functools import partial
 from alf.environments.simple.bipolar_chain import BipolarChain
 from alf.environments import suite_gym
 
-ENV_NAME = "BipolarChain-medium-sparse-onehot-continuous-v0"
-DISCRETE = False
-NUM_COPIES = 4
+ENV_NAME = "BipolarChain-medium-dense-onehot-continuous-v0"
+DISCRETE = "discrete" in ENV_NAME
+NUM_COPIES = 1
+RESET_PERIOD = 200000
 BATCH_SIZE = 64 * NUM_COPIES
 ENV_COUNTS = NUM_COPIES
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
 SEED_VERSION = True
 
-HIDDEN_LAYERS = (32, 64, 512)
+HIDDEN_LAYERS = (256, 256)
 
-PRIOR_SCALE = 0.1
+PRIOR_SCALE = 1e-4
 PARAMETER_TARGET_STD = 0.0
 PARAMETER_TARGET_ALPHA = 0.0
 REWARD_NOISE_STD = 0.0
@@ -98,7 +99,7 @@ alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
            gamma=0.9)
 
-alf.config('ConcurrentAlgorithm', agent_reset_period=100)
+alf.config('ConcurrentAlgorithm', agent_reset_period=RESET_PERIOD)
 
 alf.config(
     "ActionRepulsionAlgorithm",
