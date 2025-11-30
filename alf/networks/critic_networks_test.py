@@ -234,15 +234,16 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
 
     def test_representation_learning(self):
         sub_ctor = functools.partial(CriticNetwork,
-                                     joint_fc_layer_params=(256, ),
+                                     joint_fc_layer_params=(32, 64, 512),
                                      use_fc_ln=True)
+        # sub_ctor = functools.partial(CriticNetwork, joint_fc_layer_params=(256, 256,), use_fc_ln=True)
         critic_ctor = functools.partial(RandomizedPriorCriticNetwork,
                                         network_ctor=sub_ctor)
         num_trials = 20
-        num_inputs = 4
-        lr = 0.001
+        num_inputs = 64
+        lr = 0.01
         max_steps = 10000
-        batch_ratio = 1.0
+        batch_ratio = 0.1
         batch_size = int(num_inputs * batch_ratio)
         print("\n" + "=" * 60)
         print(f"Starting representation learning test")
@@ -253,7 +254,7 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
         convergence_steps = []
         for trial in range(num_trials):
             print(f"\nTrial {trial + 1}/{num_trials}")
-            # X_train, signs = self._create_dary_data(num_inputs)
+            # X_train, signs = self._create_dary_data(num_inputs, base=4)
             X_train, signs = self._create_onehot_data(num_inputs)
             obs_size = X_train.shape[1]
             obs_spec = TensorSpec((obs_size, ), torch.float32)
@@ -275,21 +276,28 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
                         num_inputs, 1, dtype=torch.float32)
                     q_pos, _ = critic((X_train, actions_pos))
                     q_neg, _ = critic((X_train, actions_neg))
-                    comparisons = (q_pos > q_neg).float() * 2 - 1
-                    matches_signs = (comparisons == signs).all().item()
-                if matches_signs:
+                    comparisons = (q_pos > q_neg)
+                    matches = (comparisons.flatten() == (signs > 0).flatten())
+                    matches_all_signs = matches.all().item()
+                    matches_count = matches.sum().item()
+                if matches_all_signs:
                     converged = True
                     print(f"  Converged at step {step}")
                     convergence_steps.append(step)
                     break
                 batch_indices = torch.randperm(num_inputs)[:batch_size]
                 X_batch = X_train[batch_indices]
-                signs_batch = signs[batch_indices]
-                actions_batch = 2 * torch.randint(
-                    0, 2, (batch_size, 1), dtype=torch.float32) - 1
-                targets_batch = signs_batch.unsqueeze(
-                    1) * actions_batch.squeeze(1)
-                q_values, _ = critic((X_batch, actions_batch))
+                signs_batch = signs[batch_indices].view(batch_size, 1)
+                X_batch_paired = torch.cat([X_batch, X_batch], dim=0)
+                signs_batch_paired = torch.cat([signs_batch, signs_batch],
+                                               dim=0)
+                actions_batch = torch.cat(
+                    [torch.ones(batch_size, 1), -torch.ones(batch_size, 1)],
+                    dim=0)
+                targets_batch = (signs_batch_paired * actions_batch).flatten()
+
+                q_values, _ = critic((X_batch_paired, actions_batch))
+                assert q_values.shape == targets_batch.shape, f"q_values.shape: {q_values.shape}, targets_batch.shape: {targets_batch.shape}"
                 loss = ((q_values - targets_batch)**2).mean()
                 optimizer.zero_grad()
                 loss.backward()
