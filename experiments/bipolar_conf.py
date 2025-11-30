@@ -34,10 +34,7 @@ UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
 SEED_VERSION = True
 
-HIDDEN_LAYERS = (
-    256,
-    256,
-)
+HIDDEN_LAYERS = (32, 64, 512)
 
 PRIOR_SCALE = 0.1
 PARAMETER_TARGET_STD = 0.0
@@ -101,7 +98,7 @@ alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
            gamma=0.9)
 
-alf.config('ConcurrentAlgorithm', agent_reset_period=30)
+alf.config('ConcurrentAlgorithm', agent_reset_period=100)
 
 alf.config(
     "ActionRepulsionAlgorithm",

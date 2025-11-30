@@ -607,7 +607,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             if actor_losses:
                 actor_plotter.set_history(f"actor/{alg_idx}", actor_losses)
         actor_plots = [
-            actor_plotter.get_plot_string(name)
+            actor_plotter.get_plot_string(name, log_scale=True)
             for name in actor_plotter.get_metric_names()
         ]
         if actor_plots:
@@ -622,7 +622,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             if critic_losses:
                 critic_plotter.set_history(f"critic/{alg_idx}", critic_losses)
         critic_plots = [
-            critic_plotter.get_plot_string(name)
+            critic_plotter.get_plot_string(name, log_scale=True)
             for name in critic_plotter.get_metric_names()
         ]
         if critic_plots:

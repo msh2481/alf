@@ -14,6 +14,7 @@
 """ASCII metric plotting utilities using plotille."""
 
 from collections import defaultdict
+import math
 import re
 import plotille
 
@@ -81,12 +82,14 @@ class AsciiMetricPlotter:
 
     def get_plot_string(self,
                         metric_name: str,
-                        use_colors: bool = True) -> str:
+                        use_colors: bool = True,
+                        log_scale: bool = False) -> str:
         """Get ASCII plot string for a single metric.
         
         Args:
             metric_name: name of the metric to plot
             use_colors: if True, include ANSI color codes; if False, strip them
+            log_scale: if True, use logarithmic scale for y-axis
         
         Returns a string containing the ASCII chart with:
         - Scatter points showing raw data
@@ -103,6 +106,9 @@ class AsciiMetricPlotter:
         if len(values) < 2:
             return f"{metric_name}: only {len(values)} point(s), need at least 2"
 
+        if log_scale:
+            values = [math.log10(v + 1e-10) for v in values]
+
         smoothed = self._smooth(values)
 
         y_min, y_max = min(values), max(values)
@@ -114,7 +120,8 @@ class AsciiMetricPlotter:
         fig.set_x_limits(min_=min(steps), max_=max(steps))
         fig.set_y_limits(min_=y_min - y_margin, max_=y_max + y_margin)
         fig.x_label = "env_steps"
-        fig.y_label = metric_name
+        y_label = f"{metric_name} (log10)" if log_scale else metric_name
+        fig.y_label = y_label
 
         fig.color_mode = "names"
         fig.scatter(steps, values, lc="cyan", label="raw")
