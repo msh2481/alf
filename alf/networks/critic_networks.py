@@ -29,7 +29,6 @@ from .encoding_networks import EncodingNetwork, LSTMEncodingNetwork, ParallelEnc
 from .network import Network
 from .preprocessors import CosineEmbeddingPreprocessor
 import alf.layers as layers
-from sklearn.kernel_approximation import RBFSampler
 
 
 def _check_action_specs_for_critic_networks(action_spec,
@@ -524,6 +523,7 @@ class CriticQuantileNetwork(EncodingNetwork):
             return super().make_parallel(n, True)
 
 
+@alf.configurable
 class RBFCriticNetwork(Network):
 
     def __init__(self,
@@ -537,7 +537,7 @@ class RBFCriticNetwork(Network):
                  action_fc_layer_params=None,
                  joint_fc_layer_params=None,
                  n_components: int = 1000,
-                 gamma: float = 10.0,
+                 gamma: float = 3.0,
                  action_weight: float = 1.0,
                  last_kernel_initializer=None,
                  name="RBFCriticNetwork"):
@@ -546,7 +546,21 @@ class RBFCriticNetwork(Network):
         self._n_components = n_components
         self._gamma = gamma
         self._action_weight = action_weight
-        self._joint_sampler = None
+        observation_spec, action_spec = input_tensor_spec
+        input_dim = observation_spec.numel + action_spec.numel
+
+        rbf_kernel_initializer = functools.partial(torch.nn.init.normal_,
+                                                   mean=0.0,
+                                                   std=1.0)
+        rbf_bias_initializer = functools.partial(torch.nn.init.uniform_,
+                                                 a=0.0,
+                                                 b=2 * math.pi)
+
+        self.rbf_layer = layers.FC(input_dim,
+                                   n_components,
+                                   kernel_initializer=rbf_kernel_initializer,
+                                   bias_initializer=rbf_bias_initializer)
+
         if last_kernel_initializer is None:
             last_kernel_initializer = functools.partial(torch.nn.init.normal_,
                                                         mean=0.0,
@@ -555,25 +569,18 @@ class RBFCriticNetwork(Network):
         self.final_layer = layers.FC(
             n_components, 1, kernel_initializer=last_kernel_initializer)
 
-    def _encode_joint(self, observation, action):
+    def forward(self, observation_action, state=()):
+        observation, action = observation_action
         if not isinstance(observation, torch.Tensor):
             observation = torch.tensor(observation)
         if not isinstance(action, torch.Tensor):
             action = torch.tensor(action)
         action = action * self._action_weight
-        # print("l2(observation):", torch.norm(observation, p=2).item())
-        # print("l2(action):", torch.norm(action, p=2).item())
         joint = torch.cat([observation, action], dim=-1)
-        if self._joint_sampler is None:
-            self._joint_sampler = RBFSampler(n_components=self._n_components,
-                                             gamma=self._gamma).fit(joint)
-        return torch.tensor(self._joint_sampler.transform(joint),
-                            dtype=torch.float32)
-
-    def forward(self, observation_action, state=()):
-        observation, action = observation_action
-        joint_encoded = self._encode_joint(observation, action)
-        return self.final_layer(joint_encoded).squeeze(-1), state
+        joint = joint * self._gamma
+        rbf_output = self.rbf_layer(joint)
+        sin_output = torch.sin(rbf_output)
+        return self.final_layer(sin_output).squeeze(-1), state
 
 
 @alf.configurable

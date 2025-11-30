@@ -17,7 +17,7 @@ from alf.algorithms.seed_sampling import SeedDqnAlgorithm, SeedSacAlgorithm
 from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.dqn_algorithm import DqnAlgorithm
 from alf.algorithms.action_repulsion_algorithm import ActionRepulsionAlgorithm
-from alf.networks import QNetwork, RandomizedPriorQNetwork, CriticNetwork, RandomizedPriorCriticNetwork
+from alf.networks import QNetwork, RandomizedPriorQNetwork, CriticNetwork, RandomizedPriorCriticNetwork, RBFCriticNetwork
 from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetwork
 from alf.utils.losses import element_wise_squared_loss
 from alf.utils.math_ops import clipped_exp
@@ -70,11 +70,15 @@ else:
                    state_dependent_std=True,
                    std_transform=clipped_exp,
                    scale_distribution=True))
-    alf.config('CriticNetwork',
-               joint_fc_layer_params=HIDDEN_LAYERS,
-               use_fc_ln=True)
+    # alf.config('CriticNetwork',
+    #            joint_fc_layer_params=HIDDEN_LAYERS,
+    #            use_fc_ln=True)
+    alf.config('RBFCriticNetwork',
+               n_components=1000,
+               gamma=0.5,
+               action_weight=1.0)
     alf.config('RandomizedPriorCriticNetwork',
-               network_ctor=CriticNetwork,
+               network_ctor=RBFCriticNetwork,
                prior_scale=PRIOR_SCALE,
                trainable_init_std=1e-3)
     sac_kwargs = {
