@@ -54,6 +54,7 @@ setup(
         'torchvision==0.21.0',
         'wheel',
         'yapf==0.43.0',
+        'scikit-learn==1.7.2',
     ],  # And any other dependencies alf needs
     cmdclass={'build_ext': build_ext},
     extras_require={

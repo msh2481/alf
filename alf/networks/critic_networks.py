@@ -29,6 +29,7 @@ from .encoding_networks import EncodingNetwork, LSTMEncodingNetwork, ParallelEnc
 from .network import Network
 from .preprocessors import CosineEmbeddingPreprocessor
 import alf.layers as layers
+from sklearn.kernel_approximation import RBFSampler
 
 
 def _check_action_specs_for_critic_networks(action_spec,
@@ -523,6 +524,58 @@ class CriticQuantileNetwork(EncodingNetwork):
             return super().make_parallel(n, True)
 
 
+class RBFCriticNetwork(Network):
+
+    def __init__(self,
+                 input_tensor_spec,
+                 observation_input_processors=None,
+                 observation_preprocessing_combiner=None,
+                 observation_conv_layer_params=None,
+                 observation_fc_layer_params=None,
+                 action_input_processors=None,
+                 action_preprocessing_combiner=None,
+                 action_fc_layer_params=None,
+                 joint_fc_layer_params=None,
+                 n_components: int = 1000,
+                 gamma: float = 10.0,
+                 action_weight: float = 1.0,
+                 last_kernel_initializer=None,
+                 name="RBFCriticNetwork"):
+        super().__init__(input_tensor_spec=input_tensor_spec, name=name)
+
+        self._n_components = n_components
+        self._gamma = gamma
+        self._action_weight = action_weight
+        self._joint_sampler = None
+        if last_kernel_initializer is None:
+            last_kernel_initializer = functools.partial(torch.nn.init.normal_,
+                                                        mean=0.0,
+                                                        std=math.sqrt(
+                                                            1 / n_components))
+        self.final_layer = layers.FC(
+            n_components, 1, kernel_initializer=last_kernel_initializer)
+
+    def _encode_joint(self, observation, action):
+        if not isinstance(observation, torch.Tensor):
+            observation = torch.tensor(observation)
+        if not isinstance(action, torch.Tensor):
+            action = torch.tensor(action)
+        action = action * self._action_weight
+        # print("l2(observation):", torch.norm(observation, p=2).item())
+        # print("l2(action):", torch.norm(action, p=2).item())
+        joint = torch.cat([observation, action], dim=-1)
+        if self._joint_sampler is None:
+            self._joint_sampler = RBFSampler(n_components=self._n_components,
+                                             gamma=self._gamma).fit(joint)
+        return torch.tensor(self._joint_sampler.transform(joint),
+                            dtype=torch.float32)
+
+    def forward(self, observation_action, state=()):
+        observation, action = observation_action
+        joint_encoded = self._encode_joint(observation, action)
+        return self.final_layer(joint_encoded).squeeze(-1), state
+
+
 @alf.configurable
 class RandomizedPriorCriticNetwork(Network):
     """A CriticNetwork augmented with a randomized prior function.
@@ -589,8 +642,6 @@ class RandomizedPriorCriticNetwork(Network):
         # Freeze the prior network
         for param in self._prior_net.parameters():
             param.requires_grad = False
-
-        self._output_spec = self._trainable_net.output_spec
 
     def _get_last_layer_input_dim(self, net):
         """Find the input dimension of the last FC layer."""

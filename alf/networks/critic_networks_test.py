@@ -16,13 +16,12 @@
 from absl.testing import parameterized
 from absl import logging
 import functools
-import random
 import time
 import torch
 
 import alf
 from alf.tensor_specs import TensorSpec, BoundedTensorSpec
-from alf.networks import CriticNetwork, CriticRNNNetwork, RandomizedPriorCriticNetwork
+from alf.networks import CriticNetwork, CriticRNNNetwork, RandomizedPriorCriticNetwork, RBFCriticNetwork
 from alf.networks.network import NaiveParallelNetwork
 from alf.networks.network_test import test_net_copy
 from alf.networks.preprocessors import EmbeddingPreprocessor
@@ -234,18 +233,37 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
         return X_train, signs
 
     def test_representation_learning(self):
-        sub_ctor = functools.partial(CriticNetwork,
-                                     joint_fc_layer_params=(512, 512, 512),
-                                     use_fc_ln=True)
+        sub_ctor = functools.partial(RBFCriticNetwork,
+                                     n_components=1000,
+                                     gamma=1.0,
+                                     action_weight=1.0)
         # sub_ctor = functools.partial(CriticNetwork, joint_fc_layer_params=(256, 256,), use_fc_ln=True)
         critic_ctor = functools.partial(RandomizedPriorCriticNetwork,
                                         network_ctor=sub_ctor)
-        num_trials = 200
-        num_bootstrap = 1000
+
+        # critic = critic_ctor(input_tensor_spec=(TensorSpec((10, ), torch.float32), TensorSpec((1, ), torch.float32)))
+
+        # obs_A = torch.randn(1, 10)
+        # action_A = torch.randn(1, 1)
+        # obs_B = torch.randn(1, 10)
+        # action_B = torch.randn(1, 1)
+        # xs = []
+        # ys = []
+        # for alpha in torch.linspace(0, 1, 100):
+        #     xs.append(alpha)
+        #     mid_obs = alpha * obs_A + (1 - alpha) * obs_B
+        #     mid_action = alpha * action_A + (1 - alpha) * action_B
+        #     y = critic((mid_obs, mid_action))[0].detach().item()
+        #     ys.append(y)
+        # from matplotlib import pyplot as plt
+        # plt.plot(xs, ys)
+        # plt.show()
+
+        num_trials = 20
         num_inputs = 64
         lr = 0.01
         max_steps = 10000
-        batch_ratio = 0.1
+        batch_ratio = 1.0
         batch_size = int(num_inputs * batch_ratio)
         print("\n" + "=" * 60)
         print(f"Starting representation learning test")
@@ -256,8 +274,8 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
         convergence_steps = []
         for trial in range(num_trials):
             print(f"\nTrial {trial + 1}/{num_trials}")
-            # X_train, signs = self._create_dary_data(num_inputs, base=4)
-            X_train, signs = self._create_onehot_data(num_inputs)
+            X_train, signs = self._create_dary_data(num_inputs, base=4)
+            # X_train, signs = self._create_onehot_data(num_inputs)
             obs_size = X_train.shape[1]
             obs_spec = TensorSpec((obs_size, ), torch.float32)
             action_spec = BoundedTensorSpec((1, ),
@@ -332,24 +350,6 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
                 q3_idx - q1_idx) if q3_idx > q1_idx else sorted_steps[0]
             print(
                 f"Interquartile mean steps (converged trials): {iqm_steps:.1f}"
-            )
-            bootstrap_means = []
-            for _ in range(num_bootstrap):
-                bootstrap_sample = random.choices(converged_steps_only,
-                                                  k=len(converged_steps_only))
-                mean_bs = sum(bootstrap_sample) / len(bootstrap_sample)
-                bootstrap_means.append(mean_bs)
-            bootstrap_means_sorted = sorted(bootstrap_means)
-            mean_estimate = sum(bootstrap_means) / len(bootstrap_means)
-            p10_idx = int(len(bootstrap_means_sorted) * 0.1)
-            p90_idx = int(len(bootstrap_means_sorted) * 0.9)
-            mean_p10 = bootstrap_means_sorted[p10_idx]
-            mean_p90 = bootstrap_means_sorted[p90_idx]
-            print(
-                f"\nBootstrap mean estimate ({num_bootstrap} iterations): {mean_estimate:.1f}"
-            )
-            print(
-                f"Bootstrap confidence bounds (10th/90th percentiles): [{mean_p10:.1f}, {mean_p90:.1f}]"
             )
         print("=" * 60 + "\n")
         self.assertGreater(converged_trials, 0,
