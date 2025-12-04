@@ -20,11 +20,12 @@ import torch.nn as nn
 from absl import logging
 import alf
 from alf.algorithms.config import TrainerConfig
+from alf.algorithms.debug_callback import DebugCallback
 from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
 from alf.data_structures import AlgStep, Experience, LossInfo, TimeStep
 from alf.tensor_specs import TensorSpec
 from alf.utils import common
-from alf.utils.common import slice_nested, scatter_and_sum_nested
+from alf.nest import slice_nested, scatter_and_sum_nested
 from alf.nest_formatter import format_nest
 from alf.utils.dist_utils import distributions_to_params, params_to_distributions, extract_spec
 
@@ -45,43 +46,34 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         optimizer=None,
         debug_summaries: bool = False,
         name: str = "ConcurrentAlgorithm",
-        batch_size=None,
-        env_counts=None,
-        unroll_length=None,
-        mini_batch_length=None,
         use_exploration_seeds: bool = True,
         use_parallel_training: bool = True,
         num_parallel_workers: Optional[int] = None,
         video_record_interval: int | None = None,
         return_logging_interval: int = 100,
         agent_reset_period: int | None = None,
-        debug_callback=None,
+        debug_env=None,
     ):
-        assert batch_size is not None, "batch_size must be provided"
-        assert env_counts is not None, "env_counts must be provided"
-        assert unroll_length is not None, "unroll_length must be provided"
-        assert mini_batch_length is not None, "mini_batch_length must be provided"
-        assert batch_size % num_copies == 0, f"batch_size {batch_size} must be a multiple of num_copies {num_copies}"
-        assert env_counts % num_copies == 0, f"env_counts {env_counts} must be a multiple of num_copies {num_copies}"
-        self._batch_size = batch_size
-        self._env_counts = env_counts
-        self._unroll_length = unroll_length
-        self._mini_batch_length = mini_batch_length
+
+        self._batch_size = alf.get_config_value(
+            "TrainerConfig.mini_batch_size")
+        self._unroll_length = alf.get_config_value(
+            "TrainerConfig.unroll_length")
+        self._mini_batch_length = alf.get_config_value(
+            "TrainerConfig.mini_batch_length")
+        self._env_counts = alf.get_config_value(
+            "create_environment.num_parallel_environments")
+        assert self._batch_size % num_copies == 0, f"batch_size {self._batch_size} must be a multiple of num_copies {num_copies}"
+        assert self._env_counts % num_copies == 0, f"env_counts {self._env_counts} must be a multiple of num_copies {num_copies}"
 
         temp_alg = algorithm_ctor(observation_spec=observation_spec,
                                   action_spec=action_spec,
                                   reward_spec=reward_spec)
         is_on_policy = temp_alg.on_policy
-        train_state_spec = [
-            temp_alg.train_state_spec for _ in range(num_copies)
-        ]
-        rollout_state_spec = [
-            temp_alg.rollout_state_spec for _ in range(num_copies)
-        ]
-        predict_state_spec = [
-            temp_alg.predict_state_spec for _ in range(num_copies)
-        ]
         del temp_alg
+        train_state_spec = ()
+        rollout_state_spec = ()
+        predict_state_spec = ()
 
         super().__init__(
             observation_spec=observation_spec,
@@ -138,7 +130,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         self._train_step_counter = 0
 
         # Per-algorithm episode return tracking
-        self._per_env_cumulative_reward = torch.zeros(env_counts)
+        self._per_env_cumulative_reward = torch.zeros(num_copies)
         self._per_alg_returns: dict[int, list[tuple[int, float]]] = {
             i: []
             for i in range(num_copies)
@@ -157,7 +149,10 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
 
         self._agent_reset_period = agent_reset_period
         self._next_agent_to_reset = 0
-        self._debug_callback = debug_callback
+
+        self._debug_callback = None
+        if debug_env is not None:
+            self._debug_callback = DebugCallback(debug_env=debug_env)
 
     def _get_most_recently_reset_agent(self) -> int:
         """Get the index of the most recently reset agent."""

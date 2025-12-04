@@ -14,6 +14,7 @@
 """Unittests for nest.py"""
 
 import torch
+import numpy as np
 
 from absl.testing import parameterized
 import collections
@@ -583,6 +584,219 @@ class TestTransposeNest(alf.test.TestCase):
             transposed_nest2,
             dict(x=NTuple(a=3, b=5),
                  y=dict(n=NTuple(a=1, b=1), m=NTuple(a=2, b=3))))
+
+
+class TestSliceNested(alf.test.TestCase):
+
+    def test_slice_nested_batch_major(self):
+        value = NTuple(a=torch.tensor([[1., 2.], [3., 4.], [5., 6.]]),
+                       b=dict(x=torch.tensor([10., 20., 30.])))
+        indices = torch.tensor([0, 2])
+        result = nest.slice_nested(value, indices, time_major=False)
+        expected = NTuple(a=torch.tensor([[1., 2.], [5., 6.]]),
+                          b=dict(x=torch.tensor([10., 30.])))
+        nest.map_structure(self.assertTensorEqual, result, expected)
+
+    def test_slice_nested_time_major(self):
+        value = NTuple(
+            a=torch.tensor([[[1., 2.], [3., 4.], [5., 6.]],
+                            [[7., 8.], [9., 10.], [11., 12.]]]),
+            b=dict(x=torch.tensor([[10., 20., 30.], [40., 50., 60.]])))
+        indices = torch.tensor([0, 2])
+        result = nest.slice_nested(value, indices, time_major=True)
+        expected = NTuple(a=torch.tensor([[[1., 2.], [5., 6.]],
+                                          [[7., 8.], [11., 12.]]]),
+                          b=dict(x=torch.tensor([[10., 30.], [40., 60.]])))
+        nest.map_structure(self.assertTensorEqual, result, expected)
+
+    def test_slice_nested_single_element(self):
+        value = NTuple(a=torch.tensor([[1., 2.]]), b=torch.tensor([10.]))
+        indices = torch.tensor([0])
+        result = nest.slice_nested(value, indices)
+        expected = NTuple(a=torch.tensor([[1., 2.]]), b=torch.tensor([10.]))
+        nest.map_structure(self.assertTensorEqual, result, expected)
+
+    def test_slice_nested_empty_indices(self):
+        value = NTuple(a=torch.tensor([[1., 2.], [3., 4.]]),
+                       b=torch.tensor([10., 20.]))
+        indices = torch.tensor([], dtype=torch.long)
+        result = nest.slice_nested(value, indices)
+        expected = NTuple(a=torch.tensor([],
+                                         dtype=torch.float32).reshape(0, 2),
+                          b=torch.tensor([], dtype=torch.float32))
+        nest.map_structure(self.assertTensorEqual, result, expected)
+
+
+class TestScatterNested(alf.test.TestCase):
+
+    def test_scatter_nested_batch_major(self):
+        value = NTuple(a=torch.tensor([[1., 2.], [3., 4.]]),
+                       b=dict(x=torch.tensor([10., 20.])))
+        indices = torch.tensor([1, 3])
+        batch_size = 5
+        scattered, spec = nest.scatter_nested(value,
+                                              indices,
+                                              batch_size,
+                                              time_major=False)
+        expected = NTuple(a=torch.zeros(5, 2), b=dict(x=torch.zeros(5)))
+        expected.a[1] = torch.tensor([1., 2.])
+        expected.a[3] = torch.tensor([3., 4.])
+        expected.b['x'][1] = 10.
+        expected.b['x'][3] = 20.
+        nest.map_structure(self.assertTensorEqual, scattered, expected)
+
+    def test_scatter_nested_time_major(self):
+        value = NTuple(a=torch.tensor([[[1., 2.], [3., 4.]],
+                                       [[5., 6.], [7., 8.]]]),
+                       b=dict(x=torch.tensor([[10., 20.], [30., 40.]])))
+        indices = torch.tensor([0, 2])
+        batch_size = 4
+        scattered, spec = nest.scatter_nested(value,
+                                              indices,
+                                              batch_size,
+                                              time_major=True)
+        expected = NTuple(a=torch.zeros(2, 4, 2), b=dict(x=torch.zeros(2, 4)))
+        expected.a[:, 0] = torch.tensor([[1., 2.], [5., 6.]])
+        expected.a[:, 2] = torch.tensor([[3., 4.], [7., 8.]])
+        expected.b['x'][:, 0] = torch.tensor([10., 30.])
+        expected.b['x'][:, 2] = torch.tensor([20., 40.])
+        nest.map_structure(self.assertTensorEqual, scattered, expected)
+
+    def test_scatter_nested_scalar_tensor(self):
+        value = torch.tensor([1., 2.])
+        indices = torch.tensor([0, 2])
+        batch_size = 4
+        scattered, spec = nest.scatter_nested(value, indices, batch_size)
+        expected = torch.zeros(4)
+        expected[0] = 1.
+        expected[2] = 2.
+        self.assertTensorEqual(scattered, expected)
+
+
+class TestScatterAndSumNested(alf.test.TestCase):
+
+    def test_scatter_and_sum_nested_batch_major(self):
+        values_by_alg = {
+            0: (NTuple(a=torch.tensor([[1., 2.]]),
+                       b=torch.tensor([10.])), torch.tensor([0])),
+            1: (NTuple(a=torch.tensor([[3., 4.]]),
+                       b=torch.tensor([20.])), torch.tensor([1])),
+            2: (NTuple(a=torch.tensor([[5., 6.]]),
+                       b=torch.tensor([30.])), torch.tensor([0]))
+        }
+        batch_size = 2
+        result = nest.scatter_and_sum_nested(values_by_alg,
+                                             batch_size,
+                                             time_major=False)
+        expected = NTuple(a=torch.tensor([[6., 8.], [3., 4.]]),
+                          b=torch.tensor([40., 20.]))
+        nest.map_structure(self.assertTensorEqual, result, expected)
+
+    def test_scatter_and_sum_nested_time_major(self):
+        values_by_alg = {
+            0: (NTuple(a=torch.tensor([[[1., 2.]]]),
+                       b=torch.tensor([[10.]])), torch.tensor([0])),
+            1: (NTuple(a=torch.tensor([[[3., 4.]]]),
+                       b=torch.tensor([[20.]])), torch.tensor([1]))
+        }
+        batch_size = 2
+        result = nest.scatter_and_sum_nested(values_by_alg,
+                                             batch_size,
+                                             time_major=True)
+        expected = NTuple(a=torch.tensor([[[1., 2.], [3., 4.]]]),
+                          b=torch.tensor([[10., 20.]]))
+        nest.map_structure(self.assertTensorEqual, result, expected)
+
+    def test_scatter_and_sum_nested_none_value(self):
+        values_by_alg = {
+            0: (None, torch.tensor([0])),
+            1: (NTuple(a=torch.tensor([[1., 2.]]),
+                       b=torch.tensor([10.])), torch.tensor([1]))
+        }
+        batch_size = 2
+        result = nest.scatter_and_sum_nested(values_by_alg, batch_size)
+        expected = NTuple(a=torch.tensor([[0., 0.], [1., 2.]]),
+                          b=torch.tensor([0., 10.]))
+        nest.map_structure(self.assertTensorEqual, result, expected)
+
+
+class TestHashNested(alf.test.TestCase):
+
+    def test_hash_nested_tensor(self):
+        nested = torch.tensor([1., 2., 3.])
+        hash1 = nest.hash_nested(nested)
+        hash2 = nest.hash_nested(nested)
+        self.assertEqual(hash1, hash2)
+
+    def test_hash_nested_numpy_array(self):
+        nested = np.array([1., 2., 3.])
+        hash1 = nest.hash_nested(nested)
+        hash2 = nest.hash_nested(nested)
+        self.assertEqual(hash1, hash2)
+
+    def test_hash_nested_scalars(self):
+        nested1 = NTuple(a=1.5, b=42)
+        nested2 = NTuple(a=1.5, b=42)
+        nested3 = NTuple(a=1.5, b=43)
+        hash1 = nest.hash_nested(nested1)
+        hash2 = nest.hash_nested(nested2)
+        hash3 = nest.hash_nested(nested3)
+        self.assertEqual(hash1, hash2)
+        self.assertNotEqual(hash1, hash3)
+
+    def test_hash_nested_complex_structure(self):
+        nested = NTuple(a=dict(x=torch.tensor([1., 2.]), y=np.array([3., 4.])),
+                        b=[torch.tensor([5.]), 6.5])
+        hash1 = nest.hash_nested(nested)
+        hash2 = nest.hash_nested(nested)
+        self.assertEqual(hash1, hash2)
+
+    def test_hash_nested_different_seeds(self):
+        nested = torch.tensor([1., 2., 3.])
+        hash1 = nest.hash_nested(nested, seed=0)
+        hash2 = nest.hash_nested(nested, seed=1)
+        self.assertNotEqual(hash1, hash2)
+
+    def test_hash_nested_empty(self):
+        nested = []
+        hash_val = nest.hash_nested(nested)
+        self.assertIsInstance(hash_val, int)
+
+
+class TestSeedRandNested(alf.test.TestCase):
+
+    def test_seed_rand_nested_range(self):
+        nested = torch.tensor([1., 2., 3.])
+        result = nest.seed_rand_nested(nested)
+        self.assertGreaterEqual(result, 0.0)
+        self.assertLess(result, 1.0)
+
+    def test_seed_rand_nested_deterministic(self):
+        nested = NTuple(a=torch.tensor([1., 2.]),
+                        b=dict(x=3.5, y=np.array([4., 5.])))
+        result1 = nest.seed_rand_nested(nested, seed=42)
+        result2 = nest.seed_rand_nested(nested, seed=42)
+        self.assertEqual(result1, result2)
+
+    def test_seed_rand_nested_different_seeds(self):
+        nested = torch.tensor([1., 2., 3.])
+        result1 = nest.seed_rand_nested(nested, seed=0)
+        result2 = nest.seed_rand_nested(nested, seed=1)
+        self.assertNotEqual(result1, result2)
+
+    def test_seed_rand_nested_different_inputs(self):
+        nested1 = torch.tensor([1., 2., 3.])
+        nested2 = torch.tensor([1., 2., 4.])
+        result1 = nest.seed_rand_nested(nested1, seed=0)
+        result2 = nest.seed_rand_nested(nested2, seed=0)
+        self.assertNotEqual(result1, result2)
+
+    def test_seed_rand_nested_complex_structure(self):
+        nested = NTuple(a=dict(x=torch.tensor([1., 2.]), y=[3, 4.5]),
+                        b=np.array([5., 6.]))
+        result = nest.seed_rand_nested(nested)
+        self.assertGreaterEqual(result, 0.0)
+        self.assertLess(result, 1.0)
 
 
 if __name__ == '__main__':

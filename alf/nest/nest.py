@@ -19,6 +19,7 @@ from absl import logging
 import cnest
 
 import torch
+import numpy as np
 
 from typing import Any
 
@@ -1075,3 +1076,154 @@ def sum_nest(nested: Nest):
         nested: a nested structure
     """
     return sum(flatten(nested))
+
+
+def slice_nested(value, indices, time_major=False):
+    """Slice a nested structure that may contain tensors and distributions.
+    
+    Args:
+        value: Nested structure of tensors and distributions to slice
+        indices: Indices to slice with
+        time_major: If True, slice along dimension 1 (for [T, B, ...]),
+                    otherwise slice along dimension 0 (for [B, ...])
+    
+    Returns:
+        Sliced nested structure
+    """
+    from alf.utils import dist_utils
+    spec = dist_utils.extract_spec(value, from_dim=1 if time_major else 0)
+    params = dist_utils.distributions_to_params(value)
+
+    def _slice_leaf(leaf):
+        if isinstance(leaf, torch.Tensor):
+            if time_major:
+                return leaf[:, indices]
+            else:
+                return leaf[indices]
+        else:
+            return leaf
+
+    sliced_params = map_structure(_slice_leaf, params)
+    return dist_utils.params_to_distributions(sliced_params, spec)
+
+
+def scatter_nested(value, indices, batch_size, time_major=False):
+    """Scatter a nested structure to full batch size with zeros elsewhere.
+    
+    Args:
+        value: Nested structure of tensors and distributions to scatter
+        indices: Indices where values should be placed
+        batch_size: Target full batch size
+        time_major: If True, scatter along dimension 1 (for [T, B, ...]),
+                    otherwise scatter along dimension 0 (for [B, ...])
+    
+    Returns:
+        Scattered nested structure with full batch size
+    """
+    from alf.utils import dist_utils
+    spec = dist_utils.extract_spec(value, from_dim=1 if time_major else 0)
+    params = dist_utils.distributions_to_params(value)
+
+    def _scatter_leaf(leaf):
+        if not isinstance(leaf, torch.Tensor):
+            return leaf
+        if time_major:
+            if leaf.ndim < 2:
+                return leaf
+            T = leaf.shape[0]
+            out_shape = [T, batch_size] + list(leaf.shape[2:])
+            result = torch.zeros(out_shape,
+                                 dtype=leaf.dtype,
+                                 device=leaf.device)
+            result[:, indices] = leaf
+        else:
+            if leaf.ndim < 1:
+                return leaf
+            out_shape = [batch_size] + list(leaf.shape[1:])
+            result = torch.zeros(out_shape,
+                                 dtype=leaf.dtype,
+                                 device=leaf.device)
+            result[indices] = leaf
+
+        return result
+
+    scattered_params = map_structure(_scatter_leaf, params)
+    return scattered_params, spec
+
+
+def scatter_and_sum_nested(values_by_alg, batch_size, time_major=False):
+    """Unslice scattered values by aggregating them.
+    
+    Args:
+        values_by_alg: dict mapping algorithm index -> (value, batch_indices)
+        batch_size: Target full batch size
+        time_major: If True, scatter along dimension 1 (for [T, B, ...]),
+                    otherwise scatter along dimension 0 (for [B, ...])
+    
+    Returns:
+        Aggregated nested structure with full batch size
+    """
+    from alf.utils import dist_utils, math_ops
+    result = None
+    spec = None
+    for alg_idx, (value, batch_indices) in values_by_alg.items():
+        if value is None:
+            continue
+        scattered, spec = scatter_nested(value,
+                                         batch_indices,
+                                         batch_size,
+                                         time_major=time_major)
+        if scattered is None:
+            continue
+        if result is None:
+            result = scattered
+        else:
+            result = map_structure(math_ops.add_ignore_empty, result,
+                                   scattered)
+    result = dist_utils.params_to_distributions(result, spec)
+    return result
+
+
+def hash_nested(nested, seed=0):
+    """Compute a hash of a nested structure containing tensors, arrays, and scalars.
+    
+    Args:
+        nested: Nested structure of tensors, numpy arrays, floats, ints, etc.
+    
+    Returns:
+        int: Hash value of the nested structure
+    """
+
+    def _to_bytes(leaf):
+        if isinstance(leaf, torch.Tensor):
+            arr = leaf.detach().cpu().numpy()
+            return arr.tobytes()
+        elif isinstance(leaf, np.ndarray):
+            return leaf.tobytes()
+        elif isinstance(leaf, (float, np.floating)):
+            return np.float64(leaf).tobytes()
+        elif isinstance(leaf, (int, np.integer)):
+            return np.int64(leaf & 0x7FFFFFFFFFFFFFFF).tobytes()
+        else:
+            raise TypeError(f"Unsupported type for hashing: {type(leaf)}")
+
+    flat = flatten(nested)
+    all_bytes = b''.join(
+        _to_bytes(leaf)
+        for leaf in flat) + np.int64(seed & 0x7FFFFFFFFFFFFFFF).tobytes()
+    return hash(all_bytes)
+
+
+def seed_rand_nested(nested, seed=0):
+    """Return a pseudo-random number based on the nested structure and seed.
+    
+    Args:
+        nested: Nested structure of tensors, numpy arrays, floats, ints, etc.
+        seed: Seed for the random number generator
+    
+    Returns:
+        float: Pseudo-random number based on the nested structure and seed
+    """
+    MOD = 2**16
+    hash_value = hash_nested(nested, seed)
+    return (hash_value % MOD) / MOD

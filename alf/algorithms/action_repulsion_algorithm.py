@@ -54,16 +54,10 @@ class ActionRepulsionAlgorithm(ConcurrentAlgorithm):
         repulsion_alpha: float = 0.0,
         repulsion_num_obs: int = 100,
         use_exploration_seeds: bool = True,
-        log_every_n_steps: int = 100,
         debug_env=None,
         video_record_interval: int | None = None,
         return_logging_interval: int = 100,
     ):
-        debug_callback = None
-        if debug_env is not None:
-            debug_callback = DebugCallback(debug_env=debug_env,
-                                           log_every_n_steps=log_every_n_steps)
-
         super().__init__(
             observation_spec=observation_spec,
             action_spec=action_spec,
@@ -83,7 +77,7 @@ class ActionRepulsionAlgorithm(ConcurrentAlgorithm):
             use_exploration_seeds=use_exploration_seeds,
             video_record_interval=video_record_interval,
             return_logging_interval=return_logging_interval,
-            debug_callback=debug_callback,
+            debug_env=debug_env,
         )
 
         self._repulsion_alpha = repulsion_alpha

@@ -22,7 +22,7 @@ from alf.algorithms.dqn_algorithm import DqnAlgorithm
 from alf.data_structures import LossInfo, TimeStep
 from alf.debug_logger import log
 from alf.nest_formatter import format_nest
-from alf.utils.common import seed_rand_nested
+from alf.nest import seed_rand_nested
 from alf.tensor_specs import BoundedTensorSpec, TensorSpec
 from typing import Callable, Optional, Union
 from alf.algorithms.config import TrainerConfig

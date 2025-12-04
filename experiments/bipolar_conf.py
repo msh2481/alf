@@ -16,7 +16,7 @@ import alf
 from alf.algorithms.seed_sampling import SeedDqnAlgorithm, SeedSacAlgorithm
 from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.dqn_algorithm import DqnAlgorithm
-from alf.algorithms.action_repulsion_algorithm import ActionRepulsionAlgorithm
+from alf.algorithms.concurrent_algorithm import ConcurrentAlgorithm
 from alf.networks import QNetwork, RandomizedPriorQNetwork, CriticNetwork, RandomizedPriorCriticNetwork, RBFCriticNetwork
 from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetwork
 from alf.utils.losses import element_wise_squared_loss
@@ -106,15 +106,10 @@ alf.config('OneStepTDLoss',
 alf.config('ConcurrentAlgorithm', agent_reset_period=RESET_PERIOD)
 
 alf.config(
-    "ActionRepulsionAlgorithm",
+    "ConcurrentAlgorithm",
     algorithm_ctor=SeedSacAlgorithm if SEED_VERSION else SacAlgorithm,
     optimizer=alf.optimizers.Adam(lr=2e-2, name='main'),
     num_copies=NUM_COPIES,
-    batch_size=BATCH_SIZE,
-    env_counts=ENV_COUNTS,
-    unroll_length=UNROLL_LENGTH,
-    mini_batch_length=MINI_BATCH_LENGTH,
-    log_every_n_steps=100,
     use_exploration_seeds=SEED_VERSION,
     debug_env=suite_gym.load(ENV_NAME),
     video_record_interval=None,
@@ -122,7 +117,7 @@ alf.config(
 
 # training config
 alf.config('TrainerConfig',
-           algorithm_ctor=ActionRepulsionAlgorithm,
+           algorithm_ctor=ConcurrentAlgorithm,
            initial_collect_steps=10,
            mini_batch_length=MINI_BATCH_LENGTH,
            mini_batch_size=BATCH_SIZE,
