@@ -55,6 +55,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         video_record_interval: int | None = None,
         return_logging_interval: int = 100,
         agent_reset_period: int | None = None,
+        debug_callback=None,
     ):
         assert batch_size is not None, "batch_size must be provided"
         assert env_counts is not None, "env_counts must be provided"
@@ -154,9 +155,9 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             for i in range(num_copies)
         }
 
-        # Agent reset tracking
         self._agent_reset_period = agent_reset_period
         self._next_agent_to_reset = 0
+        self._debug_callback = debug_callback
 
     def _get_most_recently_reset_agent(self) -> int:
         """Get the index of the most recently reset agent."""
@@ -414,6 +415,15 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         env_name = alf.get_config_value("create_environment.env_name")
         return env_load_fn(env_name, env_id=0)
 
+    def _call_debug_callback(self):
+        """Call the debug callback if it exists."""
+        if self._debug_callback is not None:
+            self._debug_callback(replay_buffer=self._replay_buffer,
+                                 algorithms=self._algorithms,
+                                 action_spec=self._action_spec,
+                                 num_copies=self._num_copies,
+                                 iter_number=self._train_step_counter)
+
     def after_train_iter(self, inputs: TimeStep, info):
         assert alf.nest.get_nest_shape(inputs)[:2] == (
             self._unroll_length, self._env_counts
@@ -426,6 +436,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         ) in sliced.items():
             self._algorithms[alg_idx].after_train_iter(sliced_inputs, info)
 
+        self._call_debug_callback()
         self._train_step_counter += 1
         root_dir = self._config.root_dir if self._config else "."
         if (self._video_record_interval is not None and

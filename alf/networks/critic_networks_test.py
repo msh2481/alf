@@ -233,11 +233,13 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
         return X_train, signs
 
     def test_representation_learning(self):
-        sub_ctor = functools.partial(RBFCriticNetwork,
-                                     n_components=1000,
-                                     gamma=3.0,
-                                     action_weight=1.0)
-        # sub_ctor = functools.partial(CriticNetwork, joint_fc_layer_params=(256, 256,), use_fc_ln=True)
+        # sub_ctor = functools.partial(RBFCriticNetwork,
+        #                              n_components=1000,
+        #                              gamma=3.0,
+        #                              action_weight=1.0)
+        sub_ctor = functools.partial(CriticNetwork,
+                                     joint_fc_layer_params=(1024, ),
+                                     use_fc_ln=False)
         critic_ctor = functools.partial(RandomizedPriorCriticNetwork,
                                         network_ctor=sub_ctor)
 
@@ -245,6 +247,8 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
             input_tensor_spec=(TensorSpec((10, ), torch.float32),
                                TensorSpec((1, ), torch.float32)))
 
+        for _ in range(1):
+            torch.randn(1, 10)
         obs_A = torch.randn(1, 10)
         action_A = torch.randn(1, 1)
         obs_B = torch.randn(1, 10)
@@ -252,10 +256,12 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
         xs = []
         ys = []
         for alpha in torch.linspace(0, 1, 100):
+            gamma = 10.0
             xs.append(alpha)
             mid_obs = alpha * obs_A + (1 - alpha) * obs_B
             mid_action = alpha * action_A + (1 - alpha) * action_B
-            y = critic((mid_obs, mid_action))[0].detach().item()
+            y = critic(
+                (mid_obs * gamma, mid_action * gamma))[0].detach().item()
             ys.append(y)
         from matplotlib import pyplot as plt
         plt.plot(xs, ys)

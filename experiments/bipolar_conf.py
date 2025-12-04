@@ -27,8 +27,8 @@ from alf.environments import suite_gym
 
 ENV_NAME = "BipolarChain-medium-dense-onehot-continuous-v0"
 DISCRETE = "discrete" in ENV_NAME
-NUM_COPIES = 1
-RESET_PERIOD = 200000
+NUM_COPIES = 4
+RESET_PERIOD = 200
 BATCH_SIZE = 64 * NUM_COPIES
 ENV_COUNTS = NUM_COPIES
 UNROLL_LENGTH = 1
@@ -37,7 +37,7 @@ SEED_VERSION = True
 
 HIDDEN_LAYERS = (256, 256)
 
-PRIOR_SCALE = 1e-4
+PRIOR_SCALE = 0.2
 PARAMETER_TARGET_STD = 0.0
 PARAMETER_TARGET_ALPHA = 0.0
 REWARD_NOISE_STD = 0.0
@@ -75,7 +75,7 @@ else:
     #            use_fc_ln=True)
     alf.config('RBFCriticNetwork',
                n_components=1000,
-               gamma=0.5,
+               gamma=0.8,
                action_weight=1.0)
     alf.config('RandomizedPriorCriticNetwork',
                network_ctor=RBFCriticNetwork,
