@@ -14,6 +14,7 @@
 
 import os
 import torch
+import torch.distributions as td
 import numpy as np
 from absl import logging
 import matplotlib.pyplot as plt
@@ -93,6 +94,69 @@ class DebugCallback:
 
         return get_q_values_fn
 
+    def _create_get_actor_fn(self, algorithms, action_spec, device):
+        """Create a function to get actor distribution parameters.
+
+        Returns a function that takes (alg_index, obs) and returns a dict
+        with 'mean' and 'std' scalars extracted from the actor's output distribution.
+        Handles device conversion and batch dimension automatically.
+
+        Args:
+            algorithms: List of algorithm instances
+            action_spec: Action tensor spec
+            device: Device to run computation on
+
+        Returns:
+            Callable: Function (alg_index, obs) -> {'mean': float, 'std': float}
+        """
+
+        def get_actor_fn(alg_index, obs):
+            obs = obs.to(device)
+            obs = obs.unsqueeze(0)
+
+            alg = algorithms[alg_index]
+
+            # Check if algorithm has actor network
+            if not hasattr(alg,
+                           '_actor_network') or alg._actor_network is None:
+                raise ValueError(
+                    f"Algorithm {alg_index} does not have an actor network. "
+                    "Actor visualization requires continuous action space.")
+
+            # Call actor network to get distribution
+            action_dist, _ = alg._actor_network(obs, state=())
+
+            # Handle different distribution types
+            if isinstance(action_dist, td.TransformedDistribution):
+                base_dist = action_dist.base_dist
+            else:
+                base_dist = action_dist
+
+            # Handle Independent/DiagMultivariateNormal wrapping
+            if isinstance(base_dist, td.Independent):
+                base_dist = base_dist.base_dist
+
+            # Extract mean and std from the base Normal distribution
+            # base_dist should now be td.Normal
+            mean = base_dist.loc[0]
+            std = base_dist.scale[0]
+
+            # For BipolarChain, action is 1D, so take single value
+            if mean.numel() > 1:
+                # Multi-dimensional continuous action - take first dimension
+                mean = mean[0].item()
+                std = std[0].item()
+            else:
+                mean = mean.item()
+                std = std.item()
+
+            # Clamp std to prevent numerical issues
+            std = max(std, 1e-8)
+
+            return {'mean': mean, 'std': std}
+
+        return get_actor_fn
+
     def __call__(self,
                  replay_buffer,
                  algorithms,
@@ -129,6 +193,16 @@ class DebugCallback:
         get_q_values_fn = self._create_get_q_values_fn(algorithms, action_spec,
                                                        device)
 
+        # Create actor function for continuous action spaces
+        get_actor_fn = None
+        if not action_spec.is_discrete:
+            try:
+                get_actor_fn = self._create_get_actor_fn(
+                    algorithms, action_spec, device)
+            except Exception as e:
+                logging.warning(f"Failed to create actor function: {e}")
+                logging.warning("Actor visualization will be skipped.")
+
         os.makedirs('logs', exist_ok=True)
         log_file_path = f'logs/{iter_number}.txt'
 
@@ -137,7 +211,7 @@ class DebugCallback:
             f.write("=" * 40 + "\n")
 
         self._create_and_save_plots(iter_number, replay_buffer, num_copies,
-                                    get_q_values_fn)
+                                    get_q_values_fn, get_actor_fn)
         logging.info(f"Written debug metrics to {log_file_path}")
 
     def _write_basic_stats(self, f, observations, rewards, replay_buffer):
@@ -150,26 +224,51 @@ class DebugCallback:
             mean_reward = rewards.mean().item()
             f.write(f"\nMean reward: {mean_reward:.4f}\n")
 
-    def _create_and_save_plots(self, iter_number, replay_buffer, num_copies,
-                               get_q_values_fn):
+    def _create_and_save_plots(self,
+                               iter_number,
+                               replay_buffer,
+                               num_copies,
+                               get_q_values_fn,
+                               get_actor_fn=None):
         """Create and save visualization plots."""
         k = self._debug_env.k
         positions = list(range(-k, k + 1))
 
         fig, axes = plt.subplots(num_copies + 1,
-                                 2,
-                                 figsize=(24, 6 * (num_copies + 1)))
+                                 3,
+                                 figsize=(36, 6 * (num_copies + 1)))
 
         transition_counts = self._debug_env.get_transition_counts_table(
             replay_buffer)
-        self._plot_transition_counts(axes[0], transition_counts, k, positions)
+        self._plot_transition_counts(axes[0, :2], transition_counts, k,
+                                     positions)
 
         for i in range(num_copies):
 
             def q_func(obs, action):
                 return get_q_values_fn(i, obs, action)
 
-            self._plot_q_values(axes[i + 1], i, k, positions, q_func)
+            self._plot_q_values(axes[i + 1, :2], i, k, positions, q_func)
+
+            # Actor probabilities plotting (third column)
+            if get_actor_fn is not None:
+
+                def actor_func(obs):
+                    return get_actor_fn(i, obs)
+
+                self._plot_actor_probabilities(axes[i + 1, 2], i, k, positions,
+                                               actor_func)
+            else:
+                # Discrete actions - add explanatory text
+                axes[i + 1, 2].text(
+                    0.5,
+                    0.5,
+                    'Actor visualization\nonly for continuous\naction spaces',
+                    ha='center',
+                    va='center',
+                    transform=axes[i + 1, 2].transAxes,
+                    fontsize=12)
+                axes[i + 1, 2].axis('off')
 
         plt.tight_layout()
         plot_path = f'logs/{iter_number}.png'
@@ -248,3 +347,68 @@ class DebugCallback:
                             va="center",
                             color="black",
                             fontsize=10)
+
+    def _plot_actor_probabilities(self, ax, alg_index, k, positions,
+                                  actor_callable):
+        """Plot actor output probabilities for a given algorithm.
+
+        Creates a heatmap showing P(action >= 0) for each state, with annotations
+        displaying the mean and standard deviation of the actor's output distribution.
+
+        Args:
+            ax: Matplotlib axis to plot on
+            alg_index: Index of the algorithm
+            k: Environment parameter (max position/time)
+            positions: List of position values [-k, ..., k]
+            actor_callable: Function (obs) -> {'mean': float, 'std': float}
+        """
+        actor_probs = self._debug_env.get_actor_table(actor_callable)
+
+        # Transpose for plotting (time on y-axis, position on x-axis)
+        data = actor_probs.T
+
+        # Create heatmap with probability colormap
+        im = ax.imshow(data,
+                       aspect='auto',
+                       cmap='RdYlGn',
+                       origin='lower',
+                       vmin=0.0,
+                       vmax=1.0)
+
+        # Set labels and title
+        ax.set_xlabel('Position')
+        ax.set_ylabel('Time')
+        ax.set_title(f'Algorithm {alg_index} Actor P(Right)')
+
+        # Set ticks (same pattern as Q-value plots)
+        ax.set_xticks(range(0, 2 * k + 1, max(1, (2 * k + 1) // 8)))
+        ax.set_xticklabels([
+            positions[j] for j in range(0, 2 * k + 1, max(1, (2 * k + 1) // 8))
+        ])
+        ax.set_yticks(range(k + 1))
+
+        # Add colorbar
+        plt.colorbar(im, ax=ax)
+
+        # Annotate cells with mean and std
+        for pos_idx in range(2 * k + 1):
+            for time_idx in range(k + 1):
+                prob = data[time_idx, pos_idx]
+                if np.isnan(prob):
+                    continue
+
+                # Get mean and std for annotation
+                position = positions[pos_idx]
+                obs = self._debug_env.state_to_observation(position, time_idx)
+                obs_tensor = torch.from_numpy(obs)
+                actor_output = actor_callable(obs_tensor)
+                mean, std = actor_output['mean'], actor_output['std']
+
+                # Create annotation text
+                ax.text(pos_idx,
+                        time_idx,
+                        f"μ={mean:.2f}\nσ={std:.2f}",
+                        ha="center",
+                        va="center",
+                        color="black",
+                        fontsize=8)

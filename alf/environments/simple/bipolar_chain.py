@@ -16,6 +16,7 @@ import numpy as np
 import torch
 import gym
 from gym import spaces
+from scipy.stats import norm
 
 
 class BipolarChain(gym.Env):
@@ -78,6 +79,10 @@ class BipolarChain(gym.Env):
             flat_idx = (position + self.k) * (self.k + 1) + time_step
             obs[flat_idx] = 1.0
             return obs
+
+    def state_to_observation(self, position, time_step):
+        """Public alias for _state_to_observation for external use."""
+        return self._state_to_observation(position, time_step)
 
     def _observation_to_state(self, obs):
         if self.factored:
@@ -195,3 +200,51 @@ class BipolarChain(gym.Env):
                        1] = counts[position + self.k, time_step, 1]
 
         return result
+
+    def get_actor_table(self, actor_callable):
+        """Compute actor output probabilities for all valid states.
+
+        For each valid state, calls actor_callable to get the action distribution
+        parameters (mean and std), then computes P(action >= 0) using the CDF of
+        the normal distribution.
+
+        Args:
+            actor_callable: Function that takes obs_tensor and returns dict with
+                'mean' and 'std' keys containing scalar values.
+
+        Returns:
+            np.ndarray: Shape (2k+1, k+1) with P(action >= 0) for valid states,
+                NaN for invalid states.
+        """
+        actor_probs = np.full((2 * self.k + 1, self.k + 1),
+                              np.nan,
+                              dtype=np.float32)
+
+        for position in range(-self.k, self.k + 1):
+            for time_step in range(self.k + 1):
+                # Skip invalid states (same check as other methods)
+                if abs(position
+                       ) > time_step or abs(position) % 2 != time_step % 2:
+                    continue
+
+                # Convert state to observation
+                obs = self._state_to_observation(position, time_step)
+                obs_tensor = torch.from_numpy(obs)
+
+                # Call actor_callable to get distribution parameters
+                actor_output = actor_callable(obs_tensor)
+                mean = actor_output['mean']
+                std = actor_output['std']
+
+                # Clamp std to prevent numerical issues
+                std = max(std, 1e-8)
+
+                # Compute P(action >= 0) using CDF
+                # P(X >= 0) = 1 - P(X < 0) = 1 - CDF(0)
+                p_negative = norm.cdf(0, loc=mean, scale=std)
+                p_positive = 1.0 - p_negative
+
+                # Store in result array
+                actor_probs[position + self.k, time_step] = p_positive
+
+        return actor_probs
