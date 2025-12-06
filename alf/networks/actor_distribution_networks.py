@@ -21,7 +21,7 @@ import torch.nn as nn
 
 import alf
 import alf.nest as nest
-from .encoding_networks import EncodingNetwork, LSTMEncodingNetwork
+from .encoding_networks import EncodingNetwork, LSTMEncodingNetwork, RBFEncodingNetwork
 from .normalizing_flow_networks import RealNVPNetwork
 from .projection_networks import NormalProjectionNetwork, CategoricalProjectionNetwork
 from .preprocessor_networks import PreprocessorNetwork
@@ -205,6 +205,51 @@ class ActorDistributionNetwork(ActorDistributionNetworkBase):
             kernel_initializer=kernel_initializer,
             use_fc_bn=use_fc_bn,
             use_fc_ln=use_fc_ln)
+
+
+@alf.configurable
+class RBFActorDistributionNetwork(ActorDistributionNetworkBase):
+    """Actor distribution network using RBF (Radial Basis Function) encoding.
+
+    Uses RBFEncodingNetwork to encode observations, then projects to action
+    distributions using standard projection networks.
+    """
+
+    def __init__(self,
+                 input_tensor_spec,
+                 action_spec,
+                 n_components: int = 1000,
+                 gamma: float = 3.0,
+                 kernel_initializer=None,
+                 discrete_projection_net_ctor=CategoricalProjectionNetwork,
+                 continuous_projection_net_ctor=NormalProjectionNetwork,
+                 name="RBFActorDistributionNetwork"):
+        """
+        Args:
+            input_tensor_spec (TensorSpec): the tensor spec of the observation
+            action_spec (TensorSpec): the action spec
+            n_components (int): number of RBF components
+            gamma (float): RBF bandwidth parameter
+            kernel_initializer (Callable): initializer for RBF weights.
+                If None, defaults to Normal(0, 1)
+            discrete_projection_net_ctor (ProjectionNetwork): constructor that
+                generates a discrete projection network that outputs discrete
+                actions.
+            continuous_projection_net_ctor (ProjectionNetwork): constructor that
+                generates a continuous projection network that outputs
+                continuous actions.
+            name (str): name of the network
+        """
+        super().__init__(
+            input_tensor_spec=input_tensor_spec,
+            action_spec=action_spec,
+            encoding_network_ctor=RBFEncodingNetwork,
+            discrete_projection_net_ctor=discrete_projection_net_ctor,
+            continuous_projection_net_ctor=continuous_projection_net_ctor,
+            name=name,
+            n_components=n_components,
+            gamma=gamma,
+            kernel_initializer=kernel_initializer)
 
 
 class ParallelActorDistributionNetwork(Network):
