@@ -21,7 +21,7 @@ import torch
 import torch.nn as nn
 
 import alf
-from .encoding_networks import EncodingNetwork, LSTMEncodingNetwork
+from .encoding_networks import EncodingNetwork, LSTMEncodingNetwork, RBFEncodingNetwork
 from .preprocessor_networks import PreprocessorNetwork
 import alf.layers as layers
 import alf.nest as nest
@@ -275,4 +275,43 @@ class ActorRNNNetwork(ActorNetworkBase):
                              hidden_size=lstm_hidden_size,
                              post_fc_layer_params=actor_fc_layer_params,
                              activation=activation,
+                             kernel_initializer=kernel_initializer)
+
+
+@alf.configurable
+class RBFActorNetwork(ActorNetworkBase):
+    """Actor network using RBF (Radial Basis Function) encoding.
+
+    Uses RBFEncodingNetwork to encode observations, then projects to actions
+    using the standard ActorNetworkBase pattern.
+    """
+
+    def __init__(self,
+                 input_tensor_spec: TensorSpec,
+                 action_spec: BoundedTensorSpec,
+                 n_components: int = 1000,
+                 gamma: float = 3.0,
+                 squashing_func=torch.tanh,
+                 kernel_initializer=None,
+                 name="RBFActorNetwork"):
+        """
+        Args:
+            input_tensor_spec (TensorSpec): the tensor spec of the observation
+            action_spec (BoundedTensorSpec): the tensor spec of the action
+            n_components (int): number of RBF components
+            gamma (float): RBF bandwidth parameter
+            squashing_func (Callable): activation function to squash output to (-1, 1)
+            kernel_initializer (Callable): initializer for RBF weights.
+                If None, defaults to Normal(0, 1)
+            name (str): name of the network
+        """
+        # Call parent with RBFEncodingNetwork as the encoder
+        super(RBFActorNetwork,
+              self).__init__(input_tensor_spec=input_tensor_spec,
+                             action_spec=action_spec,
+                             encoding_network_ctor=RBFEncodingNetwork,
+                             squashing_func=squashing_func,
+                             name=name,
+                             n_components=n_components,
+                             gamma=gamma,
                              kernel_initializer=kernel_initializer)

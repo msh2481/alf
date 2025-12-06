@@ -25,7 +25,7 @@ import alf.nest as nest
 from alf.initializers import variance_scaling_init
 from alf.tensor_specs import TensorSpec
 
-from .encoding_networks import EncodingNetwork, LSTMEncodingNetwork, ParallelEncodingNetwork
+from .encoding_networks import EncodingNetwork, LSTMEncodingNetwork, ParallelEncodingNetwork, RBFEncodingNetwork
 from .network import Network
 from .preprocessors import CosineEmbeddingPreprocessor
 import alf.layers as layers
@@ -525,62 +525,88 @@ class CriticQuantileNetwork(EncodingNetwork):
 
 @alf.configurable
 class RBFCriticNetwork(Network):
+    """Critic network using RBF (Radial Basis Function) encoding.
+
+    Architecture:
+    1. Concatenate observation and action
+    2. RBFEncodingNetwork (gamma scaling → RBF layer → sine activation)
+    3. Final projection to scalar Q-value
+    """
 
     def __init__(self,
                  input_tensor_spec,
-                 observation_input_processors=None,
-                 observation_preprocessing_combiner=None,
-                 observation_conv_layer_params=None,
-                 observation_fc_layer_params=None,
-                 action_input_processors=None,
-                 action_preprocessing_combiner=None,
-                 action_fc_layer_params=None,
-                 joint_fc_layer_params=None,
                  n_components: int = 1000,
                  gamma: float = 3.0,
-                 action_weight: float = 1.0,
                  last_kernel_initializer=None,
                  name="RBFCriticNetwork"):
+        """
+        Args:
+            input_tensor_spec (tuple[TensorSpec]):
+                (observation_spec, action_spec)
+            n_components (int): number of RBF components
+            gamma (float): RBF bandwidth parameter
+            last_kernel_initializer (Callable): initializer for final layer.
+                If None, defaults to Normal(0, sqrt(1/n_components))
+            name (str): name of the network
+        """
         super().__init__(input_tensor_spec=input_tensor_spec, name=name)
 
-        self._n_components = n_components
-        self._gamma = gamma
-        self._action_weight = action_weight
         observation_spec, action_spec = input_tensor_spec
         input_dim = observation_spec.numel + action_spec.numel
 
-        rbf_kernel_initializer = functools.partial(torch.nn.init.normal_,
-                                                   mean=0.0,
-                                                   std=1.0)
-        rbf_bias_initializer = functools.partial(torch.nn.init.uniform_,
-                                                 a=0.0,
-                                                 b=2 * math.pi)
+        # Create concatenated input spec for RBFEncodingNetwork
+        joint_spec = TensorSpec((input_dim, ))
 
-        self.rbf_layer = layers.FC(input_dim,
-                                   n_components,
-                                   kernel_initializer=rbf_kernel_initializer,
-                                   bias_initializer=rbf_bias_initializer)
+        # Create RBF encoding network
+        self._encoding_net = RBFEncodingNetwork(input_tensor_spec=joint_spec,
+                                                n_components=n_components,
+                                                gamma=gamma,
+                                                name=name + ".rbf_encoder")
 
+        # Final projection layer: RBF features → scalar Q-value
         if last_kernel_initializer is None:
-            last_kernel_initializer = functools.partial(torch.nn.init.normal_,
-                                                        mean=0.0,
-                                                        std=math.sqrt(
-                                                            1 / n_components))
-        self.final_layer = layers.FC(
-            n_components, 1, kernel_initializer=last_kernel_initializer)
+            last_kernel_initializer = functools.partial(
+                torch.nn.init.normal_,
+                mean=0.0,
+                std=math.sqrt(1.0 / n_components))
+
+        self._value_layer = layers.FC(
+            n_components,
+            1,
+            activation=lambda x: x,
+            kernel_initializer=last_kernel_initializer)
 
     def forward(self, observation_action, state=()):
+        """
+        Args:
+            observation_action (tuple): (observation, action)
+            state (tuple): empty tuple (for API consistency)
+
+        Returns:
+            tuple:
+            - q_value (torch.Tensor): shape [batch_size]
+            - state (tuple): empty tuple
+        """
         observation, action = observation_action
-        if not isinstance(observation, torch.Tensor):
-            observation = torch.tensor(observation)
-        if not isinstance(action, torch.Tensor):
-            action = torch.tensor(action)
-        action = action * self._action_weight
+
+        # Concatenate observation and action
         joint = torch.cat([observation, action], dim=-1)
-        joint = joint * self._gamma
-        rbf_output = self.rbf_layer(joint)
-        sin_output = torch.sin(rbf_output)
-        return self.final_layer(sin_output).squeeze(-1), state
+
+        # Encode through RBF network
+        rbf_features, _ = self._encoding_net(joint, state)
+
+        # Project to Q-value and squeeze last dimension
+        q_value = self._value_layer(rbf_features).squeeze(-1)
+
+        return q_value, state
+
+    def make_parallel(self, n):
+        """Create a parallel critic network using n replicas.
+
+        Uses NaiveParallelNetwork for simplicity. The RBF layer is relatively
+        lightweight, so naive parallelization is sufficient.
+        """
+        return alf.networks.NaiveParallelNetwork(self, n)
 
 
 @alf.configurable

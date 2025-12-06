@@ -17,7 +17,7 @@ from alf.algorithms.seed_sampling import SeedDqnAlgorithm, SeedSacAlgorithm
 from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.dqn_algorithm import DqnAlgorithm
 from alf.algorithms.concurrent_algorithm import ConcurrentAlgorithm
-from alf.networks import QNetwork, RandomizedPriorQNetwork, CriticNetwork, RandomizedPriorCriticNetwork, RBFCriticNetwork
+from alf.networks import QNetwork, RandomizedPriorQNetwork, CriticNetwork, RandomizedPriorCriticNetwork, RBFCriticNetwork, RBFActorNetwork
 from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetwork
 from alf.utils.losses import element_wise_squared_loss
 from alf.utils.math_ops import clipped_exp
@@ -73,17 +73,15 @@ else:
     # alf.config('CriticNetwork',
     #            joint_fc_layer_params=HIDDEN_LAYERS,
     #            use_fc_ln=True)
-    alf.config('RBFCriticNetwork',
-               n_components=1000,
-               gamma=0.8,
-               action_weight=1.0)
+    alf.config('RBFCriticNetwork', n_components=1000, gamma=0.8)
+    alf.config('RBFActorNetwork', n_components=1000, gamma=0.8)
     alf.config('RandomizedPriorCriticNetwork',
                network_ctor=RBFCriticNetwork,
                prior_scale=PRIOR_SCALE,
                trainable_init_std=1e-3)
     sac_kwargs = {
         'use_entropy_reward': False,
-        'actor_network_cls': alf.networks.ActorDistributionNetwork,
+        'actor_network_cls': RBFActorNetwork,
         'critic_network_cls': RandomizedPriorCriticNetwork,
         'parameter_target_std': PARAMETER_TARGET_STD,
         'parameter_target_alpha': PARAMETER_TARGET_ALPHA,
