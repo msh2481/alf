@@ -576,7 +576,9 @@ class RBFCriticNetwork(Network):
 
         self._use_ln = use_ln
         if use_ln:
-            self._ln = torch.nn.LayerNorm(n_components)
+            self._ln = torch.nn.LayerNorm(n_components,
+                                          elementwise_affine=False,
+                                          bias=False)
         else:
             self._ln = None
 

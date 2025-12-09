@@ -463,7 +463,10 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                                step_label=self._train_step_counter)
         if self._train_step_counter % self._return_logging_interval == 0:
             plot_dir = os.path.join(root_dir, "plots")
-            self.save_ascii_plots(output_dir=plot_dir)
+            try:
+                self.save_ascii_plots(output_dir=plot_dir)
+            except Exception as e:
+                logging.error(f"Error saving ASCII plots: {e}")
         if (self._agent_reset_period is not None
                 and self._train_step_counter % self._agent_reset_period == 0):
             self._reset_agent(self._next_agent_to_reset)

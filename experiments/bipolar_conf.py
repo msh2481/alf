@@ -29,16 +29,17 @@ from alf.environments import suite_gym
 ENV_NAME = "BipolarChain-medium-sparse-onehot-continuous-v0"
 DISCRETE = "discrete" in ENV_NAME
 NUM_COPIES = 4
-RESET_PERIOD = 10**9  #200
+RESET_PERIOD = 200
 BATCH_SIZE = 64 * NUM_COPIES
 ENV_COUNTS = NUM_COPIES
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
 SEED_VERSION = True
+ENTROPY_REWARD = True
 
 HIDDEN_LAYERS = (256, 256)
 
-PRIOR_SCALE = 1e-9  # 0.2
+PRIOR_SCALE = 0.01
 PARAMETER_TARGET_STD = 0.0
 PARAMETER_TARGET_ALPHA = 0.0
 REWARD_NOISE_STD = 0.0
@@ -57,7 +58,7 @@ if DISCRETE:
                network_ctor=QNetwork,
                prior_scale=PRIOR_SCALE)
     sac_kwargs = {
-        'use_entropy_reward': False,
+        'use_entropy_reward': ENTROPY_REWARD,
         'q_network_cls': RandomizedPriorQNetwork,
         'parameter_target_std': PARAMETER_TARGET_STD,
         'parameter_target_alpha': PARAMETER_TARGET_ALPHA,
@@ -74,10 +75,10 @@ else:
     # alf.config('CriticNetwork',
     #            joint_fc_layer_params=HIDDEN_LAYERS,
     #            use_fc_ln=True)
-    alf.config('RBFCriticNetwork', n_components=1000, gamma=0.8)
+    alf.config('RBFCriticNetwork', n_components=1000, gamma=2.0)
     alf.config('RBFActorDistributionNetwork',
                n_components=1000,
-               gamma=0.8,
+               gamma=2.0,
                continuous_projection_net_ctor=partial(
                    alf.networks.NormalProjectionNetwork,
                    state_dependent_std=True,
@@ -88,7 +89,7 @@ else:
                prior_scale=PRIOR_SCALE,
                trainable_init_std=1e-3)
     sac_kwargs = {
-        'use_entropy_reward': False,
+        'use_entropy_reward': ENTROPY_REWARD,
         'actor_network_cls': RBFActorDistributionNetwork,
         'critic_network_cls': RandomizedPriorCriticNetwork,
         'parameter_target_std': PARAMETER_TARGET_STD,
@@ -101,7 +102,7 @@ alf.config('SeedSacAlgorithm' if SEED_VERSION else 'SacAlgorithm',
 alf.config(
     'SacAlgorithm',
     num_critic_replicas=1,
-    target_update_tau=0.2,
+    target_update_tau=0.02,
     target_update_period=1,
 )
 

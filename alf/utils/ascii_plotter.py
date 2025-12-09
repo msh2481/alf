@@ -99,9 +99,14 @@ class AsciiMetricPlotter:
                 self._history[metric_name]) == 0:
             return f"No data for {metric_name}"
 
+        def check_nan(value: float) -> float:
+            if math.isnan(value):
+                return 0.0
+            return value
+
         data = self._history[metric_name]
         steps = [d[0] for d in data]
-        values = [d[1] for d in data]
+        values = [check_nan(d[1]) for d in data]
 
         if len(values) < 2:
             return f"{metric_name}: only {len(values)} point(s), need at least 2"
