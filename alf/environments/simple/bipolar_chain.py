@@ -244,6 +244,10 @@ class BipolarChain(gym.Env):
                 p_negative = norm.cdf(0, loc=mean, scale=std)
                 p_positive = 1.0 - p_negative
 
+                flip_bit = self.action_flip_bits[position + self.k]
+                if flip_bit:
+                    p_positive = 1.0 - p_positive
+
                 # Store in result array
                 actor_probs[position + self.k, time_step] = p_positive
 

@@ -538,6 +538,7 @@ class RBFCriticNetwork(Network):
                  n_components: int = 1000,
                  gamma: float = 3.0,
                  last_kernel_initializer=None,
+                 use_bias=False,
                  name="RBFCriticNetwork"):
         """
         Args:
@@ -574,7 +575,8 @@ class RBFCriticNetwork(Network):
             n_components,
             1,
             activation=lambda x: x,
-            kernel_initializer=last_kernel_initializer)
+            kernel_initializer=last_kernel_initializer,
+            use_bias=use_bias)
 
     def forward(self, observation_action, state=()):
         """
