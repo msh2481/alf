@@ -539,6 +539,7 @@ class RBFCriticNetwork(Network):
                  gamma: float = 3.0,
                  last_kernel_initializer=None,
                  use_bias=False,
+                 use_ln=True,
                  name="RBFCriticNetwork"):
         """
         Args:
@@ -548,6 +549,8 @@ class RBFCriticNetwork(Network):
             gamma (float): RBF bandwidth parameter
             last_kernel_initializer (Callable): initializer for final layer.
                 If None, defaults to Normal(0, sqrt(1/n_components))
+            use_bias (bool): whether to use bias in the final layer
+            use_ln (bool): whether to apply LayerNorm before the final layer
             name (str): name of the network
         """
         super().__init__(input_tensor_spec=input_tensor_spec, name=name)
@@ -570,6 +573,12 @@ class RBFCriticNetwork(Network):
                 torch.nn.init.normal_,
                 mean=0.0,
                 std=math.sqrt(1.0 / n_components))
+
+        self._use_ln = use_ln
+        if use_ln:
+            self._ln = torch.nn.LayerNorm(n_components)
+        else:
+            self._ln = None
 
         self._value_layer = layers.FC(
             n_components,
@@ -596,6 +605,10 @@ class RBFCriticNetwork(Network):
 
         # Encode through RBF network
         rbf_features, _ = self._encoding_net(joint, state)
+
+        # Apply LayerNorm if enabled
+        if self._use_ln:
+            rbf_features = self._ln(rbf_features)
 
         # Project to Q-value and squeeze last dimension
         q_value = self._value_layer(rbf_features).squeeze(-1)

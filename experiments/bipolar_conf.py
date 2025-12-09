@@ -26,11 +26,11 @@ from functools import partial
 from alf.environments.simple.bipolar_chain import BipolarChain
 from alf.environments import suite_gym
 
-ENV_NAME = "BipolarChain-medium-dense-onehot-continuous-v0"
+ENV_NAME = "BipolarChain-medium-sparse-onehot-continuous-v0"
 DISCRETE = "discrete" in ENV_NAME
-NUM_COPIES = 1
+NUM_COPIES = 4
 RESET_PERIOD = 10**9  #200
-BATCH_SIZE = 256 * NUM_COPIES
+BATCH_SIZE = 64 * NUM_COPIES
 ENV_COUNTS = NUM_COPIES
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
@@ -114,7 +114,7 @@ alf.config('ConcurrentAlgorithm', agent_reset_period=RESET_PERIOD)
 alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SeedSacAlgorithm if SEED_VERSION else SacAlgorithm,
-    optimizer=alf.optimizers.Adam(lr=2e-2, name='main'),
+    optimizer=alf.optimizers.Adam(lr=5e-3, name='main'),
     num_copies=NUM_COPIES,
     use_exploration_seeds=SEED_VERSION,
     debug_env=suite_gym.load(ENV_NAME),
