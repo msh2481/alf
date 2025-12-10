@@ -363,6 +363,64 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
         self.assertGreater(converged_trials, 0,
                            "At least one trial should converge")
 
+    def test_generalization(self):
+        obs_dim = 31
+        obs_spec = TensorSpec((obs_dim, ), torch.float32)
+        action_spec = TensorSpec((1, ), torch.float32)
+        input_spec = (obs_spec, action_spec)
+
+        critic = RBFCriticNetwork(input_tensor_spec=input_spec,
+                                  n_components=1000,
+                                  gamma=10,
+                                  last_kernel_initializer=torch.nn.init.zeros_)
+        optimizer = torch.optim.Adam(critic.parameters(), lr=1e-4)
+
+        num_steps = 100
+        num_test_inputs = 30
+        results = []
+
+        embeddings = torch.zeros(num_test_inputs, obs_dim)
+        for i in range(num_test_inputs):
+            for j in range(obs_dim):
+                embeddings[i, j] = torch.exp(-torch.tensor(
+                    (i - j)**2, dtype=torch.float32))
+
+        emb_0 = embeddings[0:1]
+        action = torch.zeros(1, 1)
+        target = torch.tensor([1.0])
+
+        for step in range(num_steps):
+            optimizer.zero_grad()
+            q_value, _ = critic((emb_0, action))
+            loss = ((q_value - target)**2).mean()
+            loss.backward()
+            optimizer.step()
+
+            test_values = []
+            with torch.no_grad():
+                for i in range(num_test_inputs):
+                    emb_i = embeddings[i:i + 1]
+                    q_val, _ = critic((emb_i, action))
+                    test_values.append(q_val.item())
+            results.append(test_values)
+
+        from matplotlib import pyplot as plt
+        from matplotlib.cm import ScalarMappable
+        from matplotlib.colors import Normalize
+        x = list(range(num_test_inputs))
+        cmap = plt.get_cmap('viridis')
+        fig, ax = plt.subplots()
+        for step_idx, values in enumerate(results):
+            color = cmap(step_idx / num_steps)
+            ax.plot(x, values, color=color, alpha=0.7)
+        ax.set_xlabel('Input index i')
+        ax.set_ylabel('Q-value')
+        ax.set_title('Generalization test: Q(emb(i)) after training on emb(0)')
+        sm = ScalarMappable(cmap=cmap, norm=Normalize(vmin=0, vmax=num_steps))
+        sm.set_array([])
+        plt.colorbar(sm, ax=ax, label='Iteration')
+        plt.show()
+
 
 if __name__ == "__main__":
     alf.test.main()
