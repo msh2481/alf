@@ -30,7 +30,7 @@ ENV_NAME = "BipolarChain-medium-sparse-onehot-continuous-v0"
 DISCRETE = "discrete" in ENV_NAME
 NUM_COPIES = 4
 RESET_PERIOD = 200
-BATCH_SIZE = 64 * NUM_COPIES
+BATCH_SIZE = 256 * NUM_COPIES
 ENV_COUNTS = NUM_COPIES
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
@@ -71,7 +71,7 @@ else:
     # alf.config('CriticNetwork',
     #            joint_fc_layer_params=HIDDEN_LAYERS,
     #            use_fc_ln=True)
-    GAMMA = 10.0
+    GAMMA = 1.0
     alf.config('RBFCriticNetwork', n_components=1000, gamma=GAMMA)
     alf.config('RBFActorDistributionNetwork',
                n_components=1000,
@@ -108,7 +108,7 @@ alf.config('ConcurrentAlgorithm', agent_reset_period=RESET_PERIOD)
 alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SeedSacAlgorithm if SEED_VERSION else SacAlgorithm,
-    optimizer=alf.optimizers.Adam(lr=1e-4, name='main'),
+    optimizer=alf.optimizers.Adam(lr=5e-4, name='main'),
     num_copies=NUM_COPIES,
     use_exploration_seeds=SEED_VERSION,
     debug_env=suite_gym.load(ENV_NAME),

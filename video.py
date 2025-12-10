@@ -23,7 +23,7 @@ def extract_number(filename):
     return int(match.group(1)) if match else 0
 
 
-def create_video(logs_dir='logs', output_file='output.mp4', fps=1):
+def create_video(logs_dir='logs', output_file='output.mp4', fps=5):
     logs_path = Path(logs_dir)
     png_files = sorted([f for f in logs_path.glob('*.png')],
                        key=lambda x: extract_number(x.name))
@@ -65,7 +65,7 @@ if __name__ == '__main__':
                         help='Output video file')
     parser.add_argument('--fps',
                         type=float,
-                        default=1.0,
+                        default=5.0,
                         help='Frames per second (default: 1.0)')
     args = parser.parse_args()
 
