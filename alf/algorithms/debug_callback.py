@@ -17,10 +17,14 @@ import torch
 import torch.distributions as td
 import numpy as np
 from absl import logging
+import matplotlib
+
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib import colors as mcolors
 import alf
 from alf.tensor_specs import TensorSpec
+from concurrent.futures import ThreadPoolExecutor
 
 
 def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=256):
@@ -45,6 +49,7 @@ class DebugCallback:
         self._num_samples = num_samples
         self._debug_count = 0
         self._name = name
+        self._executor = ThreadPoolExecutor(max_workers=1)
 
     def _sample_from_replay_buffer(self, replay_buffer):
         """Sample observations, actions, and rewards from replay buffer."""
@@ -204,15 +209,16 @@ class DebugCallback:
                 logging.warning("Actor visualization will be skipped.")
 
         os.makedirs('logs', exist_ok=True)
-        log_file_path = f'logs/{iter_number}.txt'
 
-        with open(log_file_path, 'w') as f:
-            self._write_basic_stats(f, observations, rewards, replay_buffer)
-            f.write("=" * 40 + "\n")
+        # log_file_path = f'logs/{iter_number}.txt'
+        # with open(log_file_path, 'w') as f:
+        #     self._write_basic_stats(f, observations, rewards, replay_buffer)
+        #     f.write("=" * 40 + "\n")
 
-        self._create_and_save_plots(iter_number, replay_buffer, num_copies,
-                                    get_q_values_fn, get_actor_fn)
-        logging.info(f"Written debug metrics to {log_file_path}")
+        self._executor.submit(self._create_and_save_plots, iter_number,
+                              replay_buffer, num_copies, get_q_values_fn,
+                              get_actor_fn)
+        logging.info(f"Plot saving in background")
 
     def _write_basic_stats(self, f, observations, rewards, replay_buffer):
         """Write basic statistics to file."""

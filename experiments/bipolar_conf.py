@@ -93,7 +93,7 @@ else:
 alf.config(
     'SacAlgorithm',
     num_critic_replicas=1,
-    target_update_tau=0.02,
+    target_update_tau=0.2,
     target_update_period=1,
     use_entropy_reward=ENTROPY_REWARD,
     **sac_kwargs,
@@ -108,11 +108,12 @@ alf.config('ConcurrentAlgorithm', agent_reset_period=RESET_PERIOD)
 alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SeedSacAlgorithm if SEED_VERSION else SacAlgorithm,
-    optimizer=alf.optimizers.Adam(lr=3e-5, name='main'),
+    optimizer=alf.optimizers.Adam(lr=1e-4, name='main'),
     num_copies=NUM_COPIES,
     use_exploration_seeds=SEED_VERSION,
     debug_env=suite_gym.load(ENV_NAME),
     video_record_interval=None,
+    debug_log_every_n_steps=10,
 )
 
 # training config
