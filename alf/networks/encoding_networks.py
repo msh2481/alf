@@ -928,16 +928,14 @@ class RBFEncodingNetwork(Network):
                                                    std=1.0)
         if bias_initializer is None:
             bias_initializer = functools.partial(torch.nn.init.uniform_,
-                                                 a=0.0,
-                                                 b=2 * math.pi)
+                                                 a=-math.pi,
+                                                 b=math.pi)
 
         input_dim = input_tensor_spec.numel
-        self._rbf_layer = layers.FC(
-            input_dim,
-            n_components,
-            activation=lambda x: x,  # No activation in FC layer
-            kernel_initializer=kernel_initializer,
-            bias_initializer=bias_initializer)
+        self._rbf_layer = layers.FC(input_dim,
+                                    n_components,
+                                    kernel_initializer=kernel_initializer,
+                                    bias_initializer=bias_initializer)
 
         # Cache output spec
         self._output_spec = TensorSpec((n_components, ))
@@ -953,13 +951,8 @@ class RBFEncodingNetwork(Network):
             - output (torch.Tensor): shape [batch_size, n_components]
             - state (tuple): empty tuple
         """
-        # Apply gamma scaling
         scaled_input = input * self._gamma
-
-        # Apply RBF layer (linear transformation)
         rbf_output = self._rbf_layer(scaled_input)
-
-        # Apply sine activation
         output = torch.sin(rbf_output)
 
         return output, state

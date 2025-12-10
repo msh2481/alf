@@ -288,6 +288,33 @@ class SacAlgorithm(OffPolicyAlgorithm):
                 in the beginning and different masks for actor and critic losses.
             name (str): The name of this algorithm.
         """
+        if init_debug := False:
+            print("SAC instantiated with:")
+            print(f"num_critic_replicas={num_critic_replicas}")
+            print(f"calculate_priority={calculate_priority}")
+            print(f"train_eps_greedy={train_eps_greedy}")
+            print(f"epsilon_greedy={epsilon_greedy}")
+            print(f"use_entropy_reward={use_entropy_reward}")
+            print(f"use_mc_return={use_mc_return}")
+            print(f"normalize_entropy_reward={normalize_entropy_reward}")
+            print(f"calculate_priority={calculate_priority}")
+            print(f"target_entropy={target_entropy}")
+            print(f"prior_actor_ctor={prior_actor_ctor}")
+            print(f"target_kld_per_dim={target_kld_per_dim}")
+            print(f"initial_log_alpha={initial_log_alpha}")
+            print(f"max_log_alpha={max_log_alpha}")
+            print(f"target_update_tau={target_update_tau}")
+            print(f"target_update_period={target_update_period}")
+            print(f"parameter_reset_period={parameter_reset_period}")
+            print(f"dqda_clipping={dqda_clipping}")
+            print(f"actor_optimizer={actor_optimizer}")
+            print(f"critic_optimizer={critic_optimizer}")
+            print(f"alpha_optimizer={alpha_optimizer}")
+            print(f"debug_summaries={debug_summaries}")
+            print(f"checkpoint={checkpoint}")
+            print(f"reproduce_locomotion={reproduce_locomotion}")
+            print(f"name={name}")
+
         self._num_critic_replicas = num_critic_replicas
         self._calculate_priority = calculate_priority
         self._train_eps_greedy = train_eps_greedy

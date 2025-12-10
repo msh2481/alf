@@ -35,17 +35,17 @@ ENV_COUNTS = NUM_COPIES
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
 SEED_VERSION = True
-ENTROPY_REWARD = True
+ENTROPY_REWARD = False
 
 HIDDEN_LAYERS = (256, 256)
 
-PRIOR_SCALE = 0.01
-PARAMETER_TARGET_STD = 0.0
-PARAMETER_TARGET_ALPHA = 0.0
-REWARD_NOISE_STD = 0.0
-assert (PRIOR_SCALE == 0.0) or (
-    PARAMETER_TARGET_STD == 0.0 and PARAMETER_TARGET_ALPHA == 0.0
-), "Don't turn on both PRIOR_SCALE and PARAMETER_TARGET_STD/PARAMETER_TARGET_ALPHA"
+PRIOR_SCALE = 0.2
+# PARAMETER_TARGET_STD = 0.0
+# PARAMETER_TARGET_ALPHA = 0.0
+# REWARD_NOISE_STD = 0.0
+# assert (PRIOR_SCALE == 0.0) or (
+#     PARAMETER_TARGET_STD == 0.0 and PARAMETER_TARGET_ALPHA == 0.0
+# ), "Don't turn on both PRIOR_SCALE and PARAMETER_TARGET_STD/PARAMETER_TARGET_ALPHA"
 
 # environment config
 alf.config('create_environment',
@@ -58,11 +58,7 @@ if DISCRETE:
                network_ctor=QNetwork,
                prior_scale=PRIOR_SCALE)
     sac_kwargs = {
-        'use_entropy_reward': ENTROPY_REWARD,
         'q_network_cls': RandomizedPriorQNetwork,
-        'parameter_target_std': PARAMETER_TARGET_STD,
-        'parameter_target_alpha': PARAMETER_TARGET_ALPHA,
-        'reward_noise_std': REWARD_NOISE_STD,
     }
 else:
     # alf.config('ActorDistributionNetwork',
@@ -75,10 +71,11 @@ else:
     # alf.config('CriticNetwork',
     #            joint_fc_layer_params=HIDDEN_LAYERS,
     #            use_fc_ln=True)
-    alf.config('RBFCriticNetwork', n_components=1000, gamma=2.0)
+    GAMMA = 10.0
+    alf.config('RBFCriticNetwork', n_components=1000, gamma=GAMMA)
     alf.config('RBFActorDistributionNetwork',
                n_components=1000,
-               gamma=2.0,
+               gamma=GAMMA,
                continuous_projection_net_ctor=partial(
                    alf.networks.NormalProjectionNetwork,
                    state_dependent_std=True,
@@ -89,21 +86,17 @@ else:
                prior_scale=PRIOR_SCALE,
                trainable_init_std=1e-3)
     sac_kwargs = {
-        'use_entropy_reward': ENTROPY_REWARD,
         'actor_network_cls': RBFActorDistributionNetwork,
         'critic_network_cls': RandomizedPriorCriticNetwork,
-        'parameter_target_std': PARAMETER_TARGET_STD,
-        'parameter_target_alpha': PARAMETER_TARGET_ALPHA,
-        'reward_noise_std': REWARD_NOISE_STD,
     }
 
-alf.config('SeedSacAlgorithm' if SEED_VERSION else 'SacAlgorithm',
-           **sac_kwargs)
 alf.config(
     'SacAlgorithm',
     num_critic_replicas=1,
     target_update_tau=0.02,
     target_update_period=1,
+    use_entropy_reward=ENTROPY_REWARD,
+    **sac_kwargs,
 )
 
 alf.config('OneStepTDLoss',
@@ -115,7 +108,7 @@ alf.config('ConcurrentAlgorithm', agent_reset_period=RESET_PERIOD)
 alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SeedSacAlgorithm if SEED_VERSION else SacAlgorithm,
-    optimizer=alf.optimizers.Adam(lr=1e-4, name='main'),
+    optimizer=alf.optimizers.Adam(lr=3e-5, name='main'),
     num_copies=NUM_COPIES,
     use_exploration_seeds=SEED_VERSION,
     debug_env=suite_gym.load(ENV_NAME),
@@ -135,7 +128,7 @@ alf.config('TrainerConfig',
            evaluate=False,
            eval_interval=100,
            replay_buffer_length=20000,
-           random_seed=42,
+           random_seed=0,
            whole_replay_buffer_training=False,
            clear_replay_buffer=False,
            summarize_grads_and_vars=False,

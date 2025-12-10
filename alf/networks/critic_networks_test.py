@@ -369,11 +369,13 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
         action_spec = TensorSpec((1, ), torch.float32)
         input_spec = (obs_spec, action_spec)
 
-        critic = RBFCriticNetwork(input_tensor_spec=input_spec,
-                                  n_components=1000,
-                                  gamma=10,
-                                  last_kernel_initializer=torch.nn.init.zeros_)
-        optimizer = torch.optim.Adam(critic.parameters(), lr=1e-4)
+        sub_ctor = functools.partial(RBFCriticNetwork,
+                                     n_components=1000,
+                                     gamma=10)
+        critic = RandomizedPriorCriticNetwork(sub_ctor,
+                                              input_spec,
+                                              prior_scale=0.01)
+        optimizer = torch.optim.Adam(critic.parameters(), lr=3e-5)
 
         num_steps = 100
         num_test_inputs = 30
@@ -387,7 +389,7 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
 
         emb_0 = embeddings[0:1]
         action = torch.zeros(1, 1)
-        target = torch.tensor([1.0])
+        target = torch.tensor([0.0])
 
         for step in range(num_steps):
             optimizer.zero_grad()
@@ -409,10 +411,11 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
         from matplotlib.colors import Normalize
         x = list(range(num_test_inputs))
         cmap = plt.get_cmap('viridis')
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(12, 8))
         for step_idx, values in enumerate(results):
             color = cmap(step_idx / num_steps)
             ax.plot(x, values, color=color, alpha=0.7)
+        ax.axhline(y=0, linestyle='--', color='gray', alpha=0.5)
         ax.set_xlabel('Input index i')
         ax.set_ylabel('Q-value')
         ax.set_title('Generalization test: Q(emb(i)) after training on emb(0)')
