@@ -62,6 +62,7 @@ class ReplayBuffer(RingBuffer):
                  recent_data_steps=1,
                  recent_data_ratio=0.,
                  with_replacement=False,
+                 shuffle_batch=False,
                  device="cpu",
                  mp_context=None,
                  keep_episodic_info=None,
@@ -94,6 +95,8 @@ class ReplayBuffer(RingBuffer):
             with_replacement (bool): If False, sample without replacement whenever
                 poissible for ``get_batch()``. If True, a batch may contains
                 duplicated samples.
+            shuffle_batch (bool): If True, shuffle the batch dimension of the
+                returned data for ``get_batch()`` and ``gather_all()``.
             device (string): "cpu" or "cuda" where tensors are created.
             mp_context (multiprocessing context): the context to be used to
                 create locks and queues in the buffer. If None, no
@@ -154,6 +157,7 @@ class ReplayBuffer(RingBuffer):
         self._recent_data_steps = recent_data_steps
         self._recent_data_ratio = recent_data_ratio
         self._with_replacement = with_replacement
+        self._shuffle_batch = shuffle_batch
         if self._keep_episodic_info:
             # _indexed_pos records for each timestep of experience in the
             # buffer the raw position of the first step of the episode in
@@ -366,7 +370,7 @@ class ReplayBuffer(RingBuffer):
         """Randomly get ``batch_size`` trajectories from the buffer.
 
         Note: The environments where the samples are from are ordered in the
-            returned batch.
+            returned batch unless ``shuffle_batch=True``.
 
         Args:
             batch_size (int): get so many trajectories
@@ -425,6 +429,13 @@ class ReplayBuffer(RingBuffer):
                 alf.summary.scalar(
                     "replayer/" + self._name + ".original_reward_mean",
                     torch.mean(result.reward[:-1]))
+
+            if self._shuffle_batch:
+                perm = torch.randperm(batch_size, device=self._device)
+                result = alf.nest.map_structure(lambda x: x[perm], result)
+                info = alf.nest.map_structure(
+                    lambda x: x[perm]
+                    if isinstance(x, torch.Tensor) else x, info)
 
         if self._keep_episodic_info and self._record_episodic_return:
             # info elements have shape [B], and needs to be device-converted.
@@ -805,6 +816,12 @@ class ReplayBuffer(RingBuffer):
                          positions=torch.full((self._num_envs, ),
                                               start_pos,
                                               dtype=torch.int64))
+
+        if self._shuffle_batch:
+            perm = torch.randperm(self._num_envs, device=self._device)
+            result = alf.nest.map_structure(lambda x: x[perm], result)
+            info = alf.nest.map_structure(
+                lambda x: x[perm] if isinstance(x, torch.Tensor) else x, info)
 
         if (convert_to_default_device
                 and alf.get_default_device() != self._device):

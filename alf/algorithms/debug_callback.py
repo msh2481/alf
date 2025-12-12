@@ -216,8 +216,8 @@ class DebugCallback:
         #     f.write("=" * 40 + "\n")
 
         self._executor.submit(self._create_and_save_plots, iter_number,
-                              replay_buffer, num_copies, get_q_values_fn,
-                              get_actor_fn)
+                              replay_buffer, algorithms, action_spec,
+                              num_copies, get_q_values_fn, get_actor_fn)
         logging.info(f"Plot saving in background")
 
     def _write_basic_stats(self, f, observations, rewards, replay_buffer):
@@ -233,6 +233,8 @@ class DebugCallback:
     def _create_and_save_plots(self,
                                iter_number,
                                replay_buffer,
+                               algorithms,
+                               action_spec,
                                num_copies,
                                get_q_values_fn,
                                get_actor_fn=None):
@@ -248,6 +250,7 @@ class DebugCallback:
             replay_buffer)
         self._plot_transition_counts(axes[0, :2], transition_counts, k,
                                      positions)
+        self._plot_all_q_functions(axes[0, 2], algorithms, action_spec)
 
         for i in range(num_copies):
 
@@ -281,6 +284,60 @@ class DebugCallback:
         plt.savefig(plot_path, dpi=150)
         plt.close()
         logging.info(f"Written plot to {plot_path}")
+
+    def _plot_all_q_functions(self, ax, algorithms, action_spec):
+        if action_spec.is_discrete or action_spec.shape != (1, ):
+            ax.text(0.5,
+                    0.5,
+                    'Q(s,a) curves\nrequire 1D continuous action',
+                    ha='center',
+                    va='center',
+                    transform=ax.transAxes,
+                    fontsize=12)
+            ax.axis('off')
+            return
+
+        k = self._debug_env.k
+        action_grid = torch.linspace(-1.0, 1.0, 101, dtype=torch.float32)
+        action_grid = action_grid.unsqueeze(-1).to(alf.get_default_device())
+
+        ax.set_title('Q(s,a) curves (one line per state)')
+        ax.set_xlabel('action')
+        ax.set_ylabel('Q')
+        ax.set_xlim(-1.0, 1.0)
+
+        alg_index = int(np.random.randint(len(algorithms)))
+        alg = algorithms[alg_index]
+        x = action_grid[:, 0].detach().cpu().numpy()
+        first = True
+        for position in range(-k, k + 1):
+            for time_step in range(k + 1):
+                if abs(position
+                       ) > time_step or abs(position) % 2 != time_step % 2:
+                    continue
+                obs = self._debug_env.state_to_observation(position, time_step)
+                obs = torch.from_numpy(obs).to(action_grid.device)
+                obs = obs.unsqueeze(0).expand(action_grid.shape[0], -1)
+                with torch.no_grad():
+                    q_values, _ = alg._compute_critics(
+                        alg._critic_networks,
+                        obs,
+                        action_grid,
+                        critics_state=(),
+                        replica_min=True,
+                        apply_reward_weights=True)
+                q_values = torch.as_tensor(
+                    q_values).detach().flatten().cpu().numpy()
+                ax.plot(x,
+                        q_values,
+                        color='blue',
+                        alpha=0.12,
+                        linewidth=1.3,
+                        label=f'Algorithm {alg_index}' if first else None)
+                first = False
+
+        ax.grid(True, alpha=0.2)
+        ax.legend(loc='best', fontsize=10)
 
     def _plot_transition_counts(self, axes_row, transition_counts, k,
                                 positions):

@@ -11,8 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import math
 import alf
-
 from alf.algorithms.seed_sampling import SeedDqnAlgorithm, SeedSacAlgorithm
 from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.dqn_algorithm import DqnAlgorithm
@@ -26,7 +26,7 @@ from functools import partial
 from alf.environments.simple.bipolar_chain import BipolarChain
 from alf.environments import suite_gym
 
-ENV_NAME = "BipolarChain-medium-sparse-onehot-continuous-v0"
+ENV_NAME = "BipolarChain-small-sparse-onehot-continuous-v0"
 DISCRETE = "discrete" in ENV_NAME
 NUM_COPIES = 4
 RESET_PERIOD = 200
@@ -52,6 +52,8 @@ alf.config('create_environment',
            env_name=ENV_NAME,
            num_parallel_environments=ENV_COUNTS)
 
+alf.config('ReplayBuffer', shuffle_batch=True)
+
 if DISCRETE:
     alf.config('QNetwork', fc_layer_params=HIDDEN_LAYERS, use_fc_ln=True)
     alf.config('RandomizedPriorQNetwork',
@@ -71,14 +73,22 @@ else:
     # alf.config('CriticNetwork',
     #            joint_fc_layer_params=HIDDEN_LAYERS,
     #            use_fc_ln=True)
-    alf.config('RBFCriticNetwork', n_components=1000, gamma=1.0)
+
+    N_COMPONENTS = 1000
+    # IMPORTANT: only_sign_matters=True makes sense only for bipolar-continuous, turn off for other continuous environments
+    alf.config('RBFCriticNetwork',
+               n_components=N_COMPONENTS,
+               gamma=10.0,
+               only_sign_matters=True)
     alf.config('RBFActorDistributionNetwork',
-               n_components=1000,
+               n_components=N_COMPONENTS,
                gamma=10.0,
                continuous_projection_net_ctor=partial(
                    alf.networks.NormalProjectionNetwork,
                    state_dependent_std=True,
-                   std_transform=clipped_exp,
+                   std_transform=partial(clipped_exp,
+                                         clip_value_min=math.log(0.05),
+                                         clip_value_max=math.log(0.2)),
                    scale_distribution=True,
                    use_bias=False))
     alf.config('RandomizedPriorCriticNetwork',
@@ -93,7 +103,7 @@ else:
 alf.config(
     'SacAlgorithm',
     num_critic_replicas=1,
-    target_update_tau=0.2,
+    target_update_tau=0.05,
     target_update_period=1,
     use_entropy_reward=ENTROPY_REWARD,
     **sac_kwargs,
@@ -108,8 +118,7 @@ alf.config('ConcurrentAlgorithm', agent_reset_period=RESET_PERIOD)
 alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SeedSacAlgorithm if SEED_VERSION else SacAlgorithm,
-    # optimizer=alf.optimizers.Adam(lr=5e-4, name='main'),
-    optimizer=alf.optimizers.SGD(lr=0.2, name='main', momentum=0.5),
+    optimizer=alf.optimizers.AdamW(lr=1e-3, weight_decay=0.1, name='main'),
     num_copies=NUM_COPIES,
     use_exploration_seeds=SEED_VERSION,
     debug_env=suite_gym.load(ENV_NAME),

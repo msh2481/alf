@@ -29,6 +29,7 @@ from alf.networks import NormalProjectionNetwork, CategoricalProjectionNetwork, 
 from alf.utils.common import zero_tensor_from_nested_spec
 from alf.nest.utils import NestConcat
 from alf.utils.dist_utils import DistributionSpec
+from alf.utils.math_ops import clipped_exp
 
 
 class TestActorDistributionNetworks(parameterized.TestCase, alf.test.TestCase):
@@ -252,9 +253,12 @@ class TestActorDistributionNetworks(parameterized.TestCase, alf.test.TestCase):
             action_spec,
             n_components=2000,
             gamma=5,
-            # continuous_projection_net_ctor=functools.partial(
-            #     NormalProjectionNetwork, scale_distribution=False, squash_mean=False, use_bias=False),
-            continuous_projection_net_ctor=SimpleProjectionNetwork,
+            continuous_projection_net_ctor=functools.partial(
+                NormalProjectionNetwork,
+                state_dependent_std=True,
+                scale_distribution=True,
+                std_transform=clipped_exp,
+                use_bias=False),
         )
         optimizer = torch.optim.SGD(actor.parameters(), lr=0.2, momentum=0.5)
         # optimizer = torch.optim.Adam(actor.parameters(), lr=1e-2)
@@ -275,7 +279,7 @@ class TestActorDistributionNetworks(parameterized.TestCase, alf.test.TestCase):
         for _ in range(num_steps):
             optimizer.zero_grad()
             act_dist, _ = actor(emb_0)
-            loss = ((act_dist.mean - target)**2).mean()
+            loss = ((act_dist.rsample((100, )).mean() - target)**2).mean()
             loss.backward()
             optimizer.step()
 
@@ -284,7 +288,7 @@ class TestActorDistributionNetworks(parameterized.TestCase, alf.test.TestCase):
                 for i in range(num_test_inputs):
                     emb_i = embeddings[i:i + 1]
                     act_dist, _ = actor(emb_i)
-                    test_means.append(act_dist.mean.item())
+                    test_means.append(act_dist.rsample((100, )).mean().item())
             results.append(test_means)
 
         from matplotlib import pyplot as plt

@@ -537,6 +537,7 @@ class RBFCriticNetwork(Network):
                  input_tensor_spec,
                  n_components: int = 1000,
                  gamma: float = 3.0,
+                 only_sign_matters: bool = False,
                  last_kernel_initializer=None,
                  use_bias=False,
                  name="RBFCriticNetwork"):
@@ -552,6 +553,7 @@ class RBFCriticNetwork(Network):
             name (str): name of the network
         """
         super().__init__(input_tensor_spec=input_tensor_spec, name=name)
+        self._only_sign_matters = only_sign_matters
 
         observation_spec, action_spec = input_tensor_spec
         input_dim = observation_spec.numel + action_spec.numel
@@ -588,16 +590,26 @@ class RBFCriticNetwork(Network):
             - state (tuple): empty tuple
         """
         observation, action = observation_action
+        if self._only_sign_matters:
+            if action.shape[-1] != 1:
+                raise ValueError(
+                    "only_sign_matters=True requires 1D continuous action")
+            a = action[..., :1]
+            a_neg = torch.full_like(a, -1.0)
+            a_pos = torch.full_like(a, 1.0)
+            obs2 = torch.cat([observation, observation], dim=0)
+            act2 = torch.cat([a_neg, a_pos], dim=0)
+            joint2 = torch.cat([obs2, act2], dim=-1)
+            rbf_features2, _ = self._encoding_net(joint2, state)
+            q2 = self._value_layer(rbf_features2).squeeze(-1)
+            q_neg, q_pos = q2.chunk(2, dim=0)
+            t = (a.squeeze(-1) + 1.0) * 0.5
+            q_value = q_neg + t * (q_pos - q_neg)
+            return q_value, state
 
-        # Concatenate observation and action
         joint = torch.cat([observation, action], dim=-1)
-
-        # Encode through RBF network
         rbf_features, _ = self._encoding_net(joint, state)
-
-        # Project to Q-value and squeeze last dimension
         q_value = self._value_layer(rbf_features).squeeze(-1)
-
         return q_value, state
 
     def make_parallel(self, n):
