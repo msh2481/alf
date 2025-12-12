@@ -188,6 +188,7 @@ class NormalProjectionNetwork(Network):
                  scale_distribution=False,
                  dist_squashing_transform=dist_utils.StableTanh(),
                  disable_amp: bool = False,
+                 use_bias: bool = True,
                  name="NormalProjectionNetwork"):
         """Creates an instance of NormalProjectionNetwork.
 
@@ -266,8 +267,9 @@ class NormalProjectionNetwork(Network):
         if std_transform is not None:
             self._std_transform = std_transform
 
-        fc_ctor = layers.FC if parallelism is None else partial(
-            layers.ParallelFC, n=parallelism)
+        fc_ctor = partial(
+            layers.FC, use_bias=use_bias) if parallelism is None else partial(
+                layers.ParallelFC, n=parallelism, use_bias=use_bias)
         self._means_projection_layer = fc_ctor(
             input_size,
             action_spec.shape[0],
@@ -316,8 +318,17 @@ class NormalProjectionNetwork(Network):
             inputs = alf.layers.to_float32(inputs)
             amp_enabled = False
         with torch.cuda.amp.autocast(amp_enabled, dtype=self._amp_dtype):
-            means = self._mean_transform(self._means_projection_layer(inputs))
+            projected_mean = self._means_projection_layer(inputs)
+            means = self._mean_transform(projected_mean)
             stds = self._std_transform(self._std_projection_layer(inputs))
+            if means.numel() > 2:
+                print(
+                    f"inputs: mean={inputs.mean():.4f}, std={inputs.std():.4f}"
+                )
+                print(
+                    f"projected_mean: mean={projected_mean.mean():.4f}, std={projected_mean.std():.4f}"
+                )
+                print(f"means: mean={means.mean():.4f}, std={means.std():.4f}")
             return self._normal_dist(means, stds), state
 
     def make_parallel(self, n):

@@ -370,12 +370,13 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
         input_spec = (obs_spec, action_spec)
 
         sub_ctor = functools.partial(RBFCriticNetwork,
-                                     n_components=1000,
+                                     n_components=10000,
                                      gamma=10)
         critic = RandomizedPriorCriticNetwork(sub_ctor,
                                               input_spec,
                                               prior_scale=0.01)
-        optimizer = torch.optim.Adam(critic.parameters(), lr=3e-5)
+        # optimizer = torch.optim.Adam(critic.parameters(), lr=5e-3, betas=(0.5, 0.9999))
+        optimizer = torch.optim.SGD(critic.parameters(), lr=0.2, momentum=0.5)
 
         num_steps = 100
         num_test_inputs = 30
@@ -387,9 +388,9 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
                 embeddings[i, j] = torch.exp(-torch.tensor(
                     (i - j)**2, dtype=torch.float32))
 
-        emb_0 = embeddings[0:1]
+        emb_0 = embeddings[5:6]
         action = torch.zeros(1, 1)
-        target = torch.tensor([0.0])
+        target = torch.tensor([1.0])
 
         for step in range(num_steps):
             optimizer.zero_grad()

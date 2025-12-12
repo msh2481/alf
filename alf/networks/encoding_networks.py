@@ -953,7 +953,7 @@ class RBFEncodingNetwork(Network):
         """
         scaled_input = input * self._gamma
         rbf_output = self._rbf_layer(scaled_input)
-        output = torch.sin(rbf_output)
+        output = torch.sin(rbf_output) / math.sqrt(self._n_components)
 
         return output, state
 

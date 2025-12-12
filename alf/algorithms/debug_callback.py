@@ -320,10 +320,13 @@ class DebugCallback:
                        get_q_values_fn):
         """Plot Q-values for a given algorithm."""
         q_values = self._debug_env.get_q_value_table(get_q_values_fn)
+        avg = q_values.mean(axis=2)
+        adv = q_values[:, :, 1] - q_values[:, :, 0]
 
-        for action_idx, action_name in enumerate(['Left', 'Right']):
+        for action_idx, action_name, values in [[0, 'Average', avg],
+                                                [1, 'Advantage', adv]]:
             ax = axes_row[action_idx]
-            data = q_values[:, :, action_idx].T
+            data = values.T
             im = ax.imshow(data,
                            aspect='auto',
                            cmap='bwr',
@@ -332,7 +335,7 @@ class DebugCallback:
                            vmax=0.5)
             ax.set_xlabel('Position')
             ax.set_ylabel('Time')
-            ax.set_title(f'Algorithm {alg_index} Q-values {action_name}')
+            ax.set_title(f'Algorithm {alg_index}: {action_name}')
             ax.set_xticks(range(0, 2 * k + 1, max(1, (2 * k + 1) // 8)))
             ax.set_xticklabels([
                 positions[j]

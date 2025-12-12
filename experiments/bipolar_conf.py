@@ -39,7 +39,7 @@ ENTROPY_REWARD = False
 
 HIDDEN_LAYERS = (256, 256)
 
-PRIOR_SCALE = 0.2
+PRIOR_SCALE = 5.0
 # PARAMETER_TARGET_STD = 0.0
 # PARAMETER_TARGET_ALPHA = 0.0
 # REWARD_NOISE_STD = 0.0
@@ -71,16 +71,16 @@ else:
     # alf.config('CriticNetwork',
     #            joint_fc_layer_params=HIDDEN_LAYERS,
     #            use_fc_ln=True)
-    GAMMA = 1.0
-    alf.config('RBFCriticNetwork', n_components=1000, gamma=GAMMA)
+    alf.config('RBFCriticNetwork', n_components=1000, gamma=1.0)
     alf.config('RBFActorDistributionNetwork',
                n_components=1000,
-               gamma=GAMMA,
+               gamma=10.0,
                continuous_projection_net_ctor=partial(
                    alf.networks.NormalProjectionNetwork,
                    state_dependent_std=True,
                    std_transform=clipped_exp,
-                   scale_distribution=True))
+                   scale_distribution=True,
+                   use_bias=False))
     alf.config('RandomizedPriorCriticNetwork',
                network_ctor=RBFCriticNetwork,
                prior_scale=PRIOR_SCALE,
@@ -108,7 +108,8 @@ alf.config('ConcurrentAlgorithm', agent_reset_period=RESET_PERIOD)
 alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SeedSacAlgorithm if SEED_VERSION else SacAlgorithm,
-    optimizer=alf.optimizers.Adam(lr=5e-4, name='main'),
+    # optimizer=alf.optimizers.Adam(lr=5e-4, name='main'),
+    optimizer=alf.optimizers.SGD(lr=0.2, name='main', momentum=0.5),
     num_copies=NUM_COPIES,
     use_exploration_seeds=SEED_VERSION,
     debug_env=suite_gym.load(ENV_NAME),

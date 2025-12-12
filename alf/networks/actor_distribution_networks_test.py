@@ -24,7 +24,7 @@ import torch.distributions as td
 import alf
 from alf.tensor_specs import TensorSpec, BoundedTensorSpec
 from alf.networks import ActorDistributionNetwork
-from alf.networks import ActorDistributionRNNNetwork
+from alf.networks import ActorDistributionRNNNetwork, RBFActorDistributionNetwork
 from alf.networks import NormalProjectionNetwork, CategoricalProjectionNetwork
 from alf.utils.common import zero_tensor_from_nested_spec
 from alf.nest.utils import NestConcat
@@ -238,6 +238,76 @@ class TestActorDistributionNetworks(parameterized.TestCase, alf.test.TestCase):
         act_dist, _ = pnet(obs_spec.randn((1, replicas)), state)
         actions = act_dist.sample()
         self.assertEqual(actions.shape, (1, replicas) + action_spec.shape)
+
+    def test_generalization(self):
+        torch.manual_seed(0)
+        obs_dim = 31
+        obs_spec = TensorSpec((obs_dim, ), torch.float32)
+        action_spec = BoundedTensorSpec((1, ),
+                                        torch.float32,
+                                        minimum=-1.0,
+                                        maximum=1.0)
+        actor = RBFActorDistributionNetwork(
+            obs_spec,
+            action_spec,
+            n_components=2000,
+            gamma=10,
+            continuous_projection_net_ctor=functools.partial(
+                NormalProjectionNetwork, scale_distribution=False))
+        optimizer = torch.optim.SGD(actor.parameters(), lr=0.2, momentum=0.5)
+
+        num_steps = 100
+        num_test_inputs = 30
+        results = []
+
+        embeddings = torch.zeros(num_test_inputs, obs_dim)
+        for i in range(num_test_inputs):
+            for j in range(obs_dim):
+                embeddings[i, j] = torch.exp(-torch.tensor(
+                    (i - j)**2, dtype=torch.float32))
+
+        emb_0 = embeddings[5:6]
+        target = torch.tensor([[1.0]])
+
+        for _ in range(num_steps):
+            optimizer.zero_grad()
+            act_dist, _ = actor(emb_0)
+            loss = ((act_dist.mean - target)**2).mean()
+            loss.backward()
+            optimizer.step()
+
+            test_means = []
+            with torch.no_grad():
+                for i in range(num_test_inputs):
+                    emb_i = embeddings[i:i + 1]
+                    act_dist, _ = actor(emb_i)
+                    test_means.append(act_dist.mean.item())
+            results.append(test_means)
+
+        from matplotlib import pyplot as plt
+        from matplotlib.cm import ScalarMappable
+        from matplotlib.colors import Normalize
+        x = list(range(num_test_inputs))
+        cmap = plt.get_cmap('viridis')
+        fig, ax = plt.subplots(figsize=(12, 8))
+        for step_idx, values in enumerate(results):
+            color = cmap(step_idx / num_steps)
+            ax.plot(x, values, color=color, alpha=0.7)
+        ax.axhline(y=0, linestyle='--', color='gray', alpha=0.5)
+        ax.set_xlabel('Input index i')
+        ax.set_ylabel('Action mean')
+        ax.set_title(
+            'Generalization test: mean(emb(i)) after training on emb(5)')
+        sm = ScalarMappable(cmap=cmap, norm=Normalize(vmin=0, vmax=num_steps))
+        sm.set_array([])
+        plt.colorbar(sm, ax=ax, label='Iteration')
+        plt.show()
+
+        means = results[-1]
+        self.assertLess(abs(means[5] - 1.0), 0.3)
+        best_i = max(range(num_test_inputs), key=lambda i: means[i])
+        self.assertLessEqual(abs(best_i - 5), 3)
+        self.assertGreater(max(means) - min(means), 0.05)
 
 
 if __name__ == "__main__":

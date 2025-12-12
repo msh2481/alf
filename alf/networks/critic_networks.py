@@ -567,10 +567,7 @@ class RBFCriticNetwork(Network):
 
         # Final projection layer: RBF features → scalar Q-value
         if last_kernel_initializer is None:
-            last_kernel_initializer = functools.partial(
-                torch.nn.init.normal_,
-                mean=0.0,
-                std=math.sqrt(1.0 / n_components))
+            last_kernel_initializer = functools.partial(torch.nn.init.normal_)
 
         self._value_layer = layers.FC(
             n_components,
