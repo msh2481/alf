@@ -921,11 +921,10 @@ class RBFEncodingNetwork(Network):
         self._gamma = gamma
         self._n_components = n_components
 
-        # Default initializers for RBF layer
-        if kernel_initializer is None:
-            kernel_initializer = functools.partial(torch.nn.init.normal_,
-                                                   mean=0.0,
-                                                   std=1.0)
+        # Ignore provided kernel_initializer, because for RBF to make sense we need N(0, 1) weights in rbf_layer
+        kernel_initializer = functools.partial(torch.nn.init.normal_,
+                                               mean=0.0,
+                                               std=1.0)
         if bias_initializer is None:
             bias_initializer = functools.partial(torch.nn.init.uniform_,
                                                  a=-math.pi,

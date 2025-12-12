@@ -172,6 +172,38 @@ class ParallelCategoricalProjectionNetwork(Network):
 
 
 @alf.configurable
+class SimpleProjectionNetwork(Network):
+    """A simple projection network that outputs a normal distribution with mean=input and std=1."""
+
+    def __init__(self,
+                 input_size,
+                 action_spec,
+                 name="SimpleProjectionNetwork"):
+        """Creates an instance of SimpleProjectionNetwork.
+
+        Args:
+            input_size (int): input vector dimension
+            action_spec (TensorSpec): a tensor spec containing the information
+                of the output distribution.
+            name (str): name of this network.
+        """
+        super(SimpleProjectionNetwork,
+              self).__init__(input_tensor_spec=TensorSpec((input_size, )),
+                             name=name)
+        assert isinstance(action_spec, TensorSpec)
+        self.fc_layer = layers.FC(input_size,
+                                  action_spec.shape[0],
+                                  use_bias=False)
+        self._action_spec = action_spec
+
+    def forward(self, inputs, state=()):
+        means = self.fc_layer(inputs)
+        stds = torch.ones_like(means)
+        normal_dist = dist_utils.DiagMultivariateNormal(loc=means, scale=stds)
+        return normal_dist, state
+
+
+@alf.configurable
 class NormalProjectionNetwork(Network):
 
     def __init__(self,
@@ -321,14 +353,6 @@ class NormalProjectionNetwork(Network):
             projected_mean = self._means_projection_layer(inputs)
             means = self._mean_transform(projected_mean)
             stds = self._std_transform(self._std_projection_layer(inputs))
-            if means.numel() > 2:
-                print(
-                    f"inputs: mean={inputs.mean():.4f}, std={inputs.std():.4f}"
-                )
-                print(
-                    f"projected_mean: mean={projected_mean.mean():.4f}, std={projected_mean.std():.4f}"
-                )
-                print(f"means: mean={means.mean():.4f}, std={means.std():.4f}")
             return self._normal_dist(means, stds), state
 
     def make_parallel(self, n):
