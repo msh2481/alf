@@ -221,6 +221,7 @@ class NormalProjectionNetwork(Network):
                  dist_squashing_transform=dist_utils.StableTanh(),
                  disable_amp: bool = False,
                  use_bias: bool = True,
+                 zero_init: bool = False,
                  name="NormalProjectionNetwork"):
         """Creates an instance of NormalProjectionNetwork.
 
@@ -259,6 +260,8 @@ class NormalProjectionNetwork(Network):
             dist_squashing_transform (td.Transform):  A distribution Transform
                 which transforms values into :math:`(-1, 1)`. Default to ``dist_utils.StableTanh()``
             disable_amp (bool): If True, disable automatic mixed precision.
+            zero_init (bool): If True, initialize projection layer kernels with
+                a near-zero normal distribution (mean=0, std=1e-8).
             name (str): name of this network.
         """
         super(NormalProjectionNetwork,
@@ -299,9 +302,16 @@ class NormalProjectionNetwork(Network):
         if std_transform is not None:
             self._std_transform = std_transform
 
-        fc_ctor = partial(
-            layers.FC, use_bias=use_bias) if parallelism is None else partial(
-                layers.ParallelFC, n=parallelism, use_bias=use_bias)
+        kernel_initializer = (partial(nn.init.normal_, mean=0.0, std=1e-8)
+                              if zero_init else None)
+        fc_ctor = (partial(layers.FC,
+                           use_bias=use_bias,
+                           kernel_initializer=kernel_initializer)
+                   if parallelism is None else partial(
+                       layers.ParallelFC,
+                       n=parallelism,
+                       use_bias=use_bias,
+                       kernel_initializer=kernel_initializer))
         self._means_projection_layer = fc_ctor(
             input_size,
             action_spec.shape[0],

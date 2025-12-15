@@ -603,7 +603,10 @@ class RBFCriticNetwork(Network):
             rbf_features2, _ = self._encoding_net(joint2, state)
             q2 = self._value_layer(rbf_features2).squeeze(-1)
             q_neg, q_pos = q2.chunk(2, dim=0)
-            t = (a.squeeze(-1) + 1.0) * 0.5
+            a = a.squeeze(-1)
+            t_lin = (a + 1.0) * 0.5
+            t_hard = (a >= 0).to(dtype=t_lin.dtype)
+            t = t_hard + (t_lin - t_lin.detach())
             q_value = q_neg + t * (q_pos - q_neg)
             return q_value, state
 
@@ -709,8 +712,7 @@ class RandomizedPriorCriticNetwork(Network):
             - state: Updated state.
         """
         q_vals, state = self._trainable_net(observation, state)
-        with torch.no_grad():
-            prior_vals, _ = self._prior_net(observation, state)
+        prior_vals, _ = self._prior_net(observation, state)
         return q_vals + prior_vals, state
 
     @property
@@ -742,8 +744,7 @@ class _ParallelRandomizedPriorCriticNetwork(Network):
 
     def forward(self, observation, state=()):
         q_vals, state = self._trainable_net(observation, state)
-        with torch.no_grad():
-            prior_vals, _ = self._prior_net(observation, state)
+        prior_vals, _ = self._prior_net(observation, state)
         return q_vals + prior_vals, state
 
     @property

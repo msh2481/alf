@@ -34,7 +34,7 @@ BATCH_SIZE = 256 * NUM_COPIES
 ENV_COUNTS = NUM_COPIES
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
-SEED_VERSION = True
+SEED_VERSION = False
 ENTROPY_REWARD = False
 
 HIDDEN_LAYERS = (256, 256)
@@ -85,6 +85,7 @@ else:
                gamma=10.0,
                continuous_projection_net_ctor=partial(
                    alf.networks.NormalProjectionNetwork,
+                   zero_init=True,
                    state_dependent_std=True,
                    std_transform=partial(clipped_exp,
                                          clip_value_min=math.log(0.05),
@@ -102,6 +103,7 @@ else:
 
 alf.config(
     'SacAlgorithm',
+    trace_path='traces/{name}.ndjson',
     num_critic_replicas=1,
     target_update_tau=0.05,
     target_update_period=1,
@@ -118,7 +120,7 @@ alf.config('ConcurrentAlgorithm', agent_reset_period=RESET_PERIOD)
 alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SeedSacAlgorithm if SEED_VERSION else SacAlgorithm,
-    optimizer=alf.optimizers.AdamW(lr=1e-3, weight_decay=0.1, name='main'),
+    optimizer=alf.optimizers.AdamW(lr=1e-3, weight_decay=1e-2, name='main'),
     num_copies=NUM_COPIES,
     use_exploration_seeds=SEED_VERSION,
     debug_env=suite_gym.load(ENV_NAME),
