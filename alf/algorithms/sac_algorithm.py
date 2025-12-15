@@ -17,8 +17,6 @@ from absl import logging
 import numpy as np
 import functools
 from enum import Enum
-import json
-import os
 
 import torch
 import torch.nn as nn
@@ -184,9 +182,6 @@ class SacAlgorithm(OffPolicyAlgorithm):
                  checkpoint=None,
                  debug_summaries=False,
                  reproduce_locomotion=False,
-                 trace_path: str | None = None,
-                 trace_every_n_updates: int = 1,
-                 trace_max_rows_per_update: int | None = None,
                  name="SacAlgorithm"):
         """
         Args:
@@ -488,11 +483,6 @@ class SacAlgorithm(OffPolicyAlgorithm):
 
         self._repr_alg = repr_alg
         self._target_repr_alg = target_repr_alg
-        self._trace_path = trace_path
-        self._trace_every_n_updates = trace_every_n_updates
-        self._trace_max_rows_per_update = trace_max_rows_per_update
-        self._trace_update_id = 0
-        self._trace_fp = None
 
         def _filter(x):
             return list(filter(lambda x: x is not None, x))
@@ -537,25 +527,6 @@ class SacAlgorithm(OffPolicyAlgorithm):
                 state_dict.pop(key)
 
         self._register_load_state_dict_pre_hook(_deployment_hook)
-
-    def _maybe_open_trace(self):
-        if self._trace_fp is not None or not self._trace_path:
-            return
-        root_dir = self._config.root_dir if self._config else "."
-        path = self._trace_path.format(name=self.name)
-        if not os.path.isabs(path):
-            path = os.path.join(root_dir, path)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        self._trace_fp = open(path, "a", buffering=1)
-
-    def _write_trace_rows(self, rows: list[dict]):
-        if not rows:
-            return
-        self._maybe_open_trace()
-        if self._trace_fp is None:
-            return
-        for row in rows:
-            self._trace_fp.write(json.dumps(row) + "\n")
 
     def _make_networks(self, observation_spec, action_spec, reward_spec,
                        continuous_actor_network_cls, critic_network_cls,
@@ -881,132 +852,6 @@ class SacAlgorithm(OffPolicyAlgorithm):
 
         # This sum() will reduce all dims so q_value can be any rank
         dqda = nest_utils.grad(action, q_value.sum())
-        if (self._trace_path and self._act_type == ActionType.Continuous):
-            if self._trace_every_n_updates <= 0:
-                raise ValueError("trace_every_n_updates must be >= 1")
-            should_trace = (self._trace_update_id %
-                            self._trace_every_n_updates == 0)
-            if should_trace:
-                with torch.no_grad():
-                    eps = 1e-6
-                    plus_action = alf.nest.map_structure(
-                        lambda a: torch.ones_like(a) * (1 - eps), action)
-                    minus_action = alf.nest.map_structure(
-                        lambda a: -torch.ones_like(a) * (1 - eps), action)
-                    q_plus, _ = self._compute_critics(
-                        self._critic_networks,
-                        observation,
-                        plus_action,
-                        state,
-                        replica_min=True,
-                        apply_reward_weights=True)
-                    q_minus, _ = self._compute_critics(
-                        self._critic_networks,
-                        observation,
-                        minus_action,
-                        state,
-                        replica_min=True,
-                        apply_reward_weights=True)
-
-                    def _safe_get_attr(dist, attr):
-                        try:
-                            return getattr(dist, attr)
-                        except (NotImplementedError, AttributeError):
-                            return None
-
-                    mean = _safe_get_attr(action_distribution, "mean")
-                    std = _safe_get_attr(action_distribution, "stddev")
-                    if mean is None:
-                        mean = _safe_get_attr(action_distribution, "loc")
-                    if std is None:
-                        std = _safe_get_attr(action_distribution, "scale")
-
-                    if mean is None or std is None:
-                        stat_samples = 1000
-                        try:
-                            samples = action_distribution.rsample(
-                                (stat_samples, ))
-                        except Exception:
-                            samples = action_distribution.sample(
-                                (stat_samples, ))
-                        mean = samples.mean(dim=0)
-                        std = samples.std(dim=0, unbiased=False)
-
-                    def _to_list(x):
-                        if not isinstance(x, torch.Tensor):
-                            return None
-                        return x.detach().cpu().tolist()
-
-                    obs_t = observation
-                    if isinstance(observation, (tuple, list)):
-                        obs_t = observation[0]
-
-                    logp = action_distribution.log_prob(action)
-                    logp_plus = action_distribution.log_prob(plus_action)
-                    logp_minus = action_distribution.log_prob(minus_action)
-                    if isinstance(logp, torch.Tensor) and logp.ndim > 1:
-                        logp = logp.sum(dim=list(range(1, logp.ndim)))
-                        logp_plus = logp_plus.sum(
-                            dim=list(range(1, logp_plus.ndim)))
-                        logp_minus = logp_minus.sum(
-                            dim=list(range(1, logp_minus.ndim)))
-
-                    rows = []
-                    n = obs_t.shape[0] if isinstance(obs_t,
-                                                     torch.Tensor) else 0
-                    limit = self._trace_max_rows_per_update or n
-                    for i in range(min(n, limit)):
-                        obs_idx = None
-                        if isinstance(obs_t, torch.Tensor):
-                            obs_idx = int(obs_t[i].argmax().item())
-                        rows.append({
-                            "algo":
-                                self.name,
-                            "global_counter":
-                                int(alf.summary.get_global_counter()),
-                            "update_id":
-                                int(self._trace_update_id),
-                            "i":
-                                int(i),
-                            "obs_idx":
-                                obs_idx,
-                            "action":
-                                _to_list(action[i]) if isinstance(
-                                    action, torch.Tensor) else None,
-                            "mean":
-                                _to_list(mean[i]) if isinstance(
-                                    mean, torch.Tensor) else None,
-                            "std":
-                                _to_list(std[i]) if isinstance(
-                                    std, torch.Tensor) else None,
-                            "logp_action":
-                                float(logp[i].detach().cpu()) if isinstance(
-                                    logp, torch.Tensor) else None,
-                            "logp_plus":
-                                float(logp_plus[i].detach().cpu()) if
-                                isinstance(logp_plus, torch.Tensor) else None,
-                            "logp_minus":
-                                float(logp_minus[i].detach().cpu()) if
-                                isinstance(logp_minus, torch.Tensor) else None,
-                            "q_sample":
-                                float(q_value[i].detach().cpu())
-                                if isinstance(q_value, torch.Tensor)
-                                and q_value.ndim == 1 else _to_list(
-                                    q_value[i]),
-                            "dqda":
-                                _to_list(dqda[i]) if isinstance(
-                                    dqda, torch.Tensor) else None,
-                            "q_plus":
-                                float(q_plus[i].detach().cpu())
-                                if isinstance(q_plus, torch.Tensor)
-                                and q_plus.ndim == 1 else _to_list(q_plus[i]),
-                            "q_minus":
-                                float(q_minus[i].detach().cpu())
-                                if isinstance(q_minus, torch.Tensor)
-                                and q_minus.ndim == 1 else _to_list(
-                                    q_minus[i]),
-                        })
-                self._write_trace_rows(rows)
 
         def actor_loss_fn(dqda, action):
             if self._dqda_clipping:
@@ -1098,7 +943,6 @@ class SacAlgorithm(OffPolicyAlgorithm):
                    rollout_info: SacInfo):
         assert not self._is_eval
         self._training_started = True
-        self._trace_update_id += 1
         if self._target_repr_alg is not None:
             # We calculate the target observation first so that the peak memory
             # usage can be reduced because its computation graph will not be kept.

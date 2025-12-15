@@ -26,7 +26,7 @@ from functools import partial
 from alf.environments.simple.bipolar_chain import BipolarChain
 from alf.environments import suite_gym
 
-ENV_NAME = "BipolarChain-small-sparse-onehot-continuous-v0"
+ENV_NAME = "BipolarChain-medium-sparse-onehot-continuous-v0"
 DISCRETE = "discrete" in ENV_NAME
 NUM_COPIES = 4
 RESET_PERIOD = 200
@@ -75,11 +75,10 @@ else:
     #            use_fc_ln=True)
 
     N_COMPONENTS = 1000
-    # IMPORTANT: only_sign_matters=True makes sense only for bipolar-continuous, turn off for other continuous environments
     alf.config('RBFCriticNetwork',
                n_components=N_COMPONENTS,
-               gamma=10.0,
-               only_sign_matters=True)
+               gamma=2.0,
+               only_sign_matters=False)
     alf.config('RBFActorDistributionNetwork',
                n_components=N_COMPONENTS,
                gamma=10.0,
@@ -103,7 +102,6 @@ else:
 
 alf.config(
     'SacAlgorithm',
-    trace_path='traces/{name}.ndjson',
     num_critic_replicas=1,
     target_update_tau=0.05,
     target_update_period=1,
