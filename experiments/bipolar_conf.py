@@ -29,7 +29,7 @@ from alf.environments import suite_gym
 ENV_NAME = "BipolarChain-medium-sparse-onehot-continuous-v0"
 DISCRETE = "discrete" in ENV_NAME
 NUM_COPIES = 4
-RESET_PERIOD = 200
+RESET_PERIOD = 50
 BATCH_SIZE = 256 * NUM_COPIES
 ENV_COUNTS = NUM_COPIES
 UNROLL_LENGTH = 1
@@ -74,10 +74,10 @@ else:
     #            joint_fc_layer_params=HIDDEN_LAYERS,
     #            use_fc_ln=True)
 
-    N_COMPONENTS = 1000
+    N_COMPONENTS = 8000
     alf.config('RBFCriticNetwork',
                n_components=N_COMPONENTS,
-               gamma=2.0,
+               gamma=1.0,
                only_sign_matters=False)
     alf.config('RBFActorDistributionNetwork',
                n_components=N_COMPONENTS,
@@ -87,8 +87,8 @@ else:
                    zero_init=True,
                    state_dependent_std=True,
                    std_transform=partial(clipped_exp,
-                                         clip_value_min=math.log(0.05),
-                                         clip_value_max=math.log(0.2)),
+                                         clip_value_min=math.log(0.2),
+                                         clip_value_max=math.log(1.0)),
                    scale_distribution=True,
                    use_bias=False))
     alf.config('RandomizedPriorCriticNetwork',
@@ -118,7 +118,7 @@ alf.config('ConcurrentAlgorithm', agent_reset_period=RESET_PERIOD)
 alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SeedSacAlgorithm if SEED_VERSION else SacAlgorithm,
-    optimizer=alf.optimizers.AdamW(lr=1e-3, weight_decay=0.5, name='main'),
+    optimizer=alf.optimizers.AdamW(lr=0.05, weight_decay=1e-4, name='main'),
     num_copies=NUM_COPIES,
     use_exploration_seeds=SEED_VERSION,
     debug_env=suite_gym.load(ENV_NAME),
@@ -126,14 +126,13 @@ alf.config(
     debug_log_every_n_steps=10,
 )
 
-# training config
 alf.config('TrainerConfig',
            algorithm_ctor=ConcurrentAlgorithm,
            initial_collect_steps=10,
            mini_batch_length=MINI_BATCH_LENGTH,
            mini_batch_size=BATCH_SIZE,
            unroll_length=UNROLL_LENGTH,
-           num_updates_per_train_iter=8,
+           num_updates_per_train_iter=4,
            num_iterations=10000,
            num_checkpoints=3,
            evaluate=False,
