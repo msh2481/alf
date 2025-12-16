@@ -724,6 +724,8 @@ class RandomizedPriorCriticNetwork(Network):
         """Make both sub-networks parallel for better performance."""
         parallel_trainable = self._trainable_net.make_parallel(n)
         parallel_prior = self._prior_net.make_parallel(n)
+        for p in parallel_prior.parameters():
+            p.requires_grad = False
         return _ParallelRandomizedPriorCriticNetwork(parallel_trainable,
                                                      parallel_prior,
                                                      self.input_tensor_spec)
@@ -741,6 +743,8 @@ class _ParallelRandomizedPriorCriticNetwork(Network):
         self._trainable_net = parallel_trainable
         self._prior_net = parallel_prior
         self._output_spec = parallel_trainable.output_spec
+        for p in self._prior_net.parameters():
+            p.requires_grad = False
 
     def forward(self, observation, state=()):
         q_vals, state = self._trainable_net(observation, state)

@@ -14,6 +14,7 @@
 
 import copy
 import torch
+from contextlib import nullcontext
 
 import alf
 from alf.utils.lean_function import lean_function
@@ -102,7 +103,9 @@ class TestLeanFunction(alf.test.TestCase):
             p2.data.copy_(p1)
         x = torch.randn((4, 3), requires_grad=True)
         func2 = lean_function(func2)
-        with torch.cuda.amp.autocast(enabled=True):
+        amp_ctx = (torch.amp.autocast("cuda", enabled=True)
+                   if torch.cuda.is_available() else nullcontext())
+        with amp_ctx:
             y1 = func1(x)[0]
             y2 = func2(x)[0]
         self.assertTensorEqual(y1, y2)

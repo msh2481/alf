@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from contextlib import nullcontext
 from functools import partial
 import math
 import numpy as np
@@ -91,7 +92,10 @@ class CategoricalProjectionNetwork(Network):
         if self._disable_amp and amp_enabled:
             inputs = alf.layers.to_float32(inputs)
             amp_enabled = False
-        with torch.cuda.amp.autocast(amp_enabled, dtype=self._amp_dtype):
+        amp_ctx = (torch.amp.autocast(
+            "cuda", enabled=amp_enabled, dtype=self._amp_dtype)
+                   if torch.cuda.is_available() else nullcontext())
+        with amp_ctx:
             logits, state = self._projection_layer(inputs, state)
             logits = logits.reshape(inputs.shape[0], *self._output_shape)
             if len(self._output_shape) > 1:
@@ -359,7 +363,10 @@ class NormalProjectionNetwork(Network):
         if self._disable_amp and amp_enabled:
             inputs = alf.layers.to_float32(inputs)
             amp_enabled = False
-        with torch.cuda.amp.autocast(amp_enabled, dtype=self._amp_dtype):
+        amp_ctx = (torch.amp.autocast(
+            "cuda", enabled=amp_enabled, dtype=self._amp_dtype)
+                   if torch.cuda.is_available() else nullcontext())
+        with amp_ctx:
             projected_mean = self._means_projection_layer(inputs)
             means = self._mean_transform(projected_mean)
             stds = self._std_transform(self._std_projection_layer(inputs))

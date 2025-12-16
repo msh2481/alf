@@ -19,6 +19,7 @@ from functools import partial
 import math
 import numpy as np
 import torch
+from contextlib import nullcontext
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.distributions as td
@@ -3781,7 +3782,10 @@ class AMPWrapper(nn.Module):
     def forward(self, input):
         if torch.is_autocast_enabled() and not self._enabled:
             input = to_float32(input)
-        with torch.cuda.amp.autocast(self._enabled, dtype=self._amp_dtype):
+        amp_ctx = (torch.amp.autocast(
+            "cuda", enabled=self._enabled, dtype=self._amp_dtype)
+                   if torch.cuda.is_available() else nullcontext())
+        with amp_ctx:
             return self._net(input)
 
 

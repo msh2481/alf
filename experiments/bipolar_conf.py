@@ -118,7 +118,7 @@ alf.config('ConcurrentAlgorithm', agent_reset_period=RESET_PERIOD)
 alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SeedSacAlgorithm if SEED_VERSION else SacAlgorithm,
-    optimizer=alf.optimizers.AdamW(lr=1e-3, weight_decay=1e-2, name='main'),
+    optimizer=alf.optimizers.AdamW(lr=1e-3, weight_decay=0.5, name='main'),
     num_copies=NUM_COPIES,
     use_exploration_seeds=SEED_VERSION,
     debug_env=suite_gym.load(ENV_NAME),

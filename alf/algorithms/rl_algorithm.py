@@ -13,6 +13,7 @@
 # limitations under the License.
 """Base class for RL algorithms."""
 
+from contextlib import nullcontext
 from abc import abstractmethod
 from absl import logging
 from collections import namedtuple
@@ -745,8 +746,11 @@ class RLAlgorithm(Algorithm):
     @data_distributed_when(lambda algorithm: algorithm.on_policy)
     def _compute_train_info_and_loss_info_on_policy(self, unroll_length):
         with record_time("time/unroll"):
-            with torch.cuda.amp.autocast(self._config.enable_amp,
-                                         dtype=self._config.amp_dtype):
+            amp_ctx = (torch.amp.autocast("cuda",
+                                          enabled=self._config.enable_amp,
+                                          dtype=self._config.amp_dtype)
+                       if torch.cuda.is_available() else nullcontext())
+            with amp_ctx:
                 experience = self.unroll(self._config.unroll_length)
             self.summarize_metrics()
 
@@ -826,9 +830,11 @@ class RLAlgorithm(Algorithm):
             (config.num_env_steps == 0
              or self.get_step_metrics()[1].result() < config.num_env_steps)):
             unrolled = True
-            with torch.set_grad_enabled(
-                    config.unroll_with_grad), torch.cuda.amp.autocast(
-                        config.enable_amp, dtype=self._config.amp_dtype):
+            amp_ctx = (torch.amp.autocast("cuda",
+                                          enabled=config.enable_amp,
+                                          dtype=self._config.amp_dtype)
+                       if torch.cuda.is_available() else nullcontext())
+            with torch.set_grad_enabled(config.unroll_with_grad), amp_ctx:
                 with record_time("time/unroll"):
                     self.eval()
                     # The period of performing unroll may not be an integer
