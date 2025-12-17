@@ -25,7 +25,7 @@ from alf.environments import thread_environment, parallel_environment, fast_para
 from alf.environments import alf_wrappers
 
 
-class _PhaseRandomizingWrapper(alf_wrappers.AlfWrapper):
+class _PhaseRandomizingWrapper(alf_wrappers.AlfEnvironmentBaseWrapper):
     """Force a one-time early reset after a random number of steps since creation."""
 
     def __init__(self, env, max_steps_for_phase_randomization: int,
@@ -37,15 +37,15 @@ class _PhaseRandomizingWrapper(alf_wrappers.AlfWrapper):
         self._threshold = random.randint(1, self._max_steps)
         self._active = self._max_steps > 0
 
-    def reset(self):
-        return super().reset()
+    def _reset(self):
+        return self._env.reset()
 
-    def step(self, action):
-        ts = super().step(action)
+    def _step(self, action):
+        ts = self._env.step(action)
         if self._active:
             self._steps += 1
             if self._steps >= self._threshold:
-                ts = super().reset()
+                ts = self._env.reset()
                 self._active = False  # only one forced reset per env lifetime
         return ts
 
@@ -317,21 +317,22 @@ def create_environment(env_name='CartPole-v0',
         else:
             seeds = [seed + i for i in range(num_envs + num_spare_envs)]
 
-        def _make_ctor(seed, env_offset):
-            base = functools.partial(_env_constructor, env_load_fn, env_name,
-                                     batch_size_per_env, seed, env_offset)
-            if ensure_different_phases and max_steps_for_phase_randomization > 0:
-                return lambda: _PhaseRandomizingWrapper(
-                    base(),
-                    max_steps_for_phase_randomization=
-                    max_steps_for_phase_randomization,
-                    env_id=env_offset)
-            return base
+        def _make_ctor(seed):
 
-        ctors = [
-            _make_ctor(seed, env_id)
-            for env_id, seed in zip(range(num_envs + num_spare_envs), seeds)
-        ]
+            def _ctor(env_id):
+                base_env = _env_constructor(env_load_fn, env_name,
+                                            batch_size_per_env, seed, env_id)
+                if ensure_different_phases and max_steps_for_phase_randomization > 0:
+                    return _PhaseRandomizingWrapper(
+                        base_env,
+                        max_steps_for_phase_randomization=
+                        max_steps_for_phase_randomization,
+                        env_id=env_id)
+                return base_env
+
+            return _ctor
+
+        ctors = [_make_ctor(seed) for seed in seeds]
         # flatten=True will use flattened action and time_step in
         #   process environments to reduce communication overhead.
         alf_env = parallel_environment_ctor(

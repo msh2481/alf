@@ -50,7 +50,9 @@ PRIOR_SCALE = 1.0
 # environment config
 alf.config('create_environment',
            env_name=ENV_NAME,
-           num_parallel_environments=ENV_COUNTS)
+           num_parallel_environments=ENV_COUNTS,
+           ensure_different_phases=True,
+           max_steps_for_phase_randomization=12)
 
 alf.config('ReplayBuffer', shuffle_batch=True)
 
