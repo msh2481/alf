@@ -14,8 +14,10 @@
 
 import os
 import re
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
-import cv2
 
 
 def extract_number(filename):
@@ -23,7 +25,7 @@ def extract_number(filename):
     return int(match.group(1)) if match else 0
 
 
-def create_video(logs_dir='logs', output_file='output.mp4', fps=5):
+def create_video(logs_dir='logs', output_file='output.mp4', fps=1):
     logs_path = Path(logs_dir)
     png_files = sorted([f for f in logs_path.glob('*.png')],
                        key=lambda x: extract_number(x.name))
@@ -32,41 +34,39 @@ def create_video(logs_dir='logs', output_file='output.mp4', fps=5):
         print(f"No PNG files found in {logs_dir}")
         return
 
-    first_image = cv2.imread(str(png_files[0]))
-    if first_image is None:
-        print(f"Failed to read {png_files[0]}")
-        return
+    # Build a clean, sequential image list for ffmpeg.
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        for idx, png_file in enumerate(png_files):
+            target = tmp_path / f"{idx:06d}.png"
+            try:
+                os.symlink(png_file.resolve(), target)
+            except OSError:
+                shutil.copy(png_file, target)
 
-    height, width, _ = first_image.shape
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    video_writer = cv2.VideoWriter(output_file, fourcc, fps, (width, height))
+        # Baseline: mimic the old OpenCV mp4v output, directly via ffmpeg.
+        cmd = [
+            'ffmpeg', '-y', '-framerate',
+            str(fps), '-i',
+            str(tmp_path / '%06d.png'), '-c:v', 'mpeg4', '-vtag', 'mp4v',
+            '-qscale:v', '2', '-pix_fmt', 'yuv420p', output_file
+        ]
 
-    for png_file in png_files:
-        img = cv2.imread(str(png_file))
-        if img is not None:
-            video_writer.write(img)
-            print(f"Added {png_file.name}")
-        else:
-            print(f"Warning: Failed to read {png_file.name}")
-
-    video_writer.release()
-    print(f"Video created: {output_file}")
+        try:
+            result = subprocess.run(cmd,
+                                    check=True,
+                                    capture_output=True,
+                                    text=True)
+            if result.stderr:
+                print('\n'.join(result.stderr.strip().splitlines()[-5:]))
+            print(f"Video created: {output_file}")
+        except FileNotFoundError:
+            print(
+                "ffmpeg not found. Please install ffmpeg to enable compressed video output."
+            )
+        except subprocess.CalledProcessError as exc:
+            print("ffmpeg failed:\n" + exc.stderr)
 
 
 if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser(
-        description='Create video from PNG files in logs directory')
-    parser.add_argument('--logs-dir',
-                        default='logs',
-                        help='Directory containing PNG files')
-    parser.add_argument('--output',
-                        default='output.mp4',
-                        help='Output video file')
-    parser.add_argument('--fps',
-                        type=float,
-                        default=5.0,
-                        help='Frames per second (default: 1.0)')
-    args = parser.parse_args()
-
-    create_video(args.logs_dir, args.output, args.fps)
+    create_video()

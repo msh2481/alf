@@ -179,6 +179,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
                  actor_optimizer=None,
                  critic_optimizer=None,
                  alpha_optimizer=None,
+                 num_actor_updates: int | None = None,
                  checkpoint=None,
                  debug_summaries=False,
                  reproduce_locomotion=False,
@@ -277,6 +278,8 @@ class SacAlgorithm(OffPolicyAlgorithm):
             actor_optimizer (torch.optim.optimizer): The optimizer for actor.
             critic_optimizer (torch.optim.optimizer): The optimizer for critic.
             alpha_optimizer (torch.optim.optimizer): The optimizer for alpha.
+            num_actor_updates (int|None): maximum actor updates allowed per train
+                iteration. If None, actor updates run every mini-update.
             debug_summaries (bool): True if debug summaries should be created.
             checkpoint (None|str): a string in the format of "prefix@path",
                 where the "prefix" is the multi-step path to the contents in the
@@ -427,6 +430,8 @@ class SacAlgorithm(OffPolicyAlgorithm):
         self._actor_network = actor_network
         self._critic_networks = critic_networks
         self._target_critic_networks = None
+        self._max_actor_updates = num_actor_updates
+        self._actor_updates_done = 0
         # Note, q_network (discrete actions) is still needed for evaluating the algorithm.
         if critic_networks:
             self._target_critic_networks = self._critic_networks.copy(
@@ -1011,12 +1016,26 @@ class SacAlgorithm(OffPolicyAlgorithm):
 
     def after_train_iter(self, inputs: TimeStep, info: SacInfo):
         self._periodic_reset()
+        # Reset actor update budget for next train iteration.
+        self._actor_updates_done = 0
 
     def calc_loss(self, info: SacInfo):
         assert not self._is_eval
         critic_loss = self._calc_critic_loss(info)
         alpha_loss = info.alpha
         actor_loss = info.actor
+
+        if (self._max_actor_updates is not None
+                and self._actor_updates_done >= self._max_actor_updates):
+            # Skip actor update by zeroing its loss; keep extras for logging
+            if isinstance(actor_loss.loss, torch.Tensor):
+                actor_loss = actor_loss._replace(
+                    loss=torch.zeros_like(actor_loss.loss))
+            else:
+                actor_loss = actor_loss._replace(loss=0.)
+        else:
+            if self._max_actor_updates is not None:
+                self._actor_updates_done += 1
 
         if self._debug_summaries and alf.summary.should_record_summaries():
             with alf.summary.scope(self._name):

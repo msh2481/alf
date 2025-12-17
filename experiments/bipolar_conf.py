@@ -26,9 +26,9 @@ from functools import partial
 from alf.environments.simple.bipolar_chain import BipolarChain
 from alf.environments import suite_gym
 
-ENV_NAME = "BipolarChain-medium-dense-onehot-continuous-v0"
+ENV_NAME = "BipolarChain-big-dense-onehot-continuous-v0"
 DISCRETE = "discrete" in ENV_NAME
-NUM_COPIES = 4
+NUM_COPIES = 8
 RESET_PERIOD = 50
 BATCH_SIZE = 256 * NUM_COPIES
 ENV_COUNTS = NUM_COPIES
@@ -39,7 +39,7 @@ ENTROPY_REWARD = False
 
 HIDDEN_LAYERS = (256, 256)
 
-PRIOR_SCALE = 1.0
+PRIOR_SCALE = 0.1
 # PARAMETER_TARGET_STD = 0.0
 # PARAMETER_TARGET_ALPHA = 0.0
 # REWARD_NOISE_STD = 0.0
@@ -52,7 +52,7 @@ alf.config('create_environment',
            env_name=ENV_NAME,
            num_parallel_environments=ENV_COUNTS,
            ensure_different_phases=True,
-           max_steps_for_phase_randomization=12)
+           max_steps_for_phase_randomization=24)
 
 alf.config('ReplayBuffer', shuffle_batch=True)
 
@@ -80,7 +80,7 @@ else:
     alf.config('RBFCriticNetwork',
                n_components=N_COMPONENTS,
                gamma=2.0,
-               only_sign_matters=False)
+               only_sign_matters=True)
     alf.config('RBFActorDistributionNetwork',
                n_components=N_COMPONENTS,
                gamma=10.0,
@@ -89,8 +89,8 @@ else:
                    zero_init=True,
                    state_dependent_std=True,
                    std_transform=partial(clipped_exp,
-                                         clip_value_min=math.log(0.2),
-                                         clip_value_max=math.log(1.0)),
+                                         clip_value_min=math.log(0.1),
+                                         clip_value_max=math.log(0.3)),
                    scale_distribution=True,
                    use_bias=False))
     alf.config('RandomizedPriorCriticNetwork',
@@ -108,6 +108,7 @@ alf.config(
     target_update_tau=0.05,
     target_update_period=1,
     use_entropy_reward=ENTROPY_REWARD,
+    num_actor_updates=None,
     **sac_kwargs,
 )
 
@@ -125,7 +126,7 @@ alf.config(
     use_exploration_seeds=SEED_VERSION,
     debug_env=suite_gym.load(ENV_NAME),
     video_record_interval=None,
-    debug_log_every_n_steps=10,
+    debug_log_every_n_steps=5,
 )
 
 alf.config('TrainerConfig',
@@ -134,7 +135,7 @@ alf.config('TrainerConfig',
            mini_batch_length=MINI_BATCH_LENGTH,
            mini_batch_size=BATCH_SIZE,
            unroll_length=UNROLL_LENGTH,
-           num_updates_per_train_iter=4,
+           num_updates_per_train_iter=8,
            num_iterations=10000,
            num_checkpoints=3,
            evaluate=False,
