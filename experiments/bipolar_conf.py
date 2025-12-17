@@ -26,7 +26,7 @@ from functools import partial
 from alf.environments.simple.bipolar_chain import BipolarChain
 from alf.environments import suite_gym
 
-ENV_NAME = "BipolarChain-medium-sparse-onehot-continuous-v0"
+ENV_NAME = "BipolarChain-medium-dense-onehot-continuous-v0"
 DISCRETE = "discrete" in ENV_NAME
 NUM_COPIES = 4
 RESET_PERIOD = 50
@@ -39,7 +39,7 @@ ENTROPY_REWARD = False
 
 HIDDEN_LAYERS = (256, 256)
 
-PRIOR_SCALE = 5.0
+PRIOR_SCALE = 1.0
 # PARAMETER_TARGET_STD = 0.0
 # PARAMETER_TARGET_ALPHA = 0.0
 # REWARD_NOISE_STD = 0.0
@@ -74,10 +74,10 @@ else:
     #            joint_fc_layer_params=HIDDEN_LAYERS,
     #            use_fc_ln=True)
 
-    N_COMPONENTS = 8000
+    N_COMPONENTS = 4000
     alf.config('RBFCriticNetwork',
                n_components=N_COMPONENTS,
-               gamma=1.0,
+               gamma=2.0,
                only_sign_matters=False)
     alf.config('RBFActorDistributionNetwork',
                n_components=N_COMPONENTS,
