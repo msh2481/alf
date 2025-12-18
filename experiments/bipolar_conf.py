@@ -26,7 +26,7 @@ from functools import partial
 from alf.environments.simple.bipolar_chain import BipolarChain
 from alf.environments import suite_gym
 
-ENV_NAME = "BipolarChain-big-dense-onehot-continuous-v0"
+ENV_NAME = "BipolarChain-medium-dense-onehot-continuous-v0"
 DISCRETE = "discrete" in ENV_NAME
 NUM_COPIES = 8
 RESET_PERIOD = 50
@@ -116,7 +116,9 @@ alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
            gamma=0.9)
 
-alf.config('ConcurrentAlgorithm', agent_reset_period=RESET_PERIOD)
+alf.config('ConcurrentAlgorithm',
+           agent_reset_period=RESET_PERIOD,
+           log_states=True)
 
 alf.config(
     "ConcurrentAlgorithm",

@@ -14,6 +14,7 @@
 from typing import Callable, Optional
 from concurrent.futures import ThreadPoolExecutor
 import os
+import json
 import sys
 import torch
 import torch.nn as nn
@@ -54,6 +55,8 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         agent_reset_period: int | None = None,
         debug_env=None,
         debug_log_every_n_steps: int = 100,
+        log_states: bool = False,
+        log_states_path: str | None = None,
     ):
 
         self._batch_size = alf.get_config_value(
@@ -151,6 +154,11 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         self._agent_reset_period = agent_reset_period
         self._next_agent_to_reset = 0
 
+        self._log_states = log_states
+        self._log_states_path = log_states_path
+        self._log_file = None
+        self._rollout_step_counter = 0
+
         self._debug_callback = None
         if debug_env is not None:
             self._debug_callback = DebugCallback(
@@ -180,6 +188,12 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
 
     def close(self):
         """Clean up resources, including shutting down the thread pool executor."""
+        if getattr(self, "_log_file", None) is not None:
+            try:
+                self._log_file.flush()
+                self._log_file.close()
+            finally:
+                self._log_file = None
         if hasattr(self, '_executor') and self._executor is not None:
             self._executor.shutdown(wait=True)
             self._executor = None
@@ -231,6 +245,44 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             sliced[i] = (*sliced_args, indices)
         return sliced
 
+    def _ensure_log_file(self):
+        if self._log_file is not None:
+            return
+        root_dir = self._config.root_dir if self._config else "."
+        path = self._log_states_path or os.path.join(root_dir,
+                                                     "rollout_states.ndjson")
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        self._log_file = open(path, "a", encoding="utf-8")
+        logging.info(f"Logging rollout states to {path}")
+
+    def _to_jsonable(self, value):
+        if isinstance(value, torch.Tensor):
+            return value.detach().cpu().tolist()
+        if isinstance(value, (list, tuple)):
+            return [self._to_jsonable(v) for v in value]
+        if isinstance(value, dict):
+            return {k: self._to_jsonable(v) for k, v in value.items()}
+        return value
+
+    def _log_rollout_actions(self,
+                             logged_alg_steps: dict[int,
+                                                    tuple[AlgStep, TimeStep,
+                                                          torch.Tensor]]):
+        self._ensure_log_file()
+        step = self._total_env_steps
+        for alg_idx, (alg_step, time_step,
+                      batch_indices) in logged_alg_steps.items():
+            entry = {
+                "step": step,
+                "rollout_step": self._rollout_step_counter,
+                "alg_idx": alg_idx,
+                "env_indices": self._to_jsonable(batch_indices),
+                "observation": self._to_jsonable(time_step.observation),
+                "action": self._to_jsonable(alg_step.output),
+            }
+            self._log_file.write(json.dumps(entry) + "\n")
+        self._log_file.flush()
+
     def rollout_step(self, inputs: TimeStep, state) -> AlgStep:
         assert alf.nest.get_nest_size(
             inputs, dim=0
@@ -243,6 +295,8 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
 
         results = {}
         new_states = [None] * self._num_copies
+        logged_alg_steps: dict[int, tuple[AlgStep, TimeStep,
+                                          torch.Tensor]] = {}
         for alg_idx, (
                 sliced_time_step,
                 sliced_state,
@@ -252,6 +306,14 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                 sliced_time_step, sliced_state)
             new_states[alg_idx] = alg_step.state
             results[alg_idx] = (alg_step._replace(state=()), batch_indices)
+            if self._log_states:
+                logged_alg_steps[alg_idx] = (alg_step, sliced_time_step,
+                                             batch_indices)
+
+        if self._log_states and logged_alg_steps:
+            self._log_rollout_actions(logged_alg_steps)
+            self._rollout_step_counter += 1
+
         return scatter_and_sum_nested(
             results, self._env_counts)._replace(state=new_states)
 
