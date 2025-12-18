@@ -279,6 +279,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                 "env_indices": self._to_jsonable(batch_indices),
                 "observation": self._to_jsonable(time_step.observation),
                 "action": self._to_jsonable(alg_step.output),
+                "episode_end": self._to_jsonable(time_step.is_last()),
             }
             self._log_file.write(json.dumps(entry) + "\n")
         self._log_file.flush()

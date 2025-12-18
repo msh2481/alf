@@ -1,23 +1,22 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, os, sys, shutil, math
+import argparse, os, sys, shutil
 import numpy as np
 import matplotlib.pyplot as plt
+import polars as pl
+import cv2
+from scipy.sparse import csr_matrix, diags
+from sklearn.decomposition import PCA
+from sklearn.manifold import SpectralEmbedding, TSNE
+from sklearn.neighbors import NearestNeighbors
 
 
 def _load_table(path):
-    try:
-        import polars as pl
-        return pl.read_ndjson(path)
-    except ImportError:
-        import pandas as pd
-        return pd.read_json(path, lines=True)
+    return pl.read_ndjson(path)
 
 
 def _rows(table):
-    if "to_dicts" in dir(table):
-        return table.sort(["rollout_step", "alg_idx"]).to_dicts()
-    return table.sort_values(["rollout_step", "alg_idx"]).to_dict("records")
+    return table.sort(["rollout_step", "alg_idx"]).to_dicts()
 
 
 def _to_np(obs):
@@ -25,76 +24,254 @@ def _to_np(obs):
     return arr.reshape(-1) if arr.ndim > 1 else arr
 
 
-def _smooth(traj, alpha):
-    if len(traj) == 0:
-        return traj
-    out = np.zeros_like(traj)
-    out[0] = traj[0]
-    for i in range(1, len(traj)):
-        out[i] = alpha * out[i - 1] + traj[i]
-    return out
+def _flag_episode_end(value):
+    if value is None:
+        return False
+    arr = np.asarray(value)
+    return bool(arr.any())
 
 
-def _collect(rows, alpha):
-    data = {}
-    for r in rows:
-        alg = int(r["alg_idx"])
-        data.setdefault(alg, []).append(_to_np(r["observation"]))
-    return {k: _smooth(np.stack(v, 0), alpha) for k, v in data.items() if v}
+class TrajectoryStore:
+
+    def __init__(self, rows, alpha):
+        self.rows = rows
+        self.total = len(rows)
+        self.alpha = float(alpha)
+        self.raw = {}
+        self.smoothed = {}
+        self.starts = {}
+        self._build()
+
+    def _build(self):
+        raw = {}
+        smooth = {}
+        starts = {}
+        prev = {}
+        prev_end = {}
+        for row in self.rows:
+            alg = int(row["alg_idx"])
+            obs = _to_np(row["observation"])
+            end_flag = _flag_episode_end(row.get("episode_end"))
+            start = prev.get(alg) is None or prev_end.get(alg, True)
+            raw.setdefault(alg, []).append(obs)
+            if start or self.alpha == 0.0:
+                sm_val = obs
+            else:
+                sm_val = self.alpha * prev[alg] + obs
+            smooth.setdefault(alg, []).append(sm_val)
+            starts.setdefault(alg, []).append(start)
+            prev[alg] = sm_val
+            prev_end[alg] = end_flag
+        self.raw = {k: np.stack(v) for k, v in raw.items()}
+        self.smoothed = {k: np.stack(v) for k, v in smooth.items()}
+        self.starts = {k: np.array(v, dtype=bool) for k, v in starts.items()}
+
+    def prefix(self, count):
+        count = max(0, min(count, self.total))
+        if self.total == 0:
+            return {}, {}, {}
+        progress = count / self.total
+        raw = {}
+        smooth = {}
+        starts = {}
+        for alg in self.raw.keys():
+            length = len(self.raw[alg])
+            if length == 0:
+                continue
+            upto = int(np.ceil(length * progress - 1e-12))
+            if upto <= 0:
+                continue
+            upto = min(length, upto)
+            raw[alg] = self.raw[alg][:upto]
+            smooth[alg] = self.smoothed[alg][:upto]
+            starts[alg] = self.starts[alg][:upto]
+        return raw, smooth, starts
 
 
-def _fit_pca(trajs):
-    from sklearn.decomposition import PCA
-    stacked = np.concatenate(list(trajs.values()), 0)
-    return PCA(n_components=2).fit(stacked)
+class Projection:
+    uses_smoothed = True
+
+    def __init__(self, name):
+        self.name = name
+        self.full_view = None
+        self.limits = None
+
+    def fit(self, store: TrajectoryStore):
+        raise NotImplementedError
+
+    def _finalize(self, trajs):
+        self.full_view = trajs or {}
+        self.limits = _compute_limits(
+            self.full_view) if self.full_view else None
+
+    def view(self, raw_subset, smooth_subset):
+        source = smooth_subset if self.uses_smoothed else raw_subset
+        if not source or not self.full_view:
+            return None
+        out = {}
+        for alg, arr in source.items():
+            full = self.full_view.get(alg)
+            if full is None:
+                continue
+            out[alg] = full[:len(arr)]
+        return out or None
 
 
-def _apply_pca(pca, trajs):
-    return {k: pca.transform(v) for k, v in trajs.items()}
+class PcaProjection(Projection):
+
+    def __init__(self):
+        super().__init__("PCA")
+        self.model = None
+
+    def fit(self, store):
+        trajs = store.smoothed
+        if not trajs:
+            self._finalize({})
+            return
+        print("Fitting PCA on full trajectories...")
+        stacked = np.concatenate(list(trajs.values()), 0)
+        self.model = PCA(n_components=2).fit(stacked)
+        print("PCA ready.")
+        full = {k: self.model.transform(v) for k, v in trajs.items()}
+        self._finalize(full)
 
 
-def _fit_tsne(trajs, perplexity):
-    from sklearn.manifold import TSNE
+class TsneProjection(Projection):
+
+    def __init__(self, perp):
+        super().__init__(f"t-SNE p={perp}")
+        self.perp = float(perp)
+
+    def fit(self, store):
+        trajs = store.smoothed
+        data = []
+        order = []
+        for alg in sorted(trajs):
+            arr = trajs[alg]
+            if len(arr) == 0:
+                continue
+            data.append(arr)
+            order.append((alg, len(arr)))
+        if not data:
+            self._finalize({})
+            print(f"t-SNE p={self.perp} skipped (no data).")
+            return
+        stacked = np.concatenate(data, 0)
+        if stacked.shape[0] < 2:
+            self._finalize({})
+            print(f"t-SNE p={self.perp} skipped (insufficient points).")
+            return
+        max_perp = max(1.0, stacked.shape[0] - 1)
+        perp = max(1.0, min(self.perp, max_perp))
+        print(f"Fitting t-SNE (perplexity={self.perp})...")
+        emb = TSNE(n_components=2,
+                   perplexity=perp,
+                   init="random",
+                   learning_rate="auto").fit_transform(stacked)
+        result = {}
+        offset = 0
+        for alg, length in order:
+            result[alg] = emb[offset:offset + length]
+            offset += length
+        self._finalize(result)
+        if result:
+            print(f"t-SNE p={self.perp} ready.")
+
+
+class LaplacianProjection(Projection):
+    uses_smoothed = False
+
+    def __init__(self, eps, temporal_weight):
+        super().__init__("Laplacian")
+        self.eps = eps
+        self.temporal_weight = temporal_weight
+
+    def fit(self, store):
+        raw = store.raw
+        starts = store.starts
+        print("Fitting Laplacian embedding...")
+        result = _build_laplacian(raw, starts, self.eps, self.temporal_weight)
+        if result:
+            print("Laplacian embedding ready.")
+        else:
+            print("Laplacian embedding skipped (needs >=3 points).")
+        self._finalize(result)
+
+
+def _normalize_states(arr):
+    mean = arr.mean(axis=0, keepdims=True)
+    std = arr.std(axis=0, keepdims=True)
+    std[std < 1e-6] = 1e-6
+    return (arr - mean) / std
+
+
+def _strong_edges(arr, eps):
+    nbrs = NearestNeighbors(radius=eps, metric="chebyshev")
+    nbrs.fit(arr)
+    graph = nbrs.radius_neighbors_graph(arr, mode="connectivity")
+    graph.setdiag(0)
+    graph.eliminate_zeros()
+    return graph.maximum(graph.T) if graph.nnz else graph
+
+
+def _temporal_edges(order, n, weight):
+    if weight <= 0:
+        return csr_matrix((n, n))
+    rows = []
+    cols = []
+    vals = []
+    offset = 0
+    for _, length, flags in order:
+        for i in range(1, length):
+            if flags[i]:
+                continue
+            a = offset + i - 1
+            b = offset + i
+            rows.extend([a, b])
+            cols.extend([b, a])
+            vals.extend([weight, weight])
+        offset += length
+    if not rows:
+        return csr_matrix((n, n))
+    return csr_matrix((vals, (rows, cols)), shape=(n, n))
+
+
+def _build_laplacian(raw_trajs, starts, eps, temporal_weight):
     data = []
     order = []
-    for alg in sorted(trajs.keys()):
-        arr = trajs[alg]
+    for alg in sorted(raw_trajs):
+        arr = raw_trajs[alg]
         if len(arr) == 0:
             continue
+        flags = starts.get(alg)
+        if flags is None or len(flags) != len(arr):
+            flags = np.zeros(len(arr), dtype=bool)
+            flags[0] = True
         data.append(arr)
-        order.append((alg, len(arr)))
+        order.append((alg, len(arr), flags))
     if not data:
-        return None
+        return {}
     stacked = np.concatenate(data, 0)
-    if stacked.shape[0] < 2:
-        return None
-    max_perp = max(1.0, stacked.shape[0] - 1)
-    perp = max(1.0, min(perplexity, max_perp))
-    tsne = TSNE(n_components=2,
-                perplexity=perp,
-                init="random",
-                learning_rate="auto")
-    emb = tsne.fit_transform(stacked)
+    if stacked.shape[0] < 3:
+        return {}
+    normalized = _normalize_states(stacked)
+    strong = _strong_edges(normalized, eps)
+    temporal = _temporal_edges(order, stacked.shape[0], temporal_weight)
+    graph = strong + temporal
+    graph = graph + diags(np.ones(stacked.shape[0]))
+    emb = SpectralEmbedding(n_components=2,
+                            affinity="precomputed").fit_transform(graph)
     result = {}
     offset = 0
-    for alg, length in order:
+    for alg, length, _ in order:
         result[alg] = emb[offset:offset + length]
         offset += length
     return result
 
 
-def _slice_view(full_view, subset_trajs):
-    sliced = {}
-    for alg, traj in subset_trajs.items():
-        full = full_view.get(alg)
-        if full is None:
-            continue
-        length = len(traj)
-        sliced[alg] = full[:length]
-    return sliced
-
-
 def _compute_limits(trajs):
+    if not trajs:
+        return None
     xs = np.concatenate([t[:, 0] for t in trajs.values()])
     ys = np.concatenate([t[:, 1] for t in trajs.values()])
     x0, x1 = xs.min(), xs.max()
@@ -106,22 +283,31 @@ def _compute_limits(trajs):
 
 def _plot_one(ax, trajs, decay, title, xlim=None, ylim=None):
     colors = plt.cm.tab10.colors
+    rng = np.random.default_rng()
     for alg, t in sorted(trajs.items()):
         if len(t) == 0:
             continue
+        x_span = (xlim[1] - xlim[0]) if xlim else (t[:, 0].max() -
+                                                   t[:, 0].min())
+        y_span = (ylim[1] - ylim[0]) if ylim else (t[:, 1].max() -
+                                                   t[:, 1].min())
+        x_jit = 0.005 * (x_span if x_span > 0 else 1.0)
+        y_jit = 0.005 * (y_span if y_span > 0 else 1.0)
+        jitter = np.empty_like(t)
+        jitter[:, 0] = t[:, 0] + (rng.random(len(t)) - 0.5) * 2 * x_jit
+        jitter[:, 1] = t[:, 1] + (rng.random(len(t)) - 0.5) * 2 * y_jit
         c = colors[alg % len(colors)]
-        ax.plot(t[:, 0], t[:, 1], color=c, lw=1, alpha=0.2, label=f"alg {alg}")
-        n = len(t)
+        ax.plot(jitter[:, 0], jitter[:, 1], color=c, lw=1, alpha=0.2)
+        n = len(jitter)
         ages = np.arange(n - 1, -1, -1)
         alphas = decay**ages
-        ax.scatter(t[:, 0],
-                   t[:, 1],
+        ax.scatter(jitter[:, 0],
+                   jitter[:, 1],
                    s=10,
                    color=[(c[0], c[1], c[2], a) for a in alphas])
     ax.set_xlabel("X1")
     ax.set_ylabel("X2")
     ax.set_title(title)
-    ax.legend()
     ax.grid(True, alpha=0.2)
     if xlim:
         ax.set_xlim(*xlim)
@@ -129,17 +315,17 @@ def _plot_one(ax, trajs, decay, title, xlim=None, ylim=None):
         ax.set_ylim(*ylim)
 
 
-def _plot(views, decay, outfile):
-    if not views:
-        return
-    cols = 2 if len(views) > 1 else 1
-    rows = math.ceil(len(views) / cols)
-    fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 5 * rows))
-    axes = np.array(axes).reshape(-1)
-    for ax, (title, trajs, limits) in zip(axes, views):
-        xlim, ylim = (limits if limits else (None, None))
-        _plot_one(ax, trajs, decay, title, xlim=xlim, ylim=ylim)
-    for ax in axes[len(views):]:
+def _plot_grid(slots, decay, outfile):
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    flat = axes.flatten()
+    for ax, slot in zip(flat, slots):
+        if slot is None:
+            ax.axis("off")
+            continue
+        title, trajs, limits = slot
+        xlim, ylim = limits if limits else (None, None)
+        _plot_one(ax, trajs, decay, title, xlim, ylim)
+    for ax in flat[len(slots):]:
         ax.axis("off")
     fig.tight_layout()
     fig.savefig(outfile, dpi=200)
@@ -148,7 +334,6 @@ def _plot(views, decay, outfile):
 
 
 def _write_video(image_paths, out_path, fps=1):
-    import cv2
     frames = [cv2.imread(p) for p in image_paths if os.path.isfile(p)]
     frames = [f for f in frames if f is not None]
     if not frames:
@@ -164,6 +349,24 @@ def _write_video(image_paths, out_path, fps=1):
     print(f"saved {out_path}")
 
 
+def _make_slots(pca, lap, tsnes, raw, smooth):
+    slots = []
+    slots.append(_make_slot(pca, raw, smooth))
+    slots.append(_make_slot(tsnes[0], raw, smooth) if tsnes else None)
+    slots.append(_make_slot(lap, raw, smooth))
+    slots.append(_make_slot(tsnes[1], raw, smooth) if len(tsnes) > 1 else None)
+    return slots
+
+
+def _make_slot(proj, raw, smooth):
+    if proj is None:
+        return None
+    view = proj.view(raw, smooth)
+    if view is None:
+        return None
+    return (proj.name, view, proj.limits)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("log_dir")
@@ -171,14 +374,16 @@ def main():
     p.add_argument("--alpha-decay", type=float, default=0.8)
     p.add_argument("--outfile", type=str, default=None)
     p.add_argument("--snapshots", type=int, default=10)
-    p.add_argument("--tsne-perplexities",
-                   type=str,
-                   default="16,32,64",
-                   help="Comma-separated perplexities for t-SNE views")
+    p.add_argument("--tsne-perplexities", type=str, default="16,64")
+    p.add_argument("--lap-eps", type=float, default=0.01)
+    p.add_argument("--lap-temporal-weight", type=float, default=0.5)
     a = p.parse_args()
     tsne_perps = [
         float(x) for x in a.tsne_perplexities.split(",") if x.strip()
-    ] or [30.0]
+    ]
+    if len(tsne_perps) > 2:
+        print(f"Using first two t-SNE perplexities: {tsne_perps[:2]}")
+        tsne_perps = tsne_perps[:2]
     ndjson = os.path.join(a.log_dir, "rollout_states.ndjson")
     if not os.path.isfile(ndjson):
         print(f"missing {ndjson}", file=sys.stderr)
@@ -187,54 +392,33 @@ def main():
     if not rows:
         print("no trajectories", file=sys.stderr)
         sys.exit(1)
-    final_trajs = _collect(rows, alpha=a.alpha)
-    if not final_trajs:
+    store = TrajectoryStore(rows, a.alpha)
+    if not store.smoothed:
         print("no trajectories", file=sys.stderr)
         sys.exit(1)
-    print("Fitting PCA on full trajectories...")
-    pca = _fit_pca(final_trajs)
-    print("PCA ready.")
+    pca = PcaProjection()
+    pca.fit(store)
+    lap = LaplacianProjection(a.lap_eps, a.lap_temporal_weight)
+    lap.fit(store)
+    tsne_projs = []
+    for perp in tsne_perps:
+        proj = TsneProjection(perp)
+        proj.fit(store)
+        tsne_projs.append(proj)
     outfile = a.outfile or os.path.join(a.log_dir, "trajectories.png")
     snapshot_dir = os.path.dirname(outfile) or "."
     os.makedirs(snapshot_dir, exist_ok=True)
-    total = len(rows)
-    final_pca = _apply_pca(pca, final_trajs)
-    pca_limits = _compute_limits(final_pca)
-    tsne_final = {}
-    tsne_limits = {}
-    for perp in tsne_perps:
-        print(f"Fitting t-SNE (perplexity={perp})...")
-        view = _fit_tsne(final_trajs, perp)
-        if view:
-            tsne_final[perp] = view
-            tsne_limits[perp] = _compute_limits(view)
-            print(f"t-SNE p={perp} ready.")
-        else:
-            print(f"t-SNE p={perp} skipped (insufficient data).")
     image_paths = []
     for i in range(1, a.snapshots + 1):
-        cutoff = max(1, int(total * i / a.snapshots))
-        subset = rows[:cutoff]
-        trajs = _collect(subset, alpha=a.alpha)
-        if not trajs:
-            continue
-        pca_trajs = _apply_pca(pca, trajs)
-        views = [("PCA", pca_trajs, pca_limits)]
-        for perp in tsne_perps:
-            full_view = tsne_final.get(perp)
-            if not full_view:
-                continue
-            tsne_trajs = _slice_view(full_view, trajs)
-            if not tsne_trajs:
-                continue
-            limits = tsne_limits.get(perp)
-            views.append((f"t-SNE p={perp}", tsne_trajs, limits))
-        if not views:
+        cutoff = max(1, int(store.total * i / a.snapshots))
+        raw_subset, smooth_subset, _ = store.prefix(cutoff)
+        slots = _make_slots(pca, lap, tsne_projs, raw_subset, smooth_subset)
+        if not any(slots):
             continue
         path = os.path.join(
             snapshot_dir,
             f"{os.path.splitext(os.path.basename(outfile))[0]}_{i:02d}.png")
-        _plot(views, decay=a.alpha_decay, outfile=path)
+        _plot_grid(slots, decay=a.alpha_decay, outfile=path)
         image_paths.append(path)
     if image_paths:
         video_path = os.path.join(snapshot_dir, "trajectories_progress.mp4")
