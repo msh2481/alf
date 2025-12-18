@@ -14,9 +14,8 @@
 import alf
 from functools import partial
 
-from alf.algorithms.seed_sampling import SeedSacAlgorithm
+from alf.algorithms.concurrent_algorithm import ConcurrentAlgorithm
 from alf.algorithms.sac_algorithm import SacAlgorithm
-from alf.algorithms.action_repulsion_algorithm import ActionRepulsionAlgorithm
 from alf.networks import RandomizedPriorCriticNetwork
 from alf.environments import suite_dmc
 from alf.environments.gym_wrappers import FrameSkip
@@ -28,15 +27,16 @@ BATCH_SIZE = 256 * NUM_COPIES
 ENV_COUNTS = NUM_COPIES
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
-SEED_VERSION = True
 
 HIDDEN_LAYERS = (256, )
 
 # environment config
 alf.config('create_environment',
-           env_name="pendulum:swingup",
+           env_name="cartpole:swingup",
            env_load_fn=suite_dmc.load,
-           num_parallel_environments=ENV_COUNTS)
+           num_parallel_environments=ENV_COUNTS,
+           ensure_different_phases=True,
+           max_steps_for_phase_randomization=1000)
 
 alf.config('suite_dmc.load',
            from_pixels=False,
@@ -59,34 +59,33 @@ alf.config('RandomizedPriorCriticNetwork',
            trainable_init_std=1e-3)
 
 alf.config(
-    'SeedSacAlgorithm' if SEED_VERSION else 'SacAlgorithm',
+    'SacAlgorithm',
     actor_network_cls=alf.networks.ActorDistributionNetwork,
     critic_network_cls=RandomizedPriorCriticNetwork,
     target_update_tau=0.005,
     target_update_period=1,
+    use_entropy_reward=True,
 )
 
 alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
            gamma=0.998)
 
-alf.config(
-    "ActionRepulsionAlgorithm",
-    algorithm_ctor=SeedSacAlgorithm if SEED_VERSION else SacAlgorithm,
-    optimizer=alf.optimizers.Adam(lr=3e-4, name='main'),
-    num_copies=NUM_COPIES,
-    batch_size=BATCH_SIZE,
-    env_counts=ENV_COUNTS,
-    unroll_length=UNROLL_LENGTH,
-    mini_batch_length=MINI_BATCH_LENGTH,
-    log_every_n_steps=500,
-    use_exploration_seeds=SEED_VERSION,
-    video_record_interval=10000,
-)
+alf.config('ConcurrentAlgorithm',
+           log_states=True,
+           agent_reset_period=1000,
+           algorithm_ctor=SacAlgorithm,
+           optimizer=alf.optimizers.AdamW(lr=3e-4,
+                                          weight_decay=1e-4,
+                                          name='main'),
+           num_copies=NUM_COPIES,
+           use_exploration_seeds=False,
+           return_logging_interval=500,
+           video_record_interval=10000)
 
 # training config
 alf.config('TrainerConfig',
-           algorithm_ctor=ActionRepulsionAlgorithm,
+           algorithm_ctor=ConcurrentAlgorithm,
            initial_collect_steps=1000,
            mini_batch_length=MINI_BATCH_LENGTH,
            mini_batch_size=BATCH_SIZE,
