@@ -33,19 +33,23 @@ def _flag_episode_end(value):
 
 class TrajectoryStore:
 
-    def __init__(self, rows, alpha):
+    def __init__(self, rows, alpha, thin=1, max_steps=None):
         self.rows = rows
-        self.total = len(rows)
         self.alpha = float(alpha)
+        self.thin = max(1, int(thin))
+        self.max_steps = int(max_steps) if max_steps else None
         self.raw = {}
         self.smoothed = {}
         self.starts = {}
+        self.ends = {}
+        self.total = 0
         self._build()
 
     def _build(self):
         raw = {}
         smooth = {}
         starts = {}
+        ends = {}
         prev = {}
         prev_end = {}
         for row in self.rows:
@@ -60,11 +64,44 @@ class TrajectoryStore:
                 sm_val = self.alpha * prev[alg] + obs
             smooth.setdefault(alg, []).append(sm_val)
             starts.setdefault(alg, []).append(start)
+            ends.setdefault(alg, []).append(end_flag)
             prev[alg] = sm_val
             prev_end[alg] = end_flag
-        self.raw = {k: np.stack(v) for k, v in raw.items()}
-        self.smoothed = {k: np.stack(v) for k, v in smooth.items()}
-        self.starts = {k: np.array(v, dtype=bool) for k, v in starts.items()}
+        total = 0
+        out_raw = {}
+        out_smooth = {}
+        out_starts = {}
+        out_ends = {}
+        for alg in raw.keys():
+            r = np.stack(raw[alg])
+            s = np.stack(smooth[alg])
+            st = np.array(starts[alg], dtype=bool)
+            en = np.array(ends[alg], dtype=bool)
+            if self.thin > 1 and len(r) > 0:
+                mask = np.zeros(len(r), dtype=bool)
+                mask[::self.thin] = True
+                mask |= st
+                mask |= en
+                mask[-1] = True
+                r = r[mask]
+                s = s[mask]
+                st = st[mask]
+                en = en[mask]
+            if self.max_steps is not None and self.max_steps > 0:
+                r = r[:self.max_steps]
+                s = s[:self.max_steps]
+                st = st[:self.max_steps]
+                en = en[:self.max_steps]
+            out_raw[alg] = r
+            out_smooth[alg] = s
+            out_starts[alg] = st
+            out_ends[alg] = en
+            total += len(r)
+        self.raw = out_raw
+        self.smoothed = out_smooth
+        self.starts = out_starts
+        self.ends = out_ends
+        self.total = total
 
     def prefix(self, count):
         count = max(0, min(count, self.total))
@@ -181,16 +218,16 @@ class TsneProjection(Projection):
 class LaplacianProjection(Projection):
     uses_smoothed = False
 
-    def __init__(self, eps, temporal_weight):
+    def __init__(self, knn, temporal_weight):
         super().__init__("Laplacian")
-        self.eps = eps
+        self.knn = knn
         self.temporal_weight = temporal_weight
 
     def fit(self, store):
         raw = store.raw
         starts = store.starts
         print("Fitting Laplacian embedding...")
-        result = _build_laplacian(raw, starts, self.eps, self.temporal_weight)
+        result = _build_laplacian(raw, starts, self.knn, self.temporal_weight)
         if result:
             print("Laplacian embedding ready.")
         else:
@@ -205,13 +242,26 @@ def _normalize_states(arr):
     return (arr - mean) / std
 
 
-def _strong_edges(arr, eps):
-    nbrs = NearestNeighbors(radius=eps, metric="chebyshev")
+def _strong_edges(arr, k):
+    n = arr.shape[0]
+    if n == 0:
+        return csr_matrix((0, 0))
+    if n == 1:
+        return csr_matrix((1, 1))
+    k = max(1, min(int(k), n - 1))
+    nbrs = NearestNeighbors(n_neighbors=k + 1, metric="euclidean")
     nbrs.fit(arr)
-    graph = nbrs.radius_neighbors_graph(arr, mode="connectivity")
-    graph.setdiag(0)
-    graph.eliminate_zeros()
-    return graph.maximum(graph.T) if graph.nnz else graph
+    distances, indices = nbrs.kneighbors(arr, return_distance=True)
+    rows = []
+    cols = []
+    for i in range(n):
+        neighbors = indices[i, 1:]
+        rows.extend([i] * len(neighbors))
+        cols.extend(neighbors)
+    data = np.ones(len(rows), dtype=np.float32)
+    graph = csr_matrix((data, (rows, cols)), shape=(n, n))
+    graph = graph.maximum(graph.T)
+    return graph
 
 
 def _temporal_edges(order, n, weight):
@@ -236,7 +286,28 @@ def _temporal_edges(order, n, weight):
     return csr_matrix((vals, (rows, cols)), shape=(n, n))
 
 
-def _build_laplacian(raw_trajs, starts, eps, temporal_weight):
+def _start_edges(order, n):
+    start_nodes = []
+    offset = 0
+    for _, length, flags in order:
+        for i in range(length):
+            if flags[i]:
+                start_nodes.append(offset + i)
+        offset += length
+    if len(start_nodes) < 2:
+        return csr_matrix((n, n))
+    starts = np.array(start_nodes, dtype=np.int64)
+    i_idx, j_idx = np.triu_indices(len(starts), k=1)
+    if len(i_idx) == 0:
+        return csr_matrix((n, n))
+    rows = starts[i_idx]
+    cols = starts[j_idx]
+    data = np.ones(len(rows), dtype=np.float32)
+    graph = csr_matrix((data, (rows, cols)), shape=(n, n))
+    return graph + graph.T
+
+
+def _build_laplacian(raw_trajs, starts, knn, temporal_weight):
     data = []
     order = []
     for alg in sorted(raw_trajs):
@@ -255,9 +326,10 @@ def _build_laplacian(raw_trajs, starts, eps, temporal_weight):
     if stacked.shape[0] < 3:
         return {}
     normalized = _normalize_states(stacked)
-    strong = _strong_edges(normalized, eps)
+    strong = _strong_edges(normalized, knn)
     temporal = _temporal_edges(order, stacked.shape[0], temporal_weight)
-    graph = strong + temporal
+    start_graph = _start_edges(order, stacked.shape[0])
+    graph = strong + temporal + start_graph
     graph = graph + diags(np.ones(stacked.shape[0]))
     emb = SpectralEmbedding(n_components=2,
                             affinity="precomputed").fit_transform(graph)
@@ -315,18 +387,22 @@ def _plot_one(ax, trajs, decay, title, xlim=None, ylim=None):
         ax.set_ylim(*ylim)
 
 
-def _plot_grid(slots, decay, outfile):
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-    flat = axes.flatten()
-    for ax, slot in zip(flat, slots):
-        if slot is None:
-            ax.axis("off")
-            continue
-        title, trajs, limits = slot
-        xlim, ylim = limits if limits else (None, None)
-        _plot_one(ax, trajs, decay, title, xlim, ylim)
-    for ax in flat[len(slots):]:
-        ax.axis("off")
+def _make_view(proj, raw, smooth):
+    if proj is None:
+        return None
+    view = proj.view(raw, smooth)
+    if not view:
+        return None
+    return (proj.name, view, proj.limits)
+
+
+def _plot_view(view, decay, outfile):
+    if view is None:
+        return
+    title, trajs, limits = view
+    xlim, ylim = limits if limits else (None, None)
+    fig, ax = plt.subplots(figsize=(8, 6))
+    _plot_one(ax, trajs, decay, title, xlim=xlim, ylim=ylim)
     fig.tight_layout()
     fig.savefig(outfile, dpi=200)
     print(f"saved {outfile}")
@@ -349,24 +425,6 @@ def _write_video(image_paths, out_path, fps=1):
     print(f"saved {out_path}")
 
 
-def _make_slots(pca, lap, tsnes, raw, smooth):
-    slots = []
-    slots.append(_make_slot(pca, raw, smooth))
-    slots.append(_make_slot(tsnes[0], raw, smooth) if tsnes else None)
-    slots.append(_make_slot(lap, raw, smooth))
-    slots.append(_make_slot(tsnes[1], raw, smooth) if len(tsnes) > 1 else None)
-    return slots
-
-
-def _make_slot(proj, raw, smooth):
-    if proj is None:
-        return None
-    view = proj.view(raw, smooth)
-    if view is None:
-        return None
-    return (proj.name, view, proj.limits)
-
-
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("log_dir")
@@ -375,8 +433,27 @@ def main():
     p.add_argument("--outfile", type=str, default=None)
     p.add_argument("--snapshots", type=int, default=10)
     p.add_argument("--tsne-perplexities", type=str, default="16,64")
-    p.add_argument("--lap-eps", type=float, default=0.01)
-    p.add_argument("--lap-temporal-weight", type=float, default=0.5)
+    p.add_argument(
+        "--lap-knn",
+        type=int,
+        default=10,
+        help="Number of nearest neighbors for Laplacian graph (strong edges)")
+    p.add_argument("--lap-temporal-weight", type=float, default=3.0)
+    p.add_argument(
+        "--thin",
+        type=int,
+        default=4,
+        help=
+        "Keep every Nth trajectory point (>=1). Episode starts/ends always kept."
+    )
+    p.add_argument("--k",
+                   type=int,
+                   default=None,
+                   help="Limit each agent to first K steps (after thinning).")
+    p.add_argument("--view",
+                   choices=["pca", "laplacian", "tsne"],
+                   default="laplacian",
+                   help="Projection to visualize for snapshots/video.")
     a = p.parse_args()
     tsne_perps = [
         float(x) for x in a.tsne_perplexities.split(",") if x.strip()
@@ -392,33 +469,40 @@ def main():
     if not rows:
         print("no trajectories", file=sys.stderr)
         sys.exit(1)
-    store = TrajectoryStore(rows, a.alpha)
+    store = TrajectoryStore(rows, a.alpha, thin=a.thin, max_steps=a.k)
     if not store.smoothed:
         print("no trajectories", file=sys.stderr)
         sys.exit(1)
-    pca = PcaProjection()
-    pca.fit(store)
-    lap = LaplacianProjection(a.lap_eps, a.lap_temporal_weight)
-    lap.fit(store)
-    tsne_projs = []
-    for perp in tsne_perps:
-        proj = TsneProjection(perp)
-        proj.fit(store)
-        tsne_projs.append(proj)
+
+    active_proj = None
+    if a.view == "pca":
+        active_proj = PcaProjection()
+    elif a.view == "laplacian":
+        active_proj = LaplacianProjection(a.lap_knn, a.lap_temporal_weight)
+    else:
+        perp = tsne_perps[0] if tsne_perps else 30.0
+        active_proj = TsneProjection(perp)
+
+    active_proj.fit(store)
+    if not active_proj.full_view:
+        print(f"{a.view} view unavailable.", file=sys.stderr)
+        sys.exit(1)
+
     outfile = a.outfile or os.path.join(a.log_dir, "trajectories.png")
     snapshot_dir = os.path.dirname(outfile) or "."
     os.makedirs(snapshot_dir, exist_ok=True)
+
     image_paths = []
     for i in range(1, a.snapshots + 1):
         cutoff = max(1, int(store.total * i / a.snapshots))
         raw_subset, smooth_subset, _ = store.prefix(cutoff)
-        slots = _make_slots(pca, lap, tsne_projs, raw_subset, smooth_subset)
-        if not any(slots):
+        slot = _make_view(active_proj, raw_subset, smooth_subset)
+        if slot is None:
             continue
         path = os.path.join(
             snapshot_dir,
             f"{os.path.splitext(os.path.basename(outfile))[0]}_{i:02d}.png")
-        _plot_grid(slots, decay=a.alpha_decay, outfile=path)
+        _plot_view(slot, decay=a.alpha_decay, outfile=path)
         image_paths.append(path)
     if image_paths:
         video_path = os.path.join(snapshot_dir, "trajectories_progress.mp4")
