@@ -22,9 +22,8 @@ python -m alf.bin.train \
     --root_dir="$ROOT_DIR" \
     --conf_param="ConcurrentAlgorithm.num_copies=$NUM_COPIES" \
     --conf_param="create_environment.num_parallel_environments=$NUM_COPIES" \
-    --conf_param="ConcurrentAlgorithm.optimizer=alf.optimizers.AdamW(lr=$LR, weight_decay=$WD, name='main')" \
-    --conf_param="RBFCriticNetwork.gamma=$GAMMA" \
-    --conf_param="RBFActorDistributionNetwork.gamma=$GAMMA" \
-    --conf_param="RBFCriticNetwork.n_components=$N_COMPONENTS" \
-    --conf_param="RBFActorDistributionNetwork.n_components=$N_COMPONENTS" \
-    --conf_param="RandomizedPriorCriticNetwork.prior_scale=$PRIOR_SCALE"
+    --conf_param="_CONFIG._USER.lr=$LR" \
+    --conf_param="_CONFIG._USER.wd=$WD" \
+    --conf_param="_CONFIG._USER.gamma=$GAMMA" \
+    --conf_param="_CONFIG._USER.n_components=$N_COMPONENTS" \
+    --conf_param="_CONFIG._USER.prior_scale=$PRIOR_SCALE"

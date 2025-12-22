@@ -18,4 +18,5 @@ python -m alf.bin.train \
     --root_dir="$ROOT_DIR" \
     --conf_param="ConcurrentAlgorithm.num_copies=$NUM_COPIES" \
     --conf_param="create_environment.num_parallel_environments=$NUM_COPIES" \
-    --conf_param="ConcurrentAlgorithm.optimizer=alf.optimizers.Adam(lr=$LR, weight_decay=$WD, name='main')"
+    --conf_param="_CONFIG._USER.lr=$LR" \
+    --conf_param="_CONFIG._USER.wd=$WD"

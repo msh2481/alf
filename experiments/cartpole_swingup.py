@@ -21,6 +21,10 @@ from alf.environments.gym_wrappers import FrameSkip
 from alf.utils.math_ops import clipped_exp
 from alf.utils.losses import element_wise_squared_loss
 
+# Configurable hyperparameters (can be overridden via --conf_param)
+LR = alf.define_config('lr', 3e-4)
+WD = alf.define_config('wd', 0)
+
 alf.config('create_environment',
            env_name="cartpole:swingup",
            env_load_fn=suite_dmc.load,
@@ -57,9 +61,8 @@ alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SacAlgorithm,
     agent_reset_period=10**9,  # don't reset in dense reward setup
-    optimizer=alf.optimizers.Adam(lr=3e-4, name='main'),
+    optimizer=alf.optimizers.Adam(lr=LR, weight_decay=WD, name='main'),
     num_copies=1,
-    log_every_n_steps=500,
     return_logging_interval=500,
     video_record_interval=5000,
 )

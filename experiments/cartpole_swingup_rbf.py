@@ -23,8 +23,12 @@ from alf.environments.gym_wrappers import FrameSkip
 from alf.utils.math_ops import clipped_exp
 from alf.utils.losses import element_wise_squared_loss
 
-N_COMPONENTS = 1000
-PRIOR_SCALE = 0.1
+# Configurable hyperparameters (can be overridden via --conf_param)
+LR = alf.define_config('lr', 0.05)
+WD = alf.define_config('wd', 1e-4)
+GAMMA = alf.define_config('gamma', 2.0)
+N_COMPONENTS = alf.define_config('n_components', 1000)
+PRIOR_SCALE = alf.define_config('prior_scale', 0.1)
 
 alf.config('create_environment',
            env_name="cartpole:swingup",
@@ -38,12 +42,12 @@ alf.config('suite_dmc.load',
 
 alf.config('RBFCriticNetwork',
            n_components=N_COMPONENTS,
-           gamma=2.0,
+           gamma=GAMMA,
            only_sign_matters=True)
 
 alf.config('RBFActorDistributionNetwork',
            n_components=N_COMPONENTS,
-           gamma=2.0,
+           gamma=GAMMA,
            continuous_projection_net_ctor=partial(
                alf.networks.NormalProjectionNetwork,
                state_dependent_std=True,
@@ -73,9 +77,8 @@ alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SacAlgorithm,
     agent_reset_period=10**9,
-    optimizer=alf.optimizers.AdamW(lr=0.05, weight_decay=1e-4, name='main'),
+    optimizer=alf.optimizers.AdamW(lr=LR, weight_decay=WD, name='main'),
     num_copies=1,
-    log_every_n_steps=500,
     return_logging_interval=500,
     video_record_interval=5000,
 )

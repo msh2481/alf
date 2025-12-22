@@ -47,7 +47,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         optimizer=None,
         debug_summaries: bool = False,
         name: str = "ConcurrentAlgorithm",
-        use_exploration_seeds: bool = True,
+        use_exploration_seeds: bool = False,
         use_parallel_training: bool = True,
         num_parallel_workers: Optional[int] = None,
         video_record_interval: int | None = None,
