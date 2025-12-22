@@ -16,6 +16,7 @@ from functools import partial
 
 from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.concurrent_algorithm import ConcurrentAlgorithm
+from alf.networks import RandomizedPriorCriticNetwork, CriticNetwork
 from alf.environments import suite_dmc
 from alf.environments.gym_wrappers import FrameSkip
 from alf.utils.math_ops import clipped_exp
@@ -24,6 +25,7 @@ from alf.utils.losses import element_wise_squared_loss
 # Configurable hyperparameters (can be overridden via --conf_param)
 LR = alf.define_config('lr', 3e-4)
 WD = alf.define_config('wd', 0)
+PRIOR_SCALE = alf.define_config('prior_scale', 0.1)
 
 alf.config('create_environment',
            env_name="cartpole:swingup",
@@ -45,10 +47,15 @@ alf.config('ActorDistributionNetwork',
 
 alf.config('CriticNetwork', joint_fc_layer_params=(256, ))
 
+alf.config('RandomizedPriorCriticNetwork',
+           network_ctor=CriticNetwork,
+           prior_scale=PRIOR_SCALE,
+           trainable_init_std=1e-3)
+
 alf.config(
     'SacAlgorithm',
     actor_network_cls=alf.networks.ActorDistributionNetwork,
-    critic_network_cls=alf.networks.CriticNetwork,
+    critic_network_cls=RandomizedPriorCriticNetwork,
     target_update_tau=0.005,
     target_update_period=1,
 )
@@ -60,11 +67,12 @@ alf.config('OneStepTDLoss',
 alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SacAlgorithm,
-    agent_reset_period=10**9,  # don't reset in dense reward setup
+    agent_reset_period=10**9,
     optimizer=alf.optimizers.Adam(lr=LR, weight_decay=WD, name='main'),
     num_copies=1,
     return_logging_interval=500,
     video_record_interval=5000,
+    log_states=True,
 )
 
 alf.config('TrainerConfig',

@@ -43,7 +43,7 @@ alf.config('suite_dmc.load',
 alf.config('RBFCriticNetwork',
            n_components=N_COMPONENTS,
            gamma=GAMMA,
-           only_sign_matters=True)
+           only_sign_matters=False)
 
 alf.config('RBFActorDistributionNetwork',
            n_components=N_COMPONENTS,
@@ -66,7 +66,6 @@ alf.config(
     critic_network_cls=RandomizedPriorCriticNetwork,
     target_update_tau=0.005,
     target_update_period=1,
-    use_entropy_reward=True,
 )
 
 alf.config('OneStepTDLoss',
@@ -81,6 +80,7 @@ alf.config(
     num_copies=1,
     return_logging_interval=500,
     video_record_interval=5000,
+    log_states=True,
 )
 
 alf.config('TrainerConfig',
