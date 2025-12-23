@@ -39,8 +39,11 @@ class LongHorizon(gym.Env):
 
     def step(self, action):
         self.step_count += 1
+        if self.step_count % 100 == 0:
+            print(f"step_count: {self.step_count}")
         obs = np.array([self.step_count / self.T], dtype=np.float32)
         reward = 1.0 if self.step_count > 0.9 * self.T else 0.0
+        reward = 0.0
         done = self.step_count >= self.T
         return obs, reward, done, {}
 

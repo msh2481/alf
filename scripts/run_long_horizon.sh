@@ -1,9 +1,9 @@
 #!/bin/bash
 
 NUM_COPIES=1
-LR="3e-3"
-WD="0"
-PRIOR_SCALE="0.1"
+LR="3e-6"
+WD="0.9"
+PRIOR_SCALE="0.0"
 UTD=1
 NAME="$(date +%Y%m%d_%H%M%S)"
 
