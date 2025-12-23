@@ -54,3 +54,8 @@ gym.register(
     id='Bezier-v0',
     entry_point='alf.environments.simple.bezier:Bezier',
 )
+
+gym.register(
+    id='LongHorizon-v0',
+    entry_point='alf.environments.simple.long_horizon:LongHorizon',
+)

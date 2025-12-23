@@ -54,6 +54,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         return_logging_interval: int = 100,
         agent_reset_period: int | None = None,
         debug_env=None,
+        debug_callback_cls=None,
         debug_log_every_n_steps: int = 100,
         log_states: bool = False,
         log_states_path: str | None = None,
@@ -161,7 +162,8 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
 
         self._debug_callback = None
         if debug_env is not None:
-            self._debug_callback = DebugCallback(
+            callback_cls = debug_callback_cls or DebugCallback
+            self._debug_callback = callback_cls(
                 debug_env=debug_env, log_every_n_steps=debug_log_every_n_steps)
 
     def _get_most_recently_reset_agent(self) -> int:
