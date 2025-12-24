@@ -1,9 +1,13 @@
 #!/bin/bash
 
-NUM_COPIES=1
-LR="3e-4"
-WD="0"
+LR="1e-3"
+WD="0.1"
 PRIOR_SCALE="0.1"
+LN="True"
+UTD=1
+NUM_AGENTS=1
+TAU="0.1"
+ASYNC="True"
 NAME="$(date +%Y%m%d_%H%M%S)"
 
 for arg in "$@"; do
@@ -12,13 +16,16 @@ done
 
 ROOT_DIR="/tmp/cartpole_swingup/${NAME}"
 
-echo "Running: num_copies=$NUM_COPIES lr=$LR wd=$WD prior_scale=$PRIOR_SCALE root_dir=$ROOT_DIR"
+echo "Running: num_agents=$NUM_AGENTS lr=$LR wd=$WD prior_scale=$PRIOR_SCALE ln=$LN utd=$UTD tau=$TAU async=$ASYNC root_dir=$ROOT_DIR"
 
 python -m alf.bin.train \
     --conf=experiments/cartpole_swingup.py \
     --root_dir="$ROOT_DIR" \
-    --conf_param="ConcurrentAlgorithm.num_copies=$NUM_COPIES" \
-    --conf_param="create_environment.num_parallel_environments=$NUM_COPIES" \
     --conf_param="_CONFIG._USER.lr=$LR" \
     --conf_param="_CONFIG._USER.wd=$WD" \
-    --conf_param="_CONFIG._USER.prior_scale=$PRIOR_SCALE"
+    --conf_param="_CONFIG._USER.prior_scale=$PRIOR_SCALE" \
+    --conf_param="_CONFIG._USER.ln=$LN" \
+    --conf_param="_CONFIG._USER.utd=$UTD" \
+    --conf_param="_CONFIG._USER.num_agents=$NUM_AGENTS" \
+    --conf_param="_CONFIG._USER.tau=$TAU" \
+    --conf_param="_CONFIG._USER.async=$ASYNC"

@@ -23,14 +23,21 @@ from alf.utils.math_ops import clipped_exp
 from alf.utils.losses import element_wise_squared_loss
 
 # Configurable hyperparameters (can be overridden via --conf_param)
-LR = alf.define_config('lr', 3e-4)
-WD = alf.define_config('wd', 0)
+LR = alf.define_config('lr', 1e-3)
+WD = alf.define_config('wd', 0.1)
 PRIOR_SCALE = alf.define_config('prior_scale', 0.1)
+LN = alf.define_config('ln', True)
+UTD = alf.define_config('utd', 1)
+NUM_AGENTS = alf.define_config('num_agents', 1)
+TAU = alf.define_config('tau', 0.1)
+ASYNC = alf.define_config('async', True)
 
 alf.config('create_environment',
            env_name="cartpole:swingup",
            env_load_fn=suite_dmc.load,
-           num_parallel_environments=1)
+           num_parallel_environments=NUM_AGENTS,
+           ensure_different_phases=ASYNC,
+           max_steps_for_phase_randomization=125)
 
 alf.config('suite_dmc.load',
            from_pixels=False,
@@ -45,7 +52,7 @@ alf.config('ActorDistributionNetwork',
                scale_distribution=True,
                std_transform=clipped_exp))
 
-alf.config('CriticNetwork', joint_fc_layer_params=(256, ))
+alf.config('CriticNetwork', joint_fc_layer_params=(256, ), use_fc_ln=LN)
 
 alf.config('RandomizedPriorCriticNetwork',
            network_ctor=CriticNetwork,
@@ -56,7 +63,7 @@ alf.config(
     'SacAlgorithm',
     actor_network_cls=alf.networks.ActorDistributionNetwork,
     critic_network_cls=RandomizedPriorCriticNetwork,
-    target_update_tau=0.005,
+    target_update_tau=TAU,
     target_update_period=1,
 )
 
@@ -69,7 +76,7 @@ alf.config(
     algorithm_ctor=SacAlgorithm,
     agent_reset_period=10**9,
     optimizer=alf.optimizers.Adam(lr=LR, weight_decay=WD, name='main'),
-    num_copies=1,
+    num_copies=NUM_AGENTS,
     return_logging_interval=500,
     video_record_interval=5000,
     log_states=True,
@@ -79,9 +86,9 @@ alf.config('TrainerConfig',
            algorithm_ctor=ConcurrentAlgorithm,
            initial_collect_steps=100,
            mini_batch_length=2,
-           mini_batch_size=256,
+           mini_batch_size=256 * NUM_AGENTS,
            unroll_length=1,
-           num_updates_per_train_iter=1,
+           num_updates_per_train_iter=UTD,
            num_iterations=50000,
            num_checkpoints=3,
            evaluate=False,
