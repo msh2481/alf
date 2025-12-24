@@ -1,10 +1,10 @@
 #!/bin/bash
 
 NUM_COPIES=1
-LR="3e-6"
-WD="0.9"
+LR="1e-3"
+WD="0.1"
 PRIOR_SCALE="0.0"
-UTD=1
+UTD=2
 NAME="$(date +%Y%m%d_%H%M%S)"
 
 for arg in "$@"; do

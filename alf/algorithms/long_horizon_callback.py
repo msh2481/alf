@@ -69,9 +69,8 @@ class LongHorizonCallback:
         get_q_values_fn = self._create_get_q_values_fn(algorithms, device)
 
         os.makedirs('logs', exist_ok=True)
-        self._executor.submit(self._create_and_save_plots, iter_number,
-                              num_copies, get_q_values_fn)
-        logging.info(f"Plot saving in background")
+        self._create_and_save_plots(iter_number, num_copies, get_q_values_fn)
+        logging.info(f"Plot saved")
 
     def _create_and_save_plots(self, iter_number, num_copies, get_q_values_fn):
         fig, axes = plt.subplots(num_copies,

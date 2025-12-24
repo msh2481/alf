@@ -375,8 +375,8 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
         critic = RandomizedPriorCriticNetwork(sub_ctor,
                                               input_spec,
                                               prior_scale=0.01)
-        # optimizer = torch.optim.Adam(critic.parameters(), lr=5e-3, betas=(0.5, 0.9999))
-        optimizer = torch.optim.SGD(critic.parameters(), lr=0.2, momentum=0.5)
+        optimizer = alf.optimizers.SGD(lr=0.2, momentum=0.5, weight_decay=0.1)
+        optimizer.add_param_group({'params': list(critic.parameters())})
 
         num_steps = 100
         num_test_inputs = 30

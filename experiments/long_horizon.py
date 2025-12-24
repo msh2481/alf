@@ -24,23 +24,25 @@ from alf.utils.losses import element_wise_squared_loss
 import alf.environments.simple
 
 LR = alf.define_config('lr', 3e-3)
-WD = alf.define_config('wd', 0)
-PRIOR_SCALE = alf.define_config('prior_scale', 0.1)
-UTD = alf.define_config('utd', 1)
+WD = alf.define_config('wd', 0.1)
+PRIOR_SCALE = alf.define_config('prior_scale', 0.0)
+UTD = alf.define_config('utd', 2)
 
 alf.config('create_environment',
            env_name="LongHorizon-v0",
            num_parallel_environments=1)
 
 alf.config('ActorDistributionNetwork',
-           fc_layer_params=(256, ),
+           fc_layer_params=None,
            continuous_projection_net_ctor=partial(
                alf.networks.NormalProjectionNetwork,
-               state_dependent_std=True,
+               state_dependent_std=False,
                scale_distribution=True,
-               std_transform=clipped_exp))
+               std_transform=partial(clipped_exp,
+                                     clip_value_min=-1,
+                                     clip_value_max=0)))
 
-alf.config('CriticNetwork', joint_fc_layer_params=(256, ))
+alf.config('CriticNetwork', joint_fc_layer_params=(256, ), use_fc_ln=True)
 
 alf.config('RandomizedPriorCriticNetwork',
            network_ctor=CriticNetwork,
@@ -50,20 +52,24 @@ alf.config('RandomizedPriorCriticNetwork',
 alf.config(
     'SacAlgorithm',
     actor_network_cls=alf.networks.ActorDistributionNetwork,
-    critic_network_cls=RandomizedPriorCriticNetwork,
-    target_update_tau=0.5,
+    # critic_network_cls=RandomizedPriorCriticNetwork,
+    critic_network_cls=CriticNetwork,
+    target_update_tau=0.1,
     target_update_period=1,
+    num_critic_replicas=1,
 )
 
 alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
-           gamma=0.998)
+           gamma=0.99)
 
 alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SacAlgorithm,
     agent_reset_period=10**9,
-    optimizer=alf.optimizers.SGD(lr=LR, weight_decay=WD, name='main'),
+    optimizer=alf.optimizers.optimizers.Adam(lr=LR,
+                                             weight_decay=WD,
+                                             name="main"),
     num_copies=1,
     return_logging_interval=500,
     video_record_interval=None,
@@ -77,7 +83,7 @@ alf.config('TrainerConfig',
            algorithm_ctor=ConcurrentAlgorithm,
            initial_collect_steps=100,
            mini_batch_length=2,
-           mini_batch_size=256,
+           mini_batch_size=32,
            unroll_length=1,
            num_updates_per_train_iter=UTD,
            num_iterations=50000,
