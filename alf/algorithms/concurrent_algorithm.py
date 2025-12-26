@@ -58,6 +58,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         debug_log_every_n_steps: int = 100,
         log_states: bool = False,
         log_states_path: str | None = None,
+        log_states_flush_interval: int = 100,
     ):
 
         self._batch_size = alf.get_config_value(
@@ -157,6 +158,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
 
         self._log_states = log_states
         self._log_states_path = log_states_path
+        self._log_states_flush_interval = max(1, log_states_flush_interval)
         self._log_file = None
         self._rollout_step_counter = 0
 
@@ -284,7 +286,9 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                 "episode_end": self._to_jsonable(time_step.is_last()),
             }
             self._log_file.write(json.dumps(entry) + "\n")
-        self._log_file.flush()
+        if ((self._rollout_step_counter + 1) %
+                self._log_states_flush_interval == 0):
+            self._log_file.flush()
 
     def rollout_step(self, inputs: TimeStep, state) -> AlgStep:
         assert alf.nest.get_nest_size(

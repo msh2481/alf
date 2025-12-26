@@ -74,12 +74,12 @@ alf.config('OneStepTDLoss',
 alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SacAlgorithm,
-    agent_reset_period=10**9,
+    agent_reset_period=15000,
     optimizer=alf.optimizers.Adam(lr=LR, weight_decay=WD, name='main'),
     num_copies=NUM_AGENTS,
     return_logging_interval=500,
-    video_record_interval=5000,
-    log_states=True,
+    video_record_interval=10000,
+    log_states=False,
 )
 
 alf.config('TrainerConfig',
