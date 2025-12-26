@@ -24,7 +24,7 @@ from alf.utils.losses import element_wise_squared_loss
 
 # Configurable hyperparameters (can be overridden via --conf_param)
 LR = alf.define_config('lr', 1e-3)
-WD = alf.define_config('wd', 0.1)
+WD = alf.define_config('wd', 0.01)
 PRIOR_SCALE = alf.define_config('prior_scale', 0.1)
 LN = alf.define_config('ln', True)
 UTD = alf.define_config('utd', 1)

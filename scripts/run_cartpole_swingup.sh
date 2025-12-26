@@ -1,7 +1,7 @@
 #!/bin/bash
 
 LR="1e-3"
-WD="0.1"
+WD="0.01"
 PRIOR_SCALE="0.1"
 LN="True"
 UTD=1
