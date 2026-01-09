@@ -80,6 +80,7 @@ alf.config(
     return_logging_interval=500,
     video_record_interval=10000,
     log_states=False,
+    log_episode_returns=True,
 )
 
 alf.config('TrainerConfig',

@@ -1,20 +1,5 @@
 # tmux_session | experiment_command
 
-# UTD experiments (default 1):
-utd_1 | UTD=1 NAME="utd_1"
-utd_2 | UTD=2 NAME="utd_2"
-utd_3 | UTD=3 NAME="utd_3"
-
-# Agents experiments:
-agents_1 | NUM_AGENTS=1 NAME="agents_1"
-agents_2_async | NUM_AGENTS=2 ASYNC=True NAME="agents_2_async"
-agents_4_async | NUM_AGENTS=4 ASYNC=True NAME="agents_4_async"
-agents_4_sync | NUM_AGENTS=4 ASYNC=False NAME="agents_4_sync"
-
-# LR experiment:
-lr_2e-3 | LR=2e-3 NAME="lr_2e-3"
-
-# PRIOR_SCALE experiments:
-prior_0 | PRIOR_SCALE=0 NAME="prior_0"
-prior_0p01 | PRIOR_SCALE=0.01 NAME="prior_0p01"
-prior_1p0 | PRIOR_SCALE=1.0 NAME="prior_1p0"
+# ASYNC vs SYNC comparison (4 agents):
+async_4 | NUM_AGENTS=4 ASYNC=True NAME="async_4" SEEDS=1
+sync_4 | NUM_AGENTS=4 ASYNC=False NAME="sync_4" SEEDS=1

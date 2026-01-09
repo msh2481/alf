@@ -16,6 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 import os
 import json
 import sys
+import time
 import torch
 import torch.nn as nn
 from absl import logging
@@ -59,6 +60,9 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         log_states: bool = False,
         log_states_path: str | None = None,
         log_states_flush_interval: int = 100,
+        log_episode_returns: bool = False,
+        episode_returns_path: str | None = None,
+        episode_returns_flush_interval: int = 1,
     ):
 
         self._batch_size = alf.get_config_value(
@@ -136,12 +140,26 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         self._train_step_counter = 0
 
         # Per-algorithm episode return tracking
-        self._per_env_cumulative_reward = torch.zeros(num_copies)
+        self._per_env_cumulative_reward = torch.zeros(self._env_counts)
+        self._per_env_episode_length = torch.zeros(self._env_counts,
+                                                   dtype=torch.int32)
         self._per_alg_returns: dict[int, list[tuple[int, float]]] = {
             i: []
             for i in range(num_copies)
         }
+        self._per_alg_episode_counters: dict[int, int] = {
+            i: 0
+            for i in range(num_copies)
+        }
         self._total_env_steps = 0
+
+        # NDJSON episode returns logging
+        self._log_episode_returns = log_episode_returns
+        self._episode_returns_path = episode_returns_path
+        self._episode_returns_flush_interval = max(
+            1, episode_returns_flush_interval)
+        self._episode_returns_file = None
+        self._episode_returns_write_count = 0
 
         # Per-algorithm loss tracking
         self._per_alg_actor_losses: dict[int, list[tuple[int, float]]] = {
@@ -198,6 +216,12 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                 self._log_file.close()
             finally:
                 self._log_file = None
+        if getattr(self, "_episode_returns_file", None) is not None:
+            try:
+                self._episode_returns_file.flush()
+                self._episode_returns_file.close()
+            finally:
+                self._episode_returns_file = None
         if hasattr(self, '_executor') and self._executor is not None:
             self._executor.shutdown(wait=True)
             self._executor = None
@@ -258,6 +282,39 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         self._log_file = open(path, "a", encoding="utf-8")
         logging.info(f"Logging rollout states to {path}")
+
+    def _ensure_episode_returns_file(self):
+        if self._episode_returns_file is not None:
+            return
+        if not self._log_episode_returns:
+            return
+        root_dir = self._config.root_dir if self._config else "."
+        path = self._episode_returns_path or os.path.join(
+            root_dir, "metrics", "episode_returns.ndjson")
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        file_exists = os.path.exists(path) and os.path.getsize(path) > 0
+        self._episode_returns_file = open(path, "a", encoding="utf-8")
+        if not file_exists:
+            try:
+                env_name = alf.get_config_value("create_environment.env_name")
+            except ValueError:
+                env_name = "unknown"
+            try:
+                random_seed = alf.get_config_value("TrainerConfig.random_seed")
+            except ValueError:
+                random_seed = None
+            meta_record = {
+                "type": "meta",
+                "schema_version": 1,
+                "root_dir": root_dir,
+                "seed": random_seed,
+                "env_name": env_name,
+                "num_copies": self._num_copies,
+                "env_counts": self._env_counts,
+            }
+            self._episode_returns_file.write(json.dumps(meta_record) + "\n")
+            self._episode_returns_file.flush()
+        logging.info(f"Logging episode returns to {path}")
 
     def _to_jsonable(self, value):
         if isinstance(value, torch.Tensor):
@@ -329,14 +386,25 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         if self._per_env_cumulative_reward.device != device:
             self._per_env_cumulative_reward = self._per_env_cumulative_reward.to(
                 device)
+        if self._per_env_episode_length.device != device:
+            self._per_env_episode_length = self._per_env_episode_length.to(
+                device)
         self._total_env_steps += self._env_counts
         self._per_env_cumulative_reward += inputs.reward
+        is_first = inputs.is_first()
         is_last = inputs.is_last()
+        if is_first.any():
+            for env_idx in is_first.nonzero(as_tuple=True)[0]:
+                self._per_env_episode_length[env_idx] = 0
+        self._per_env_episode_length += 1
         if is_last.any():
             for env_idx in is_last.nonzero(as_tuple=True)[0]:
                 alg_idx = env_idx.item() % self._num_copies
                 episode_return = self._per_env_cumulative_reward[env_idx].item(
                 )
+                episode_length = self._per_env_episode_length[env_idx].item()
+                self._per_alg_episode_counters[alg_idx] += 1
+                episode_idx = self._per_alg_episode_counters[alg_idx]
                 num_episodes = len(self._per_alg_returns[alg_idx]) + 1
                 logging.info(
                     f"Agent {alg_idx} episode {num_episodes} done: "
@@ -345,6 +413,26 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                 self._per_alg_returns[alg_idx].append(
                     (self._total_env_steps, episode_return))
                 self._per_env_cumulative_reward[env_idx] = 0.0
+                self._per_env_episode_length[env_idx] = 0
+                if self._log_episode_returns:
+                    self._ensure_episode_returns_file()
+                    if self._episode_returns_file is not None:
+                        episode_record = {
+                            "type": "episode",
+                            "agent_idx": alg_idx,
+                            "env_idx": env_idx.item(),
+                            "episode_idx": episode_idx,
+                            "episode_return": episode_return,
+                            "episode_length": episode_length,
+                            "total_env_steps": self._total_env_steps,
+                            "walltime": time.time(),
+                        }
+                        self._episode_returns_file.write(
+                            json.dumps(episode_record) + "\n")
+                        self._episode_returns_write_count += 1
+                        if (self._episode_returns_write_count %
+                                self._episode_returns_flush_interval == 0):
+                            self._episode_returns_file.flush()
 
     def get_per_algorithm_returns(self) -> dict[int, list[tuple[int, float]]]:
         """Get recorded episode returns for each sub-algorithm.

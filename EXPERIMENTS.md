@@ -42,16 +42,25 @@ tmux attach -t <name>
 
 Results are stored in `/tmp/cartpole_swingup/<name>/`
 
-### Check episode returns
+### Check episode returns (stats only, saves tokens)
 ```bash
-cat /tmp/cartpole_swingup/<name>/plots/episode_returns.txt
+head -n 2 /tmp/cartpole_swingup/<name>/plots/episode_returns.txt
 ```
 
-### Check all metrics (use cat or tail -100 for full plots)
+### Check episode returns (full ASCII plot)
 ```bash
-cat /tmp/cartpole_swingup/<name>/plots/episode_returns.txt
-cat /tmp/cartpole_swingup/<name>/plots/actor_losses.txt
-cat /tmp/cartpole_swingup/<name>/plots/critic_losses.txt
+head -n 100 /tmp/cartpole_swingup/<name>/plots/episode_returns.txt
+```
+
+### Check all metrics
+```bash
+# Stats only (default - avoids wasting tokens on ASCII graphics):
+head -n 2 /tmp/cartpole_swingup/<name>/plots/episode_returns.txt
+head -n 2 /tmp/cartpole_swingup/<name>/plots/actor_losses.txt
+head -n 2 /tmp/cartpole_swingup/<name>/plots/critic_losses.txt
+
+# Full plots (when you need to see the training curve):
+head -n 100 /tmp/cartpole_swingup/<name>/plots/episode_returns.txt
 ```
 
 ### Check training log
