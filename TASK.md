@@ -205,4 +205,5 @@ sudo apt install cmake
 sudo apt install libgl1
 sudo apt install ninja-build
 sudo apt install libboost-all-dev
+sudo apt install libosmesa6-dev libegl1-mesa-dev
 ```
