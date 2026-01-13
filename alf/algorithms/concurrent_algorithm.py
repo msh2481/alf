@@ -678,45 +678,52 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             f"Recording videos for {self._num_copies} agents (step={step_label})..."
         )
 
-        def to_tensor(x):
+        def to_tensor(x, device):
             if isinstance(x, torch.Tensor):
-                return x
-            return torch.as_tensor(x, dtype=torch.float32)
+                return x.to(device)
+            return torch.as_tensor(x, dtype=torch.float32, device=device)
 
-        def tensorize_time_step(ts):
+        def tensorize_time_step(ts, device):
             return ts._replace(
-                observation=to_tensor(ts.observation),
-                reward=to_tensor(ts.reward),
-                step_type=torch.as_tensor(ts.step_type),
-                discount=to_tensor(ts.discount),
+                observation=to_tensor(ts.observation, device),
+                reward=to_tensor(ts.reward, device),
+                step_type=torch.as_tensor(ts.step_type, device=device),
+                discount=to_tensor(ts.discount, device),
             )
 
         def record_single_agent(agent_idx: int, alg):
             frames = []
+            try:
+                device = next(alg.parameters()).device
+            except StopIteration:
+                device = torch.device("cpu")
             env = env_ctor()
             try:
                 for ep in range(num_episodes):
                     env.reset()
                     time_step = tensorize_time_step(
-                        common.get_initial_time_step(env))
-                    state = alg.get_initial_predict_state(env.batch_size)
+                        common.get_initial_time_step(env), device)
+                    initial_state = alg.get_initial_predict_state(
+                        env.batch_size)
+                    initial_state = alf.nest.map_structure(
+                        lambda x: x.to(device)
+                        if isinstance(x, torch.Tensor) else x, initial_state)
+                    state = initial_state
                     for _ in range(max_steps_per_episode):
                         frame = env.render(mode='rgb_array')
                         if frame is not None:
                             frames.append(frame)
                         is_first = time_step.is_first()
-                        if not isinstance(is_first, torch.Tensor):
-                            is_first = torch.tensor(is_first)
+                        is_first = torch.as_tensor(is_first, device=device)
                         state = common.reset_state_if_necessary(
-                            state,
-                            alg.get_initial_predict_state(env.batch_size),
-                            is_first)
+                            state, initial_state, is_first)
                         alg_step = alg.predict_step(time_step, state)
                         state = alg_step.state
                         action = alg_step.output
                         if isinstance(action, torch.Tensor):
                             action = action.detach().cpu().numpy()
-                        time_step = tensorize_time_step(env.step(action))
+                        time_step = tensorize_time_step(
+                            env.step(action), device)
                         if time_step.is_last().any() if hasattr(
                                 time_step.is_last(),
                                 'any') else time_step.is_last():
