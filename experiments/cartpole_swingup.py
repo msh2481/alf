@@ -13,6 +13,9 @@
 # limitations under the License.
 import alf
 from functools import partial
+import torch
+assert not torch.cuda.is_available(
+), "CUDA is available; run with CUDA hidden (e.g. CUDA_VISIBLE_DEVICES='') or use a CPU-only PyTorch build."
 
 from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.concurrent_algorithm import ConcurrentAlgorithm
