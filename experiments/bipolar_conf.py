@@ -128,9 +128,11 @@ alf.config(
     optimizer=alf.optimizers.AdamW(lr=0.05, weight_decay=1e-4, name='main'),
     num_copies=NUM_COPIES,
     use_exploration_seeds=SEED_VERSION,
-    debug_env=suite_gym.load(ENV_NAME),
+    # debug_env=suite_gym.load(ENV_NAME),
+    debug_env=None,
     video_record_interval=None,
     debug_log_every_n_steps=5,
+    log_episode_returns=True,
 )
 
 alf.config('TrainerConfig',
