@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 from absl import logging
+from tqdm import tqdm
 
 logging.set_verbosity(logging.INFO)
 
@@ -132,7 +133,7 @@ def compute_statistics(
     episode_returns: dict[int, list[float]],
     min_trials: int = 5,
     confidence: float = 0.95,
-    n_bootstrap: int = 2000,
+    n_bootstrap: int = 1000,
     bootstrap_seed: int = 0
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray,
            np.ndarray]:
@@ -145,7 +146,7 @@ def compute_statistics(
 
     max_episode = max(episode_returns.keys()) if episode_returns else 0
 
-    for episode_idx in range(1, max_episode + 1):
+    for episode_idx in tqdm(range(1, max_episode + 1)):
         if episode_idx not in episode_returns:
             continue
 
@@ -329,8 +330,8 @@ def main():
                         help="Confidence level for CI (default: 0.95)")
     parser.add_argument("--n_bootstrap",
                         type=int,
-                        default=2000,
-                        help="Number of bootstrap samples (default: 2000)")
+                        default=1000,
+                        help="Number of bootstrap samples (default: 1000)")
     parser.add_argument("--bootstrap_seed",
                         type=int,
                         default=0,

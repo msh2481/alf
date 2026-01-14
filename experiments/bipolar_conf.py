@@ -28,7 +28,9 @@ from alf.environments import suite_gym
 
 ENV_NAME = "BipolarChain-medium-dense-onehot-continuous-v0"
 DISCRETE = "discrete" in ENV_NAME
-NUM_COPIES = 8
+NUM_AGENTS = alf.define_config('num_agents', 1)
+ASYNC = alf.define_config('async', True)
+NUM_COPIES = NUM_AGENTS
 RESET_PERIOD = 50
 BATCH_SIZE = 256 * NUM_COPIES
 ENV_COUNTS = NUM_COPIES
@@ -51,7 +53,7 @@ PRIOR_SCALE = 0.1
 alf.config('create_environment',
            env_name=ENV_NAME,
            num_parallel_environments=ENV_COUNTS,
-           ensure_different_phases=True,
+           ensure_different_phases=ASYNC,
            max_steps_for_phase_randomization=24)
 
 alf.config('ReplayBuffer', shuffle_batch=True)
