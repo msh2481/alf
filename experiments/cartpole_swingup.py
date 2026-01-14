@@ -78,7 +78,9 @@ alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SacAlgorithm,
     agent_reset_period=10**9,  # TODO: for sparse rewards, turn back on
-    optimizer=alf.optimizers.Adam(lr=LR, weight_decay=WD, name='main'),
+    optimizer=alf.optimizers.Adam(lr=LR * NUM_AGENTS,
+                                  weight_decay=WD,
+                                  name='main'),
     num_copies=NUM_AGENTS,
     return_logging_interval=500,
     video_record_interval=10000,
