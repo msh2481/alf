@@ -1,15 +1,15 @@
 #!/bin/bash
 
-LR="1e-3"
+LR="3e-3"
 WD="0.01"
 PRIOR_SCALE="1e-9"
 LN="True"
 UTD=1
 NUM_AGENTS=1
 TAU="0.01"
-ASYNC="True"
+ASYNC="False"
 NAME="$(date +%Y%m%d_%H%M%S)"
-SEEDS="5"
+SEEDS="8"
 
 for arg in "$@"; do
     eval "$arg"

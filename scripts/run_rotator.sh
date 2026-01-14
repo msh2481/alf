@@ -1,6 +1,6 @@
 #!/bin/bash
 
-LR="3e-4"
+LR="3e-3"
 WD="0.01"
 PRIOR_SCALE="1e-9"
 LN="True"
