@@ -84,7 +84,7 @@ alf.config(
     log_episode_returns=True,
     debug_env=suite_gym.load("Rotator-v0"),
     debug_callback_cls=RotatorCallback,
-    debug_log_every_n_steps=10,
+    debug_log_every_n_steps=10**9,
 )
 
 alf.config('TrainerConfig',

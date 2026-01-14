@@ -1,9 +1,9 @@
 #!/bin/bash
 
 CONF="experiments/bipolar_conf.py"
-SEEDS="5"
-NUM_AGENTS=1
-ASYNC="True"
+SEEDS="4"
+NUM_AGENTS=4
+ASYNC="False"
 NAME="$(date +%Y%m%d_%H%M%S)"
 EXTRA_ARGS=""
 

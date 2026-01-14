@@ -9,7 +9,7 @@ NUM_AGENTS=1
 TAU="0.01"
 ASYNC="False"
 NAME="$(date +%Y%m%d_%H%M%S)"
-SEEDS=""
+SEEDS="8"
 
 for arg in "$@"; do
     eval "$arg"

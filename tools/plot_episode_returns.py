@@ -131,7 +131,6 @@ def bootstrap_ci(values: np.ndarray,
 
 def compute_statistics(
     episode_returns: dict[int, list[float]],
-    min_trials: int = 5,
     confidence: float = 0.95,
     n_bootstrap: int = 1000,
     bootstrap_seed: int = 0
@@ -145,15 +144,14 @@ def compute_statistics(
     q75_values = []
 
     max_episode = max(episode_returns.keys()) if episode_returns else 0
+    num_trials = []
 
     for episode_idx in tqdm(range(1, max_episode + 1)):
         if episode_idx not in episode_returns:
             continue
 
         returns = episode_returns[episode_idx]
-
-        if len(returns) < min_trials:
-            continue
+        num_trials.append(len(returns))
 
         returns_array = np.array(returns)
         iqm = compute_iqm(returns_array)
@@ -168,6 +166,8 @@ def compute_statistics(
         ci_highs.append(ci_high)
         q25_values.append(q25)
         q75_values.append(q75)
+
+    print(num_trials)
 
     return (np.array(episode_indices), np.array(iqm_values), np.array(ci_lows),
             np.array(ci_highs), np.array(q25_values), np.array(q75_values))
@@ -238,7 +238,6 @@ def interactive_select(groups: dict[str, dict[int, list[float]]]) -> list[str]:
 def plot_groups(groups: dict[str, dict[int, list[float]]],
                 selected: list[str],
                 output_path: str,
-                min_trials: int = 5,
                 confidence: float = 0.95,
                 n_bootstrap: int = 2000,
                 bootstrap_seed: int = 0,
@@ -255,7 +254,7 @@ def plot_groups(groups: dict[str, dict[int, list[float]]],
             continue
 
         (episode_indices, iqm_values, ci_lows, ci_highs, q25_values,
-         q75_values) = compute_statistics(episode_returns, min_trials,
+         q75_values) = compute_statistics(episode_returns, 
                                           confidence, n_bootstrap,
                                           bootstrap_seed)
 
@@ -320,10 +319,6 @@ def main():
                         type=str,
                         default="iqm_episode_return.png",
                         help="Output PNG file path")
-    parser.add_argument("--min_trials",
-                        type=int,
-                        default=5,
-                        help="Minimum number of trials required per episode")
     parser.add_argument("--confidence",
                         type=float,
                         default=0.95,
@@ -371,7 +366,7 @@ def main():
         return
 
     logging.info(f"Plotting {len(selected)} groups...")
-    plot_groups(groups, selected, args.out, args.min_trials, args.confidence,
+    plot_groups(groups, selected, args.out, args.confidence,
                 args.n_bootstrap, args.bootstrap_seed, args.max_episode)
 
 
