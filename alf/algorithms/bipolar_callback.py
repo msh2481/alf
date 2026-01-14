@@ -36,7 +36,7 @@ def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=256):
 
 
 @alf.configurable
-class DebugCallback:
+class BipolarCallback:
     """Callback for debugging concurrent algorithms with visualization and metrics."""
 
     def __init__(self,

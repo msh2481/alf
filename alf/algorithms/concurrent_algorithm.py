@@ -22,7 +22,7 @@ import torch.nn as nn
 from absl import logging
 import alf
 from alf.algorithms.config import TrainerConfig
-from alf.algorithms.debug_callback import DebugCallback
+from alf.algorithms.bipolar_callback import BipolarCallback
 from alf.algorithms.off_policy_algorithm import OffPolicyAlgorithm
 from alf.data_structures import AlgStep, Experience, LossInfo, TimeStep
 from alf.tensor_specs import TensorSpec
@@ -181,9 +181,8 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         self._rollout_step_counter = 0
 
         self._debug_callback = None
-        if debug_env is not None:
-            callback_cls = debug_callback_cls or DebugCallback
-            self._debug_callback = callback_cls(
+        if debug_env is not None and debug_callback_cls is not None:
+            self._debug_callback = debug_callback_cls(
                 debug_env=debug_env, log_every_n_steps=debug_log_every_n_steps)
 
     def _get_most_recently_reset_agent(self) -> int:

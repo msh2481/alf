@@ -18,7 +18,7 @@ import alf
 from absl import logging
 from alf.algorithms.config import TrainerConfig
 from alf.algorithms.concurrent_algorithm import ConcurrentAlgorithm
-from alf.algorithms.debug_callback import DebugCallback
+from alf.algorithms.bipolar_callback import BipolarCallback
 from alf.data_structures import LossInfo
 from alf.tensor_specs import TensorSpec
 from itertools import combinations

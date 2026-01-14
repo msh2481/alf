@@ -59,3 +59,9 @@ gym.register(
     id='LongHorizon-v0',
     entry_point='alf.environments.simple.long_horizon:LongHorizon',
 )
+
+gym.register(
+    id='Rotator-v0',
+    entry_point='alf.environments.simple.rotator:Rotator',
+    max_episode_steps=1000,
+)

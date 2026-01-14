@@ -25,6 +25,7 @@ from alf.utils.math_ops import clipped_exp
 from functools import partial
 from alf.environments.simple.bipolar_chain import BipolarChain
 from alf.environments import suite_gym
+from alf.algorithms.rotator_callback import RotatorCallback
 
 ENV_NAME = "BipolarChain-medium-dense-onehot-continuous-v0"
 DISCRETE = "discrete" in ENV_NAME
@@ -128,8 +129,10 @@ alf.config(
     optimizer=alf.optimizers.AdamW(lr=0.05, weight_decay=1e-4, name='main'),
     num_copies=NUM_COPIES,
     use_exploration_seeds=SEED_VERSION,
-    # debug_env=suite_gym.load(ENV_NAME),
-    debug_env=None,
+    debug_env=suite_gym.load(ENV_NAME)
+    if ENV_NAME.startswith("Rotator") else None,
+    debug_callback_cls=RotatorCallback
+    if ENV_NAME.startswith("Rotator") else None,
     video_record_interval=None,
     debug_log_every_n_steps=5,
     log_episode_returns=True,
