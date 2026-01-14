@@ -7,7 +7,7 @@ LN="True"
 UTD=1
 NUM_AGENTS=1
 TAU="0.01"
-ASYNC="True"
+ASYNC="False"
 NAME="$(date +%Y%m%d_%H%M%S)"
 SEEDS=""
 

@@ -13,8 +13,6 @@
 # limitations under the License.
 
 import os
-from concurrent.futures import ThreadPoolExecutor
-
 from absl import logging
 import numpy as np
 import torch
@@ -23,6 +21,8 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+import matplotlib.cm as cm
 
 import alf
 
@@ -36,7 +36,7 @@ class RotatorCallback:
                  num_samples: int = 4000,
                  grid_res: int = 41,
                  vmin: float = -0.5,
-                 vmax: float = 1.5,
+                 vmax: float = 5.0,
                  segment_scale: float = 0.05,
                  quiver_width: float = 0.0022,
                  name: str = "RotatorCallback"):
@@ -50,7 +50,9 @@ class RotatorCallback:
         self._quiver_width = float(quiver_width)
         self._name = name
         self._debug_count = 0
-        self._executor = ThreadPoolExecutor(max_workers=1)
+        # Use first half of Greys colormap (light colors) for black quiver visibility
+        greys = cm.get_cmap('Greys')
+        self._cmap = ListedColormap(greys(np.linspace(0, 0.5, 256)))
 
     def _sample_from_replay_buffer(self, replay_buffer):
         if replay_buffer is None or replay_buffer.total_size == 0:
@@ -89,9 +91,8 @@ class RotatorCallback:
             return
 
         os.makedirs("logs", exist_ok=True)
-        self._executor.submit(self._create_and_save_plots, iter_number,
-                              observations, actions, env_ids, algorithms,
-                              num_copies)
+        self._create_and_save_plots(iter_number, observations, actions,
+                                    env_ids, algorithms, num_copies)
 
     def _create_and_save_plots(self, iter_number, observations, actions,
                                env_ids, algorithms, num_copies):
@@ -162,8 +163,8 @@ class RotatorCallback:
             zero_act = torch.zeros_like(grid_obs)
             g = grad_q_wrt_action_batch_fn(grid_obs, zero_act).reshape(
                 self._grid_res, self._grid_res, 2).detach().cpu().numpy()
-            gu = g[:, :, 0].T
-            gv = g[:, :, 1].T
+            gu = g[:, :, 0]
+            gv = g[:, :, 1]
             gnorm = np.sqrt(gu * gu + gv * gv)
             gmax = float(np.max(gnorm)) if gnorm.size else 0.0
             if gmax > 0.0:
@@ -193,7 +194,7 @@ class RotatorCallback:
         im = ax.imshow(v_grid,
                        origin="lower",
                        extent=(-1, 1, -1, 1),
-                       cmap="viridis",
+                       cmap=self._cmap,
                        vmin=self._vmin,
                        vmax=self._vmax,
                        aspect="equal")
@@ -254,7 +255,7 @@ class RotatorCallback:
         env_ids = torch.as_tensor(env_ids).detach().cpu().numpy().reshape(-1)
 
         uniq = np.unique(env_ids)
-        cmap = plt.get_cmap("tab20")
+        cmap = plt.get_cmap("tab10")
         color_of = {int(e): cmap(i % cmap.N) for i, e in enumerate(uniq)}
         colors = np.array([color_of[int(e)] for e in env_ids],
                           dtype=np.float32)
