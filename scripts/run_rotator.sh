@@ -2,14 +2,14 @@
 
 LR="3e-3"
 WD="0.01"
-PRIOR_SCALE="1e-9"
-LN="True"
+PRIOR_SCALE="10.0"
+LN="False"
 UTD=1
 NUM_AGENTS=1
 TAU="0.01"
 ASYNC="False"
 NAME="$(date +%Y%m%d_%H%M%S)"
-SEEDS="8"
+SEEDS=""
 
 for arg in "$@"; do
     eval "$arg"

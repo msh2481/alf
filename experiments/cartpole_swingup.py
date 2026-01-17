@@ -36,7 +36,7 @@ TAU = alf.define_config('tau', 0.1)
 ASYNC = alf.define_config('async', True)
 
 alf.config('create_environment',
-           env_name="cartpole:swingup",
+           env_name="cartpole:swingup_sparse",
            env_load_fn=suite_dmc.load,
            num_parallel_environments=NUM_AGENTS,
            ensure_different_phases=ASYNC,

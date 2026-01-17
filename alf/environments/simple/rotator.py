@@ -24,13 +24,14 @@ class Rotator(gym.Env):
                  dt: float = 0.01,
                  num_steps: int = 1000,
                  eps: float = 1e-8,
-                 c_distraction: float = 0.7):
+                 c_distraction: float = 0.0,
+                 sparsity_threshold: float = 10.0):
         super().__init__()
         self.dt = float(dt)
         self.num_steps = int(num_steps)
         self.eps = float(eps)
         self.c_distraction = float(c_distraction)
-
+        self.sparsity_threshold = float(sparsity_threshold)
         self.observation_space = spaces.Box(low=-1.0,
                                             high=1.0,
                                             shape=(2, ),
@@ -42,10 +43,12 @@ class Rotator(gym.Env):
 
         self._state = np.zeros((2, ), dtype=np.float32)
         self._step_count = 0
+        self._cumulative_rotation = 0.0  # without distracting part
 
     def reset(self):
         self._state[...] = (0.5, 0.0)
         self._step_count = 0
+        self._cumulative_rotation = 0.0
         return self._state.copy()
 
     def step(self, action):
@@ -63,6 +66,13 @@ class Rotator(gym.Env):
         a0, a1 = map(float, eff_action)
         cross = s0 * a1 - s1 * a0
         reward = cross / (float(np.linalg.norm(state)) + self.eps)
+        self._cumulative_rotation += reward * self.dt
+        # only emit true reward when the cumulative rotation is greater than the threshold
+        if self._cumulative_rotation < self.sparsity_threshold:
+            reward = 0.0
+        else:
+            assert False, f"cumulative reward {self._cumulative_rotation} is greater than the threshold {self.sparsity_threshold}, step={self._step_count}"
+        # yet distracting part is always there
         reward += self.c_distraction * a1
 
         self._state[:] = next_state

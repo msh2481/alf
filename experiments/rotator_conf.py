@@ -75,7 +75,7 @@ alf.config('OneStepTDLoss',
 alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SacAlgorithm,
-    agent_reset_period=10**9,  # TODO: for sparse rewards, turn back on
+    agent_reset_period=200,
     optimizer=alf.optimizers.Adam(lr=LR, weight_decay=WD, name='main'),
     num_copies=NUM_AGENTS,
     return_logging_interval=500,
@@ -84,7 +84,7 @@ alf.config(
     log_episode_returns=True,
     debug_env=suite_gym.load("Rotator-v0"),
     debug_callback_cls=RotatorCallback,
-    debug_log_every_n_steps=10**9,
+    debug_log_every_n_steps=10,
 )
 
 alf.config('TrainerConfig',

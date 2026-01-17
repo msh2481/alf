@@ -50,9 +50,8 @@ class RotatorCallback:
         self._quiver_width = float(quiver_width)
         self._name = name
         self._debug_count = 0
-        # Use first half of Greys colormap (light colors) for black quiver visibility
-        greys = cm.get_cmap('Greys')
-        self._cmap = ListedColormap(greys(np.linspace(0, 0.5, 256)))
+        greys = cm.get_cmap('bwr')
+        self._cmap = ListedColormap(greys(np.linspace(0.25, 0.75, 256)))
 
     def _sample_from_replay_buffer(self, replay_buffer):
         if replay_buffer is None or replay_buffer.total_size == 0:
@@ -191,13 +190,14 @@ class RotatorCallback:
 
     def _plot_value_heatmap(self, ax, v_grid: np.ndarray, gu: np.ndarray,
                             gv: np.ndarray, alg_idx: int):
-        im = ax.imshow(v_grid,
-                       origin="lower",
-                       extent=(-1, 1, -1, 1),
-                       cmap=self._cmap,
-                       vmin=self._vmin,
-                       vmax=self._vmax,
-                       aspect="equal")
+        im = ax.imshow(
+            v_grid,
+            origin="lower",
+            extent=(-1, 1, -1, 1),
+            cmap=self._cmap,
+            #    vmin=self._vmin,
+            #    vmax=self._vmax,
+            aspect="equal")
         xs = np.linspace(-1.0, 1.0, gu.shape[1])
         ys = np.linspace(-1.0, 1.0, gu.shape[0])
         xx, yy = np.meshgrid(xs, ys)
