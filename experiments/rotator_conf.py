@@ -70,7 +70,7 @@ alf.config(
 
 alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
-           gamma=0.99)
+           gamma=0.995)
 
 alf.config(
     "ConcurrentAlgorithm",
