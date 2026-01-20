@@ -1,12 +1,12 @@
 #!/bin/bash
 
 LR="3e-3"
-WD="0.0"
+WD="1e-4"
 PRIOR_SCALE="0.1"
 LN="False"
 UTD=1
-NUM_AGENTS=1
-TAU="0.01"
+NUM_AGENTS=4
+TAU="0.1"
 ASYNC="False"
 NAME="$(date +%Y%m%d_%H%M%S)"
 SEEDS=""
