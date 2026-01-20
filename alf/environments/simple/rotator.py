@@ -21,8 +21,8 @@ import torch
 class Rotator(gym.Env):
 
     def __init__(self,
-                 dt: float = 0.01,
-                 num_steps: int = 1000,
+                 dt: float = 0.08,
+                 num_steps: int = 125,
                  eps: float = 1e-8,
                  c_distraction: float = 0.0,
                  sparsity_threshold: float = -0.5):

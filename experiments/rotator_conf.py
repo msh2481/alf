@@ -43,8 +43,6 @@ alf.config('create_environment',
            ensure_different_phases=ASYNC,
            max_steps_for_phase_randomization=125)
 
-alf.config('suite_gym.load', gym_env_wrappers=(partial(FrameSkip, skip=8), ))
-
 alf.config('ActorDistributionNetwork',
            fc_layer_params=(256, ),
            continuous_projection_net_ctor=partial(
@@ -75,7 +73,7 @@ alf.config('OneStepTDLoss',
 alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SacAlgorithm,
-    agent_reset_period=200,
+    agent_reset_period=10**9,
     optimizer=alf.optimizers.Adam(lr=LR, weight_decay=WD, name='main'),
     num_copies=NUM_AGENTS,
     return_logging_interval=500,
