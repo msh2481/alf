@@ -26,6 +26,7 @@ from alf.networks.network import NaiveParallelNetwork
 from alf.networks.network_test import test_net_copy
 from alf.networks.preprocessors import EmbeddingPreprocessor
 from alf.nest.utils import NestConcat
+from torch.nn.utils import parameters_to_vector
 
 
 class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
@@ -212,6 +213,66 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
             replica_out = output_parallel[:, i]
             self.assertGreater(replica_out.std().item(), prior_scale * 0.5)
             self.assertLess(replica_out.std().item(), prior_scale * 2.0)
+
+    def test_randomized_prior_critic_perturb_prior(self):
+        obs_spec = TensorSpec((8, ))
+        action_spec = BoundedTensorSpec((2, ), minimum=-1, maximum=1)
+        input_spec = (obs_spec, action_spec)
+
+        critic = RandomizedPriorCriticNetwork(input_tensor_spec=input_spec,
+                                              prior_scale=1.0,
+                                              trainable_init_std=1e-3,
+                                              joint_fc_layer_params=(64, ))
+
+        trainable_before = parameters_to_vector(
+            critic._trainable_net.parameters()).detach().clone()
+        prior_before = parameters_to_vector(
+            critic._prior_net.parameters()).detach().clone()
+        prior_norm_before = prior_before.norm(p=2)
+
+        critic.perturb_prior(alpha=0.1)
+
+        trainable_after = parameters_to_vector(
+            critic._trainable_net.parameters()).detach().clone()
+        prior_after = parameters_to_vector(
+            critic._prior_net.parameters()).detach().clone()
+        prior_norm_after = prior_after.norm(p=2)
+
+        self.assertTrue(torch.allclose(trainable_before, trainable_after))
+        self.assertFalse(torch.allclose(prior_before, prior_after))
+        self.assertTrue(
+            torch.allclose(prior_norm_before,
+                           prior_norm_after,
+                           rtol=1e-5,
+                           atol=1e-6))
+
+    def test_randomized_prior_critic_parallel_perturb_prior(self):
+        obs_spec = TensorSpec((8, ))
+        action_spec = BoundedTensorSpec((2, ), minimum=-1, maximum=1)
+        input_spec = (obs_spec, action_spec)
+
+        critic = RandomizedPriorCriticNetwork(input_tensor_spec=input_spec,
+                                              prior_scale=1.0,
+                                              trainable_init_std=1e-3,
+                                              joint_fc_layer_params=(64, ))
+        pcritic = critic.make_parallel(3)
+
+        prior_before = parameters_to_vector(
+            pcritic._prior_net.parameters()).detach().clone()
+        prior_norm_before = prior_before.norm(p=2)
+
+        pcritic.perturb_prior(alpha=0.1)
+
+        prior_after = parameters_to_vector(
+            pcritic._prior_net.parameters()).detach().clone()
+        prior_norm_after = prior_after.norm(p=2)
+
+        self.assertFalse(torch.allclose(prior_before, prior_after))
+        self.assertTrue(
+            torch.allclose(prior_norm_before,
+                           prior_norm_after,
+                           rtol=1e-5,
+                           atol=1e-6))
 
     def _create_onehot_data(self, num_inputs):
         X_train = torch.eye(num_inputs, dtype=torch.float32)

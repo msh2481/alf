@@ -54,6 +54,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         video_record_interval: int | None = None,
         return_logging_interval: int = 100,
         agent_reset_period: int | None = None,
+        prior_perturbation_alpha: float | None = None,
         debug_env=None,
         debug_callback_cls=None,
         debug_log_every_n_steps: int = 100,
@@ -173,6 +174,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
 
         self._agent_reset_period = agent_reset_period
         self._next_agent_to_reset = 0
+        self._prior_perturbation_alpha = prior_perturbation_alpha
 
         self._log_states = log_states
         self._log_states_path = log_states_path
@@ -206,6 +208,30 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                                         new_alg.parameters()):
             old_param.data.copy_(new_param.data)
         logging.info(f"Reset agent {agent_idx} parameters")
+
+    def _perturb_agent_prior(self, agent_idx: int):
+        """Perturb randomized-prior networks inside an agent.
+
+        This searches the sub-algorithm module tree for modules exposing
+        ``perturb_prior(alpha)`` and calls it.
+        """
+        alpha = self._prior_perturbation_alpha
+        if alpha is None:
+            return
+
+        alg = self._algorithms[agent_idx]
+        perturbed = 0
+        for m in alg.modules():
+            perturb_fn = getattr(m, "perturb_prior", None)
+            if callable(perturb_fn):
+                perturb_fn(alpha)
+                perturbed += 1
+
+        if perturbed == 0:
+            logging.warning(
+                f"prior_perturbation_alpha is set but no perturbable modules were found in agent {agent_idx}; falling back to full reset"
+            )
+            self._reset_agent(agent_idx)
 
     def close(self):
         """Clean up resources, including shutting down the thread pool executor."""
@@ -627,7 +653,10 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                 logging.error(f"Error saving ASCII plots: {e}")
         if (self._agent_reset_period is not None
                 and self._train_step_counter % self._agent_reset_period == 0):
-            self._reset_agent(self._next_agent_to_reset)
+            if self._prior_perturbation_alpha is not None:
+                self._perturb_agent_prior(self._next_agent_to_reset)
+            else:
+                self._reset_agent(self._next_agent_to_reset)
             self._next_agent_to_reset = (self._next_agent_to_reset +
                                          1) % self._num_copies
 

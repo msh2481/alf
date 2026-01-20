@@ -29,6 +29,38 @@ from alf.tensor_specs import TensorSpec, BoundedTensorSpec
 import alf.utils.math_ops as math_ops
 
 
+@torch.no_grad()
+def _perturb_params_l2_sphere(params, alpha: float):
+    """Perturb parameters on an L2 sphere using an MCMC-style random walk.
+
+    Treats the entire parameter set (including any replica dims) as one vector.
+    """
+    if alpha is None:
+        return
+    if alpha == 0:
+        return
+
+    from torch.nn.utils import parameters_to_vector, vector_to_parameters
+
+    params = list(params)
+    if not params:
+        return
+
+    vec = parameters_to_vector(params)
+    old_norm = vec.norm(p=2)
+    if old_norm == 0:
+        return
+
+    noise = torch.randn_like(vec) * (alpha * old_norm)
+    new_vec = vec + noise
+    new_norm = new_vec.norm(p=2)
+    if new_norm == 0:
+        return
+
+    new_vec = new_vec * (old_norm / new_norm)
+    vector_to_parameters(new_vec, params)
+
+
 @alf.configurable
 class QNetworkBase(Network):
     """A base class for ``QNetwork`` and ``QRNNNetwork``.
@@ -439,16 +471,55 @@ class RandomizedPriorQNetwork(Network):
         return q_vals + prior_vals, state
 
     def make_parallel(self, n):
-        """Create parallel version using NaiveParallelNetwork.
-
-        Each replica will have its own independent trainable and prior networks.
-        """
-        return alf.networks.NaiveParallelNetwork(self, n)
+        """Make both sub-networks parallel for better performance."""
+        parallel_trainable = self._trainable_net.make_parallel(n)
+        parallel_prior = self._prior_net.make_parallel(n)
+        for p in parallel_prior.parameters():
+            p.requires_grad = False
+        return _ParallelRandomizedPriorQNetwork(parallel_trainable,
+                                                parallel_prior,
+                                                self.input_tensor_spec,
+                                                self._output_spec)
 
     @property
     def state_spec(self):
         """Return the state spec (delegates to trainable network)."""
         return self._trainable_net.state_spec
+
+    def perturb_prior(self, alpha: float):
+        """Perturb frozen prior parameters with an L2-sphere random walk."""
+        _perturb_params_l2_sphere(self._prior_net.parameters(), alpha)
+
+
+class _ParallelRandomizedPriorQNetwork(Network):
+    """Parallel version of RandomizedPriorQNetwork."""
+
+    def __init__(self,
+                 parallel_trainable,
+                 parallel_prior,
+                 input_tensor_spec,
+                 output_spec,
+                 name="ParallelRandomizedPriorQNetwork"):
+        super().__init__(input_tensor_spec=input_tensor_spec, name=name)
+        self._trainable_net = parallel_trainable
+        self._prior_net = parallel_prior
+        self._output_spec = output_spec
+        for p in self._prior_net.parameters():
+            p.requires_grad = False
+
+    def forward(self, observation, state=()):
+        q_vals, state = self._trainable_net(observation, state)
+        with torch.no_grad():
+            prior_vals, _ = self._prior_net(observation, state)
+        return q_vals + prior_vals, state
+
+    @property
+    def state_spec(self):
+        return self._trainable_net.state_spec
+
+    def perturb_prior(self, alpha: float):
+        """Perturb frozen prior parameters with an L2-sphere random walk."""
+        _perturb_params_l2_sphere(self._prior_net.parameters(), alpha)
 
     def _log_parameters(self):
         input_dim = self.input_tensor_spec.shape[0]

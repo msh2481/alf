@@ -31,6 +31,39 @@ from .preprocessors import CosineEmbeddingPreprocessor
 import alf.layers as layers
 
 
+@torch.no_grad()
+def _perturb_params_l2_sphere(params, alpha: float):
+    """Perturb parameters on an L2 sphere using an MCMC-style random walk.
+
+    Treats the entire parameter set (including any replica dims) as one vector.
+    """
+    if alpha is None:
+        return
+    if alpha == 0:
+        return
+
+    # Import locally to avoid adding a global dependency at import time.
+    from torch.nn.utils import parameters_to_vector, vector_to_parameters
+
+    params = list(params)
+    if not params:
+        return
+
+    vec = parameters_to_vector(params)
+    old_norm = vec.norm(p=2)
+    if old_norm == 0:
+        return
+
+    noise = torch.randn_like(vec) * (alpha * old_norm)
+    new_vec = vec + noise
+    new_norm = new_vec.norm(p=2)
+    if new_norm == 0:
+        return
+
+    new_vec = new_vec * (old_norm / new_norm)
+    vector_to_parameters(new_vec, params)
+
+
 def _check_action_specs_for_critic_networks(action_spec,
                                             action_input_processors,
                                             action_preprocessing_combiner):
@@ -715,6 +748,10 @@ class RandomizedPriorCriticNetwork(Network):
         prior_vals, _ = self._prior_net(observation, state)
         return q_vals + prior_vals, state
 
+    def perturb_prior(self, alpha: float):
+        """Perturb frozen prior parameters with an L2-sphere random walk."""
+        _perturb_params_l2_sphere(self._prior_net.parameters(), alpha)
+
     @property
     def state_spec(self):
         """Return the state spec (delegates to trainable network)."""
@@ -750,6 +787,10 @@ class _ParallelRandomizedPriorCriticNetwork(Network):
         q_vals, state = self._trainable_net(observation, state)
         prior_vals, _ = self._prior_net(observation, state)
         return q_vals + prior_vals, state
+
+    def perturb_prior(self, alpha: float):
+        """Perturb frozen prior parameters with an L2-sphere random walk."""
+        _perturb_params_l2_sphere(self._prior_net.parameters(), alpha)
 
     @property
     def state_spec(self):

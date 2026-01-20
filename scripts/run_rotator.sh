@@ -2,7 +2,7 @@
 
 LR="3e-3"
 WD="0.0"
-PRIOR_SCALE="1.0"
+PRIOR_SCALE="0.1"
 LN="False"
 UTD=1
 NUM_AGENTS=1
