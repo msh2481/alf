@@ -22,6 +22,7 @@ import torch
 import alf
 import alf.utils.math_ops as math_ops
 import alf.nest as nest
+from alf.utils.perturb_utils import perturb_module_params_l2_sphere_per_layer
 from alf.initializers import variance_scaling_init
 from alf.tensor_specs import TensorSpec
 
@@ -29,39 +30,6 @@ from .encoding_networks import EncodingNetwork, LSTMEncodingNetwork, ParallelEnc
 from .network import Network
 from .preprocessors import CosineEmbeddingPreprocessor
 import alf.layers as layers
-
-
-@torch.no_grad()
-def _perturb_params_l2_sphere(params, alpha: float):
-    """Perturb parameters on an L2 sphere using an MCMC-style random walk.
-
-    Treats the entire parameter set (including any replica dims) as one vector.
-    """
-    if alpha is None:
-        return
-    if alpha == 0:
-        return
-
-    # Import locally to avoid adding a global dependency at import time.
-    from torch.nn.utils import parameters_to_vector, vector_to_parameters
-
-    params = list(params)
-    if not params:
-        return
-
-    vec = parameters_to_vector(params)
-    old_norm = vec.norm(p=2)
-    if old_norm == 0:
-        return
-
-    noise = torch.randn_like(vec) * (alpha * old_norm)
-    new_vec = vec + noise
-    new_norm = new_vec.norm(p=2)
-    if new_norm == 0:
-        return
-
-    new_vec = new_vec * (old_norm / new_norm)
-    vector_to_parameters(new_vec, params)
 
 
 def _check_action_specs_for_critic_networks(action_spec,
@@ -749,8 +717,8 @@ class RandomizedPriorCriticNetwork(Network):
         return q_vals + prior_vals, state
 
     def perturb_prior(self, alpha: float):
-        """Perturb frozen prior parameters with an L2-sphere random walk."""
-        _perturb_params_l2_sphere(self._prior_net.parameters(), alpha)
+        """Perturb frozen prior parameters with a per-layer L2-sphere walk."""
+        perturb_module_params_l2_sphere_per_layer(self._prior_net, alpha)
 
     @property
     def state_spec(self):
@@ -791,14 +759,14 @@ class _ParallelRandomizedPriorCriticNetwork(Network):
         return q_vals + prior_vals, state
 
     def perturb_prior(self, alpha: float):
-        """Perturb frozen prior parameters with a per-replica L2-sphere walk."""
+        """Perturb frozen prior parameters per-replica and per-layer."""
         nets = getattr(self._prior_net, "_networks", None)
         if nets is not None:
             for net in nets:
-                _perturb_params_l2_sphere(net.parameters(), alpha)
+                perturb_module_params_l2_sphere_per_layer(net, alpha)
         else:
-            # Fallback: treat all params as one vector.
-            _perturb_params_l2_sphere(self._prior_net.parameters(), alpha)
+            # Fallback: per-layer perturbation without per-replica separation.
+            perturb_module_params_l2_sphere_per_layer(self._prior_net, alpha)
 
     @property
     def state_spec(self):

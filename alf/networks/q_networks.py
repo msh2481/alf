@@ -27,38 +27,7 @@ from alf.networks import EncodingNetwork, LSTMEncodingNetwork, ParallelEncodingN
 from alf.networks import Network
 from alf.tensor_specs import TensorSpec, BoundedTensorSpec
 import alf.utils.math_ops as math_ops
-
-
-@torch.no_grad()
-def _perturb_params_l2_sphere(params, alpha: float):
-    """Perturb parameters on an L2 sphere using an MCMC-style random walk.
-
-    Treats the entire parameter set (including any replica dims) as one vector.
-    """
-    if alpha is None:
-        return
-    if alpha == 0:
-        return
-
-    from torch.nn.utils import parameters_to_vector, vector_to_parameters
-
-    params = list(params)
-    if not params:
-        return
-
-    vec = parameters_to_vector(params)
-    old_norm = vec.norm(p=2)
-    if old_norm == 0:
-        return
-
-    noise = torch.randn_like(vec) * (alpha * old_norm)
-    new_vec = vec + noise
-    new_norm = new_vec.norm(p=2)
-    if new_norm == 0:
-        return
-
-    new_vec = new_vec * (old_norm / new_norm)
-    vector_to_parameters(new_vec, params)
+from alf.utils.perturb_utils import perturb_module_params_l2_sphere_per_layer
 
 
 @alf.configurable
@@ -489,8 +458,8 @@ class RandomizedPriorQNetwork(Network):
         return self._trainable_net.state_spec
 
     def perturb_prior(self, alpha: float):
-        """Perturb frozen prior parameters with an L2-sphere random walk."""
-        _perturb_params_l2_sphere(self._prior_net.parameters(), alpha)
+        """Perturb frozen prior parameters with a per-layer L2-sphere walk."""
+        perturb_module_params_l2_sphere_per_layer(self._prior_net, alpha)
 
 
 class _ParallelRandomizedPriorQNetwork(Network):
@@ -520,13 +489,13 @@ class _ParallelRandomizedPriorQNetwork(Network):
         return self._trainable_net.state_spec
 
     def perturb_prior(self, alpha: float):
-        """Perturb frozen prior parameters with a per-replica L2-sphere walk."""
+        """Perturb frozen prior parameters per-replica and per-layer."""
         nets = getattr(self._prior_net, "_networks", None)
         if nets is not None:
             for net in nets:
-                _perturb_params_l2_sphere(net.parameters(), alpha)
+                perturb_module_params_l2_sphere_per_layer(net, alpha)
         else:
-            _perturb_params_l2_sphere(self._prior_net.parameters(), alpha)
+            perturb_module_params_l2_sphere_per_layer(self._prior_net, alpha)
 
     def _log_parameters(self):
         input_dim = self.input_tensor_spec.shape[0]

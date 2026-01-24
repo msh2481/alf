@@ -1,8 +1,8 @@
 #!/bin/bash
 
 LR="3e-3"
-WD="1e-4"
-PRIOR_SCALE="0.1"
+WD="1e-5"
+PRIOR_SCALE="0.001"
 LN="False"
 UTD=1
 NUM_AGENTS=4

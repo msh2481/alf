@@ -228,7 +228,14 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
             critic._trainable_net.parameters()).detach().clone()
         prior_before = parameters_to_vector(
             critic._prior_net.parameters()).detach().clone()
-        prior_norm_before = prior_before.norm(p=2)
+        # Per-layer norms should be preserved independently.
+        layer_norms_before = []
+        for m in critic._prior_net.modules():
+            params = list(m.parameters(recurse=False))
+            if not params:
+                continue
+            layer_norms_before.append(
+                parameters_to_vector(params).detach().norm(p=2))
 
         critic.perturb_prior(alpha=0.1)
 
@@ -236,15 +243,19 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
             critic._trainable_net.parameters()).detach().clone()
         prior_after = parameters_to_vector(
             critic._prior_net.parameters()).detach().clone()
-        prior_norm_after = prior_after.norm(p=2)
+        layer_norms_after = []
+        for m in critic._prior_net.modules():
+            params = list(m.parameters(recurse=False))
+            if not params:
+                continue
+            layer_norms_after.append(
+                parameters_to_vector(params).detach().norm(p=2))
 
         self.assertTrue(torch.allclose(trainable_before, trainable_after))
         self.assertFalse(torch.allclose(prior_before, prior_after))
-        self.assertTrue(
-            torch.allclose(prior_norm_before,
-                           prior_norm_after,
-                           rtol=1e-5,
-                           atol=1e-6))
+        self.assertEqual(len(layer_norms_before), len(layer_norms_after))
+        for nb, na in zip(layer_norms_before, layer_norms_after):
+            self.assertTrue(torch.allclose(nb, na, rtol=1e-5, atol=1e-6))
 
     def test_randomized_prior_critic_parallel_perturb_prior(self):
         obs_spec = TensorSpec((8, ))
@@ -264,7 +275,15 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
             parameters_to_vector(net.parameters()).detach().clone()
             for net in replica_priors
         ]
-        replica_norm_before = [v.norm(p=2) for v in replica_before]
+        replica_layer_norms_before = []
+        for net in replica_priors:
+            norms = []
+            for m in net.modules():
+                params = list(m.parameters(recurse=False))
+                if not params:
+                    continue
+                norms.append(parameters_to_vector(params).detach().norm(p=2))
+            replica_layer_norms_before.append(norms)
 
         pcritic.perturb_prior(alpha=0.1)
 
@@ -272,12 +291,25 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
             parameters_to_vector(net.parameters()).detach().clone()
             for net in replica_priors
         ]
-        replica_norm_after = [v.norm(p=2) for v in replica_after]
+        replica_layer_norms_after = []
+        for net in replica_priors:
+            norms = []
+            for m in net.modules():
+                params = list(m.parameters(recurse=False))
+                if not params:
+                    continue
+                norms.append(parameters_to_vector(params).detach().norm(p=2))
+            replica_layer_norms_after.append(norms)
 
         for b, a in zip(replica_before, replica_after):
             self.assertFalse(torch.allclose(b, a))
-        for nb, na in zip(replica_norm_before, replica_norm_after):
-            self.assertTrue(torch.allclose(nb, na, rtol=1e-5, atol=1e-6))
+        self.assertEqual(len(replica_layer_norms_before),
+                         len(replica_layer_norms_after))
+        for norms_b, norms_a in zip(replica_layer_norms_before,
+                                    replica_layer_norms_after):
+            self.assertEqual(len(norms_b), len(norms_a))
+            for nb, na in zip(norms_b, norms_a):
+                self.assertTrue(torch.allclose(nb, na, rtol=1e-5, atol=1e-6))
 
     def _create_onehot_data(self, num_inputs):
         X_train = torch.eye(num_inputs, dtype=torch.float32)
