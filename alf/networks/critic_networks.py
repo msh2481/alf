@@ -760,7 +760,9 @@ class RandomizedPriorCriticNetwork(Network):
     def make_parallel(self, n):
         """Make both sub-networks parallel for better performance."""
         parallel_trainable = self._trainable_net.make_parallel(n)
-        parallel_prior = self._prior_net.make_parallel(n)
+        # Make the prior naive-parallel so replicas exist as separate submodules.
+        # This makes per-replica perturbation trivial and robust.
+        parallel_prior = alf.networks.NaiveParallelNetwork(self._prior_net, n)
         for p in parallel_prior.parameters():
             p.requires_grad = False
         return _ParallelRandomizedPriorCriticNetwork(parallel_trainable,
@@ -789,8 +791,14 @@ class _ParallelRandomizedPriorCriticNetwork(Network):
         return q_vals + prior_vals, state
 
     def perturb_prior(self, alpha: float):
-        """Perturb frozen prior parameters with an L2-sphere random walk."""
-        _perturb_params_l2_sphere(self._prior_net.parameters(), alpha)
+        """Perturb frozen prior parameters with a per-replica L2-sphere walk."""
+        nets = getattr(self._prior_net, "_networks", None)
+        if nets is not None:
+            for net in nets:
+                _perturb_params_l2_sphere(net.parameters(), alpha)
+        else:
+            # Fallback: treat all params as one vector.
+            _perturb_params_l2_sphere(self._prior_net.parameters(), alpha)
 
     @property
     def state_spec(self):

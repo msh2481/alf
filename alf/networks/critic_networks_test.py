@@ -257,22 +257,27 @@ class CriticNetworksTest(parameterized.TestCase, alf.test.TestCase):
                                               joint_fc_layer_params=(64, ))
         pcritic = critic.make_parallel(3)
 
-        prior_before = parameters_to_vector(
-            pcritic._prior_net.parameters()).detach().clone()
-        prior_norm_before = prior_before.norm(p=2)
+        # Per-replica norms should be preserved independently.
+        replica_priors = getattr(pcritic._prior_net, "_networks", None)
+        self.assertIsNotNone(replica_priors)
+        replica_before = [
+            parameters_to_vector(net.parameters()).detach().clone()
+            for net in replica_priors
+        ]
+        replica_norm_before = [v.norm(p=2) for v in replica_before]
 
         pcritic.perturb_prior(alpha=0.1)
 
-        prior_after = parameters_to_vector(
-            pcritic._prior_net.parameters()).detach().clone()
-        prior_norm_after = prior_after.norm(p=2)
+        replica_after = [
+            parameters_to_vector(net.parameters()).detach().clone()
+            for net in replica_priors
+        ]
+        replica_norm_after = [v.norm(p=2) for v in replica_after]
 
-        self.assertFalse(torch.allclose(prior_before, prior_after))
-        self.assertTrue(
-            torch.allclose(prior_norm_before,
-                           prior_norm_after,
-                           rtol=1e-5,
-                           atol=1e-6))
+        for b, a in zip(replica_before, replica_after):
+            self.assertFalse(torch.allclose(b, a))
+        for nb, na in zip(replica_norm_before, replica_norm_after):
+            self.assertTrue(torch.allclose(nb, na, rtol=1e-5, atol=1e-6))
 
     def _create_onehot_data(self, num_inputs):
         X_train = torch.eye(num_inputs, dtype=torch.float32)
