@@ -36,7 +36,7 @@ PRIOR_SCALE = 0.1
 
 # environment config
 alf.config('create_environment',
-           env_name="cartpole:swingup",
+           env_name="cartpole:swingup_sparse",
            env_load_fn=suite_dmc.load,
            num_parallel_environments=ENV_COUNTS,
            ensure_different_phases=True,
