@@ -34,7 +34,8 @@ logging.set_verbosity(logging.INFO)
 
 def discover_runs(
         root_dir: str,
-        agents_as_seeds: bool = True) -> dict[str, dict[int, list[float]]]:
+        agents_as_seeds: bool = True,
+        agent_reduce: str = "none") -> dict[str, dict[int, list[float]]]:
     root_path = Path(root_dir)
     if not root_path.exists():
         logging.warning(f"Root directory does not exist: {root_dir}")
@@ -61,7 +62,11 @@ def discover_runs(
         if agents_as_seeds:
             episodes = extract_episodes(file_path)
             for episode_idx, returns in episodes.items():
-                groups[run_name][episode_idx].extend(returns)
+                if agent_reduce == "max":
+                    if returns:
+                        groups[run_name][episode_idx].append(max(returns))
+                else:
+                    groups[run_name][episode_idx].extend(returns)
         else:
             raw_episodes = load_episode_returns(file_path)
             agent_indices = set()
@@ -241,7 +246,8 @@ def plot_groups(groups: dict[str, dict[int, list[float]]],
                 confidence: float = 0.95,
                 n_bootstrap: int = 2000,
                 bootstrap_seed: int = 0,
-                max_episode: int | None = None):
+                max_episode: int | None = None,
+                agent_reduce: str = "none"):
     fig, ax = plt.subplots(figsize=(10, 6))
 
     colors = plt.cm.tab10(np.linspace(0, 1, len(selected)))
@@ -254,9 +260,8 @@ def plot_groups(groups: dict[str, dict[int, list[float]]],
             continue
 
         (episode_indices, iqm_values, ci_lows, ci_highs, q25_values,
-         q75_values) = compute_statistics(episode_returns, 
-                                          confidence, n_bootstrap,
-                                          bootstrap_seed)
+         q75_values) = compute_statistics(episode_returns, confidence,
+                                          n_bootstrap, bootstrap_seed)
 
         if max_episode is not None:
             mask = episode_indices <= max_episode
@@ -299,7 +304,10 @@ def plot_groups(groups: dict[str, dict[int, list[float]]],
 
     ax.set_xlabel("Episode Index", fontsize=12)
     ax.set_ylabel("Episode Return", fontsize=12)
-    ax.set_title("IQM Episode Return with 95% CI and Quantiles", fontsize=14)
+    title = "IQM Episode Return with 95% CI and Quantiles"
+    if agent_reduce != "none":
+        title += f" (agent_reduce={agent_reduce})"
+    ax.set_title(title, fontsize=14)
     ax.legend(loc="best")
     ax.grid(True, alpha=0.3)
 
@@ -341,6 +349,14 @@ def main():
         action="store_true",
         default=False,
         help="Plot each agent as a separate line (default: False)")
+    parser.add_argument(
+        "--agent_reduce",
+        type=str,
+        choices=["none", "max"],
+        default="none",
+        help=("How to reduce the agent dimension before pooling trials. "
+              "'none' pools all agents (default); 'max' takes pointwise max "
+              "across agents per run/seed. Ignored with --per_agent."))
     parser.add_argument("--max_episode",
                         type=int,
                         default=None,
@@ -350,9 +366,13 @@ def main():
 
     # Use per_agent mode if specified, otherwise use agents_as_seeds
     agents_as_seeds = not args.per_agent
+    if args.per_agent and args.agent_reduce != "none":
+        logging.warning("--agent_reduce is ignored when --per_agent is set.")
 
     logging.info(f"Scanning for runs under: {args.root_dir}")
-    groups = discover_runs(args.root_dir, agents_as_seeds=agents_as_seeds)
+    groups = discover_runs(args.root_dir,
+                           agents_as_seeds=agents_as_seeds,
+                           agent_reduce=args.agent_reduce)
 
     if not groups:
         logging.error(f"No runs found under {args.root_dir}")
@@ -366,8 +386,14 @@ def main():
         return
 
     logging.info(f"Plotting {len(selected)} groups...")
-    plot_groups(groups, selected, args.out, args.confidence,
-                args.n_bootstrap, args.bootstrap_seed, args.max_episode)
+    plot_groups(groups,
+                selected,
+                args.out,
+                args.confidence,
+                args.n_bootstrap,
+                args.bootstrap_seed,
+                args.max_episode,
+                agent_reduce=args.agent_reduce)
 
 
 if __name__ == "__main__":
