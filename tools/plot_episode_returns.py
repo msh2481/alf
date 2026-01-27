@@ -61,11 +61,22 @@ def discover_runs(
 
         if agents_as_seeds:
             episodes = extract_episodes(file_path)
-            for episode_idx, returns in episodes.items():
-                if agent_reduce == "max":
-                    if returns:
-                        groups[run_name][episode_idx].append(max(returns))
-                else:
+            if agent_reduce == "max":
+                # For max reduction, we need returns grouped by (episode_idx, agent_idx)
+                # so we can take max across agents for each episode_idx
+                raw_episodes = load_episode_returns(file_path)
+                # Build dict: episode_idx -> {agent_idx -> return}
+                per_agent: dict[int, dict[int, float]] = defaultdict(dict)
+                for ep in raw_episodes:
+                    eidx = ep["episode_idx"]
+                    aidx = ep.get("agent_idx", 0)
+                    per_agent[eidx][aidx] = ep["episode_return"]
+                for episode_idx, agent_returns in per_agent.items():
+                    if agent_returns:
+                        groups[run_name][episode_idx].append(
+                            max(agent_returns.values()))
+            else:
+                for episode_idx, returns in episodes.items():
                     groups[run_name][episode_idx].extend(returns)
         else:
             raw_episodes = load_episode_returns(file_path)

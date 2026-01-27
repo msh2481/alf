@@ -34,9 +34,10 @@ UTD = alf.define_config('utd', 1)
 NUM_AGENTS = alf.define_config('num_agents', 1)
 TAU = alf.define_config('tau', 0.1)
 ASYNC = alf.define_config('async', True)
+ENV = alf.define_config('env', 'cartpole:swingup_sparse')
 
 alf.config('create_environment',
-           env_name="cartpole:swingup_sparse",
+           env_name=ENV,
            env_load_fn=suite_dmc.load,
            num_parallel_environments=NUM_AGENTS,
            ensure_different_phases=ASYNC,
