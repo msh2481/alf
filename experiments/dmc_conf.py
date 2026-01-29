@@ -95,6 +95,8 @@ alf.config(
     video_record_interval=VIDEO_RECORD_INTERVAL,
     log_states=False,
     log_episode_returns=True,
+    log_weight_norms=True,
+    log_grad_norms=True,
     debug_env=suite_gym.load("Rotator-v0") if _IS_ROTATOR else None,
     debug_callback_cls=RotatorCallback if _IS_ROTATOR else None,
     debug_log_every_n_steps=10,

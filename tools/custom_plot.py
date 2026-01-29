@@ -184,62 +184,160 @@ def bootstrap_ci(
     return pl.DataFrame(out) if out else pl.DataFrame()
 
 
-if __name__ == "__main__":
-    by_type = load_by_type()
-
-    for k, v in by_type.items():
-        max_episode = v["episode_idx"].max(
-        ) if "episode_idx" in v.columns else None
-        print(k, v.shape, v["agent_idx"].unique().to_list(), max_episode)
-        print(v.head().to_pandas().to_string())
-
-    ep = by_type.get("episode", pl.DataFrame())
+def episode_plot_df(ep: pl.DataFrame,
+                    *,
+                    group_cols: Sequence[str] = ("experiment", ),
+                    max_episode: int | None = None,
+                    confidence: float = 0.95,
+                    n_boot: int = 2000,
+                    bootstrap_seed: int = 0) -> pl.DataFrame:
     if ep.is_empty():
-        raise SystemExit("No episode events found")
-
-    if MAX_EPISODE is not None:
-        ep = ep.filter(pl.col("episode_idx") <= MAX_EPISODE)
-
+        return pl.DataFrame()
+    if max_episode is not None:
+        ep = ep.filter(pl.col("episode_idx") <= max_episode)
     ci = bootstrap_ci(ep,
-                      group_cols=("experiment", ),
+                      group_cols=group_cols,
                       x_col="episode_idx",
                       value_col="episode_return",
                       stat="iqm",
-                      confidence=CONFIDENCE,
-                      n_boot=N_BOOT,
-                      seed=BOOTSTRAP_SEED)
-
-    q = ep.group_by(["experiment", "episode_idx"]).agg(
+                      confidence=confidence,
+                      n_boot=n_boot,
+                      seed=bootstrap_seed)
+    q = ep.group_by([*group_cols, "episode_idx"]).agg(
         q25=pl.col("episode_return").quantile(0.25),
         q75=pl.col("episode_return").quantile(0.75),
     )
+    return ci.join(q, on=[*group_cols, "episode_idx"],
+                   how="left").sort([*group_cols, "episode_idx"])
 
-    plot_df = ci.join(q, on=["experiment", "episode_idx"],
-                      how="left").sort(["experiment", "episode_idx"])
 
+def plot_episode_iqm(plot_df: pl.DataFrame,
+                     *,
+                     out: str,
+                     group_col: str = "experiment",
+                     confidence: float = 0.95):
     fig, ax = plt.subplots(figsize=(10, 6))
-    experiments = sorted(plot_df["experiment"].unique().to_list())
-    colors = plt.cm.tab10(np.linspace(0, 1, max(1, len(experiments))))
-    for i, exp in enumerate(experiments):
-        d = plot_df.filter(pl.col("experiment") == exp).sort("episode_idx")
+    groups = sorted(plot_df[group_col].unique().to_list())
+    colors = plt.cm.tab10(np.linspace(0, 1, max(1, len(groups))))
+    for i, g in enumerate(groups):
+        d = plot_df.filter(pl.col(group_col) == g).sort("episode_idx")
         x = d["episode_idx"].to_numpy()
         y = d["stat"].to_numpy()
-        print(x.shape, y.shape)
         lo = d["ci_low"].to_numpy()
         hi = d["ci_high"].to_numpy()
         q25 = d["q25"].to_numpy()
         q75 = d["q75"].to_numpy()
         color = colors[i % len(colors)]
-        ax.plot(x, y, label=exp, color=color, linewidth=2)
+        ax.plot(x, y, label=g, color=color, linewidth=2)
         ax.fill_between(x, lo, hi, alpha=0.2, color=color)
         ax.plot(x, q25, "--", color=color, linewidth=1, alpha=0.5)
         ax.plot(x, q75, "--", color=color, linewidth=1, alpha=0.5)
-
     ax.set_xlabel("Episode Index")
     ax.set_ylabel("Episode Return")
-    ax.set_title(f"IQM Episode Return with {int(CONFIDENCE * 100)}% CI")
+    ax.set_title(f"IQM Episode Return with {int(confidence * 100)}% CI")
     ax.legend(loc="best")
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig(OUT, dpi=300, bbox_inches="tight")
+    plt.savefig(out, dpi=300, bbox_inches="tight")
+
+
+def plot_many_lines(ax,
+                    df: pl.DataFrame,
+                    *,
+                    x_col: str,
+                    y_col: str,
+                    line_cols: Sequence[str] = ("seed", "agent_idx"),
+                    color_col: str = "experiment",
+                    title: str | None = None,
+                    alpha: float = 0.25,
+                    linewidth: float = 1.0):
+    if df.is_empty() or x_col not in df.columns or y_col not in df.columns:
+        ax.set_axis_off()
+        return
+
+    groups = sorted(
+        df[color_col].unique().to_list()) if color_col in df.columns else [
+            "all"
+        ]
+    colors = plt.cm.tab10(np.linspace(0, 1, max(1, len(groups))))
+
+    for i, g in enumerate(groups):
+        d0 = df.filter(
+            pl.col(color_col) == g) if color_col in df.columns else df
+        color = colors[i % len(colors)]
+        first = True
+        for key_vals, d in d0.group_by(list(line_cols), maintain_order=True):
+            d = d.sort(x_col)
+            x = d[x_col].to_numpy()
+            y = d[y_col].to_numpy()
+            label = g if first else None
+            ax.plot(x,
+                    y,
+                    color=color,
+                    alpha=alpha,
+                    linewidth=linewidth,
+                    label=label)
+            first = False
+
+    if title:
+        ax.set_title(title)
+    ax.set_xlabel(x_col)
+    ax.set_ylabel(y_col)
+    ax.grid(True, alpha=0.3)
+    if groups and groups != ["all"]:
+        ax.legend(loc="best")
+
+
+def plot_actor_critic_dashboard(by_type: dict[str, pl.DataFrame],
+                                *,
+                                out: str = "dashboard.png"):
+    fig, axes = plt.subplots(nrows=3, ncols=2, figsize=(14, 10), sharex="col")
+    panels = [
+        ("loss", ("critic_loss", "actor_loss"), "train_iter"),
+        ("weight_norm", ("critic", "actor"), "train_iter"),
+        ("grad_norm", ("critic", "actor"), "train_iter"),
+    ]
+
+    for r, (event_type, (critic_y, actor_y), x_col) in enumerate(panels):
+        df = by_type.get(event_type, pl.DataFrame())
+        if not df.is_empty() and x_col in df.columns:
+            df = df.with_columns(pl.col(x_col).cast(pl.Int64))
+        if not df.is_empty() and "agent_idx" in df.columns:
+            df = df.with_columns(pl.col("agent_idx").cast(pl.Int64))
+
+        ax_c = axes[r, 0]
+        ax_a = axes[r, 1]
+        plot_many_lines(ax_c,
+                        df,
+                        x_col=x_col,
+                        y_col=critic_y,
+                        title=f"{event_type}: critic")
+        plot_many_lines(ax_a,
+                        df,
+                        x_col=x_col,
+                        y_col=actor_y,
+                        title=f"{event_type}: actor")
+
+    plt.tight_layout()
+    plt.savefig(out, dpi=300, bbox_inches="tight")
+
+
+if __name__ == "__main__":
+    by_type = load_by_type()
+
+    for k, v in by_type.items():
+        print(k)
+        print(v.describe().to_pandas().to_string())
+
+    ep = by_type.get("episode", pl.DataFrame())
+
+    plot_df = episode_plot_df(ep,
+                              max_episode=MAX_EPISODE,
+                              confidence=CONFIDENCE,
+                              n_boot=N_BOOT,
+                              bootstrap_seed=BOOTSTRAP_SEED)
+    plot_episode_iqm(plot_df, out=OUT, confidence=CONFIDENCE)
     print(f"Saved plot to: {OUT}")
+
+    plot_actor_critic_dashboard(by_type)
+    print("Saved plot to: dashboard.png")
