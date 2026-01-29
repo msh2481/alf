@@ -330,7 +330,7 @@ def main():
         description="Plot IQM episode returns with confidence intervals")
     parser.add_argument("--root_dir",
                         type=str,
-                        default="/tmp/cartpole_swingup",
+                        default="/tmp/dmc",
                         help="Root directory to scan for runs")
     parser.add_argument("--out",
                         type=str,

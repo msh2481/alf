@@ -65,6 +65,10 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         events_path: str | None = None,
         events_flush_interval: int = 10,
         log_losses: bool = True,
+        log_weight_norms: bool = False,
+        weight_norm_logging_interval: int = 10,
+        log_grad_norms: bool = False,
+        grad_norm_logging_interval: int = 10,
     ):
 
         self._batch_size = alf.get_config_value(
@@ -158,6 +162,11 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         self._events_flush_interval = max(1, events_flush_interval)
         self._events_file = None
         self._events_write_count = 0
+        self._log_weight_norms = log_weight_norms
+        self._weight_norm_logging_interval = max(1,
+                                                 weight_norm_logging_interval)
+        self._log_grad_norms = log_grad_norms
+        self._grad_norm_logging_interval = max(1, grad_norm_logging_interval)
 
         self._agent_reset_period = agent_reset_period
         self._next_agent_to_reset = 0
@@ -312,6 +321,41 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         self._events_write_count += 1
         if self._events_write_count % self._events_flush_interval == 0:
             self._events_file.flush()
+
+    @staticmethod
+    def _module_weight_norm(module: nn.Module | None) -> float | None:
+        """Compute global L2 weight norm for a module (sqrt(sum(p^2)))."""
+        if module is None:
+            return None
+        params = list(module.parameters())
+        if not params:
+            return None
+        device = params[0].device
+        total = torch.zeros((), device=device)
+        for p in params:
+            total = total + (p.detach()**2).sum()
+        return float(torch.sqrt(total).item())
+
+    @staticmethod
+    def _module_grad_norm(module: nn.Module | None) -> float | None:
+        """Compute global L2 grad norm for a module (sqrt(sum(g^2)))."""
+        if module is None:
+            return None
+        params = list(module.parameters())
+        if not params:
+            return None
+        device = params[0].device
+        total = torch.zeros((), device=device)
+        found = False
+        for p in params:
+            if p.grad is None:
+                continue
+            g = p.grad.detach()
+            total = total + (g**2).sum()
+            found = True
+        if not found:
+            return None
+        return float(torch.sqrt(total).item())
 
     def _to_jsonable(self, value):
         if isinstance(value, torch.Tensor):
@@ -532,7 +576,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
 
         record = {
             "type": "loss",
-            "train_iter": self._train_step_counter,
+            "train_iter": self._train_step_counter + 1,
             "agent_idx": alg_idx,
             "walltime": time.time(),
         }
@@ -603,6 +647,36 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
 
         self._call_debug_callback()
         self._train_step_counter += 1
+
+        if (self._log_weight_norms and self._train_step_counter %
+                self._weight_norm_logging_interval == 0):
+            for alg_idx, alg in enumerate(self._algorithms):
+                actor_module = getattr(alg, "_actor_network", None)
+                critic_module = getattr(alg, "_critic_networks", None)
+                self._write_event({
+                    "type": "weight_norm",
+                    "train_iter": self._train_step_counter,
+                    "agent_idx": alg_idx,
+                    "walltime": time.time(),
+                    "actor": self._module_weight_norm(actor_module),
+                    "critic": self._module_weight_norm(critic_module),
+                })
+
+        if (self._log_grad_norms
+                and self._train_step_counter % self._grad_norm_logging_interval
+                == 0):
+            for alg_idx, alg in enumerate(self._algorithms):
+                actor_module = getattr(alg, "_actor_network", None)
+                critic_module = getattr(alg, "_critic_networks", None)
+                self._write_event({
+                    "type": "grad_norm",
+                    "train_iter": self._train_step_counter,
+                    "agent_idx": alg_idx,
+                    "walltime": time.time(),
+                    "actor": self._module_grad_norm(actor_module),
+                    "critic": self._module_grad_norm(critic_module),
+                })
+
         root_dir = self._config.root_dir if self._config else "."
         if (self._video_record_interval is not None and
                 self._train_step_counter % self._video_record_interval == 0):

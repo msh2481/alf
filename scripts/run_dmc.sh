@@ -17,20 +17,12 @@ TAU="0.01"
 ASYNC="False"
 ENV="cartpole:swingup_sparse"
 NAME="$(date +%Y%m%d_%H%M%S)"
-SEEDS=""
+SEEDS="1"
 BASE_DIR=""
 
 for arg in "$@"; do
     eval "$arg"
 done
-
-if [ -z "$VIDEO_RECORD_INTERVAL" ]; then
-    if [[ "$ENV" == Rotator* ]]; then
-        VIDEO_RECORD_INTERVAL="1000000000"
-    else
-        VIDEO_RECORD_INTERVAL="10000"
-    fi
-fi
 
 SAFE_ENV="${ENV//[:\/]/_}"
 if [ -z "$BASE_DIR" ]; then
@@ -49,7 +41,6 @@ COMMON_ARGS=(
     --conf_param="_CONFIG._USER.async=$ASYNC"
     --conf_param="_CONFIG._USER.env='$ENV'"
     --conf_param="_CONFIG._USER.gamma=$GAMMA"
-    --conf_param="_CONFIG._USER.video_record_interval=$VIDEO_RECORD_INTERVAL"
 )
 
 if [ -n "$SEEDS" ] && [ "$SEEDS" -gt 0 ] 2>/dev/null; then
