@@ -11,85 +11,102 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import alf
 from functools import partial
 
-from alf.algorithms.sac_algorithm import SacAlgorithm
-from alf.algorithms.concurrent_algorithm import ConcurrentAlgorithm
-from alf.networks import RandomizedPriorCriticNetwork, RBFCriticNetwork
-from alf.networks.actor_distribution_networks import RBFActorDistributionNetwork
-from alf.environments import suite_dmc
-from alf.environments.gym_wrappers import FrameSkip
-from alf.utils.math_ops import clipped_exp
-from alf.utils.losses import element_wise_squared_loss
+import alf
+import torch
 
-# Configurable hyperparameters (can be overridden via --conf_param)
-LR = alf.define_config('lr', 0.05)
-WD = alf.define_config('wd', 1e-4)
-GAMMA = alf.define_config('gamma', 2.0)
-N_COMPONENTS = alf.define_config('n_components', 1000)
+assert not torch.cuda.is_available(
+), "CUDA is available; run with CUDA hidden (e.g. CUDA_VISIBLE_DEVICES='') or use a CPU-only PyTorch build."
+
+from alf.algorithms.concurrent_algorithm import ConcurrentAlgorithm
+from alf.algorithms.rotator_callback import RotatorCallback
+from alf.algorithms.sac_algorithm import SacAlgorithm
+from alf.environments import suite_dmc, suite_gym
+from alf.environments.gym_wrappers import FrameSkip
+from alf.networks import CriticNetwork, RandomizedPriorCriticNetwork
+from alf.utils.losses import element_wise_squared_loss
+from alf.utils.math_ops import clipped_exp
+
+LR = alf.define_config('lr', 1e-3)
+WD = alf.define_config('wd', 0.01)
+GAMMA = alf.define_config('gamma', 0.99)
 PRIOR_SCALE = alf.define_config('prior_scale', 0.1)
+LN = alf.define_config('ln', True)
+UTD = alf.define_config('utd', 1)
+NUM_AGENTS = alf.define_config('num_agents', 1)
+TAU = alf.define_config('tau', 0.1)
+ASYNC = alf.define_config('async', True)
+ENV = alf.define_config('env', 'cartpole:swingup_sparse')
+
+_IS_ROTATOR = isinstance(ENV, str) and ENV.startswith("Rotator")
+_ENV_NAME = "Rotator-v0" if ENV == "Rotator" else ENV
+_ENV_LOAD_FN = suite_gym.load if _IS_ROTATOR else suite_dmc.load
+VIDEO_RECORD_INTERVAL = 10000 if not _IS_ROTATOR else 10**9
 
 alf.config('create_environment',
-           env_name="cartpole:swingup",
-           env_load_fn=suite_dmc.load,
-           num_parallel_environments=1)
+           env_name=_ENV_NAME,
+           env_load_fn=_ENV_LOAD_FN,
+           num_parallel_environments=NUM_AGENTS,
+           ensure_different_phases=ASYNC,
+           max_steps_for_phase_randomization=125)
 
+# Cartpole-style frameskip for DMC envs.
 alf.config('suite_dmc.load',
            from_pixels=False,
            max_episode_steps=125,
            gym_env_wrappers=(partial(FrameSkip, skip=8), ))
 
-alf.config('RBFCriticNetwork',
-           n_components=N_COMPONENTS,
-           gamma=GAMMA,
-           only_sign_matters=False)
-
-alf.config('RBFActorDistributionNetwork',
-           n_components=N_COMPONENTS,
-           gamma=GAMMA,
+alf.config('ActorDistributionNetwork',
+           fc_layer_params=(256, ),
            continuous_projection_net_ctor=partial(
                alf.networks.NormalProjectionNetwork,
                state_dependent_std=True,
-               std_transform=clipped_exp,
                scale_distribution=True,
-               use_bias=False))
+               std_transform=clipped_exp))
+
+alf.config('CriticNetwork', joint_fc_layer_params=(256, ), use_fc_ln=LN)
 
 alf.config('RandomizedPriorCriticNetwork',
-           network_ctor=RBFCriticNetwork,
+           network_ctor=CriticNetwork,
            prior_scale=PRIOR_SCALE,
            trainable_init_std=1e-3)
 
 alf.config(
     'SacAlgorithm',
-    actor_network_cls=RBFActorDistributionNetwork,
+    actor_network_cls=alf.networks.ActorDistributionNetwork,
     critic_network_cls=RandomizedPriorCriticNetwork,
-    target_update_tau=0.005,
+    target_update_tau=TAU,
     target_update_period=1,
 )
 
 alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
-           gamma=0.99)
+           gamma=GAMMA)
 
 alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SacAlgorithm,
-    agent_reset_period=10**9,
-    optimizer=alf.optimizers.AdamW(lr=LR, weight_decay=WD, name='main'),
-    num_copies=1,
+    agent_reset_period=1,
+    prior_perturbation_alpha=0.0003,
+    optimizer=alf.optimizers.Adam(lr=LR, weight_decay=WD, name='main'),
+    num_copies=NUM_AGENTS,
     return_logging_interval=500,
-    video_record_interval=5000,
-    log_states=True,
+    video_record_interval=VIDEO_RECORD_INTERVAL,
+    log_states=False,
+    log_episode_returns=True,
+    debug_env=suite_gym.load("Rotator-v0") if _IS_ROTATOR else None,
+    debug_callback_cls=RotatorCallback if _IS_ROTATOR else None,
+    debug_log_every_n_steps=10,
 )
 
 alf.config('TrainerConfig',
            algorithm_ctor=ConcurrentAlgorithm,
            initial_collect_steps=100,
            mini_batch_length=2,
-           mini_batch_size=256,
+           mini_batch_size=256 * NUM_AGENTS,
            unroll_length=1,
-           num_updates_per_train_iter=1,
+           num_updates_per_train_iter=UTD,
            num_iterations=50000,
            num_checkpoints=3,
            evaluate=False,

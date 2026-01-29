@@ -62,8 +62,9 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         log_states_path: str | None = None,
         log_states_flush_interval: int = 100,
         log_episode_returns: bool = False,
-        episode_returns_path: str | None = None,
-        episode_returns_flush_interval: int = 1,
+        events_path: str | None = None,
+        events_flush_interval: int = 10,
+        log_losses: bool = True,
     ):
 
         self._batch_size = alf.get_config_value(
@@ -140,37 +141,23 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         self._return_logging_interval = return_logging_interval
         self._train_step_counter = 0
 
-        # Per-algorithm episode return tracking
+        # Episode return tracking (per env)
         self._per_env_cumulative_reward = torch.zeros(self._env_counts)
         self._per_env_episode_length = torch.zeros(self._env_counts,
                                                    dtype=torch.int32)
-        self._per_alg_returns: dict[int, list[tuple[int, float]]] = {
-            i: []
-            for i in range(num_copies)
-        }
         self._per_alg_episode_counters: dict[int, int] = {
             i: 0
             for i in range(num_copies)
         }
         self._total_env_steps = 0
 
-        # NDJSON episode returns logging
+        # NDJSON events logging (episodes + losses)
         self._log_episode_returns = log_episode_returns
-        self._episode_returns_path = episode_returns_path
-        self._episode_returns_flush_interval = max(
-            1, episode_returns_flush_interval)
-        self._episode_returns_file = None
-        self._episode_returns_write_count = 0
-
-        # Per-algorithm loss tracking
-        self._per_alg_actor_losses: dict[int, list[tuple[int, float]]] = {
-            i: []
-            for i in range(num_copies)
-        }
-        self._per_alg_critic_losses: dict[int, list[tuple[int, float]]] = {
-            i: []
-            for i in range(num_copies)
-        }
+        self._log_losses = log_losses
+        self._events_path = events_path
+        self._events_flush_interval = max(1, events_flush_interval)
+        self._events_file = None
+        self._events_write_count = 0
 
         self._agent_reset_period = agent_reset_period
         self._next_agent_to_reset = 0
@@ -241,12 +228,12 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                 self._log_file.close()
             finally:
                 self._log_file = None
-        if getattr(self, "_episode_returns_file", None) is not None:
+        if getattr(self, "_events_file", None) is not None:
             try:
-                self._episode_returns_file.flush()
-                self._episode_returns_file.close()
+                self._events_file.flush()
+                self._events_file.close()
             finally:
-                self._episode_returns_file = None
+                self._events_file = None
         if hasattr(self, '_executor') and self._executor is not None:
             self._executor.shutdown(wait=True)
             self._executor = None
@@ -308,38 +295,23 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         self._log_file = open(path, "a", encoding="utf-8")
         logging.info(f"Logging rollout states to {path}")
 
-    def _ensure_episode_returns_file(self):
-        if self._episode_returns_file is not None:
-            return
-        if not self._log_episode_returns:
+    def _ensure_events_file(self):
+        if self._events_file is not None:
             return
         root_dir = self._config.root_dir if self._config else "."
-        path = self._episode_returns_path or os.path.join(
-            root_dir, "metrics", "episode_returns.ndjson")
+        path = self._events_path or os.path.join(root_dir, "events.ndjson")
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        file_exists = os.path.exists(path) and os.path.getsize(path) > 0
-        self._episode_returns_file = open(path, "a", encoding="utf-8")
-        if not file_exists:
-            try:
-                env_name = alf.get_config_value("create_environment.env_name")
-            except ValueError:
-                env_name = "unknown"
-            try:
-                random_seed = alf.get_config_value("TrainerConfig.random_seed")
-            except ValueError:
-                random_seed = None
-            meta_record = {
-                "type": "meta",
-                "schema_version": 1,
-                "root_dir": root_dir,
-                "seed": random_seed,
-                "env_name": env_name,
-                "num_copies": self._num_copies,
-                "env_counts": self._env_counts,
-            }
-            self._episode_returns_file.write(json.dumps(meta_record) + "\n")
-            self._episode_returns_file.flush()
-        logging.info(f"Logging episode returns to {path}")
+        self._events_file = open(path, "a", encoding="utf-8")
+        logging.info(f"Logging events to {path}")
+
+    def _write_event(self, record: dict):
+        self._ensure_events_file()
+        if self._events_file is None:
+            return
+        self._events_file.write(json.dumps(record) + "\n")
+        self._events_write_count += 1
+        if self._events_write_count % self._events_flush_interval == 0:
+            self._events_file.flush()
 
     def _to_jsonable(self, value):
         if isinstance(value, torch.Tensor):
@@ -430,42 +402,23 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                 episode_length = self._per_env_episode_length[env_idx].item()
                 self._per_alg_episode_counters[alg_idx] += 1
                 episode_idx = self._per_alg_episode_counters[alg_idx]
-                num_episodes = len(self._per_alg_returns[alg_idx]) + 1
                 logging.info(
-                    f"Agent {alg_idx} episode {num_episodes} done: "
+                    f"Agent {alg_idx} episode {episode_idx} done: "
                     f"return={episode_return:.2f}, env_steps={self._total_env_steps}"
                 )
-                self._per_alg_returns[alg_idx].append(
-                    (self._total_env_steps, episode_return))
                 self._per_env_cumulative_reward[env_idx] = 0.0
                 self._per_env_episode_length[env_idx] = 0
                 if self._log_episode_returns:
-                    self._ensure_episode_returns_file()
-                    if self._episode_returns_file is not None:
-                        episode_record = {
-                            "type": "episode",
-                            "agent_idx": alg_idx,
-                            "env_idx": env_idx.item(),
-                            "episode_idx": episode_idx,
-                            "episode_return": episode_return,
-                            "episode_length": episode_length,
-                            "total_env_steps": self._total_env_steps,
-                            "walltime": time.time(),
-                        }
-                        self._episode_returns_file.write(
-                            json.dumps(episode_record) + "\n")
-                        self._episode_returns_write_count += 1
-                        if (self._episode_returns_write_count %
-                                self._episode_returns_flush_interval == 0):
-                            self._episode_returns_file.flush()
-
-    def get_per_algorithm_returns(self) -> dict[int, list[tuple[int, float]]]:
-        """Get recorded episode returns for each sub-algorithm.
-        
-        Returns:
-            Dict mapping algorithm index to list of (env_steps, episode_return) tuples.
-        """
-        return self._per_alg_returns
+                    episode_record = {
+                        "type": "episode",
+                        "agent_idx": alg_idx,
+                        "env_idx": env_idx.item(),
+                        "episode_idx": episode_idx,
+                        "episode_return": episode_return,
+                        "episode_length": episode_length,
+                        "walltime": time.time(),
+                    }
+                    self._write_event(episode_record)
 
     def _get_indices_of_unique(self, observations, actions):
 
@@ -546,36 +499,48 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         for alg_idx, (sliced_info, batch_indices) in sliced.items():
             loss_info = self._algorithms[alg_idx].calc_loss(sliced_info)
             results[alg_idx] = (loss_info, batch_indices)
-            self._save_losses(alg_idx, loss_info)
+            self._log_losses_event(alg_idx, loss_info)
 
         return scatter_and_sum_nested(results,
                                       self._batch_size,
                                       time_major=True)
 
-    def _save_losses(self, alg_idx: int, loss_info: LossInfo):
-        """Extract and record actor and critic losses for a given algorithm."""
-        if not hasattr(loss_info, 'extra') or loss_info.extra == ():
+    def _log_losses_event(self, alg_idx: int, loss_info: LossInfo):
+        """Log flat scalar losses to events.ndjson if enabled."""
+        if not self._log_losses:
+            return
+        extra = getattr(loss_info, 'extra', ())
+        if extra == ():
             return
 
-        extra = loss_info.extra
+        actor_loss = None
+        critic_loss = None
 
-        if hasattr(extra, 'critic'):
-            critic_extra = extra.critic
-            if critic_extra != () and isinstance(critic_extra, torch.Tensor):
-                critic_loss_mean = critic_extra.mean().item()
-                self._per_alg_critic_losses[alg_idx].append(
-                    (self._train_step_counter, critic_loss_mean))
+        # SAC (and some others) populate these extras.
+        actor_extra = getattr(extra, 'actor', ())
+        if actor_extra != ():
+            actor_loss_tensor = getattr(actor_extra, 'actor_loss', ())
+            if isinstance(actor_loss_tensor, torch.Tensor):
+                actor_loss = actor_loss_tensor.mean().item()
 
-        if hasattr(extra, 'actor'):
-            actor_extra = extra.actor
-            if actor_extra != ():
-                if hasattr(actor_extra,
-                           'actor_loss') and actor_extra.actor_loss != ():
-                    actor_loss_tensor = actor_extra.actor_loss
-                    if isinstance(actor_loss_tensor, torch.Tensor):
-                        actor_loss_mean = actor_loss_tensor.mean().item()
-                        self._per_alg_actor_losses[alg_idx].append(
-                            (self._train_step_counter, actor_loss_mean))
+        critic_extra = getattr(extra, 'critic', ())
+        if isinstance(critic_extra, torch.Tensor):
+            critic_loss = critic_extra.mean().item()
+
+        if actor_loss is None and critic_loss is None:
+            return
+
+        record = {
+            "type": "loss",
+            "train_iter": self._train_step_counter,
+            "agent_idx": alg_idx,
+            "walltime": time.time(),
+        }
+        if actor_loss is not None:
+            record["actor_loss"] = actor_loss
+        if critic_loss is not None:
+            record["critic_loss"] = critic_loss
+        self._write_event(record)
 
     def predict_step(self, inputs: TimeStep, state) -> AlgStep:
         batch_size = alf.nest.get_nest_size(inputs, dim=0)
@@ -645,12 +610,6 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             self.record_videos(output_dir=video_dir,
                                num_episodes=1,
                                step_label=self._train_step_counter)
-        if self._train_step_counter % self._return_logging_interval == 0:
-            plot_dir = os.path.join(root_dir, "plots")
-            try:
-                self.save_ascii_plots(output_dir=plot_dir)
-            except Exception as e:
-                logging.error(f"Error saving ASCII plots: {e}")
         if (self._agent_reset_period is not None
                 and self._train_step_counter % self._agent_reset_period == 0):
             if self._prior_perturbation_alpha is not None:
@@ -787,53 +746,3 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
 
         if was_training:
             self.train()
-
-    def save_ascii_plots(self, output_dir: str):
-        """Save ASCII plots of per-algorithm episode returns and losses."""
-        from alf.utils.ascii_plotter import AsciiMetricPlotter
-        os.makedirs(output_dir, exist_ok=True)
-
-        returns_plotter = AsciiMetricPlotter(metrics_to_plot=[],
-                                             smoothing_fraction=0.1)
-        for alg_idx in sorted(self._per_alg_returns.keys()):
-            returns = self._per_alg_returns[alg_idx]
-            if returns:
-                returns_plotter.set_history(f"return/{alg_idx}", returns)
-        returns_plots = [
-            returns_plotter.get_plot_string(name)
-            for name in returns_plotter.get_metric_names()
-        ]
-        if returns_plots:
-            path = os.path.join(output_dir, "episode_returns.txt")
-            with open(path, "w") as f:
-                f.write("\n\n".join(returns_plots))
-
-        actor_plotter = AsciiMetricPlotter(metrics_to_plot=[],
-                                           smoothing_fraction=0.1)
-        for alg_idx in sorted(self._per_alg_actor_losses.keys()):
-            actor_losses = self._per_alg_actor_losses[alg_idx]
-            if actor_losses:
-                actor_plotter.set_history(f"actor/{alg_idx}", actor_losses)
-        actor_plots = [
-            actor_plotter.get_plot_string(name, log_scale=True)
-            for name in actor_plotter.get_metric_names()
-        ]
-        if actor_plots:
-            path = os.path.join(output_dir, "actor_losses.txt")
-            with open(path, "w") as f:
-                f.write("\n\n".join(actor_plots))
-
-        critic_plotter = AsciiMetricPlotter(metrics_to_plot=[],
-                                            smoothing_fraction=0.1)
-        for alg_idx in sorted(self._per_alg_critic_losses.keys()):
-            critic_losses = self._per_alg_critic_losses[alg_idx]
-            if critic_losses:
-                critic_plotter.set_history(f"critic/{alg_idx}", critic_losses)
-        critic_plots = [
-            critic_plotter.get_plot_string(name, log_scale=True)
-            for name in critic_plotter.get_metric_names()
-        ]
-        if critic_plots:
-            path = os.path.join(output_dir, "critic_losses.txt")
-            with open(path, "w") as f:
-                f.write("\n\n".join(critic_plots))

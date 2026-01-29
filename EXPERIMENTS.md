@@ -44,23 +44,13 @@ Results are stored in `/tmp/cartpole_swingup/<name>/`
 
 ### Check episode returns (stats only, saves tokens)
 ```bash
-head -n 2 /tmp/cartpole_swingup/<name>/plots/episode_returns.txt
-```
-
-### Check episode returns (full ASCII plot)
-```bash
-head -n 100 /tmp/cartpole_swingup/<name>/plots/episode_returns.txt
+python tools/plot_episode_returns.py --root_dir /tmp/cartpole_swingup --out /tmp/cartpole_swingup/<name>/iqm_episode_return.png --max_episode 200
 ```
 
 ### Check all metrics
 ```bash
-# Stats only (default - avoids wasting tokens on ASCII graphics):
-head -n 2 /tmp/cartpole_swingup/<name>/plots/episode_returns.txt
-head -n 2 /tmp/cartpole_swingup/<name>/plots/actor_losses.txt
-head -n 2 /tmp/cartpole_swingup/<name>/plots/critic_losses.txt
-
-# Full plots (when you need to see the training curve):
-head -n 100 /tmp/cartpole_swingup/<name>/plots/episode_returns.txt
+# Events stream (episodes + losses):
+head -n 5 /tmp/cartpole_swingup/<name>/events.ndjson
 ```
 
 ### Check training log

@@ -13,7 +13,7 @@
 # limitations under the License.
 """Interactive tool to plot IQM episode returns with confidence intervals.
 
-Scans for episode_returns.ndjson files under an experiment root directory,
+Scans for events.ndjson files under an experiment root directory,
 groups runs by name, and generates publication-quality plots with IQM, CI bands,
 and quantile lines.
 """
@@ -45,17 +45,15 @@ def discover_runs(
                  dict[int,
                       list[float]]] = defaultdict(lambda: defaultdict(list))
 
-    for ndjson_file in root_path.rglob("metrics/episode_returns.ndjson"):
+    for ndjson_file in root_path.rglob("events.ndjson"):
         rel_path = ndjson_file.relative_to(root_path)
         parts = rel_path.parts
 
-        if len(parts) == 3:
-            run_name = parts[0]
-        elif len(parts) == 4:
-            run_name = parts[0]
-        else:
+        if len(parts) < 2:
+            # expect <run_name>/events.ndjson
             logging.warning(f"Unexpected path structure: {rel_path}")
             continue
+        run_name = parts[0]
 
         file_path = str(ndjson_file)
 
