@@ -25,8 +25,9 @@ import polars as pl
 import matplotlib.pyplot as plt
 
 FOLDER = "/tmp/dmc/Rotator"
-NAMES = ["20260130_141225", "no_prior"]
+NAMES = ["test-2"]
 OUT = "iqm_episode_return.png"
+OUT_LINES = "lines_episode_return.png"
 MAX_EPISODE: int | None = None
 CONFIDENCE = 0.95
 N_BOOT = 100
@@ -258,6 +259,10 @@ def plot_many_lines(ax,
         ax.set_axis_off()
         return
 
+    # Some event types might not have all requested line columns (e.g. no
+    # `agent_idx`). In that case, gracefully drop missing ones.
+    line_cols = tuple(c for c in line_cols if c in df.columns)
+
     if n_bins is not None and n_bins > 0:
         x_min = df.select(pl.col(x_col).min()).item()
         x_max = df.select(pl.col(x_col).max()).item()
@@ -271,8 +276,12 @@ def plot_many_lines(ax,
                 raise ValueError(f"Unsupported bin_reducer: {bin_reducer}")
             df = df.with_columns(
                 (pl.col(x_col) // bin_size * bin_size).alias(x_bin_col))
-            df = df.group_by([color_col, *line_cols, x_bin_col
-                              ]).agg(pl.col(y_col).mean().alias(y_col))
+            group_keys = [x_bin_col]
+            if color_col in df.columns:
+                group_keys = [color_col, *line_cols, x_bin_col]
+            elif line_cols:
+                group_keys = [*line_cols, x_bin_col]
+            df = df.group_by(group_keys).agg(pl.col(y_col).mean().alias(y_col))
             x_col = x_bin_col
 
     y_all = df.select(pl.col(y_col)).to_series().to_numpy()
@@ -294,19 +303,25 @@ def plot_many_lines(ax,
         d0 = df.filter(
             pl.col(color_col) == g) if color_col in df.columns else df
         color = colors[i % len(colors)]
-        first = True
-        for key_vals, d in d0.group_by(list(line_cols), maintain_order=True):
-            d = d.sort(x_col)
+        if line_cols:
+            first = True
+            for _, d in d0.group_by(list(line_cols), maintain_order=True):
+                d = d.sort(x_col)
+                x = d[x_col].to_numpy()
+                y = d[y_col].to_numpy()
+                label = g if first else None
+                ax.plot(x,
+                        y,
+                        color=color,
+                        alpha=alpha,
+                        linewidth=linewidth,
+                        label=label)
+                first = False
+        else:
+            d = d0.sort(x_col)
             x = d[x_col].to_numpy()
             y = d[y_col].to_numpy()
-            label = g if first else None
-            ax.plot(x,
-                    y,
-                    color=color,
-                    alpha=alpha,
-                    linewidth=linewidth,
-                    label=label)
-            first = False
+            ax.plot(x, y, color=color, alpha=alpha, linewidth=linewidth, label=g)
 
     if title:
         ax.set_title(title)
@@ -361,6 +376,11 @@ if __name__ == "__main__":
         print(v.describe().to_pandas().to_string())
 
     ep = by_type.get("episode", pl.DataFrame())
+    if not ep.is_empty() and "episode_idx" in ep.columns:
+        ep = ep.with_columns(pl.col("episode_idx").cast(pl.Int64))
+    if not ep.is_empty() and "agent_idx" in ep.columns:
+        ep = ep.with_columns(pl.col("agent_idx").cast(pl.Int64))
+
     print("Generating episode plot dataframe...")
     plot_df = episode_plot_df(ep,
                               max_episode=MAX_EPISODE,
@@ -370,5 +390,23 @@ if __name__ == "__main__":
     print("Plotting episode IQM...")
     plot_episode_iqm(plot_df, out=OUT, confidence=CONFIDENCE)
     print(f"Saved plot to: {OUT}")
+
+    print("Plotting episode returns (many-lines)...")
+    fig, ax = plt.subplots(figsize=(10, 6))
+    line_cols: tuple[str, ...] = ("seed", "agent_idx") if "agent_idx" in ep.columns else ("seed", )
+    plot_many_lines(ax,
+                    ep,
+                    x_col="episode_idx",
+                    y_col="episode_return",
+                    line_cols=line_cols,
+                    color_col="experiment",
+                    title="Episode Return (many lines)",
+                    n_bins=None)
+    ax.set_xlabel("Episode Index")
+    ax.set_ylabel("Episode Return")
+    plt.tight_layout()
+    plt.savefig(OUT_LINES, dpi=300, bbox_inches="tight")
+    print(f"Saved plot to: {OUT_LINES}")
+
     plot_actor_critic_dashboard(by_type)
     print("Saved plot to: dashboard.png")
