@@ -53,6 +53,9 @@ if [ -n "$SEEDS" ] && [ "$SEEDS" -gt 0 ] 2>/dev/null; then
         echo "Launching seed $SEED in background: root_dir=$ROOT_DIR log=$LOG_FILE"
 
         (
+            if [[ "$ENV" == Rotator* ]]; then
+                export ALF_ROTATOR_LOG_DIR="logs/${NAME}/${SEED}"
+            fi
             python -m alf.bin.train \
                 "${COMMON_ARGS[@]}" \
                 --root_dir="$ROOT_DIR" \
@@ -68,6 +71,9 @@ else
     ROOT_DIR="$BASE_DIR"
     echo "Running single run: num_agents=$NUM_AGENTS lr=$LR wd=$WD prior_scale=$PRIOR_SCALE ln=$LN utd=$UTD tau=$TAU async=$ASYNC env=$ENV gamma=$GAMMA video_record_interval=$VIDEO_RECORD_INTERVAL root_dir=$ROOT_DIR"
 
+    if [[ "$ENV" == Rotator* ]]; then
+        export ALF_ROTATOR_LOG_DIR="logs/${NAME}/0"
+    fi
     python -m alf.bin.train \
         "${COMMON_ARGS[@]}" \
         --root_dir="$ROOT_DIR"

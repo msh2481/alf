@@ -91,13 +91,18 @@ class RotatorCallback:
             replay_buffer)
         if observations is None:
             return
-
-        os.makedirs("logs", exist_ok=True)
-        self._create_and_save_plots(iter_number, observations, actions,
-                                    env_ids, algorithms, num_copies)
+        log_dir = os.environ.get("ALF_ROTATOR_LOG_DIR", "logs")
+        os.makedirs(log_dir, exist_ok=True)
+        self._create_and_save_plots(iter_number,
+                                    observations,
+                                    actions,
+                                    env_ids,
+                                    algorithms,
+                                    num_copies,
+                                    log_dir=log_dir)
 
     def _create_and_save_plots(self, iter_number, observations, actions,
-                               env_ids, algorithms, num_copies):
+                               env_ids, algorithms, num_copies, log_dir: str):
         device = alf.get_default_device()
         nrows = num_copies + 1
         fig = plt.figure(figsize=(16, 6 * nrows), constrained_layout=True)
@@ -203,7 +208,7 @@ class RotatorCallback:
         if first_im is not None:
             cax.set_visible(True)
             fig.colorbar(first_im, cax=cax, label="V(s)")
-        plot_path = f"logs/{iter_number}.png"
+        plot_path = os.path.join(log_dir, f"{iter_number}.png")
         plt.savefig(plot_path, dpi=150)
         plt.close(fig)
         logging.info(f"Written plot to {plot_path}")
