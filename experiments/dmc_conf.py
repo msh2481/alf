@@ -30,6 +30,8 @@ from alf.utils.math_ops import clipped_exp
 
 LR = alf.define_config('lr', 1e-3)
 WD = alf.define_config('wd', 0.01)
+GRAD_CLIP = alf.define_config('grad_clip', 10.0)
+CLIP_BY_GLOBAL_NORM = alf.define_config('clip_by_global_norm', True)
 GAMMA = alf.define_config('gamma', 0.99)
 PRIOR_SCALE = alf.define_config('prior_scale', 0.1)
 LN = alf.define_config('ln', True)
@@ -89,7 +91,11 @@ alf.config(
     algorithm_ctor=SacAlgorithm,
     agent_reset_period=1,
     prior_perturbation_alpha=0.0003,
-    optimizer=alf.optimizers.Adam(lr=LR, weight_decay=WD, name='main'),
+    optimizer=alf.optimizers.Adam(lr=LR,
+                                  weight_decay=WD,
+                                  name='main',
+                                  gradient_clipping=GRAD_CLIP,
+                                  clip_by_global_norm=CLIP_BY_GLOBAL_NORM),
     num_copies=NUM_AGENTS,
     return_logging_interval=500,
     video_record_interval=VIDEO_RECORD_INTERVAL,
@@ -99,7 +105,7 @@ alf.config(
     log_grad_norms=True,
     debug_env=suite_gym.load("Rotator-v0") if _IS_ROTATOR else None,
     debug_callback_cls=RotatorCallback if _IS_ROTATOR else None,
-    debug_log_every_n_steps=10,
+    debug_log_every_n_steps=10**9,
 )
 
 alf.config('TrainerConfig',

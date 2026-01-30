@@ -25,7 +25,7 @@ import polars as pl
 import matplotlib.pyplot as plt
 
 FOLDER = "/tmp/dmc/Rotator"
-NAMES = ["test-2"]
+NAMES = ["test-3"]
 OUT = "iqm_episode_return.png"
 MAX_EPISODE: int | None = None
 CONFIDENCE = 0.95
@@ -254,6 +254,15 @@ def plot_many_lines(ax,
     if df.is_empty() or x_col not in df.columns or y_col not in df.columns:
         ax.set_axis_off()
         return
+
+    y_all = df.select(pl.col(y_col)).to_series().to_numpy()
+    y_all = y_all[np.isfinite(y_all)]
+    if y_all.size:
+        a = float(np.quantile(y_all, 0.05))
+        b = float(np.quantile(y_all, 0.95))
+        d = b - a
+        pad = 0.1 * (d if d > 0 else 1.0)
+        ax.set_ylim(a - pad, b + pad)
 
     groups = sorted(
         df[color_col].unique().to_list()) if color_col in df.columns else [
