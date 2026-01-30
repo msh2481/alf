@@ -25,12 +25,13 @@ import polars as pl
 import matplotlib.pyplot as plt
 
 FOLDER = "/tmp/dmc/Rotator"
-NAMES = ["test-3"]
+NAMES = ["test-3", "test-4"]
 OUT = "iqm_episode_return.png"
 MAX_EPISODE: int | None = None
 CONFIDENCE = 0.95
-N_BOOT = 2000
+N_BOOT = 100
 BOOTSTRAP_SEED = 0
+N_BINS = 500
 
 
 @dataclass(frozen=True)
@@ -250,10 +251,29 @@ def plot_many_lines(ax,
                     color_col: str = "experiment",
                     title: str | None = None,
                     alpha: float = 0.25,
-                    linewidth: float = 1.0):
+                    linewidth: float = 1.0,
+                    n_bins: int | None = None,
+                    bin_reducer: Literal["mean"] = "mean"):
     if df.is_empty() or x_col not in df.columns or y_col not in df.columns:
         ax.set_axis_off()
         return
+
+    if n_bins is not None and n_bins > 0:
+        x_min = df.select(pl.col(x_col).min()).item()
+        x_max = df.select(pl.col(x_col).max()).item()
+        if x_min is not None and x_max is not None:
+            x_min = int(x_min)
+            x_max = int(x_max)
+            span = max(1, x_max - x_min + 1)
+            bin_size = max(1, int(np.ceil(span / n_bins)))
+            x_bin_col = f"{x_col}_bin"
+            if bin_reducer != "mean":
+                raise ValueError(f"Unsupported bin_reducer: {bin_reducer}")
+            df = df.with_columns(
+                (pl.col(x_col) // bin_size * bin_size).alias(x_bin_col))
+            df = df.group_by([color_col, *line_cols, x_bin_col
+                              ]).agg(pl.col(y_col).mean().alias(y_col))
+            x_col = x_bin_col
 
     y_all = df.select(pl.col(y_col)).to_series().to_numpy()
     y_all = y_all[np.isfinite(y_all)]
@@ -320,12 +340,14 @@ def plot_actor_critic_dashboard(by_type: dict[str, pl.DataFrame],
                         df,
                         x_col=x_col,
                         y_col=critic_y,
-                        title=f"{event_type}: critic")
+                        title=f"{event_type}: critic",
+                        n_bins=N_BINS if x_col == "train_iter" else None)
         plot_many_lines(ax_a,
                         df,
                         x_col=x_col,
                         y_col=actor_y,
-                        title=f"{event_type}: actor")
+                        title=f"{event_type}: actor",
+                        n_bins=N_BINS if x_col == "train_iter" else None)
 
     plt.tight_layout()
     plt.savefig(out, dpi=300, bbox_inches="tight")
@@ -339,14 +361,14 @@ if __name__ == "__main__":
         print(v.describe().to_pandas().to_string())
 
     ep = by_type.get("episode", pl.DataFrame())
-
+    print("Generating episode plot dataframe...")
     plot_df = episode_plot_df(ep,
                               max_episode=MAX_EPISODE,
                               confidence=CONFIDENCE,
                               n_boot=N_BOOT,
                               bootstrap_seed=BOOTSTRAP_SEED)
+    print("Plotting episode IQM...")
     plot_episode_iqm(plot_df, out=OUT, confidence=CONFIDENCE)
     print(f"Saved plot to: {OUT}")
-
     plot_actor_critic_dashboard(by_type)
     print("Saved plot to: dashboard.png")
