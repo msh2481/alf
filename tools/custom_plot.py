@@ -25,7 +25,7 @@ import polars as pl
 import matplotlib.pyplot as plt
 
 FOLDER = "/tmp/dmc/Rotator"
-NAMES = ["test-3", "test-4"]
+NAMES = ["20260130_141225", "no_prior"]
 OUT = "iqm_episode_return.png"
 MAX_EPISODE: int | None = None
 CONFIDENCE = 0.95
