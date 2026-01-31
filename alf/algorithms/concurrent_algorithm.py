@@ -13,6 +13,7 @@
 # limitations under the License.
 from typing import Callable, Optional
 from concurrent.futures import ThreadPoolExecutor
+import math
 import os
 import json
 import sys
@@ -559,6 +560,22 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
 
         actor_loss = None
         critic_loss = None
+        alpha_loss = None
+        critic_loss_nonfinite_frac = None
+        actor_loss_nonfinite_frac = None
+
+        def _float_or_none(v):
+            if v == () or v is None:
+                return None
+            if isinstance(v, torch.Tensor):
+                if v.numel() != 1:
+                    return None
+                v = float(v.detach().item())
+            elif isinstance(v, (int, float)):
+                v = float(v)
+            else:
+                return None
+            return v if math.isfinite(v) else None
 
         # SAC (and some others) populate these extras.
         actor_extra = getattr(extra, 'actor', ())
@@ -566,10 +583,22 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             actor_loss_tensor = getattr(actor_extra, 'actor_loss', ())
             if isinstance(actor_loss_tensor, torch.Tensor):
                 actor_loss = actor_loss_tensor.mean().item()
+                finite = torch.isfinite(actor_loss_tensor.detach())
+                actor_loss_nonfinite_frac = (1.0 -
+                                             finite.float().mean()).item()
 
         critic_extra = getattr(extra, 'critic', ())
         if isinstance(critic_extra, torch.Tensor):
             critic_loss = critic_extra.mean().item()
+            finite = torch.isfinite(critic_extra.detach())
+            critic_loss_nonfinite_frac = (1.0 - finite.float().mean()).item()
+
+        # Common: alpha loss for SAC (extra.alpha is alpha loss tensor/scalar)
+        alpha_extra = getattr(extra, 'alpha', ())
+        if isinstance(alpha_extra, torch.Tensor):
+            alpha_loss = alpha_extra.mean().item()
+        elif isinstance(alpha_extra, (int, float)):
+            alpha_loss = float(alpha_extra)
 
         if actor_loss is None and critic_loss is None:
             return
@@ -584,6 +613,38 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             record["actor_loss"] = actor_loss
         if critic_loss is not None:
             record["critic_loss"] = critic_loss
+        if alpha_loss is not None:
+            record["alpha_loss"] = alpha_loss
+        if actor_loss_nonfinite_frac is not None:
+            v = _float_or_none(actor_loss_nonfinite_frac)
+            if v is not None:
+                record["actor_loss_nonfinite_frac"] = v
+        if critic_loss_nonfinite_frac is not None:
+            v = _float_or_none(critic_loss_nonfinite_frac)
+            if v is not None:
+                record["critic_loss_nonfinite_frac"] = v
+
+        # SAC diagnostics (emitted only if present in extra)
+        for k in (
+                "log_alpha",
+                "alpha_value",
+                "log_pi_mean",
+                "log_pi_min",
+                "log_pi_max",
+                "log_pi_nonfinite_frac",
+                "entropy_reward_mean",
+                "entropy_reward_min",
+                "entropy_reward_max",
+                "entropy_reward_nonfinite_frac",
+                "target_q_mean",
+                "target_q_min",
+                "target_q_max",
+                "target_q_nonfinite_frac",
+        ):
+            v = getattr(extra, k, ())
+            sv = _float_or_none(v)
+            if sv is not None:
+                record[k] = sv
         self._write_event(record)
 
     def predict_step(self, inputs: TimeStep, state) -> AlgStep:

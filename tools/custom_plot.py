@@ -24,10 +24,13 @@ import numpy as np
 import polars as pl
 import matplotlib.pyplot as plt
 
-FOLDER = "/tmp/dmc/Rotator"
-NAMES = ["test-2"]
+# FOLDER = "/tmp/dmc/Rotator"
+# FOLDER = "/tmp/dmc/pendulum_swingup"
+FOLDER = "/tmp/dmc/swimmer_swimmer6"
+NAMES = ["single", "four"]
 OUT = "iqm_episode_return.png"
 OUT_LINES = "lines_episode_return.png"
+OUT_CRITIC = "critic.png"
 MAX_EPISODE: int | None = None
 CONFIDENCE = 0.95
 N_BOOT = 100
@@ -253,8 +256,14 @@ def plot_many_lines(ax,
                     title: str | None = None,
                     alpha: float = 0.25,
                     linewidth: float = 1.0,
+                    linestyle: str = "-",
                     n_bins: int | None = None,
-                    bin_reducer: Literal["mean"] = "mean"):
+                    bin_reducer: Literal["mean"] = "mean",
+                    set_ylim_quantiles: bool = True,
+                    ylim_quantiles: tuple[float, float] = (0.05, 0.95),
+                    yscale: Literal["linear", "log", "symlog"] = "linear",
+                    symlog_linthresh: float = 1.0,
+                    show_legend: bool = True):
     if df.is_empty() or x_col not in df.columns or y_col not in df.columns:
         ax.set_axis_off()
         return
@@ -284,14 +293,23 @@ def plot_many_lines(ax,
             df = df.group_by(group_keys).agg(pl.col(y_col).mean().alias(y_col))
             x_col = x_bin_col
 
-    y_all = df.select(pl.col(y_col)).to_series().to_numpy()
-    y_all = y_all[np.isfinite(y_all)]
-    if y_all.size:
-        a = float(np.quantile(y_all, 0.05))
-        b = float(np.quantile(y_all, 0.95))
-        d = b - a
-        pad = 0.1 * (d if d > 0 else 1.0)
-        ax.set_ylim(a - pad, b + pad)
+    if set_ylim_quantiles:
+        qlo, qhi = ylim_quantiles
+        y_all = df.select(pl.col(y_col)).to_series().to_numpy()
+        y_all = y_all[np.isfinite(y_all)]
+        if y_all.size:
+            a = float(np.quantile(y_all, qlo))
+            b = float(np.quantile(y_all, qhi))
+            d = b - a
+            pad = 0.1 * (d if d > 0 else 1.0)
+            ax.set_ylim(a - pad, b + pad)
+
+    if yscale == "log":
+        ax.set_yscale("log")
+    elif yscale == "symlog":
+        ax.set_yscale("symlog", linthresh=symlog_linthresh)
+    else:
+        ax.set_yscale("linear")
 
     groups = sorted(
         df[color_col].unique().to_list()) if color_col in df.columns else [
@@ -315,20 +333,27 @@ def plot_many_lines(ax,
                         color=color,
                         alpha=alpha,
                         linewidth=linewidth,
+                        linestyle=linestyle,
                         label=label)
                 first = False
         else:
             d = d0.sort(x_col)
             x = d[x_col].to_numpy()
             y = d[y_col].to_numpy()
-            ax.plot(x, y, color=color, alpha=alpha, linewidth=linewidth, label=g)
+            ax.plot(x,
+                    y,
+                    color=color,
+                    alpha=alpha,
+                    linewidth=linewidth,
+                    linestyle=linestyle,
+                    label=g)
 
     if title:
         ax.set_title(title)
     ax.set_xlabel(x_col)
     ax.set_ylabel(y_col)
     ax.grid(True, alpha=0.3)
-    if groups and groups != ["all"]:
+    if show_legend and groups and groups != ["all"]:
         ax.legend(loc="best")
 
 
@@ -364,6 +389,107 @@ def plot_actor_critic_dashboard(by_type: dict[str, pl.DataFrame],
                         title=f"{event_type}: actor",
                         n_bins=N_BINS if x_col == "train_iter" else None)
 
+    plt.tight_layout()
+    plt.savefig(out, dpi=300, bbox_inches="tight")
+
+
+def plot_critic_dashboard(by_type: dict[str, pl.DataFrame], *,
+                          out: str = OUT_CRITIC):
+    """Plot SAC critic-debug signals (no loss/grad/norm duplication)."""
+    df = by_type.get("loss", pl.DataFrame())
+    if df.is_empty():
+        print("No loss records found; skipping critic dashboard.")
+        return
+    if "train_iter" in df.columns:
+        df = df.with_columns(pl.col("train_iter").cast(pl.Int64))
+    if "agent_idx" in df.columns:
+        df = df.with_columns(pl.col("agent_idx").cast(pl.Int64))
+
+    fig, axes = plt.subplots(nrows=4, ncols=1, figsize=(14, 12), sharex=True)
+
+    # 1) log_alpha
+    ax = axes[0]
+    plot_many_lines(ax,
+                    df,
+                    x_col="train_iter",
+                    y_col="log_alpha",
+                    title="log_alpha",
+                    n_bins=None,
+                    set_ylim_quantiles=False)
+
+    # Helper to overlay mean/min/max on same axis
+    def _overlay_stats(ax,
+                       *,
+                       title: str,
+                       mean_col: str,
+                       min_col: str,
+                       max_col: str,
+                       yscale: Literal["linear", "log", "symlog"] = "linear"):
+        if mean_col not in df.columns:
+            ax.set_axis_off()
+            return
+        plot_many_lines(ax,
+                        df,
+                        x_col="train_iter",
+                        y_col=mean_col,
+                        title=title,
+                        n_bins=None,
+                        set_ylim_quantiles=False,
+                        linestyle="-",
+                        yscale=yscale,
+                        alpha=0.35,
+                        linewidth=1.2,
+                        show_legend=True)
+        if min_col in df.columns:
+            plot_many_lines(ax,
+                            df,
+                            x_col="train_iter",
+                            y_col=min_col,
+                            n_bins=None,
+                            set_ylim_quantiles=False,
+                            linestyle="--",
+                            yscale=yscale,
+                            alpha=0.25,
+                            linewidth=1.0,
+                            show_legend=False)
+        if max_col in df.columns:
+            plot_many_lines(ax,
+                            df,
+                            x_col="train_iter",
+                            y_col=max_col,
+                            n_bins=None,
+                            set_ylim_quantiles=False,
+                            linestyle="--",
+                            yscale=yscale,
+                            alpha=0.25,
+                            linewidth=1.0,
+                            show_legend=False)
+
+    # 2) log_pi stats
+    _overlay_stats(axes[1],
+                   title="log_pi (mean / min / max)",
+                   mean_col="log_pi_mean",
+                   min_col="log_pi_min",
+                   max_col="log_pi_max",
+                   yscale="linear")
+
+    # 3) entropy reward stats (-alpha * log_pi), can spike / change sign
+    _overlay_stats(axes[2],
+                   title="entropy_reward = -alpha * log_pi (mean / min / max)",
+                   mean_col="entropy_reward_mean",
+                   min_col="entropy_reward_min",
+                   max_col="entropy_reward_max",
+                   yscale="symlog")
+
+    # 4) target_q stats
+    _overlay_stats(axes[3],
+                   title="target_q (mean / min / max)",
+                   mean_col="target_q_mean",
+                   min_col="target_q_min",
+                   max_col="target_q_max",
+                   yscale="symlog")
+
+    axes[-1].set_xlabel("train_iter")
     plt.tight_layout()
     plt.savefig(out, dpi=300, bbox_inches="tight")
 
@@ -410,3 +536,6 @@ if __name__ == "__main__":
 
     plot_actor_critic_dashboard(by_type)
     print("Saved plot to: dashboard.png")
+
+    plot_critic_dashboard(by_type)
+    print(f"Saved plot to: {OUT_CRITIC}")

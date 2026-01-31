@@ -78,3 +78,5 @@ else
         "${COMMON_ARGS[@]}" \
         --root_dir="$ROOT_DIR"
 fi
+
+# scripts/run_dmc.sh SEEDS="" NUM_AGENTS=1 ENV="swimmer:swimmer6" NAME="test"

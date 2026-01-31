@@ -78,6 +78,9 @@ alf.config(
     'SacAlgorithm',
     actor_network_cls=alf.networks.ActorDistributionNetwork,
     critic_network_cls=RandomizedPriorCriticNetwork,
+    # Prevent alpha explosion which can make entropy-reward (and thus TD targets)
+    # numerically huge even with bounded obs/actions and gradient clipping.
+    max_log_alpha=10.0,
     target_update_tau=TAU,
     target_update_period=1,
 )
