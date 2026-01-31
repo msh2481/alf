@@ -26,7 +26,6 @@ from alf.environments import suite_dmc, suite_gym
 from alf.environments.gym_wrappers import FrameSkip
 from alf.networks import CriticNetwork, RandomizedPriorCriticNetwork
 from alf.utils.losses import element_wise_squared_loss
-from alf.utils.math_ops import clipped_exp
 
 LR = alf.define_config('lr', 1e-3)
 WD = alf.define_config('wd', 0.01)
@@ -62,10 +61,11 @@ alf.config('suite_dmc.load',
 alf.config('ActorDistributionNetwork',
            fc_layer_params=(256, ),
            continuous_projection_net_ctor=partial(
-               alf.networks.NormalProjectionNetwork,
+               alf.networks.StableNormalProjectionNetwork,
                state_dependent_std=True,
                scale_distribution=True,
-               std_transform=clipped_exp))
+               min_std=1e-3,
+               max_std=2.0))
 
 alf.config('CriticNetwork', joint_fc_layer_params=(256, ), use_fc_ln=LN)
 

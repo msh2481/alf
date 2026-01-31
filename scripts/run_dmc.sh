@@ -79,4 +79,4 @@ else
         --root_dir="$ROOT_DIR"
 fi
 
-# scripts/run_dmc.sh SEEDS="" NUM_AGENTS=1 ENV="swimmer:swimmer6" NAME="test"
+# scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 ENV="swimmer:swimmer6" NAME="test4-stable"

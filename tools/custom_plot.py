@@ -27,7 +27,8 @@ import matplotlib.pyplot as plt
 # FOLDER = "/tmp/dmc/Rotator"
 # FOLDER = "/tmp/dmc/pendulum_swingup"
 FOLDER = "/tmp/dmc/swimmer_swimmer6"
-NAMES = ["single", "four"]
+# NAMES = ["single", "four"]
+NAMES = ["test", "test4", "test4-stable"]
 OUT = "iqm_episode_return.png"
 OUT_LINES = "lines_episode_return.png"
 OUT_CRITIC = "critic.png"
