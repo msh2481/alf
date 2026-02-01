@@ -64,7 +64,7 @@ alf.config('ActorDistributionNetwork',
                alf.networks.StableNormalProjectionNetwork,
                state_dependent_std=True,
                scale_distribution=True,
-               min_std=1e-3,
+               min_std=1e-2,
                max_std=2.0))
 
 alf.config('CriticNetwork', joint_fc_layer_params=(256, ), use_fc_ln=LN)
@@ -78,9 +78,8 @@ alf.config(
     'SacAlgorithm',
     actor_network_cls=alf.networks.ActorDistributionNetwork,
     critic_network_cls=RandomizedPriorCriticNetwork,
-    # Prevent alpha explosion which can make entropy-reward (and thus TD targets)
-    # numerically huge even with bounded obs/actions and gradient clipping.
-    max_log_alpha=10.0,
+    max_log_alpha=0.0,
+    use_entropy_reward=False, # TODO: maybe turn off later; currently included to avoid weird huge entropy rewards when learning from off-policy data
     target_update_tau=TAU,
     target_update_period=1,
 )

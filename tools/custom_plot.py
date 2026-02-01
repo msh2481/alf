@@ -26,9 +26,14 @@ import matplotlib.pyplot as plt
 
 # FOLDER = "/tmp/dmc/Rotator"
 # FOLDER = "/tmp/dmc/pendulum_swingup"
-FOLDER = "/tmp/dmc/swimmer_swimmer6"
+# FOLDER can be:
+# - a single folder path (str)
+# - a list/tuple of folder paths
+# - the special string "all_dmc" (alias: "all_dm"), which expands to all
+#   subfolders of /tmp/dmc.
+FOLDER: str | Sequence[str] = "/tmp/dmc/swimmer_swimmer6"
 # NAMES = ["single", "four"]
-NAMES = ["test", "test4", "test4-stable"]
+NAMES = ["test", "test4-noentropy", "test4-noentropy-std1em2"]
 OUT = "iqm_episode_return.png"
 OUT_LINES = "lines_episode_return.png"
 OUT_CRITIC = "critic.png"
@@ -36,7 +41,7 @@ MAX_EPISODE: int | None = None
 CONFIDENCE = 0.95
 N_BOOT = 100
 BOOTSTRAP_SEED = 0
-N_BINS = 500
+N_BINS = 50
 
 
 @dataclass(frozen=True)
@@ -44,6 +49,26 @@ class RunRef:
     experiment: str
     seed: str
     events_path: Path
+
+
+def _resolve_folders(folder_spec: str | Sequence[str]) -> list[tuple[str, str]]:
+    """Resolve FOLDER into [(name, folder_path), ...]."""
+    if isinstance(folder_spec, str):
+        key = folder_spec.strip()
+        if "all_dm" in key:
+            dmc_root = Path("/tmp/dmc")
+            folders = sorted([p for p in dmc_root.iterdir() if p.is_dir()],
+                             key=lambda p: p.name)
+            return [(p.name, str(p)) for p in folders]
+
+        p = Path(folder_spec).expanduser()
+        return [(p.name, str(p))]
+
+    out: list[tuple[str, str]] = []
+    for f in folder_spec:
+        p = Path(f).expanduser()
+        out.append((p.name, str(p)))
+    return out
 
 
 def _discover_runs(folder: str, names: list[str]) -> list[RunRef]:
@@ -196,25 +221,53 @@ def episode_plot_df(ep: pl.DataFrame,
                     max_episode: int | None = None,
                     confidence: float = 0.95,
                     n_boot: int = 2000,
-                    bootstrap_seed: int = 0) -> pl.DataFrame:
+                    bootstrap_seed: int = 0,
+                    n_bins: int | None = None) -> pl.DataFrame:
     if ep.is_empty():
         return pl.DataFrame()
     if max_episode is not None:
         ep = ep.filter(pl.col("episode_idx") <= max_episode)
+    if not ep.is_empty() and "episode_idx" in ep.columns:
+        ep = ep.with_columns(pl.col("episode_idx").cast(pl.Int64))
+
+    # Optional binning along episode axis. Important for long runs where the
+    # per-episode curve is too dense/noisy.
+    x_col = "episode_idx"
+    if n_bins is not None and n_bins > 0:
+        x_min = ep.select(pl.col(x_col).min()).item()
+        x_max = ep.select(pl.col(x_col).max()).item()
+        if x_min is not None and x_max is not None:
+            x_min = int(x_min)
+            x_max = int(x_max)
+            span = max(1, x_max - x_min + 1)
+            bin_size = max(1, int(np.ceil(span / n_bins)))
+            x_bin_col = f"{x_col}_bin"
+            ep = ep.with_columns(
+                (pl.col(x_col) // bin_size * bin_size).alias(x_bin_col))
+            x_col = x_bin_col
+
+            # Reduce within each (seed[,agent],bin) so bootstrap treats each
+            # curve as one sample per x-bin (similar spirit to train_iter binning).
+            reduce_keys = list(group_cols) + ["seed", x_col]
+            if "agent_idx" in ep.columns:
+                reduce_keys.insert(len(group_cols) + 1, "agent_idx")
+            ep = ep.group_by(reduce_keys).agg(
+                pl.col("episode_return").mean().alias("episode_return"))
+
     ci = bootstrap_ci(ep,
                       group_cols=group_cols,
-                      x_col="episode_idx",
+                      x_col=x_col,
                       value_col="episode_return",
                       stat="iqm",
                       confidence=confidence,
                       n_boot=n_boot,
                       seed=bootstrap_seed)
-    q = ep.group_by([*group_cols, "episode_idx"]).agg(
+    q = ep.group_by([*group_cols, x_col]).agg(
         q25=pl.col("episode_return").quantile(0.25),
         q75=pl.col("episode_return").quantile(0.75),
     )
-    return ci.join(q, on=[*group_cols, "episode_idx"],
-                   how="left").sort([*group_cols, "episode_idx"])
+    return ci.join(q, on=[*group_cols, x_col],
+                   how="left").sort([*group_cols, x_col])
 
 
 def plot_episode_iqm(plot_df: pl.DataFrame,
@@ -222,19 +275,25 @@ def plot_episode_iqm(plot_df: pl.DataFrame,
                      out: str,
                      group_col: str = "experiment",
                      confidence: float = 0.95):
+    if plot_df.is_empty() or group_col not in plot_df.columns:
+        print(f"Empty plot_df or missing '{group_col}'; skipping IQM plot: {out}")
+        return
     fig, ax = plt.subplots(figsize=(10, 6))
     groups = sorted(plot_df[group_col].unique().to_list())
-    colors = plt.cm.tab10(np.linspace(0, 1, max(1, len(groups))))
+    colors = plt.cm.Set1(0.05 + 0.1 * np.arange(max(1, len(groups))))
     for i, g in enumerate(groups):
-        d = plot_df.filter(pl.col(group_col) == g).sort("episode_idx")
-        x = d["episode_idx"].to_numpy()
+        # The x column can be either episode_idx or episode_idx_bin depending on
+        # whether binning is enabled upstream.
+        x_col = "episode_idx" if "episode_idx" in plot_df.columns else "episode_idx_bin"
+        d = plot_df.filter(pl.col(group_col) == g).sort(x_col)
+        x = d[x_col].to_numpy()
         y = d["stat"].to_numpy()
         lo = d["ci_low"].to_numpy()
         hi = d["ci_high"].to_numpy()
         q25 = d["q25"].to_numpy()
         q75 = d["q75"].to_numpy()
         color = colors[i % len(colors)]
-        ax.plot(x, y, label=g, color=color, linewidth=2)
+        ax.plot(x, y, label=g, color=color, linewidth=1)
         ax.fill_between(x, lo, hi, alpha=0.2, color=color)
         ax.plot(x, q25, "--", color=color, linewidth=1, alpha=0.5)
         ax.plot(x, q75, "--", color=color, linewidth=1, alpha=0.5)
@@ -415,7 +474,7 @@ def plot_critic_dashboard(by_type: dict[str, pl.DataFrame], *,
                     x_col="train_iter",
                     y_col="log_alpha",
                     title="log_alpha",
-                    n_bins=None,
+                    n_bins=N_BINS,
                     set_ylim_quantiles=False)
 
     # Helper to overlay mean/min/max on same axis
@@ -434,7 +493,7 @@ def plot_critic_dashboard(by_type: dict[str, pl.DataFrame], *,
                         x_col="train_iter",
                         y_col=mean_col,
                         title=title,
-                        n_bins=None,
+                        n_bins=N_BINS,
                         set_ylim_quantiles=False,
                         linestyle="-",
                         yscale=yscale,
@@ -446,7 +505,7 @@ def plot_critic_dashboard(by_type: dict[str, pl.DataFrame], *,
                             df,
                             x_col="train_iter",
                             y_col=min_col,
-                            n_bins=None,
+                            n_bins=N_BINS,
                             set_ylim_quantiles=False,
                             linestyle="--",
                             yscale=yscale,
@@ -458,7 +517,7 @@ def plot_critic_dashboard(by_type: dict[str, pl.DataFrame], *,
                             df,
                             x_col="train_iter",
                             y_col=max_col,
-                            n_bins=None,
+                            n_bins=N_BINS,
                             set_ylim_quantiles=False,
                             linestyle="--",
                             yscale=yscale,
@@ -495,12 +554,13 @@ def plot_critic_dashboard(by_type: dict[str, pl.DataFrame], *,
     plt.savefig(out, dpi=300, bbox_inches="tight")
 
 
-if __name__ == "__main__":
-    by_type = load_by_type()
+def process_one_folder(*, name: str, folder: str, idx: int,
+                       total: int) -> None:
+    print(f"\n=== [{idx}/{total}] Processing {name} ({folder}) ===")
+    out_dir = Path("plots") / name
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    for k, v in by_type.items():
-        print(k)
-        print(v.describe().to_pandas().to_string())
+    by_type = load_by_type(folder=folder, names=NAMES)
 
     ep = by_type.get("episode", pl.DataFrame())
     if not ep.is_empty() and "episode_idx" in ep.columns:
@@ -508,35 +568,56 @@ if __name__ == "__main__":
     if not ep.is_empty() and "agent_idx" in ep.columns:
         ep = ep.with_columns(pl.col("agent_idx").cast(pl.Int64))
 
-    print("Generating episode plot dataframe...")
-    plot_df = episode_plot_df(ep,
-                              max_episode=MAX_EPISODE,
-                              confidence=CONFIDENCE,
-                              n_boot=N_BOOT,
-                              bootstrap_seed=BOOTSTRAP_SEED)
-    print("Plotting episode IQM...")
-    plot_episode_iqm(plot_df, out=OUT, confidence=CONFIDENCE)
-    print(f"Saved plot to: {OUT}")
+    out_iqm = str(out_dir / OUT)
+    out_lines = str(out_dir / OUT_LINES)
+    out_dash = str(out_dir / "dashboard.png")
+    out_critic = str(out_dir / OUT_CRITIC)
 
-    print("Plotting episode returns (many-lines)...")
-    fig, ax = plt.subplots(figsize=(10, 6))
-    line_cols: tuple[str, ...] = ("seed", "agent_idx") if "agent_idx" in ep.columns else ("seed", )
-    plot_many_lines(ax,
-                    ep,
-                    x_col="episode_idx",
-                    y_col="episode_return",
-                    line_cols=line_cols,
-                    color_col="experiment",
-                    title="Episode Return (many lines)",
-                    n_bins=None)
-    ax.set_xlabel("Episode Index")
-    ax.set_ylabel("Episode Return")
-    plt.tight_layout()
-    plt.savefig(OUT_LINES, dpi=300, bbox_inches="tight")
-    print(f"Saved plot to: {OUT_LINES}")
+    if ep.is_empty():
+        print("No episode records found; skipping episode plots.")
+    else:
+        print("Generating episode plot dataframe...")
+        plot_df = episode_plot_df(ep,
+                                  max_episode=MAX_EPISODE,
+                                  confidence=CONFIDENCE,
+                                  n_boot=N_BOOT,
+                                  bootstrap_seed=BOOTSTRAP_SEED,
+                                  n_bins=N_BINS)
+        print("Plotting episode IQM...")
+        plot_episode_iqm(plot_df, out=out_iqm, confidence=CONFIDENCE)
+        print(f"Saved plot to: {out_iqm}")
 
-    plot_actor_critic_dashboard(by_type)
-    print("Saved plot to: dashboard.png")
+        print("Plotting episode returns (many-lines)...")
+        fig, ax = plt.subplots(figsize=(10, 6))
+        line_cols: tuple[str, ...] = ("seed", "agent_idx") if "agent_idx" in ep.columns else ("seed", )
+        plot_many_lines(ax,
+                        ep,
+                        x_col="episode_idx",
+                        y_col="episode_return",
+                        line_cols=line_cols,
+                        color_col="experiment",
+                        title="Episode Return (many lines)",
+                        n_bins=None)
+        ax.set_xlabel("Episode Index")
+        ax.set_ylabel("Episode Return")
+        plt.tight_layout()
+        plt.savefig(out_lines, dpi=300, bbox_inches="tight")
+        print(f"Saved plot to: {out_lines}")
 
-    plot_critic_dashboard(by_type)
-    print(f"Saved plot to: {OUT_CRITIC}")
+    plot_actor_critic_dashboard(by_type, out=out_dash)
+    print(f"Saved plot to: {out_dash}")
+
+    plot_critic_dashboard(by_type, out=out_critic)
+    print(f"Saved plot to: {out_critic}")
+
+
+if __name__ == "__main__":
+    folders = _resolve_folders(FOLDER)
+    if not folders:
+        raise RuntimeError("No folders resolved from FOLDER")
+
+    for i, (name, folder) in enumerate(folders, start=1):
+        process_one_folder(name=name,
+                           folder=folder,
+                           idx=i,
+                           total=len(folders))
