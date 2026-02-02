@@ -29,11 +29,10 @@ import matplotlib.pyplot as plt
 # FOLDER can be:
 # - a single folder path (str)
 # - a list/tuple of folder paths
-# - the special string "all_dmc" (alias: "all_dm"), which expands to all
+# - the special string "all_dm", which expands to all
 #   subfolders of /tmp/dmc.
-FOLDER: str | Sequence[str] = "/tmp/dmc/swimmer_swimmer6"
-# NAMES = ["single", "four"]
-NAMES = ["test", "test4-noentropy", "test4-noentropy-std1em2"]
+FOLDER: str | Sequence[str] = "all_dm"
+NAMES = ["a1", "a4"]
 OUT = "iqm_episode_return.png"
 OUT_LINES = "lines_episode_return.png"
 OUT_CRITIC = "critic.png"

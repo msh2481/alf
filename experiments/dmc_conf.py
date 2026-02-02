@@ -39,6 +39,7 @@ NUM_AGENTS = alf.define_config('num_agents', 1)
 TAU = alf.define_config('tau', 0.1)
 ASYNC = alf.define_config('async', True)
 ENV = alf.define_config('env', 'cartpole:swingup_sparse')
+USE_BETA = alf.define_config('use_beta', True)
 
 _IS_ROTATOR = isinstance(ENV, str) and ENV.startswith("Rotator")
 _ENV_NAME = "Rotator-v0" if ENV == "Rotator" else ENV
@@ -58,14 +59,19 @@ alf.config('suite_dmc.load',
            max_episode_steps=125,
            gym_env_wrappers=(partial(FrameSkip, skip=8), ))
 
+if USE_BETA:
+    proj_net = partial(alf.networks.BetaProjectionNetwork,
+                       min_concentration=1.0)
+else:
+    proj_net = partial(alf.networks.StableNormalProjectionNetwork,
+                       state_dependent_std=True,
+                       scale_distribution=True,
+                       min_std=1e-2,
+                       max_std=2.0)
+
 alf.config('ActorDistributionNetwork',
            fc_layer_params=(256, ),
-           continuous_projection_net_ctor=partial(
-               alf.networks.StableNormalProjectionNetwork,
-               state_dependent_std=True,
-               scale_distribution=True,
-               min_std=1e-2,
-               max_std=2.0))
+           continuous_projection_net_ctor=proj_net)
 
 alf.config('CriticNetwork', joint_fc_layer_params=(256, ), use_fc_ln=LN)
 
