@@ -32,7 +32,7 @@ import matplotlib.pyplot as plt
 # - the special string "all_dm", which expands to all
 #   subfolders of /tmp/dmc.
 FOLDER: str | Sequence[str] = "all_dm"
-NAMES = ["a1", "a4"]
+NAMES = ["a1", "a4", "a1_beta", "a4_beta"]
 OUT = "iqm_episode_return.png"
 OUT_LINES = "lines_episode_return.png"
 OUT_CRITIC = "critic.png"

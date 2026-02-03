@@ -5,8 +5,8 @@ print(names)
 
 for n in names:
     commands = [
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=1 ENV="{n}" NAME="a1"',
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 ENV="{n}" NAME="a4"',
+        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=1 ENV="{n}" NAME="a1_beta"',
+        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 ENV="{n}" NAME="a4_beta"',
     ]
     for c in commands:
         print(f"pueue add -- '{c}'")
