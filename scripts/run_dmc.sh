@@ -15,9 +15,9 @@ UTD=1
 NUM_AGENTS=1
 TAU="0.01"
 ASYNC="True"
-ENV="cartpole:swingup_sparse"
+ENV="Rotator"
 NAME="$(date +%Y%m%d_%H%M%S)"
-SEEDS="1"
+SEEDS=""
 BASE_DIR=""
 
 for arg in "$@"; do

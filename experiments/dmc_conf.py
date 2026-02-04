@@ -22,6 +22,7 @@ assert not torch.cuda.is_available(
 from alf.algorithms.concurrent_algorithm import ConcurrentAlgorithm
 from alf.algorithms.rotator_callback import RotatorCallback
 from alf.algorithms.sac_algorithm import SacAlgorithm
+from alf.algorithms.data_transformer import RewardMaskByEnvId
 from alf.environments import suite_dmc, suite_gym
 from alf.environments.gym_wrappers import FrameSkip
 from alf.networks import CriticNetwork, RandomizedPriorCriticNetwork
@@ -118,6 +119,14 @@ alf.config(
 
 alf.config('TrainerConfig',
            algorithm_ctor=ConcurrentAlgorithm,
+           # Ablation: only envs belonging to one agent keep rewards during replay/training.
+           # This preserves true env rewards for metrics (which observe raw timesteps),
+           # while zeroing the learning signal for other agents.
+           data_transformer_ctor=[
+               partial(RewardMaskByEnvId,
+                       rewarded_env_ids=[0],
+                       apply_on="all")
+           ],
            initial_collect_steps=100,
            mini_batch_length=2,
            mini_batch_size=256 * NUM_AGENTS,
