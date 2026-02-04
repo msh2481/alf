@@ -54,6 +54,10 @@ alf.config('create_environment',
            ensure_different_phases=ASYNC,
            max_steps_for_phase_randomization=125)
 
+# Important for `ConcurrentAlgorithm`: avoid deterministic env_id ordering in
+# replay batches, which otherwise interacts badly with per-copy batch slicing.
+alf.config('ReplayBuffer', shuffle_batch=True)
+
 # Cartpole-style frameskip for DMC envs.
 alf.config('suite_dmc.load',
            from_pixels=False,
@@ -86,7 +90,8 @@ alf.config(
     actor_network_cls=alf.networks.ActorDistributionNetwork,
     critic_network_cls=RandomizedPriorCriticNetwork,
     max_log_alpha=0.0,
-    use_entropy_reward=False, # TODO: maybe turn off later; currently included to avoid weird huge entropy rewards when learning from off-policy data
+    use_entropy_reward=
+    False,  # TODO: maybe turn off later; currently included to avoid weird huge entropy rewards when learning from off-policy data
     target_update_tau=TAU,
     target_update_period=1,
 )
@@ -117,27 +122,26 @@ alf.config(
     debug_log_every_n_steps=100,
 )
 
-alf.config('TrainerConfig',
-           algorithm_ctor=ConcurrentAlgorithm,
-           # Ablation: only envs belonging to one agent keep rewards during replay/training.
-           # This preserves true env rewards for metrics (which observe raw timesteps),
-           # while zeroing the learning signal for other agents.
-           data_transformer_ctor=[
-               partial(RewardMaskByEnvId,
-                       rewarded_env_ids=[0],
-                       apply_on="all")
-           ],
-           initial_collect_steps=100,
-           mini_batch_length=2,
-           mini_batch_size=256 * NUM_AGENTS,
-           unroll_length=1,
-           num_updates_per_train_iter=UTD,
-           num_iterations=50000,
-           num_checkpoints=3,
-           evaluate=False,
-           debug_summaries=False,
-           summary_interval=200,
-           replay_buffer_length=100000,
-           random_seed=42,
-           whole_replay_buffer_training=False,
-           clear_replay_buffer=False)
+alf.config(
+    'TrainerConfig',
+    algorithm_ctor=ConcurrentAlgorithm,
+    # Ablation: only envs belonging to one agent keep rewards during replay/training.
+    # This preserves true env rewards for metrics (which observe raw timesteps),
+    # while zeroing the learning signal for other agents.
+    data_transformer_ctor=[
+        partial(RewardMaskByEnvId, rewarded_env_ids=[0], apply_on="all")
+    ],
+    initial_collect_steps=100,
+    mini_batch_length=2,
+    mini_batch_size=256 * NUM_AGENTS,
+    unroll_length=1,
+    num_updates_per_train_iter=UTD,
+    num_iterations=50000,
+    num_checkpoints=3,
+    evaluate=False,
+    debug_summaries=False,
+    summary_interval=200,
+    replay_buffer_length=100000,
+    random_seed=42,
+    whole_replay_buffer_training=False,
+    clear_replay_buffer=False)

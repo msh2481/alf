@@ -1112,7 +1112,9 @@ class SacAlgorithm(OffPolicyAlgorithm):
                 return mean, vmin, vmax, nonfinite_frac
             else:
                 # All NaN/Inf; keep tensors so nest/spec doesn't choke.
-                nan = torch.tensor(float("nan"), device=xf.device, dtype=xf.dtype)
+                nan = torch.tensor(float("nan"),
+                                   device=xf.device,
+                                   dtype=xf.dtype)
                 return nan, nan, nan, nonfinite_frac
 
         # log_pi is a tensor for both discrete and continuous SAC.
@@ -1128,7 +1130,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
         if self._use_entropy_reward:
             ent = -alpha_value * log_pi.detach()
             (entropy_reward_mean, entropy_reward_min, entropy_reward_max,
-                entropy_reward_nonfinite_frac) = _finite_stats(ent)
+             entropy_reward_nonfinite_frac) = _finite_stats(ent)
         else:
             entropy_reward_mean = ()
             entropy_reward_min = ()
@@ -1138,34 +1140,30 @@ class SacAlgorithm(OffPolicyAlgorithm):
         # Target Q values used for TD target (shape [T,B,...] for SAC)
         target_q = getattr(getattr(info, "critic", ()), "target_critic", ())
         (target_q_mean, target_q_min, target_q_max,
-            target_q_nonfinite_frac) = _finite_stats(target_q)
+         target_q_nonfinite_frac) = _finite_stats(target_q)
 
-        return LossInfo(loss=loss,
-                        priority=critic_loss.priority,
-                        extra=SacLossInfo(actor=actor_loss.extra,
-                                          critic=critic_loss.extra,
-                                          repr=repr_loss.extra,
-                                          alpha=alpha_loss,
-                                          log_alpha=log_alpha_stats,
-                                          alpha_value=alpha_value,
-                                          log_pi_mean=log_pi_mean,
-                                          log_pi_min=log_pi_min,
-                                          log_pi_max=log_pi_max,
-                                          log_pi_nonfinite_frac=
-                                          log_pi_nonfinite_frac,
-                                          entropy_reward_mean=
-                                          entropy_reward_mean,
-                                          entropy_reward_min=
-                                          entropy_reward_min,
-                                          entropy_reward_max=
-                                          entropy_reward_max,
-                                          entropy_reward_nonfinite_frac=
-                                          entropy_reward_nonfinite_frac,
-                                          target_q_mean=target_q_mean,
-                                          target_q_min=target_q_min,
-                                          target_q_max=target_q_max,
-                                          target_q_nonfinite_frac=
-                                          target_q_nonfinite_frac))
+        return LossInfo(
+            loss=loss,
+            priority=critic_loss.priority,
+            extra=SacLossInfo(
+                actor=actor_loss.extra,
+                critic=critic_loss.extra,
+                repr=repr_loss.extra,
+                alpha=alpha_loss,
+                log_alpha=log_alpha_stats,
+                alpha_value=alpha_value,
+                log_pi_mean=log_pi_mean,
+                log_pi_min=log_pi_min,
+                log_pi_max=log_pi_max,
+                log_pi_nonfinite_frac=log_pi_nonfinite_frac,
+                entropy_reward_mean=entropy_reward_mean,
+                entropy_reward_min=entropy_reward_min,
+                entropy_reward_max=entropy_reward_max,
+                entropy_reward_nonfinite_frac=entropy_reward_nonfinite_frac,
+                target_q_mean=target_q_mean,
+                target_q_min=target_q_min,
+                target_q_max=target_q_max,
+                target_q_nonfinite_frac=target_q_nonfinite_frac))
 
     def _calc_critic_loss(self, info: SacInfo):
         """

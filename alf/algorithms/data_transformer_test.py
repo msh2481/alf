@@ -141,8 +141,8 @@ class RewardMaskByEnvIdTest(parameterized.TestCase, alf.test.TestCase):
         env_id = torch.tensor([[0, 0, 0], [1, 1, 1], [2, 2, 2], [3, 3, 3]],
                               dtype=torch.int32)
         ts = TimestepItem(step_type=torch.full((B, T),
-                                              StepType.MID,
-                                              dtype=torch.int32),
+                                               StepType.MID,
+                                               dtype=torch.int32),
                           observation=(),
                           reward=reward,
                           env_id=env_id)

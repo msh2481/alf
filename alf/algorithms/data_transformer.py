@@ -667,8 +667,9 @@ class RewardMaskByEnvId(SimpleDataTransformer):
                 f"remainder must be in [0, modulus); got remainder={self._remainder}, modulus={self._modulus}"
             )
 
-        assert self._apply_on in ("replay", "rollout", "both", "all", "never"), (
-            f"Unsupported apply_on={self._apply_on}")
+        assert self._apply_on in ("replay", "rollout", "both", "all",
+                                  "never"), (
+                                      f"Unsupported apply_on={self._apply_on}")
 
     def _should_apply(self) -> bool:
         if self._apply_on == "never":

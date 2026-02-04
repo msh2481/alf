@@ -50,7 +50,8 @@ class RunRef:
     events_path: Path
 
 
-def _resolve_folders(folder_spec: str | Sequence[str]) -> list[tuple[str, str]]:
+def _resolve_folders(
+        folder_spec: str | Sequence[str]) -> list[tuple[str, str]]:
     """Resolve FOLDER into [(name, folder_path), ...]."""
     if isinstance(folder_spec, str):
         key = folder_spec.strip()
@@ -275,7 +276,9 @@ def plot_episode_iqm(plot_df: pl.DataFrame,
                      group_col: str = "experiment",
                      confidence: float = 0.95):
     if plot_df.is_empty() or group_col not in plot_df.columns:
-        print(f"Empty plot_df or missing '{group_col}'; skipping IQM plot: {out}")
+        print(
+            f"Empty plot_df or missing '{group_col}'; skipping IQM plot: {out}"
+        )
         return
     fig, ax = plt.subplots(figsize=(10, 6))
     groups = sorted(plot_df[group_col].unique().to_list())
@@ -452,7 +455,8 @@ def plot_actor_critic_dashboard(by_type: dict[str, pl.DataFrame],
     plt.savefig(out, dpi=300, bbox_inches="tight")
 
 
-def plot_critic_dashboard(by_type: dict[str, pl.DataFrame], *,
+def plot_critic_dashboard(by_type: dict[str, pl.DataFrame],
+                          *,
                           out: str = OUT_CRITIC):
     """Plot SAC critic-debug signals (no loss/grad/norm duplication)."""
     df = by_type.get("loss", pl.DataFrame())
@@ -588,7 +592,8 @@ def process_one_folder(*, name: str, folder: str, idx: int,
 
         print("Plotting episode returns (many-lines)...")
         fig, ax = plt.subplots(figsize=(10, 6))
-        line_cols: tuple[str, ...] = ("seed", "agent_idx") if "agent_idx" in ep.columns else ("seed", )
+        line_cols: tuple[str, ...] = (
+            "seed", "agent_idx") if "agent_idx" in ep.columns else ("seed", )
         plot_many_lines(ax,
                         ep,
                         x_col="episode_idx",
@@ -616,7 +621,4 @@ if __name__ == "__main__":
         raise RuntimeError("No folders resolved from FOLDER")
 
     for i, (name, folder) in enumerate(folders, start=1):
-        process_one_folder(name=name,
-                           folder=folder,
-                           idx=i,
-                           total=len(folders))
+        process_one_folder(name=name, folder=folder, idx=i, total=len(folders))

@@ -82,6 +82,16 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             "create_environment.num_parallel_environments")
         assert self._batch_size % num_copies == 0, f"batch_size {self._batch_size} must be a multiple of num_copies {num_copies}"
         assert self._env_counts % num_copies == 0, f"env_counts {self._env_counts} must be a multiple of num_copies {num_copies}"
+        try:
+            shuffle_batch = alf.get_config_value("ReplayBuffer.shuffle_batch")
+        except Exception:
+            shuffle_batch = False
+        assert shuffle_batch, (
+            "ConcurrentAlgorithm requires ReplayBuffer.shuffle_batch=True. "
+            "Without it, replay batches are ordered by env_id and the per-copy "
+            "batch slicing (i, i+N, ...) makes each copy train on a mostly fixed "
+            "subset of env_ids. Add `alf.config('ReplayBuffer', shuffle_batch=True)` "
+            "to your conf.")
 
         temp_alg = algorithm_ctor(observation_spec=observation_spec,
                                   action_spec=action_spec,
