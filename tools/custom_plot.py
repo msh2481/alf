@@ -32,7 +32,7 @@ import matplotlib.pyplot as plt
 # - the special string "all_dm", which expands to all
 #   subfolders of /tmp/dmc.
 FOLDER: str | Sequence[str] = "all_dm"
-NAMES = ["a1", "a4", "a1_beta", "a4_beta"]
+NAMES = ["a1_beta", "a4_beta", "a4_shuffle2"]
 OUT = "iqm_episode_return.png"
 OUT_LINES = "lines_episode_return.png"
 OUT_CRITIC = "critic.png"
@@ -215,6 +215,10 @@ def bootstrap_ci(
     return pl.DataFrame(out) if out else pl.DataFrame()
 
 
+def _cmap_colors(name: str) -> np.ndarray:
+    cmap = plt.get_cmap(name)
+    return np.asarray(cmap.colors)
+
 def episode_plot_df(ep: pl.DataFrame,
                     *,
                     group_cols: Sequence[str] = ("experiment", ),
@@ -282,7 +286,7 @@ def plot_episode_iqm(plot_df: pl.DataFrame,
         return
     fig, ax = plt.subplots(figsize=(10, 6))
     groups = sorted(plot_df[group_col].unique().to_list())
-    colors = plt.cm.Set1(0.05 + 0.1 * np.arange(max(1, len(groups))))
+    colors = _cmap_colors("Set1")
     for i, g in enumerate(groups):
         # The x column can be either episode_idx or episode_idx_bin depending on
         # whether binning is enabled upstream.
@@ -377,7 +381,7 @@ def plot_many_lines(ax,
         df[color_col].unique().to_list()) if color_col in df.columns else [
             "all"
         ]
-    colors = plt.cm.tab10(np.linspace(0, 1, max(1, len(groups))))
+    colors = _cmap_colors("Set1")
 
     for i, g in enumerate(groups):
         d0 = df.filter(

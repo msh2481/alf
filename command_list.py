@@ -19,7 +19,7 @@ print(names)
 
 for n in names:
     commands = [
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 ENV="{n}" NAME="a4_shuffle"',
+        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 ENV="{n}" NAME="a4_shuffle2"',
     ]
     for c in commands:
         print(f"pueue add -- '{c}'")

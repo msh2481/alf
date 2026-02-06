@@ -125,12 +125,6 @@ alf.config(
 alf.config(
     'TrainerConfig',
     algorithm_ctor=ConcurrentAlgorithm,
-    # Ablation: only envs belonging to one agent keep rewards during replay/training.
-    # This preserves true env rewards for metrics (which observe raw timesteps),
-    # while zeroing the learning signal for other agents.
-    data_transformer_ctor=[
-        partial(RewardMaskByEnvId, rewarded_env_ids=[0], apply_on="all")
-    ],
     initial_collect_steps=100,
     mini_batch_length=2,
     mini_batch_size=256 * NUM_AGENTS,
