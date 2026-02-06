@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Literal, Sequence
@@ -139,4 +140,123 @@ def iqm(values: np.ndarray, proportion_to_cut: float = 0.25) -> float:
     if 2 * k >= n:
         return float(values.mean())
     return float(values[k:n - k].mean())
+
+
+def bin_mean_by_size(
+    t: np.ndarray,
+    r: np.ndarray,
+    *,
+    bin_size: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Bin consecutive indices and average values within each bin."""
+    t = np.asarray(t)
+    r = np.asarray(r)
+    if t.size == 0 or r.size == 0:
+        return t.astype(np.int64, copy=False), r.astype(np.float64, copy=False)
+    if bin_size <= 1:
+        return t.astype(np.int64, copy=False), r.astype(np.float64, copy=False)
+
+    t = t.astype(np.int64, copy=False)
+    r = r.astype(np.float64, copy=False)
+    t_bin = (t // int(bin_size)) * int(bin_size)
+
+    order = np.argsort(t_bin, kind="mergesort")
+    t_bin = t_bin[order]
+    r = r[order]
+
+    uniq, start = np.unique(t_bin, return_index=True)
+    sums = np.add.reduceat(r, start)
+    counts = np.diff(np.append(start, t_bin.size))
+    means = sums / counts
+    return uniq.astype(np.int64, copy=False), means.astype(np.float64, copy=False)
+
+
+def bin_agent_curves(
+    per_agent: dict[int, dict[int, float]],
+    *,
+    bin_size: int,
+) -> dict[int, dict[int, float]]:
+    """Bin each agent curve (mean within bin) and keep dict representation."""
+    if not per_agent:
+        return {}
+    out: dict[int, dict[int, float]] = {}
+    for agent_idx, d in per_agent.items():
+        if not d:
+            continue
+        t0 = np.fromiter(d.keys(), dtype=np.int64)
+        r0 = np.fromiter(d.values(), dtype=np.float64)
+        t_b, r_b = bin_mean_by_size(t0, r0, bin_size=bin_size)
+        out[int(agent_idx)] = {int(t): float(v) for t, v in zip(t_b, r_b)}
+    return out
+
+
+def pointwise_agent_max(
+    per_agent_binned: dict[int, dict[int, float]],
+) -> dict[int, float]:
+    """Pointwise max across agents, assuming curves are already binned."""
+    out: dict[int, float] = {}
+    for d in per_agent_binned.values():
+        for ep_idx, v in d.items():
+            cur = out.get(ep_idx)
+            if cur is None or v > cur:
+                out[ep_idx] = v
+    return out
+
+
+def sample_efficiency_integral(t: np.ndarray, r: np.ndarray) -> float | None:
+    """Compute ∑ (Δ cummax(r)) / t_at_increase for one curve."""
+    t = np.asarray(t)
+    r = np.asarray(r)
+    if t.size == 0 or r.size == 0:
+        return None
+
+    mask = np.isfinite(t) & np.isfinite(r)
+    t = t[mask].astype(np.float64, copy=False)
+    r = r[mask].astype(np.float64, copy=False)
+    if t.size == 0:
+        return None
+
+    order = np.argsort(t, kind="mergesort")
+    t = t[order]
+    r = r[order]
+
+    pos = t > 0
+    t = t[pos]
+    r = r[pos]
+    if t.size == 0:
+        return None
+
+    r_cum = np.maximum.accumulate(r)
+    dr = np.diff(r_cum)
+    if dr.size == 0:
+        return 0.0
+
+    t2 = t[1:]
+    inc = dr > 0
+    if not np.any(inc):
+        return 0.0
+    return float(np.sum(dr[inc] / t2[inc]))
+
+
+def load_episode_last_returns(
+    events_path: Path,
+    *,
+    max_episode: int | None,
+    value_key: str = "episode_return",
+) -> dict[int, dict[int, float]]:
+    """Return per-agent per-episode last value from one run file."""
+    max_episode_i = None if max_episode is None else int(max_episode)
+    per_agent: dict[int, dict[int, float]] = defaultdict(dict)
+    for rec in iter_ndjson(events_path):
+        if rec.get("type") != "episode":
+            continue
+        ep_idx_i = int(rec["episode_idx"])
+        if max_episode_i is not None and ep_idx_i > max_episode_i:
+            continue
+
+        agent_idx_i = int(rec.get("agent_idx", 0) or 0)
+
+        v_f = float(rec[value_key])
+        per_agent[agent_idx_i][ep_idx_i] = v_f
+    return dict(per_agent)
 
