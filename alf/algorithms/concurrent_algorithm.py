@@ -67,9 +67,8 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         events_flush_interval: int = 10,
         log_losses: bool = True,
         log_weight_norms: bool = False,
-        weight_norm_logging_interval: int = 10,
         log_grad_norms: bool = False,
-        grad_norm_logging_interval: int = 10,
+        diagnostics_logging_interval: int = 50,
     ):
 
         self._batch_size = alf.get_config_value(
@@ -174,10 +173,10 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         self._events_file = None
         self._events_write_count = 0
         self._log_weight_norms = log_weight_norms
-        self._weight_norm_logging_interval = max(1,
-                                                 weight_norm_logging_interval)
         self._log_grad_norms = log_grad_norms
-        self._grad_norm_logging_interval = max(1, grad_norm_logging_interval)
+
+        self._diagnostics_logging_interval = max(1,
+                                                 diagnostics_logging_interval)
 
         self._agent_reset_period = agent_reset_period
         self._next_agent_to_reset = 0
@@ -564,6 +563,9 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         """Log flat scalar losses to events.ndjson if enabled."""
         if not self._log_losses:
             return
+        train_iter = self._train_step_counter + 1
+        if train_iter % self._diagnostics_logging_interval != 0:
+            return
         extra = getattr(loss_info, 'extra', ())
         if extra == ():
             return
@@ -720,7 +722,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         self._train_step_counter += 1
 
         if (self._log_weight_norms and self._train_step_counter %
-                self._weight_norm_logging_interval == 0):
+                self._diagnostics_logging_interval == 0):
             for alg_idx, alg in enumerate(self._algorithms):
                 actor_module = getattr(alg, "_actor_network", None)
                 critic_module = getattr(alg, "_critic_networks", None)
@@ -733,9 +735,8 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                     "critic": self._module_weight_norm(critic_module),
                 })
 
-        if (self._log_grad_norms
-                and self._train_step_counter % self._grad_norm_logging_interval
-                == 0):
+        if (self._log_grad_norms and self._train_step_counter %
+                self._diagnostics_logging_interval == 0):
             for alg_idx, alg in enumerate(self._algorithms):
                 actor_module = getattr(alg, "_actor_network", None)
                 critic_module = getattr(alg, "_critic_networks", None)
