@@ -78,6 +78,7 @@ def load_by_type(folder: str, names: list[str]) -> dict[str, pl.DataFrame]:
             record["experiment"] = run.experiment
             record["seed"] = run.seed
             grouped.setdefault(event_type, []).append(record)
+
     by_type: dict[str, pl.DataFrame] = {}
     for event_type, rows in grouped.items():
         by_type[event_type] = pl.DataFrame(rows) if rows else pl.DataFrame()

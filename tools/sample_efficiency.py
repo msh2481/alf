@@ -25,12 +25,52 @@ FOLDER: str | Sequence[str] = [
 ]
 NAMES = ["a1_beta", "a4_beta", "a4_shuffle2"]
 MAX_EPISODE: int | None = None
+# Bin (episode_idx -> groups of consecutive episodes) before computing cummax.
+# This mirrors the `n_bins` smoothing used in `tools/custom_plot.py`.
+N_EPISODE_BINS = 50
 
 Stat = Literal["iqm", "mean", "median"]
 AgentReduce = Literal["none", "max", "mean"]
 
 
-def _integral_one(t: np.ndarray, r: np.ndarray) -> float | None:
+def _bin_mean_by_episode(
+        t: np.ndarray,
+        r: np.ndarray,
+        *,
+        n_bins: int,
+        t_min: int | None = None,
+        t_max: int | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Bin consecutive episode indices and average returns within each bin.
+
+    Bins are defined by the episode span divided into ~n_bins chunks:
+    bin = (episode_idx // bin_size) * bin_size, then mean within each bin.
+    """
+    if n_bins <= 0:
+        return t, r
+    if t.size == 0:
+        return t, r
+
+    if t_min is None:
+        t_min = int(np.min(t))
+    if t_max is None:
+        t_max = int(np.max(t))
+    span = max(1, int(t_max) - int(t_min) + 1)
+    bin_size = max(1, int(np.ceil(span / n_bins)))
+    t_bin = (t // bin_size) * bin_size
+
+    order = np.argsort(t_bin, kind="mergesort")
+    t_bin = t_bin[order]
+    r = r[order]
+
+    uniq, start = np.unique(t_bin, return_index=True)
+    sums = np.add.reduceat(r, start)
+    counts = np.diff(np.append(start, t_bin.size))
+    means = sums / counts
+    return uniq.astype(np.int64, copy=False), means.astype(np.float64, copy=False)
+
+
+def _integral_one(t: np.ndarray, r: np.ndarray, *, smooth: bool = True) -> float | None:
     """Compute I = ∑ (Δ cummax(r)) / t_at_increase for one run."""
     t = np.asarray(t)
     r = np.asarray(r)
@@ -53,6 +93,12 @@ def _integral_one(t: np.ndarray, r: np.ndarray) -> float | None:
     r = r[pos]
     if t.size == 0:
         return None
+
+    if smooth:
+        # Smooth along episode axis (reduce noise) before cummax/integral.
+        t, r = _bin_mean_by_episode(t, r, n_bins=N_EPISODE_BINS)
+        if t.size == 0:
+            return None
 
     r_cum = np.maximum.accumulate(r)
     dr = np.diff(r_cum)
@@ -134,9 +180,44 @@ def _run_records(run: RunRef, *, agent_reduce_mode: AgentReduce,
 
     # Reduce across agents per episode_idx.
     if agent_reduce_mode == "max":
-        ep_to_val: dict[int, float] = {}
+        # IMPORTANT: for max-across-agents, we smooth *per-agent* first, then
+        # take max across agents on the smoothed (binned) episode axis.
+        # This reduces noise before cummax and matches the "best agent per
+        # timestep" ensemble interpretation more literally.
+        t_min: int | None = None
+        t_max: int | None = None
+
+        cleaned: list[tuple[np.ndarray, np.ndarray]] = []
         for d in per_agent.values():
-            for ep_idx, v in d.items():
+            if not d:
+                continue
+            t0 = np.fromiter(d.keys(), dtype=np.int64)
+            r0 = np.fromiter(d.values(), dtype=np.float64)
+            mask = np.isfinite(t0) & np.isfinite(r0) & (t0 > 0)
+            t0 = t0[mask]
+            r0 = r0[mask]
+            if t0.size == 0:
+                continue
+            order = np.argsort(t0, kind="mergesort")
+            t0 = t0[order]
+            r0 = r0[order]
+            cleaned.append((t0, r0))
+            a = int(np.min(t0))
+            b = int(np.max(t0))
+            t_min = a if t_min is None else min(t_min, a)
+            t_max = b if t_max is None else max(t_max, b)
+
+        if not cleaned or t_min is None or t_max is None:
+            return []
+
+        ep_to_val: dict[int, float] = {}
+        for t0, r0 in cleaned:
+            t_b, r_b = _bin_mean_by_episode(t0,
+                                            r0,
+                                            n_bins=N_EPISODE_BINS,
+                                            t_min=t_min,
+                                            t_max=t_max)
+            for ep_idx, v in zip(t_b.tolist(), r_b.tolist()):
                 cur = ep_to_val.get(ep_idx)
                 if cur is None or v > cur:
                     ep_to_val[ep_idx] = v
@@ -153,7 +234,9 @@ def _run_records(run: RunRef, *, agent_reduce_mode: AgentReduce,
         return []
     t = np.fromiter(ep_to_val.keys(), dtype=np.int64)
     r = np.fromiter(ep_to_val.values(), dtype=np.float64)
-    integral = _integral_one(t, r)
+    # For max-across-agents we already smoothed per-agent before merging, so we
+    # skip smoothing here to avoid binning twice.
+    integral = _integral_one(t, r, smooth=(agent_reduce_mode != "max"))
     se = None if integral is None else float(max(0.0, integral))
     recs.append({
         "experiment": run.experiment,
@@ -255,7 +338,9 @@ def compute_table(*,
     wide = wide.with_columns(
         pl.concat_list(env_cols).alias("_vals"),
     ).with_columns(
-        pl.col("_vals").list.drop_nulls().list.mean().alias("average"),
+        pl.col("_vals").list.drop_nulls().list.eval(pl.element().log()
+                                                    ).list.mean().exp().alias(
+                                                        "average"),
     ).drop("_vals")
 
     return wide.sort("average", descending=True, nulls_last=True)
@@ -288,26 +373,46 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     p.add_argument("--out",
                    type=str,
                    default="plots/sample_efficiency.tsv",
-                   help="Output path (TSV by default; .csv uses comma).")
+                   help=("Output path. The file will contain a fixed-width text "
+                         "table (aligned columns). A second file "
+                         "'sample_efficiency_max.tsv' will also be written in "
+                         "the same folder, using pointwise max across agents "
+                         "within each run/seed."))
     return p.parse_args(argv)
 
 
 def main(argv: Sequence[str] | None = None) -> None:
     args = _parse_args(argv)
     workers = max(1, int(args.workers))
+    out_path = Path(args.out)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # 1) Default table (as configured by --agent_reduce).
     table = compute_table(folder_spec=FOLDER,
                           names=NAMES,
                           stat=args.stat,
                           agent_reduce_mode=args.agent_reduce,
                           max_episode=args.max_episode,
                           workers=workers)
-    if table.is_empty():
-        return
+    if not table.is_empty():
+        out_path.write_text(
+            table.to_pandas().to_string(index=False, float_format="%.2f"),
+            encoding="utf-8")
 
-    out_path = Path(args.out)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    sep = "," if out_path.suffix.lower() == ".csv" else "\t"
-    table.write_csv(str(out_path), separator=sep, float_precision=2)
+    # 2) "Ensemble" table: within each run/seed, take pointwise max across
+    # agent dimension per timestep, then compute sample-efficiency on that
+    # reduced curve.
+    out_path_max = out_path.parent / "sample_efficiency_max.tsv"
+    table_max = compute_table(folder_spec=FOLDER,
+                              names=NAMES,
+                              stat=args.stat,
+                              agent_reduce_mode="max",
+                              max_episode=args.max_episode,
+                              workers=workers)
+    if not table_max.is_empty():
+        out_path_max.write_text(
+            table_max.to_pandas().to_string(index=False, float_format="%.2f"),
+            encoding="utf-8")
 
 
 if __name__ == "__main__":

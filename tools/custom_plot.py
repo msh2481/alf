@@ -41,7 +41,78 @@ MAX_EPISODE: int | None = None
 CONFIDENCE = 0.95
 N_BOOT = 100
 BOOTSTRAP_SEED = 0
-N_BINS = 50
+
+BIN_CONF: dict[str, tuple[str, int]] = {
+    "episode": ("episode_idx", 10),
+    "loss": ("train_iter", 50),
+    "weight_norm": ("train_iter", 50),
+    "grad_norm": ("train_iter", 50),
+}
+
+
+def _bin_and_reduce(df: pl.DataFrame, *, x_col: str,
+                    bin_size: int) -> pl.DataFrame:
+    """Bin the x-axis in-place and reduce duplicates within each curve.
+
+    - Overwrites `x_col` with its binned value (no `*_bin` column).
+    - Reduces within (experiment, seed, [agent_idx], x_col) by taking mean of
+      numeric columns and first of non-numeric columns.
+    """
+    if df.is_empty() or x_col not in df.columns:
+        return df
+
+    # Ensure integer x-axis for stable binning and plotting.
+    df = df.with_columns(pl.col(x_col).cast(pl.Int64))
+
+    if bin_size > 1:
+        df = df.with_columns(
+            (pl.col(x_col) // int(bin_size) * int(bin_size)).alias(x_col))
+
+    # Reduce duplicates / within-bin points so each (seed[,agent],x) is a single sample.
+    group_keys: list[str] = ["experiment", "seed"]
+    if "agent_idx" in df.columns:
+        group_keys.append("agent_idx")
+    group_keys.append(x_col)
+
+    numeric_cols: list[str] = []
+    first_cols: list[str] = []
+    for c, dtype in df.schema.items():
+        if c in group_keys:
+            continue
+        if dtype in (pl.Utf8, pl.String):
+            first_cols.append(c)
+        else:
+            numeric_cols.append(c)
+
+    aggs: list[pl.Expr] = []
+    aggs.extend([pl.col(c).mean().alias(c) for c in numeric_cols])
+    aggs.extend([pl.col(c).first().alias(c) for c in first_cols])
+
+    out = df.group_by(group_keys, maintain_order=True).agg(aggs)
+    return out.sort(group_keys)
+
+
+def _preprocess_by_type(by_type: dict[str, pl.DataFrame], *,
+                        max_episode: int | None) -> dict[str, pl.DataFrame]:
+    """Apply BIN_CONF (and episode max filter) immediately after loading."""
+    out: dict[str, pl.DataFrame] = {}
+    for event_type, df in by_type.items():
+        if df.is_empty():
+            out[event_type] = df
+            continue
+
+        conf = BIN_CONF.get(event_type)
+        if conf is None:
+            out[event_type] = df
+            continue
+
+        x_col, bin_size = conf
+
+        if event_type == "episode" and max_episode is not None and "episode_idx" in df.columns:
+            df = df.filter(pl.col("episode_idx") <= int(max_episode))
+
+        out[event_type] = _bin_and_reduce(df, x_col=x_col, bin_size=int(bin_size))
+    return out
 
 
 def bootstrap_ci(
@@ -113,38 +184,14 @@ def episode_plot_df(ep: pl.DataFrame,
                     max_episode: int | None = None,
                     confidence: float = 0.95,
                     n_boot: int = 2000,
-                    bootstrap_seed: int = 0,
-                    n_bins: int | None = None) -> pl.DataFrame:
+                    bootstrap_seed: int = 0) -> pl.DataFrame:
     if ep.is_empty():
         return pl.DataFrame()
     if max_episode is not None:
         ep = ep.filter(pl.col("episode_idx") <= max_episode)
     if not ep.is_empty() and "episode_idx" in ep.columns:
         ep = ep.with_columns(pl.col("episode_idx").cast(pl.Int64))
-
-    # Optional binning along episode axis. Important for long runs where the
-    # per-episode curve is too dense/noisy.
     x_col = "episode_idx"
-    if n_bins is not None and n_bins > 0:
-        x_min = ep.select(pl.col(x_col).min()).item()
-        x_max = ep.select(pl.col(x_col).max()).item()
-        if x_min is not None and x_max is not None:
-            x_min = int(x_min)
-            x_max = int(x_max)
-            span = max(1, x_max - x_min + 1)
-            bin_size = max(1, int(np.ceil(span / n_bins)))
-            x_bin_col = f"{x_col}_bin"
-            ep = ep.with_columns(
-                (pl.col(x_col) // bin_size * bin_size).alias(x_bin_col))
-            x_col = x_bin_col
-
-            # Reduce within each (seed[,agent],bin) so bootstrap treats each
-            # curve as one sample per x-bin (similar spirit to train_iter binning).
-            reduce_keys = list(group_cols) + ["seed", x_col]
-            if "agent_idx" in ep.columns:
-                reduce_keys.insert(len(group_cols) + 1, "agent_idx")
-            ep = ep.group_by(reduce_keys).agg(
-                pl.col("episode_return").mean().alias("episode_return"))
 
     ci = bootstrap_ci(ep,
                       group_cols=group_cols,
@@ -176,9 +223,7 @@ def plot_episode_iqm(plot_df: pl.DataFrame,
     groups = sorted(plot_df[group_col].unique().to_list())
     colors = _cmap_colors("Set1")
     for i, g in enumerate(groups):
-        # The x column can be either episode_idx or episode_idx_bin depending on
-        # whether binning is enabled upstream.
-        x_col = "episode_idx" if "episode_idx" in plot_df.columns else "episode_idx_bin"
+        x_col = "episode_idx"
         d = plot_df.filter(pl.col(group_col) == g).sort(x_col)
         x = d[x_col].to_numpy()
         y = d["stat"].to_numpy()
@@ -211,7 +256,6 @@ def plot_many_lines(ax,
                     alpha: float = 0.25,
                     linewidth: float = 1.0,
                     linestyle: str = "-",
-                    n_bins: int | None = None,
                     bin_reducer: Literal["mean"] = "mean",
                     set_ylim_quantiles: bool = True,
                     ylim_quantiles: tuple[float, float] = (0.05, 0.95),
@@ -225,27 +269,6 @@ def plot_many_lines(ax,
     # Some event types might not have all requested line columns (e.g. no
     # `agent_idx`). In that case, gracefully drop missing ones.
     line_cols = tuple(c for c in line_cols if c in df.columns)
-
-    if n_bins is not None and n_bins > 0:
-        x_min = df.select(pl.col(x_col).min()).item()
-        x_max = df.select(pl.col(x_col).max()).item()
-        if x_min is not None and x_max is not None:
-            x_min = int(x_min)
-            x_max = int(x_max)
-            span = max(1, x_max - x_min + 1)
-            bin_size = max(1, int(np.ceil(span / n_bins)))
-            x_bin_col = f"{x_col}_bin"
-            if bin_reducer != "mean":
-                raise ValueError(f"Unsupported bin_reducer: {bin_reducer}")
-            df = df.with_columns(
-                (pl.col(x_col) // bin_size * bin_size).alias(x_bin_col))
-            group_keys = [x_bin_col]
-            if color_col in df.columns:
-                group_keys = [color_col, *line_cols, x_bin_col]
-            elif line_cols:
-                group_keys = [*line_cols, x_bin_col]
-            df = df.group_by(group_keys).agg(pl.col(y_col).mean().alias(y_col))
-            x_col = x_bin_col
 
     if set_ylim_quantiles:
         qlo, qhi = ylim_quantiles
@@ -334,14 +357,12 @@ def plot_actor_critic_dashboard(by_type: dict[str, pl.DataFrame],
                         df,
                         x_col=x_col,
                         y_col=critic_y,
-                        title=f"{event_type}: critic",
-                        n_bins=N_BINS if x_col == "train_iter" else None)
+                        title=f"{event_type}: critic")
         plot_many_lines(ax_a,
                         df,
                         x_col=x_col,
                         y_col=actor_y,
-                        title=f"{event_type}: actor",
-                        n_bins=N_BINS if x_col == "train_iter" else None)
+                        title=f"{event_type}: actor")
 
     plt.tight_layout()
     plt.savefig(out, dpi=300, bbox_inches="tight")
@@ -369,7 +390,6 @@ def plot_critic_dashboard(by_type: dict[str, pl.DataFrame],
                     x_col="train_iter",
                     y_col="log_alpha",
                     title="log_alpha",
-                    n_bins=N_BINS,
                     set_ylim_quantiles=False)
 
     # Helper to overlay mean/min/max on same axis
@@ -388,7 +408,6 @@ def plot_critic_dashboard(by_type: dict[str, pl.DataFrame],
                         x_col="train_iter",
                         y_col=mean_col,
                         title=title,
-                        n_bins=N_BINS,
                         set_ylim_quantiles=False,
                         linestyle="-",
                         yscale=yscale,
@@ -400,7 +419,6 @@ def plot_critic_dashboard(by_type: dict[str, pl.DataFrame],
                             df,
                             x_col="train_iter",
                             y_col=min_col,
-                            n_bins=N_BINS,
                             set_ylim_quantiles=False,
                             linestyle="--",
                             yscale=yscale,
@@ -412,7 +430,6 @@ def plot_critic_dashboard(by_type: dict[str, pl.DataFrame],
                             df,
                             x_col="train_iter",
                             y_col=max_col,
-                            n_bins=N_BINS,
                             set_ylim_quantiles=False,
                             linestyle="--",
                             yscale=yscale,
@@ -456,12 +473,9 @@ def process_one_folder(*, name: str, folder: str, idx: int,
     out_dir.mkdir(parents=True, exist_ok=True)
 
     by_type = load_by_type(folder=folder, names=NAMES)
+    by_type = _preprocess_by_type(by_type, max_episode=MAX_EPISODE)
 
     ep = by_type.get("episode", pl.DataFrame())
-    if not ep.is_empty() and "episode_idx" in ep.columns:
-        ep = ep.with_columns(pl.col("episode_idx").cast(pl.Int64))
-    if not ep.is_empty() and "agent_idx" in ep.columns:
-        ep = ep.with_columns(pl.col("agent_idx").cast(pl.Int64))
 
     out_iqm = str(out_dir / OUT)
     out_lines = str(out_dir / OUT_LINES)
@@ -476,8 +490,7 @@ def process_one_folder(*, name: str, folder: str, idx: int,
                                   max_episode=MAX_EPISODE,
                                   confidence=CONFIDENCE,
                                   n_boot=N_BOOT,
-                                  bootstrap_seed=BOOTSTRAP_SEED,
-                                  n_bins=N_BINS)
+                                  bootstrap_seed=BOOTSTRAP_SEED)
         print("Plotting episode IQM...")
         plot_episode_iqm(plot_df, out=out_iqm, confidence=CONFIDENCE)
         print(f"Saved plot to: {out_iqm}")
@@ -492,8 +505,7 @@ def process_one_folder(*, name: str, folder: str, idx: int,
                         y_col="episode_return",
                         line_cols=line_cols,
                         color_col="experiment",
-                        title="Episode Return (many lines)",
-                        n_bins=None)
+                        title="Episode Return (many lines)")
         ax.set_xlabel("Episode Index")
         ax.set_ylabel("Episode Return")
         plt.tight_layout()
