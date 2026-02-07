@@ -33,7 +33,7 @@ from plot_common import (agent_reduce, iqm, load_by_type,
 # - the special string "all_dm", which expands to all
 #   subfolders of /tmp/dmc.
 FOLDER: str | Sequence[str] = "all_dm"
-NAMES = ["a1_beta", "a4_beta", "a4_shuffle2"]
+NAMES = ["a1_beta", "a4_shuffle2", "alpha_0.0001", "alpha_0.0003", "alpha_0.0005", "alpha_0.001", "alpha_0.005"]
 OUT = "iqm_episode_return.png"
 OUT_LINES = "lines_episode_return.png"
 OUT_CRITIC = "critic.png"

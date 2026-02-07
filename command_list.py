@@ -13,13 +13,40 @@
 # limitations under the License.
 
 from dm_control import suite
+import subprocess
 
-names = [f"{a}:{b}" for a, b in suite.BENCHMARKING]
-print(names)
+# names = [f"{a}:{b}" for a, b in suite.BENCHMARKING]
+# print(names)
+
+EXECUTE = True
+
+names = [
+    "cartpole:swingup_sparse",
+    "fish:swim",
+    "cheetah:run",
+    "hopper:hop",
+    "hopper:stand",
+    "walker:run",
+    "walker:stand",
+    "walker:walk",
+]
+
+def pueue_add(command):
+    if EXECUTE:
+        subprocess.run(["pueue", "add", "--", command], check=True)
+    else:
+        print(f"pueue add -- '{command}'")
 
 for n in names:
     commands = [
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 ENV="{n}" NAME="a4_shuffle2"',
+        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 PRIOR_SCALE=0.001 ENV="{n}" NAME="scale_0.001"',
+        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 PRIOR_SCALE=0.003 ENV="{n}" NAME="scale_0.003"',
+        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 PRIOR_SCALE=0.01 ENV="{n}" NAME="scale_0.01"',
+        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 PRIOR_SCALE=0.03 ENV="{n}" NAME="scale_0.03"',
+        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 PRIOR_SCALE=0.1 ENV="{n}" NAME="scale_0.1"',
     ]
     for c in commands:
-        print(f"pueue add -- '{c}'")
+        pueue_add(c)
+
+pueue_add("python tools/sample_efficiency.py")
+pueue_add("python tools/custom_plot.py")

@@ -10,6 +10,7 @@ LR="1e-3"
 WD="1e-5"
 GAMMA="0.99"
 PRIOR_SCALE="0.01"
+ALPHA="5e-4"
 LN="True"
 UTD=1
 NUM_AGENTS=1
@@ -34,6 +35,7 @@ COMMON_ARGS=(
     --conf_param="_CONFIG._USER.lr=$LR"
     --conf_param="_CONFIG._USER.wd=$WD"
     --conf_param="_CONFIG._USER.prior_scale=$PRIOR_SCALE"
+    --conf_param="_CONFIG._USER.alpha=$ALPHA"
     --conf_param="_CONFIG._USER.ln=$LN"
     --conf_param="_CONFIG._USER.utd=$UTD"
     --conf_param="_CONFIG._USER.num_agents=$NUM_AGENTS"
@@ -44,7 +46,7 @@ COMMON_ARGS=(
 )
 
 if [ -n "$SEEDS" ] && [ "$SEEDS" -gt 0 ] 2>/dev/null; then
-    echo "Running multi-seed batch: num_seeds=$SEEDS num_agents=$NUM_AGENTS lr=$LR wd=$WD prior_scale=$PRIOR_SCALE ln=$LN utd=$UTD tau=$TAU async=$ASYNC env=$ENV gamma=$GAMMA video_record_interval=$VIDEO_RECORD_INTERVAL base_dir=$BASE_DIR"
+    echo "Running multi-seed batch: num_seeds=$SEEDS num_agents=$NUM_AGENTS lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA ln=$LN utd=$UTD tau=$TAU async=$ASYNC env=$ENV gamma=$GAMMA video_record_interval=$VIDEO_RECORD_INTERVAL base_dir=$BASE_DIR"
 
     for SEED in $(seq 0 $((SEEDS - 1))); do
         ROOT_DIR="${BASE_DIR}/${SEED}"
@@ -69,7 +71,7 @@ if [ -n "$SEEDS" ] && [ "$SEEDS" -gt 0 ] 2>/dev/null; then
     echo "All seed runs completed!"
 else
     ROOT_DIR="$BASE_DIR"
-    echo "Running single run: num_agents=$NUM_AGENTS lr=$LR wd=$WD prior_scale=$PRIOR_SCALE ln=$LN utd=$UTD tau=$TAU async=$ASYNC env=$ENV gamma=$GAMMA video_record_interval=$VIDEO_RECORD_INTERVAL root_dir=$ROOT_DIR"
+    echo "Running single run: num_agents=$NUM_AGENTS lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA ln=$LN utd=$UTD tau=$TAU async=$ASYNC env=$ENV gamma=$GAMMA video_record_interval=$VIDEO_RECORD_INTERVAL root_dir=$ROOT_DIR"
 
     if [[ "$ENV" == Rotator* ]]; then
         export ALF_ROTATOR_LOG_DIR="logs/${NAME}/0"

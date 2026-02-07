@@ -34,6 +34,7 @@ GRAD_CLIP = alf.define_config('grad_clip', 10.0)
 CLIP_BY_GLOBAL_NORM = alf.define_config('clip_by_global_norm', True)
 GAMMA = alf.define_config('gamma', 0.99)
 PRIOR_SCALE = alf.define_config('prior_scale', 0.1)
+ALPHA = alf.define_config('alpha', 3e-4)
 LN = alf.define_config('ln', True)
 UTD = alf.define_config('utd', 1)
 NUM_AGENTS = alf.define_config('num_agents', 1)
@@ -91,7 +92,7 @@ alf.config(
     critic_network_cls=RandomizedPriorCriticNetwork,
     max_log_alpha=0.0,
     use_entropy_reward=
-    False,  # TODO: maybe turn off later; currently included to avoid weird huge entropy rewards when learning from off-policy data
+    False,
     target_update_tau=TAU,
     target_update_period=1,
 )
@@ -104,7 +105,7 @@ alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SacAlgorithm,
     agent_reset_period=1,
-    prior_perturbation_alpha=0.0003,
+    prior_perturbation_alpha=ALPHA,
     optimizer=alf.optimizers.Adam(lr=LR,
                                   weight_decay=WD,
                                   name='main',
