@@ -12,7 +12,7 @@ LR="0.05"
 WD="1e-5"
 GAMMA="0.95"
 PRIOR_SCALE="0.1"
-ALPHA="1e-2"
+ALPHA=""
 TAU="0.05"
 UTD=4
 NUM_AGENTS=4
@@ -40,7 +40,6 @@ COMMON_ARGS=(
     --conf_param="_CONFIG._USER.wd=$WD"
     --conf_param="_CONFIG._USER.gamma=$GAMMA"
     --conf_param="_CONFIG._USER.prior_scale=$PRIOR_SCALE"
-    --conf_param="_CONFIG._USER.alpha=$ALPHA"
     --conf_param="_CONFIG._USER.tau=$TAU"
     --conf_param="_CONFIG._USER.utd=$UTD"
     --conf_param="_CONFIG._USER.num_agents=$NUM_AGENTS"
@@ -48,6 +47,10 @@ COMMON_ARGS=(
     --conf_param="_CONFIG._USER.entropy_reward=$ENTROPY_REWARD"
     --conf_param="_CONFIG._USER.n_components=$N_COMPONENTS"
 )
+
+if [ -n "$ALPHA" ]; then
+    COMMON_ARGS+=(--conf_param="_CONFIG._USER.alpha=$ALPHA")
+fi
 
 if [ -n "$SEEDS" ] && [ "$SEEDS" -gt 0 ] 2>/dev/null; then
     echo "Running multi-seed batch: num_seeds=$SEEDS env=$ENV num_agents=$NUM_AGENTS lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA tau=$TAU gamma=$GAMMA utd=$UTD async=$ASYNC entropy_reward=$ENTROPY_REWARD n_components=$N_COMPONENTS conf=$CONF base_dir=$BASE_DIR"

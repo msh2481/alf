@@ -227,7 +227,13 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
 
         alg = self._algorithms[agent_idx]
         perturbed = 0
-        for m in alg.modules():
+        for module_name, m in alg.named_modules():
+            # Keep target networks fixed during soft resets.
+            is_target_module = ("_target_" in module_name
+                                or module_name.startswith("target_")
+                                or ".target_" in module_name)
+            if is_target_module:
+                continue
             perturb_fn = getattr(m, "perturb_prior", None)
             if callable(perturb_fn):
                 perturb_fn(alpha)
@@ -237,6 +243,18 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             logging.warning(
                 f"prior_perturbation_alpha is set but no perturbable modules were found in agent {agent_idx}; falling back to full reset"
             )
+            self._reset_agent(agent_idx)
+
+    def _apply_periodic_reset(self, agent_idx: int):
+        """Apply periodic reset strategy for one agent.
+
+        If ``prior_perturbation_alpha`` is positive, use soft reset by
+        perturbing priors. Otherwise (None, 0, or negative), use full reset.
+        """
+        alpha = self._prior_perturbation_alpha
+        if alpha is not None and alpha > 0:
+            self._perturb_agent_prior(agent_idx)
+        else:
             self._reset_agent(agent_idx)
 
     def close(self):
@@ -758,10 +776,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                                step_label=self._train_step_counter)
         if (self._agent_reset_period is not None
                 and self._train_step_counter % self._agent_reset_period == 0):
-            if self._prior_perturbation_alpha is not None:
-                self._perturb_agent_prior(self._next_agent_to_reset)
-            else:
-                self._reset_agent(self._next_agent_to_reset)
+            self._apply_periodic_reset(self._next_agent_to_reset)
             self._next_agent_to_reset = (self._next_agent_to_reset +
                                          1) % self._num_copies
 

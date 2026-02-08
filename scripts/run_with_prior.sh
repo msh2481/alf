@@ -6,9 +6,9 @@ bash scripts/run_bipolar.sh \
     LR="0.05" \
     WD="1e-5" \
     GAMMA="0.95" \
-    PRIOR_SCALE="0.5" \
-    ALPHA="1e-2" \
-    TAU="0.5" \
+    PRIOR_SCALE="0.01" \
+    ALPHA="0" \
+    TAU="0.05" \
     UTD=4 \
     NUM_AGENTS=1 \
     ASYNC="False" \
