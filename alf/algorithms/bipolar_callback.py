@@ -25,6 +25,9 @@ from matplotlib import colors as mcolors
 import alf
 from alf.tensor_specs import TensorSpec
 
+plt.style.use('seaborn-v0_8-white')
+plt.rcParams['axes.grid'] = False
+
 
 def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=256):
     if isinstance(cmap, str):
@@ -254,16 +257,20 @@ class BipolarCallback:
         """Create and save visualization plots."""
         k = self._debug_env.k
         positions = list(range(-k, k + 1))
+        has_actor_col = not action_spec.is_discrete
 
+        ncols = 3 if has_actor_col else 2
         fig, axes = plt.subplots(num_copies + 1,
-                                 3,
-                                 figsize=(30, 5 * (num_copies + 1)))
+                                 ncols,
+                                 figsize=((30 if has_actor_col else 20),
+                                          5 * (num_copies + 1)))
 
         transition_counts = self._debug_env.get_transition_counts_table(
             replay_buffer)
         self._plot_transition_counts(axes[0, :2], transition_counts, k,
                                      positions)
-        self._plot_all_q_functions(axes[0, 2], algorithms, action_spec)
+        if has_actor_col:
+            self._plot_all_q_functions(axes[0, 2], algorithms, action_spec)
 
         for i in range(num_copies):
 
@@ -272,29 +279,23 @@ class BipolarCallback:
 
             self._plot_q_values(axes[i + 1, :2], i, k, positions, q_func)
 
-            # Actor probabilities plotting (third column)
-            if get_actor_fn is not None:
+            # Actor probabilities plotting (third column, continuous only)
+            if has_actor_col and get_actor_fn is not None:
 
                 def actor_func(obs):
                     return get_actor_fn(i, obs)
 
                 self._plot_actor_probabilities(axes[i + 1, 2], i, k, positions,
                                                actor_func)
-            else:
-                # Discrete actions - add explanatory text
-                axes[i + 1, 2].text(
-                    0.5,
-                    0.5,
-                    'Actor visualization\nonly for continuous\naction spaces',
-                    ha='center',
-                    va='center',
-                    transform=axes[i + 1, 2].transAxes,
-                    fontsize=12)
+            elif has_actor_col:
                 axes[i + 1, 2].axis('off')
 
         plt.tight_layout()
         plot_path = os.path.join(log_dir, f'{iter_number}.png')
-        plt.savefig(plot_path, dpi=self._save_dpi)
+        plt.savefig(plot_path,
+                    dpi=self._save_dpi,
+                    facecolor='white',
+                    bbox_inches='tight')
         plt.close(fig)
         logging.info(f"Written plot to {plot_path}")
 
@@ -361,12 +362,14 @@ class BipolarCallback:
         for action_idx, action_name in enumerate(['Left', 'Right']):
             ax = axes_row[action_idx]
             data = transition_counts[:, :, action_idx].T
-            im = ax.imshow(data,
+            log_data = np.where(np.isnan(data), np.nan,
+                                np.log1p(np.clip(data, a_min=0.0, a_max=None)))
+            im = ax.imshow(log_data,
                            aspect='auto',
-                           cmap=truncate_colormap("Blues", 0, 0.5),
+                           cmap='turbo',
                            origin='lower',
-                           vmin=0,
-                           vmax=5)
+                           vmin=np.log1p(0.0),
+                           vmax=np.log1p(20.0))
             ax.set_xlabel('Position')
             ax.set_ylabel('Time')
             ax.set_title(f'Transitions {action_name}')
@@ -376,7 +379,10 @@ class BipolarCallback:
                 for j in range(0, 2 * k + 1, max(1, (2 * k + 1) // 8))
             ])
             ax.set_yticks(range(k + 1))
-            plt.colorbar(im, ax=ax)
+            cbar = plt.colorbar(im, ax=ax, label='count')
+            count_ticks = np.array([0, 1, 2, 5, 10, 20], dtype=float)
+            cbar.set_ticks(np.log1p(count_ticks))
+            cbar.set_ticklabels([str(int(v)) for v in count_ticks])
 
             if self._annotate_transition_counts:
                 for pos_idx in range(2 * k + 1):

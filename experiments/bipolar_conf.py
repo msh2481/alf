@@ -51,7 +51,7 @@ alf.config('create_environment',
            max_steps_for_phase_randomization=24)
 
 alf.config('ReplayBuffer', shuffle_batch=True)
-alf.config('BipolarCallback', annotate_transition_counts=True)
+alf.config('BipolarCallback', annotate_transition_counts=False)
 
 if DISCRETE:
     alf.config('QNetwork', fc_layer_params=HIDDEN_LAYERS, use_fc_ln=True)
