@@ -11,48 +11,43 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import math
 import alf
-from alf.algorithms.seed_sampling import SeedDqnAlgorithm, SeedSacAlgorithm
+from alf.algorithms.seed_sampling import SeedSacAlgorithm
 from alf.algorithms.sac_algorithm import SacAlgorithm
-from alf.algorithms.dqn_algorithm import DqnAlgorithm
 from alf.algorithms.concurrent_algorithm import ConcurrentAlgorithm
-from alf.networks import QNetwork, RandomizedPriorQNetwork, CriticNetwork, RandomizedPriorCriticNetwork, RBFCriticNetwork
+from alf.networks import QNetwork, RandomizedPriorQNetwork, RandomizedPriorCriticNetwork, RBFCriticNetwork
 from alf.networks.actor_distribution_networks import RBFActorDistributionNetwork
-from alf.networks.encoding_networks import IdentityEncodingNetwork, EncodingNetwork
 from alf.utils.losses import element_wise_squared_loss
-from alf.utils.math_ops import clipped_exp
 from functools import partial
-from alf.environments.simple.bipolar_chain import BipolarChain
 from alf.environments import suite_gym
-from alf.algorithms.rotator_callback import RotatorCallback
+from alf.algorithms.bipolar_callback import BipolarCallback
 
-ENV_NAME = "BipolarChain-medium-dense-onehot-continuous-v0"
-DISCRETE = "discrete" in ENV_NAME
+ENV = alf.define_config('env',
+                        "BipolarChain-medium-dense-onehot-continuous-v0")
+LR = alf.define_config('lr', 0.05)
+WD = alf.define_config('wd', 1e-4)
+GAMMA = alf.define_config('gamma', 0.9)
+PRIOR_SCALE = alf.define_config('prior_scale', 0.1)
+ALPHA = alf.define_config('alpha', 5e-4)
+TAU = alf.define_config('tau', 0.05)
+UTD = alf.define_config('utd', 8)
 NUM_AGENTS = alf.define_config('num_agents', 1)
 ASYNC = alf.define_config('async', True)
+ENTROPY_REWARD = alf.define_config('entropy_reward', False)
+N_COMPONENTS = alf.define_config('n_components', 4000)
+SEED_VERSION = alf.define_config('seed_version', False)
+
+DISCRETE = "discrete" in ENV
 NUM_COPIES = NUM_AGENTS
-RESET_PERIOD = 50
 BATCH_SIZE = 256 * NUM_COPIES
 ENV_COUNTS = NUM_COPIES
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
-SEED_VERSION = False
-ENTROPY_REWARD = False
 
 HIDDEN_LAYERS = (256, 256)
 
-PRIOR_SCALE = 0.1
-# PARAMETER_TARGET_STD = 0.0
-# PARAMETER_TARGET_ALPHA = 0.0
-# REWARD_NOISE_STD = 0.0
-# assert (PRIOR_SCALE == 0.0) or (
-#     PARAMETER_TARGET_STD == 0.0 and PARAMETER_TARGET_ALPHA == 0.0
-# ), "Don't turn on both PRIOR_SCALE and PARAMETER_TARGET_STD/PARAMETER_TARGET_ALPHA"
-
-# environment config
 alf.config('create_environment',
-           env_name=ENV_NAME,
+           env_name=ENV,
            num_parallel_environments=ENV_COUNTS,
            ensure_different_phases=ASYNC,
            max_steps_for_phase_randomization=24)
@@ -79,7 +74,6 @@ else:
     #            joint_fc_layer_params=HIDDEN_LAYERS,
     #            use_fc_ln=True)
 
-    N_COMPONENTS = 4000
     alf.config('RBFCriticNetwork',
                n_components=N_COMPONENTS,
                gamma=2.0,
@@ -88,14 +82,7 @@ else:
                n_components=N_COMPONENTS,
                gamma=10.0,
                continuous_projection_net_ctor=partial(
-                   alf.networks.NormalProjectionNetwork,
-                   zero_init=True,
-                   state_dependent_std=True,
-                   std_transform=partial(clipped_exp,
-                                         clip_value_min=math.log(0.1),
-                                         clip_value_max=math.log(0.3)),
-                   scale_distribution=True,
-                   use_bias=False))
+                   alf.networks.BetaProjectionNetwork, min_concentration=1.0))
     alf.config('RandomizedPriorCriticNetwork',
                network_ctor=RBFCriticNetwork,
                prior_scale=PRIOR_SCALE,
@@ -108,7 +95,7 @@ else:
 alf.config(
     'SacAlgorithm',
     num_critic_replicas=1,
-    target_update_tau=0.05,
+    target_update_tau=TAU,
     target_update_period=1,
     use_entropy_reward=ENTROPY_REWARD,
     num_actor_updates=None,
@@ -117,22 +104,19 @@ alf.config(
 
 alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
-           gamma=0.9)
+           gamma=GAMMA)
 
-alf.config('ConcurrentAlgorithm',
-           agent_reset_period=RESET_PERIOD,
-           log_states=True)
+alf.config('ConcurrentAlgorithm', agent_reset_period=1, log_states=False)
 
 alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SeedSacAlgorithm if SEED_VERSION else SacAlgorithm,
-    optimizer=alf.optimizers.AdamW(lr=0.05, weight_decay=1e-4, name='main'),
+    prior_perturbation_alpha=ALPHA,
+    optimizer=alf.optimizers.Adam(lr=LR, weight_decay=WD, name='main'),
     num_copies=NUM_COPIES,
     use_exploration_seeds=SEED_VERSION,
-    debug_env=suite_gym.load(ENV_NAME)
-    if ENV_NAME.startswith("Rotator") else None,
-    debug_callback_cls=RotatorCallback
-    if ENV_NAME.startswith("Rotator") else None,
+    debug_env=suite_gym.load(ENV),
+    debug_callback_cls=BipolarCallback,
     video_record_interval=None,
     debug_log_every_n_steps=5,
     log_episode_returns=True,
@@ -144,7 +128,7 @@ alf.config('TrainerConfig',
            mini_batch_length=MINI_BATCH_LENGTH,
            mini_batch_size=BATCH_SIZE,
            unroll_length=UNROLL_LENGTH,
-           num_updates_per_train_iter=8,
+           num_updates_per_train_iter=UTD,
            num_iterations=10000,
            num_checkpoints=3,
            evaluate=False,
