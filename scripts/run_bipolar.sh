@@ -7,7 +7,7 @@
 #   bash scripts/run_bipolar.sh NUM_AGENTS=4 ASYNC="False" UTD=8
 
 CONF="experiments/bipolar_conf.py"
-ENV="BipolarChain-medium-dense-onehot-continuous-v0"
+ENV="BipolarChain-medium-dense-onehot-discrete-v0"
 LR="0.05"
 WD="1e-4"
 GAMMA="0.9"
@@ -16,10 +16,9 @@ ALPHA="5e-4"
 TAU="0.05"
 UTD=8
 NUM_AGENTS=4
-ASYNC="False"
+ASYNC="True"
 ENTROPY_REWARD="False"
 N_COMPONENTS=4000
-SEED_VERSION="False"
 NAME="$(date +%Y%m%d_%H%M%S)"
 SEEDS=""
 BASE_DIR=""
@@ -48,11 +47,10 @@ COMMON_ARGS=(
     --conf_param="_CONFIG._USER.async=$ASYNC"
     --conf_param="_CONFIG._USER.entropy_reward=$ENTROPY_REWARD"
     --conf_param="_CONFIG._USER.n_components=$N_COMPONENTS"
-    --conf_param="_CONFIG._USER.seed_version=$SEED_VERSION"
 )
 
 if [ -n "$SEEDS" ] && [ "$SEEDS" -gt 0 ] 2>/dev/null; then
-    echo "Running multi-seed batch: num_seeds=$SEEDS env=$ENV num_agents=$NUM_AGENTS lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA tau=$TAU gamma=$GAMMA utd=$UTD async=$ASYNC entropy_reward=$ENTROPY_REWARD n_components=$N_COMPONENTS seed_version=$SEED_VERSION conf=$CONF base_dir=$BASE_DIR"
+    echo "Running multi-seed batch: num_seeds=$SEEDS env=$ENV num_agents=$NUM_AGENTS lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA tau=$TAU gamma=$GAMMA utd=$UTD async=$ASYNC entropy_reward=$ENTROPY_REWARD n_components=$N_COMPONENTS conf=$CONF base_dir=$BASE_DIR"
 
     for SEED in $(seq 0 $((SEEDS - 1))); do
         ROOT_DIR="${BASE_DIR}/${SEED}"
@@ -61,6 +59,7 @@ if [ -n "$SEEDS" ] && [ "$SEEDS" -gt 0 ] 2>/dev/null; then
         echo "Launching seed $SEED in background: root_dir=$ROOT_DIR log=$LOG_FILE"
 
         (
+            export ALF_BIPOLAR_LOG_DIR="logs/${NAME}/${SEED}"
             python -m alf.bin.train \
                 "${COMMON_ARGS[@]}" \
                 --root_dir="$ROOT_DIR" \
@@ -77,6 +76,7 @@ else
     ROOT_DIR="$BASE_DIR"
     echo "Running single run: env=$ENV num_agents=$NUM_AGENTS lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA tau=$TAU gamma=$GAMMA utd=$UTD async=$ASYNC entropy_reward=$ENTROPY_REWARD n_components=$N_COMPONENTS seed_version=$SEED_VERSION conf=$CONF root_dir=$ROOT_DIR"
 
+    export ALF_BIPOLAR_LOG_DIR="logs/${NAME}/0"
     python -m alf.bin.train \
         "${COMMON_ARGS[@]}" \
         --root_dir="$ROOT_DIR" \

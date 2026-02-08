@@ -22,8 +22,7 @@ from functools import partial
 from alf.environments import suite_gym
 from alf.algorithms.bipolar_callback import BipolarCallback
 
-ENV = alf.define_config('env',
-                        "BipolarChain-medium-dense-onehot-continuous-v0")
+ENV = alf.define_config('env', "BipolarChain-medium-dense-onehot-discrete-v0")
 LR = alf.define_config('lr', 0.05)
 WD = alf.define_config('wd', 1e-4)
 GAMMA = alf.define_config('gamma', 0.9)
@@ -35,7 +34,6 @@ NUM_AGENTS = alf.define_config('num_agents', 1)
 ASYNC = alf.define_config('async', True)
 ENTROPY_REWARD = alf.define_config('entropy_reward', False)
 N_COMPONENTS = alf.define_config('n_components', 4000)
-SEED_VERSION = alf.define_config('seed_version', False)
 
 DISCRETE = "discrete" in ENV
 NUM_COPIES = NUM_AGENTS
@@ -110,11 +108,11 @@ alf.config('ConcurrentAlgorithm', agent_reset_period=1, log_states=False)
 
 alf.config(
     "ConcurrentAlgorithm",
-    algorithm_ctor=SeedSacAlgorithm if SEED_VERSION else SacAlgorithm,
+    algorithm_ctor=SacAlgorithm,
     prior_perturbation_alpha=ALPHA,
     optimizer=alf.optimizers.Adam(lr=LR, weight_decay=WD, name='main'),
     num_copies=NUM_COPIES,
-    use_exploration_seeds=SEED_VERSION,
+    use_exploration_seeds=False,
     debug_env=suite_gym.load(ENV),
     debug_callback_cls=BipolarCallback,
     video_record_interval=None,

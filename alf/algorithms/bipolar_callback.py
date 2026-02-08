@@ -208,7 +208,8 @@ class BipolarCallback:
                 logging.warning(f"Failed to create actor function: {e}")
                 logging.warning("Actor visualization will be skipped.")
 
-        os.makedirs('logs', exist_ok=True)
+        log_dir = os.environ.get('ALF_BIPOLAR_LOG_DIR', 'logs')
+        os.makedirs(log_dir, exist_ok=True)
 
         # log_file_path = f'logs/{iter_number}.txt'
         # with open(log_file_path, 'w') as f:
@@ -217,7 +218,8 @@ class BipolarCallback:
 
         self._executor.submit(self._create_and_save_plots, iter_number,
                               replay_buffer, algorithms, action_spec,
-                              num_copies, get_q_values_fn, get_actor_fn)
+                              num_copies, get_q_values_fn, get_actor_fn,
+                              log_dir)
         logging.info(f"Plot saving in background")
 
     def _write_basic_stats(self, f, observations, rewards, replay_buffer):
@@ -237,7 +239,8 @@ class BipolarCallback:
                                action_spec,
                                num_copies,
                                get_q_values_fn,
-                               get_actor_fn=None):
+                               get_actor_fn=None,
+                               log_dir='logs'):
         """Create and save visualization plots."""
         k = self._debug_env.k
         positions = list(range(-k, k + 1))
@@ -280,7 +283,7 @@ class BipolarCallback:
                 axes[i + 1, 2].axis('off')
 
         plt.tight_layout()
-        plot_path = f'logs/{iter_number}.png'
+        plot_path = os.path.join(log_dir, f'{iter_number}.png')
         plt.savefig(plot_path, dpi=150)
         plt.close()
         logging.info(f"Written plot to {plot_path}")
