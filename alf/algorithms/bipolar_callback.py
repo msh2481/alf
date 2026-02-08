@@ -24,7 +24,6 @@ import matplotlib.pyplot as plt
 from matplotlib import colors as mcolors
 import alf
 from alf.tensor_specs import TensorSpec
-from concurrent.futures import ThreadPoolExecutor
 
 
 def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=256):
@@ -43,13 +42,22 @@ class BipolarCallback:
                  debug_env=None,
                  log_every_n_steps: int = 100,
                  num_samples: int = 1000,
+                 q_curve_action_points: int = 51,
+                 save_dpi: int = 100,
+                 annotate_transition_counts: bool = False,
+                 annotate_q_values: bool = False,
+                 annotate_actor_stats: bool = False,
                  name: str = "DebugCallback"):
         self._debug_env = debug_env
         self._log_every_n_steps = log_every_n_steps
         self._num_samples = num_samples
+        self._q_curve_action_points = q_curve_action_points
+        self._save_dpi = save_dpi
+        self._annotate_transition_counts = annotate_transition_counts
+        self._annotate_q_values = annotate_q_values
+        self._annotate_actor_stats = annotate_actor_stats
         self._debug_count = 0
         self._name = name
-        self._executor = ThreadPoolExecutor(max_workers=1)
 
     def _sample_from_replay_buffer(self, replay_buffer):
         """Sample observations, actions, and rewards from replay buffer."""
@@ -80,21 +88,24 @@ class BipolarCallback:
             obs = obs.unsqueeze(0)
             act = act.unsqueeze(0)
             alg = algorithms[alg_index]
-            if action_spec.is_discrete:
-                q_values, _ = alg._compute_critics(alg._critic_networks,
-                                                   obs,
-                                                   None,
-                                                   critics_state=(),
-                                                   replica_min=True,
-                                                   apply_reward_weights=True)
-                q_values = q_values.gather(1, act.unsqueeze(1)).squeeze(1)
-            else:
-                q_values, _ = alg._compute_critics(alg._critic_networks,
-                                                   obs,
-                                                   act,
-                                                   critics_state=(),
-                                                   replica_min=True,
-                                                   apply_reward_weights=True)
+            with torch.no_grad():
+                if action_spec.is_discrete:
+                    q_values, _ = alg._compute_critics(
+                        alg._critic_networks,
+                        obs,
+                        None,
+                        critics_state=(),
+                        replica_min=True,
+                        apply_reward_weights=True)
+                    q_values = q_values.gather(1, act.unsqueeze(1)).squeeze(1)
+                else:
+                    q_values, _ = alg._compute_critics(
+                        alg._critic_networks,
+                        obs,
+                        act,
+                        critics_state=(),
+                        replica_min=True,
+                        apply_reward_weights=True)
             return q_values[0].item()
 
         return get_q_values_fn
@@ -129,7 +140,8 @@ class BipolarCallback:
                     "Actor visualization requires continuous action space.")
 
             # Call actor network to get distribution
-            action_dist, _ = alg._actor_network(obs, state=())
+            with torch.no_grad():
+                action_dist, _ = alg._actor_network(obs, state=())
 
             # Handle different distribution types
             if isinstance(action_dist, td.TransformedDistribution):
@@ -183,7 +195,7 @@ class BipolarCallback:
         if iter_number % self._log_every_n_steps != 0:
             return
 
-        observations, actions, rewards = self._sample_from_replay_buffer(
+        observations, actions, _rewards = self._sample_from_replay_buffer(
             replay_buffer)
         if observations is None:
             return
@@ -216,11 +228,9 @@ class BipolarCallback:
         #     self._write_basic_stats(f, observations, rewards, replay_buffer)
         #     f.write("=" * 40 + "\n")
 
-        self._executor.submit(self._create_and_save_plots, iter_number,
-                              replay_buffer, algorithms, action_spec,
-                              num_copies, get_q_values_fn, get_actor_fn,
-                              log_dir)
-        logging.info(f"Plot saving in background")
+        self._create_and_save_plots(iter_number, replay_buffer, algorithms,
+                                    action_spec, num_copies, get_q_values_fn,
+                                    get_actor_fn, log_dir)
 
     def _write_basic_stats(self, f, observations, rewards, replay_buffer):
         """Write basic statistics to file."""
@@ -247,7 +257,7 @@ class BipolarCallback:
 
         fig, axes = plt.subplots(num_copies + 1,
                                  3,
-                                 figsize=(36, 6 * (num_copies + 1)))
+                                 figsize=(30, 5 * (num_copies + 1)))
 
         transition_counts = self._debug_env.get_transition_counts_table(
             replay_buffer)
@@ -284,8 +294,8 @@ class BipolarCallback:
 
         plt.tight_layout()
         plot_path = os.path.join(log_dir, f'{iter_number}.png')
-        plt.savefig(plot_path, dpi=150)
-        plt.close()
+        plt.savefig(plot_path, dpi=self._save_dpi)
+        plt.close(fig)
         logging.info(f"Written plot to {plot_path}")
 
     def _plot_all_q_functions(self, ax, algorithms, action_spec):
@@ -301,7 +311,10 @@ class BipolarCallback:
             return
 
         k = self._debug_env.k
-        action_grid = torch.linspace(-1.0, 1.0, 101, dtype=torch.float32)
+        action_grid = torch.linspace(-1.0,
+                                     1.0,
+                                     self._q_curve_action_points,
+                                     dtype=torch.float32)
         action_grid = action_grid.unsqueeze(-1).to(alf.get_default_device())
 
         ax.set_title('Q(s,a) curves (one line per state)')
@@ -365,16 +378,17 @@ class BipolarCallback:
             ax.set_yticks(range(k + 1))
             plt.colorbar(im, ax=ax)
 
-            for pos_idx in range(2 * k + 1):
-                for time_idx in range(k + 1):
-                    value = data[time_idx, pos_idx]
-                    ax.text(pos_idx,
-                            time_idx,
-                            f"{int(value) if not np.isnan(value) else ''}",
-                            ha="center",
-                            va="center",
-                            color="black",
-                            fontsize=10)
+            if self._annotate_transition_counts:
+                for pos_idx in range(2 * k + 1):
+                    for time_idx in range(k + 1):
+                        value = data[time_idx, pos_idx]
+                        ax.text(pos_idx,
+                                time_idx,
+                                f"{int(value) if not np.isnan(value) else ''}",
+                                ha="center",
+                                va="center",
+                                color="black",
+                                fontsize=10)
 
     def _plot_q_values(self, axes_row, alg_index, k, positions,
                        get_q_values_fn):
@@ -404,18 +418,19 @@ class BipolarCallback:
             ax.set_yticks(range(k + 1))
             plt.colorbar(im, ax=ax)
 
-            for pos_idx in range(2 * k + 1):
-                for time_idx in range(k + 1):
-                    value = data[time_idx, pos_idx]
-                    if np.isnan(value):
-                        continue
-                    ax.text(pos_idx,
-                            time_idx,
-                            f"{value:.3f}",
-                            ha="center",
-                            va="center",
-                            color="black",
-                            fontsize=10)
+            if self._annotate_q_values:
+                for pos_idx in range(2 * k + 1):
+                    for time_idx in range(k + 1):
+                        value = data[time_idx, pos_idx]
+                        if np.isnan(value):
+                            continue
+                        ax.text(pos_idx,
+                                time_idx,
+                                f"{value:.3f}",
+                                ha="center",
+                                va="center",
+                                color="black",
+                                fontsize=10)
 
     def _plot_actor_probabilities(self, ax, alg_index, k, positions,
                                   actor_callable):
@@ -459,25 +474,26 @@ class BipolarCallback:
         # Add colorbar
         plt.colorbar(im, ax=ax)
 
-        # Annotate cells with mean and std
-        for pos_idx in range(2 * k + 1):
-            for time_idx in range(k + 1):
-                prob = data[time_idx, pos_idx]
-                if np.isnan(prob):
-                    continue
+        # Annotate cells with mean and std (expensive: one actor forward per
+        # valid state). Keep off by default for faster plotting.
+        if self._annotate_actor_stats:
+            for pos_idx in range(2 * k + 1):
+                for time_idx in range(k + 1):
+                    prob = data[time_idx, pos_idx]
+                    if np.isnan(prob):
+                        continue
 
-                # Get mean and std for annotation
-                position = positions[pos_idx]
-                obs = self._debug_env.state_to_observation(position, time_idx)
-                obs_tensor = torch.from_numpy(obs)
-                actor_output = actor_callable(obs_tensor)
-                mean, std = actor_output['mean'], actor_output['std']
+                    position = positions[pos_idx]
+                    obs = self._debug_env.state_to_observation(
+                        position, time_idx)
+                    obs_tensor = torch.from_numpy(obs)
+                    actor_output = actor_callable(obs_tensor)
+                    mean, std = actor_output['mean'], actor_output['std']
 
-                # Create annotation text
-                ax.text(pos_idx,
-                        time_idx,
-                        f"μ={mean:.2f}\nσ={std:.2f}",
-                        ha="center",
-                        va="center",
-                        color="black",
-                        fontsize=8)
+                    ax.text(pos_idx,
+                            time_idx,
+                            f"mu={mean:.2f}\nsigma={std:.2f}",
+                            ha="center",
+                            va="center",
+                            color="black",
+                            fontsize=8)
