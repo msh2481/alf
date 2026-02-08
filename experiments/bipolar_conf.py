@@ -30,6 +30,7 @@ PRIOR_SCALE = alf.define_config('prior_scale', 0.01)
 ALPHA = alf.define_config('alpha', None)
 TAU = alf.define_config('tau', 0.05)
 UTD = alf.define_config('utd', 8)
+RESET_PERIOD = alf.define_config('reset_period', 1)
 NUM_AGENTS = alf.define_config('num_agents', 1)
 ASYNC = alf.define_config('async', True)
 ENTROPY_REWARD = alf.define_config('entropy_reward', False)
@@ -102,7 +103,9 @@ alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
            gamma=GAMMA)
 
-alf.config('ConcurrentAlgorithm', agent_reset_period=1, log_states=False)
+alf.config('ConcurrentAlgorithm',
+           agent_reset_period=RESET_PERIOD,
+           log_states=False)
 
 alf.config(
     "ConcurrentAlgorithm",

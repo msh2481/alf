@@ -6,10 +6,11 @@ bash scripts/run_bipolar.sh \
     LR="0.05" \
     WD="1e-5" \
     GAMMA="0.95" \
-    PRIOR_SCALE="0.01" \
+    PRIOR_SCALE="0.5" \
     ALPHA="0" \
     TAU="0.05" \
     UTD=4 \
+    RESET_PERIOD=100 \
     NUM_AGENTS=1 \
     ASYNC="False" \
     ENTROPY_REWARD="False" \

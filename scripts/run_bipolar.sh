@@ -15,6 +15,7 @@ PRIOR_SCALE="0.1"
 ALPHA=""
 TAU="0.05"
 UTD=4
+RESET_PERIOD=1
 NUM_AGENTS=4
 ASYNC="True"
 ENTROPY_REWARD="False"
@@ -42,6 +43,7 @@ COMMON_ARGS=(
     --conf_param="_CONFIG._USER.prior_scale=$PRIOR_SCALE"
     --conf_param="_CONFIG._USER.tau=$TAU"
     --conf_param="_CONFIG._USER.utd=$UTD"
+    --conf_param="_CONFIG._USER.reset_period=$RESET_PERIOD"
     --conf_param="_CONFIG._USER.num_agents=$NUM_AGENTS"
     --conf_param="_CONFIG._USER.async=$ASYNC"
     --conf_param="_CONFIG._USER.entropy_reward=$ENTROPY_REWARD"
