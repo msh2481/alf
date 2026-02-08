@@ -7,18 +7,18 @@
 #   bash scripts/run_bipolar.sh NUM_AGENTS=4 ASYNC="False" UTD=8
 
 CONF="experiments/bipolar_conf.py"
-ENV="BipolarChain-medium-dense-onehot-discrete-v0"
+ENV="BipolarChain-medium-dense-onehot-continuous-v0"
 LR="0.05"
-WD="1e-4"
-GAMMA="0.9"
+WD="1e-5"
+GAMMA="0.95"
 PRIOR_SCALE="0.1"
-ALPHA="5e-4"
+ALPHA="1e-2"
 TAU="0.05"
-UTD=8
+UTD=4
 NUM_AGENTS=4
 ASYNC="True"
 ENTROPY_REWARD="False"
-N_COMPONENTS=4000
+N_COMPONENTS=500
 NAME="$(date +%Y%m%d_%H%M%S)"
 SEEDS=""
 BASE_DIR=""

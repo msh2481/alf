@@ -645,7 +645,7 @@ class DebugLinearQNetwork(QNetworkBase):
             output_size=action_spec.maximum - action_spec.minimum + 1,
             activation=math_ops.identity,
             kernel_initializer=last_kernel_initializer,
-            bias_init_value=bias_init_value)
+            use_bias=False)
         self._forward_count = 0
 
     def forward(self, observation, state=()):
@@ -658,10 +658,9 @@ class DebugLinearQNetwork(QNetworkBase):
     def _log_parameters(self):
         totals = []
         for i in range(self._final_layer.weight.shape[0]):
-            bias_val = self._final_layer.bias[i].data.item()
-            total = bias_val + self._final_layer.weight[i].data.flatten()
+            total = self._final_layer.weight[i].data.flatten()
             weight_str = ', '.join([f"{val:.2f}" for val in total])
-            print(f"Action {i}: [{weight_str}] (bias = {bias_val:.2f})")
+            print(f"Action {i}: [{weight_str}]")
             totals.append(total)
         if len(totals) == 2:
             delta = totals[1] - totals[0]

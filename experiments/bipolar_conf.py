@@ -15,7 +15,7 @@ import alf
 from alf.algorithms.seed_sampling import SeedSacAlgorithm
 from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.concurrent_algorithm import ConcurrentAlgorithm
-from alf.networks import QNetwork, RandomizedPriorQNetwork, RandomizedPriorCriticNetwork, RBFCriticNetwork
+from alf.networks import DebugLinearQNetwork, RandomizedPriorQNetwork, RandomizedPriorCriticNetwork, RBFCriticNetwork
 from alf.networks.actor_distribution_networks import RBFActorDistributionNetwork
 from alf.utils.losses import element_wise_squared_loss
 from functools import partial
@@ -26,7 +26,7 @@ ENV = alf.define_config('env', "BipolarChain-medium-dense-onehot-discrete-v0")
 LR = alf.define_config('lr', 0.05)
 WD = alf.define_config('wd', 1e-4)
 GAMMA = alf.define_config('gamma', 0.9)
-PRIOR_SCALE = alf.define_config('prior_scale', 0.1)
+PRIOR_SCALE = alf.define_config('prior_scale', 0.01)
 ALPHA = alf.define_config('alpha', 5e-4)
 TAU = alf.define_config('tau', 0.05)
 UTD = alf.define_config('utd', 8)
@@ -42,8 +42,6 @@ ENV_COUNTS = NUM_COPIES
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
 
-HIDDEN_LAYERS = (256, 256)
-
 alf.config('create_environment',
            env_name=ENV,
            num_parallel_environments=ENV_COUNTS,
@@ -54,9 +52,8 @@ alf.config('ReplayBuffer', shuffle_batch=True)
 alf.config('BipolarCallback', annotate_transition_counts=False)
 
 if DISCRETE:
-    alf.config('QNetwork', fc_layer_params=HIDDEN_LAYERS, use_fc_ln=True)
     alf.config('RandomizedPriorQNetwork',
-               network_ctor=QNetwork,
+               network_ctor=DebugLinearQNetwork,
                prior_scale=PRIOR_SCALE)
     sac_kwargs = {
         'q_network_cls': RandomizedPriorQNetwork,

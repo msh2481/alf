@@ -45,6 +45,7 @@ class BipolarCallback:
                  debug_env=None,
                  log_every_n_steps: int = 100,
                  num_samples: int = 1000,
+                 num_actor_samples: int = 64,
                  q_curve_action_points: int = 51,
                  save_dpi: int = 100,
                  annotate_transition_counts: bool = False,
@@ -54,6 +55,7 @@ class BipolarCallback:
         self._debug_env = debug_env
         self._log_every_n_steps = log_every_n_steps
         self._num_samples = num_samples
+        self._num_actor_samples = num_actor_samples
         self._q_curve_action_points = q_curve_action_points
         self._save_dpi = save_dpi
         self._annotate_transition_counts = annotate_transition_counts
@@ -145,32 +147,14 @@ class BipolarCallback:
             # Call actor network to get distribution
             with torch.no_grad():
                 action_dist, _ = alg._actor_network(obs, state=())
-
-            # Handle different distribution types
-            if isinstance(action_dist, td.TransformedDistribution):
-                base_dist = action_dist.base_dist
+            with torch.no_grad():
+                samples = action_dist.sample((self._num_actor_samples, ))
+            if samples.dim() == 1:
+                values = samples
             else:
-                base_dist = action_dist
-
-            # Handle Independent/DiagMultivariateNormal wrapping
-            if isinstance(base_dist, td.Independent):
-                base_dist = base_dist.base_dist
-
-            # Extract mean and std from the base Normal distribution
-            # base_dist should now be td.Normal
-            mean = base_dist.loc[0]
-            std = base_dist.scale[0]
-
-            # For BipolarChain, action is 1D, so take single value
-            if mean.numel() > 1:
-                # Multi-dimensional continuous action - take first dimension
-                mean = mean[0].item()
-                std = std[0].item()
-            else:
-                mean = mean.item()
-                std = std.item()
-
-            # Clamp std to prevent numerical issues
+                values = samples.reshape(self._num_actor_samples, -1)[:, 0]
+            mean = values.mean().item()
+            std = values.std(unbiased=False).item()
             std = max(std, 1e-8)
 
             return {'mean': mean, 'std': std}
