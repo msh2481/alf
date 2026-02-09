@@ -37,6 +37,7 @@ PRIOR_SCALE = alf.define_config('prior_scale', 0.1)
 ALPHA = alf.define_config('alpha', 3e-4)
 LN = alf.define_config('ln', True)
 UTD = alf.define_config('utd', 1)
+RESET_PERIOD = alf.define_config('reset_period', 1)
 NUM_AGENTS = alf.define_config('num_agents', 1)
 TAU = alf.define_config('tau', 0.1)
 ASYNC = alf.define_config('async', True)
@@ -91,8 +92,7 @@ alf.config(
     actor_network_cls=alf.networks.ActorDistributionNetwork,
     critic_network_cls=RandomizedPriorCriticNetwork,
     max_log_alpha=0.0,
-    use_entropy_reward=
-    False,
+    use_entropy_reward=False,
     target_update_tau=TAU,
     target_update_period=1,
 )
@@ -104,7 +104,7 @@ alf.config('OneStepTDLoss',
 alf.config(
     "ConcurrentAlgorithm",
     algorithm_ctor=SacAlgorithm,
-    agent_reset_period=1,
+    agent_reset_period=RESET_PERIOD,
     prior_perturbation_alpha=ALPHA,
     optimizer=alf.optimizers.Adam(lr=LR,
                                   weight_decay=WD,
@@ -123,20 +123,19 @@ alf.config(
     debug_log_every_n_steps=100,
 )
 
-alf.config(
-    'TrainerConfig',
-    algorithm_ctor=ConcurrentAlgorithm,
-    initial_collect_steps=100,
-    mini_batch_length=2,
-    mini_batch_size=256 * NUM_AGENTS,
-    unroll_length=1,
-    num_updates_per_train_iter=UTD,
-    num_iterations=50000,
-    num_checkpoints=3,
-    evaluate=False,
-    debug_summaries=False,
-    summary_interval=200,
-    replay_buffer_length=100000,
-    random_seed=42,
-    whole_replay_buffer_training=False,
-    clear_replay_buffer=False)
+alf.config('TrainerConfig',
+           algorithm_ctor=ConcurrentAlgorithm,
+           initial_collect_steps=100,
+           mini_batch_length=2,
+           mini_batch_size=256 * NUM_AGENTS,
+           unroll_length=1,
+           num_updates_per_train_iter=UTD,
+           num_iterations=50000,
+           num_checkpoints=3,
+           evaluate=False,
+           debug_summaries=False,
+           summary_interval=200,
+           replay_buffer_length=100000,
+           random_seed=42,
+           whole_replay_buffer_training=False,
+           clear_replay_buffer=False)

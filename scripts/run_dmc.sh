@@ -13,6 +13,7 @@ PRIOR_SCALE="0.01"
 ALPHA="5e-4"
 LN="True"
 UTD=1
+RESET_PERIOD=1
 NUM_AGENTS=1
 TAU="0.01"
 ASYNC="True"
@@ -38,6 +39,7 @@ COMMON_ARGS=(
     --conf_param="_CONFIG._USER.alpha=$ALPHA"
     --conf_param="_CONFIG._USER.ln=$LN"
     --conf_param="_CONFIG._USER.utd=$UTD"
+    --conf_param="_CONFIG._USER.reset_period=$RESET_PERIOD"
     --conf_param="_CONFIG._USER.num_agents=$NUM_AGENTS"
     --conf_param="_CONFIG._USER.tau=$TAU"
     --conf_param="_CONFIG._USER.async=$ASYNC"
