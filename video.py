@@ -111,8 +111,8 @@ if __name__ == '__main__':
     parser.add_argument(
         '--font-scale',
         type=float,
-        default=1.0,
-        help='Scale factor for timestep text size (default: 1.0)')
+        default=5.0,
+        help='Scale factor for timestep text size (default: 5.0)')
     args = parser.parse_args()
     create_video(args.x,
                  logs_root=args.logs_root,
