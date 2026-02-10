@@ -24,7 +24,8 @@ FOLDER: str | Sequence[str] = [
     "/tmp/dmc/walker_stand",
     "/tmp/dmc/walker_walk",
 ]
-NAMES = ["a1_beta", "a4_shuffle2", "alpha_0.0001", "alpha_0.0003", "alpha_0.0005", "alpha_0.001", "alpha_0.005"]
+# NAMES = ["a4_shuffle2", "alpha_0.0005", "scale_0.001", "scale_0.003", "scale_0.01", "scale_0.03", "scale_0.1"]
+NAMES = ["a4_shuffle2", "alpha_0.0005", "reset_1e2", "reset_1e3", "reset_3e3", "reset_1e4", "reset_1e5"]
 MAX_EPISODE: int | None = None
 
 # Fixed smoothing/binning on episode axis before cummax/integral.
