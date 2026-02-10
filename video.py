@@ -26,7 +26,11 @@ def extract_number(filename):
     return int(match.group(1)) if match else 0
 
 
-def create_video(run_name, logs_root='logs', output_file='output.mp4', fps=1):
+def create_video(run_name,
+                 logs_root='logs',
+                 output_file='output.mp4',
+                 fps=1,
+                 font_scale=1.0):
     logs_path = Path(logs_root) / run_name / '0'
     png_files = sorted([f for f in logs_path.glob('*.png')],
                        key=lambda x: extract_number(x.name))
@@ -38,13 +42,22 @@ def create_video(run_name, logs_root='logs', output_file='output.mp4', fps=1):
     # Build a clean, sequential image list for ffmpeg.
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
+        font_size = max(1, int(12 * font_scale))
+        try:
+            font = ImageFont.truetype("DejaVuSans.ttf", size=font_size)
+        except OSError:
+            font = ImageFont.load_default()
+            if font_scale != 1.0:
+                print(
+                    "Warning: scalable font unavailable; using default font size."
+                )
+
         for idx, png_file in enumerate(png_files):
             target = tmp_path / f"{idx:06d}.png"
             timestep = str(extract_number(png_file.name))
             try:
                 with Image.open(png_file).convert('RGB') as image:
                     draw = ImageDraw.Draw(image)
-                    font = ImageFont.load_default()
                     text_bbox = draw.textbbox((0, 0), timestep, font=font)
                     text_height = text_bbox[3] - text_bbox[1]
                     draw.text((10, image.height - text_height - 10),
@@ -95,8 +108,14 @@ if __name__ == '__main__':
                         type=int,
                         default=1,
                         help='Video FPS (default: 1)')
+    parser.add_argument(
+        '--font-scale',
+        type=float,
+        default=1.0,
+        help='Scale factor for timestep text size (default: 1.0)')
     args = parser.parse_args()
     create_video(args.x,
                  logs_root=args.logs_root,
                  output_file=args.output,
-                 fps=args.fps)
+                 fps=args.fps,
+                 font_scale=args.font_scale)
