@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import re
-import shutil
 import subprocess
 import tempfile
+import argparse
 from pathlib import Path
+
+from PIL import Image, ImageDraw, ImageFont
 
 
 def extract_number(filename):
@@ -25,13 +26,13 @@ def extract_number(filename):
     return int(match.group(1)) if match else 0
 
 
-def create_video(logs_dir='logs', output_file='output.mp4', fps=1):
-    logs_path = Path(logs_dir)
+def create_video(run_name, logs_root='logs', output_file='output.mp4', fps=1):
+    logs_path = Path(logs_root) / run_name / '0'
     png_files = sorted([f for f in logs_path.glob('*.png')],
                        key=lambda x: extract_number(x.name))
 
     if not png_files:
-        print(f"No PNG files found in {logs_dir}")
+        print(f"No PNG files found in {logs_path}")
         return
 
     # Build a clean, sequential image list for ffmpeg.
@@ -39,10 +40,21 @@ def create_video(logs_dir='logs', output_file='output.mp4', fps=1):
         tmp_path = Path(tmpdir)
         for idx, png_file in enumerate(png_files):
             target = tmp_path / f"{idx:06d}.png"
+            timestep = str(extract_number(png_file.name))
             try:
-                os.symlink(png_file.resolve(), target)
-            except OSError:
-                shutil.copy(png_file, target)
+                with Image.open(png_file).convert('RGB') as image:
+                    draw = ImageDraw.Draw(image)
+                    font = ImageFont.load_default()
+                    text_bbox = draw.textbbox((0, 0), timestep, font=font)
+                    text_height = text_bbox[3] - text_bbox[1]
+                    draw.text((10, image.height - text_height - 10),
+                              timestep,
+                              fill='black',
+                              font=font)
+                    image.save(target)
+            except Exception as exc:
+                print(f"Frame annotation failed for {png_file}: {exc}")
+                return
 
         # Baseline: mimic the old OpenCV mp4v output, directly via ffmpeg.
         cmd = [
@@ -69,4 +81,22 @@ def create_video(logs_dir='logs', output_file='output.mp4', fps=1):
 
 
 if __name__ == '__main__':
-    create_video()
+    parser = argparse.ArgumentParser(
+        description='Create a video from logs/<x>/0 PNG frames.')
+    parser.add_argument('x',
+                        help='Subdirectory name under logs/, e.g. with_prior')
+    parser.add_argument('--logs-root',
+                        default='logs',
+                        help='Root logs directory (default: logs)')
+    parser.add_argument('--output',
+                        default='output.mp4',
+                        help='Output mp4 filename (default: output.mp4)')
+    parser.add_argument('--fps',
+                        type=int,
+                        default=1,
+                        help='Video FPS (default: 1)')
+    args = parser.parse_args()
+    create_video(args.x,
+                 logs_root=args.logs_root,
+                 output_file=args.output,
+                 fps=args.fps)
