@@ -39,11 +39,11 @@ def pueue_add(command):
 
 for n in names:
     commands = [
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 ALPHA=0.0 RESET_PERIOD=100 ENV="{n}" NAME="reset_1e2"',
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 ALPHA=0.0 RESET_PERIOD=1000 ENV="{n}" NAME="reset_1e3"',
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 ALPHA=0.0 RESET_PERIOD=3000 ENV="{n}" NAME="reset_3e3"',
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 ALPHA=0.0 RESET_PERIOD=10000 ENV="{n}" NAME="reset_1e4"',
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 ALPHA=0.0 RESET_PERIOD=100000 ENV="{n}" NAME="reset_1e5"',
+        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=1 ENV="{n}" NAME="agent_1"',
+        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=2 ENV="{n}" NAME="agent_2"',
+        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 ENV="{n}" NAME="agent_4"',
+        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=6 ENV="{n}" NAME="agent_6"',
+        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=8 ENV="{n}" NAME="agent_8"',
     ]
     for c in commands:
         pueue_add(c)

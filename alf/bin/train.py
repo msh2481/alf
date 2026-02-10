@@ -140,7 +140,7 @@ def _setup_device():
         alf.set_default_device('cuda')
 
 
-def _setup_torch_threads(num_threads: int = 4):
+def _setup_torch_threads(num_threads: int = 2):
     torch.set_num_interop_threads(num_threads)
     torch.set_num_threads(num_threads)
 

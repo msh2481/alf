@@ -34,9 +34,7 @@ from plot_common import (agent_reduce, iqm, load_by_type,
 #   subfolders of /tmp/dmc.
 FOLDER: str | Sequence[str] = "all_dm"
 # FOLDER: str | Sequence[str] = "/tmp/dmc/cartpole_swingup_sparse"
-# NAMES = ["a1_beta", "a4_shuffle2", "alpha_0.0001", "alpha_0.0003", "alpha_0.0005", "alpha_0.001", "alpha_0.005"]
-# NAMES = ["a4_shuffle2", "alpha_0.0005", "scale_0.001", "scale_0.003", "scale_0.01", "scale_0.03", "scale_0.1"]
-NAMES = ["a4_shuffle2", "alpha_0.0005", "reset_1e2", "reset_1e3", "reset_3e3", "reset_1e4", "reset_1e5"]
+NAMES = ["a4_shuffle2", "agent_1", "agent_2", "agent_4", "agent_6", "agent_8"]
 OUT = "iqm_episode_return.png"
 OUT_LINES = "lines_episode_return.png"
 OUT_CRITIC = "critic.png"
