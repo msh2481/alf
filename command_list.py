@@ -31,19 +31,21 @@ names = [
     "walker:walk",
 ]
 
+
 def pueue_add(command):
     if EXECUTE:
         subprocess.run(["pueue", "add", "--", command], check=True)
     else:
         print(f"pueue add -- '{command}'")
 
+
 for n in names:
     commands = [
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=1 ENV="{n}" NAME="agent_1"',
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=2 ENV="{n}" NAME="agent_2"',
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 ENV="{n}" NAME="agent_4"',
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=6 ENV="{n}" NAME="agent_6"',
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=8 ENV="{n}" NAME="agent_8"',
+        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=1 ENV="{n}" NAME="agent_1_sqrt"',
+        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=2 ENV="{n}" NAME="agent_2_sqrt"',
+        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 ENV="{n}" NAME="agent_4_sqrt"',
+        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=6 ENV="{n}" NAME="agent_6_sqrt"',
+        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=8 ENV="{n}" NAME="agent_8_sqrt"',
     ]
     for c in commands:
         pueue_add(c)

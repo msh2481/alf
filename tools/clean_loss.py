@@ -18,7 +18,6 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-
 LOSS_PREFIX = '{"type": "loss"'
 
 
@@ -57,7 +56,8 @@ def _clean_one_file(path: Path, *, dry_run: bool, backup: bool) -> FileResult:
     tmp_fd = None
     tmp_path = None
     try:
-        tmp_fd, tmp_path = tempfile.mkstemp(prefix="events.", suffix=".ndjson",
+        tmp_fd, tmp_path = tempfile.mkstemp(prefix="events.",
+                                            suffix=".ndjson",
                                             dir=str(path.parent))
         with os.fdopen(tmp_fd, "w", encoding="utf-8") as out, path.open(
                 "r", encoding="utf-8") as f:
@@ -90,10 +90,11 @@ def main() -> None:
         description=
         "Remove ndjson lines starting with '{\"type\": \"loss\"' from /tmp/dmc logs."
     )
-    p.add_argument("--root",
-                   type=str,
-                   default="/tmp/dmc",
-                   help="Root directory containing env folders (default: /tmp/dmc).")
+    p.add_argument(
+        "--root",
+        type=str,
+        default="/tmp/dmc",
+        help="Root directory containing env folders (default: /tmp/dmc).")
     p.add_argument("--dry_run",
                    action="store_true",
                    help="Only report counts; do not modify files.")

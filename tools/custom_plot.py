@@ -22,8 +22,8 @@ import numpy as np
 import polars as pl
 import matplotlib.pyplot as plt
 
-from plot_common import (agent_reduce, iqm, load_by_type,
-                         resolve_folders as _resolve_folders)
+from plot_common import (agent_reduce, iqm, load_by_type, resolve_folders as
+                         _resolve_folders)
 
 # FOLDER = "/tmp/dmc/Rotator"
 # FOLDER = "/tmp/dmc/pendulum_swingup"
@@ -34,20 +34,23 @@ from plot_common import (agent_reduce, iqm, load_by_type,
 #   subfolders of /tmp/dmc.
 FOLDER: str | Sequence[str] = "all_dm"
 # FOLDER: str | Sequence[str] = "/tmp/dmc/cartpole_swingup_sparse"
-NAMES = ["a4_shuffle2", "agent_1", "agent_2", "agent_4", "agent_6", "agent_8"]
-OUT = "iqm_episode_return.png"
+NAMES = ["agent_1", "agent_2", "agent_4", "agent_6", "agent_8"]
+OUT_IQM_MEAN = "iqm_mean.png"
+OUT_IQM_MAX = "iqm_max.png"
 OUT_LINES = "lines_episode_return.png"
 OUT_CRITIC = "critic.png"
 MAX_EPISODE: int | None = None
-CONFIDENCE = 0.95
+CONFIDENCE = 0.9
 N_BOOT = 100
 BOOTSTRAP_SEED = 0
+PLOT_RETURN_QUANTILES = False
+IQM_CI_ALPHA = 0.1
 
 BIN_CONF: dict[str, tuple[str, int]] = {
-    "episode": ("episode_idx", 10),
-    "loss": ("train_iter", 50),
-    "weight_norm": ("train_iter", 50),
-    "grad_norm": ("train_iter", 50),
+    "episode": ("episode_idx", 20),
+    "loss": ("train_iter", 1000),
+    "weight_norm": ("train_iter", 1000),
+    "grad_norm": ("train_iter", 1000),
 }
 
 
@@ -112,7 +115,9 @@ def _preprocess_by_type(by_type: dict[str, pl.DataFrame], *,
         if event_type == "episode" and max_episode is not None and "episode_idx" in df.columns:
             df = df.filter(pl.col("episode_idx") <= int(max_episode))
 
-        out[event_type] = _bin_and_reduce(df, x_col=x_col, bin_size=int(bin_size))
+        out[event_type] = _bin_and_reduce(df,
+                                          x_col=x_col,
+                                          bin_size=int(bin_size))
     return out
 
 
@@ -123,7 +128,7 @@ def bootstrap_ci(
     x_col: str,
     value_col: str,
     stat: Literal["iqm", "mean", "median"] = "iqm",
-    confidence: float = 0.95,
+    confidence: float = 0.9,
     n_boot: int = 2000,
     seed: int = 0,
 ) -> pl.DataFrame:
@@ -179,13 +184,16 @@ def _cmap_colors(name: str) -> np.ndarray:
     cmap = plt.get_cmap(name)
     return np.asarray(cmap.colors)
 
-def episode_plot_df(ep: pl.DataFrame,
-                    *,
-                    group_cols: Sequence[str] = ("experiment", ),
-                    max_episode: int | None = None,
-                    confidence: float = 0.95,
-                    n_boot: int = 2000,
-                    bootstrap_seed: int = 0) -> pl.DataFrame:
+
+def episode_plot_df(
+        ep: pl.DataFrame,
+        *,
+        group_cols: Sequence[str] = ("experiment", ),
+        max_episode: int | None = None,
+        confidence: float = 0.9,
+        n_boot: int = 2000,
+        bootstrap_seed: int = 0,
+        agent_reduce: Literal["mean", "max", "none"] = "mean") -> pl.DataFrame:
     if ep.is_empty():
         return pl.DataFrame()
     if max_episode is not None:
@@ -194,7 +202,20 @@ def episode_plot_df(ep: pl.DataFrame,
         ep = ep.with_columns(pl.col("episode_idx").cast(pl.Int64))
     x_col = "episode_idx"
 
-    ci = bootstrap_ci(ep,
+    # If there are multiple agents per seed, reduce across agents first so they
+    # are not treated as independent bootstrap samples by default.
+    ep_reduced = ep
+    if agent_reduce != "none" and "agent_idx" in ep.columns:
+        keys = [*group_cols, "seed", x_col]
+        if agent_reduce == "mean":
+            agg = pl.col("episode_return").mean().alias("episode_return")
+        elif agent_reduce == "max":
+            agg = pl.col("episode_return").max().alias("episode_return")
+        else:
+            raise ValueError(f"Unknown agent_reduce: {agent_reduce}")
+        ep_reduced = ep.group_by(keys, maintain_order=True).agg(agg).sort(keys)
+
+    ci = bootstrap_ci(ep_reduced,
                       group_cols=group_cols,
                       x_col=x_col,
                       value_col="episode_return",
@@ -202,7 +223,7 @@ def episode_plot_df(ep: pl.DataFrame,
                       confidence=confidence,
                       n_boot=n_boot,
                       seed=bootstrap_seed)
-    q = ep.group_by([*group_cols, x_col]).agg(
+    q = ep_reduced.group_by([*group_cols, x_col]).agg(
         q25=pl.col("episode_return").quantile(0.25),
         q75=pl.col("episode_return").quantile(0.75),
     )
@@ -214,7 +235,7 @@ def plot_episode_iqm(plot_df: pl.DataFrame,
                      *,
                      out: str,
                      group_col: str = "experiment",
-                     confidence: float = 0.95):
+                     confidence: float = 0.9):
     if plot_df.is_empty() or group_col not in plot_df.columns:
         print(
             f"Empty plot_df or missing '{group_col}'; skipping IQM plot: {out}"
@@ -234,9 +255,10 @@ def plot_episode_iqm(plot_df: pl.DataFrame,
         q75 = d["q75"].to_numpy()
         color = colors[i % len(colors)]
         ax.plot(x, y, label=g, color=color, linewidth=1)
-        ax.fill_between(x, lo, hi, alpha=0.2, color=color)
-        ax.plot(x, q25, "--", color=color, linewidth=1, alpha=0.5)
-        ax.plot(x, q75, "--", color=color, linewidth=1, alpha=0.5)
+        ax.fill_between(x, lo, hi, alpha=IQM_CI_ALPHA, color=color)
+        if PLOT_RETURN_QUANTILES:
+            ax.plot(x, q25, "--", color=color, linewidth=1, alpha=0.5)
+            ax.plot(x, q75, "--", color=color, linewidth=1, alpha=0.5)
     ax.set_xlabel("Episode Index")
     ax.set_ylabel("Episode Return")
     ax.set_title(f"IQM Episode Return with {int(confidence * 100)}% CI")
@@ -478,7 +500,8 @@ def process_one_folder(*, name: str, folder: str, idx: int,
 
     ep = by_type.get("episode", pl.DataFrame())
 
-    out_iqm = str(out_dir / OUT)
+    out_iqm_mean = str(out_dir / OUT_IQM_MEAN)
+    out_iqm_max = str(out_dir / OUT_IQM_MAX)
     out_lines = str(out_dir / OUT_LINES)
     out_dash = str(out_dir / "dashboard.png")
     out_critic = str(out_dir / OUT_CRITIC)
@@ -486,15 +509,27 @@ def process_one_folder(*, name: str, folder: str, idx: int,
     if ep.is_empty():
         print("No episode records found; skipping episode plots.")
     else:
-        print("Generating episode plot dataframe...")
-        plot_df = episode_plot_df(ep,
-                                  max_episode=MAX_EPISODE,
-                                  confidence=CONFIDENCE,
-                                  n_boot=N_BOOT,
-                                  bootstrap_seed=BOOTSTRAP_SEED)
-        print("Plotting episode IQM...")
-        plot_episode_iqm(plot_df, out=out_iqm, confidence=CONFIDENCE)
-        print(f"Saved plot to: {out_iqm}")
+        print("Generating episode plot dataframe (agent-mean)...")
+        plot_df_mean = episode_plot_df(ep,
+                                       max_episode=MAX_EPISODE,
+                                       confidence=CONFIDENCE,
+                                       n_boot=N_BOOT,
+                                       bootstrap_seed=BOOTSTRAP_SEED,
+                                       agent_reduce="mean")
+        print("Plotting episode IQM (agent-mean)...")
+        plot_episode_iqm(plot_df_mean, out=out_iqm_mean, confidence=CONFIDENCE)
+        print(f"Saved plot to: {out_iqm_mean}")
+
+        print("Generating episode plot dataframe (agent-max)...")
+        plot_df_max = episode_plot_df(ep,
+                                      max_episode=MAX_EPISODE,
+                                      confidence=CONFIDENCE,
+                                      n_boot=N_BOOT,
+                                      bootstrap_seed=BOOTSTRAP_SEED,
+                                      agent_reduce="max")
+        print("Plotting episode IQM (agent-max)...")
+        plot_episode_iqm(plot_df_max, out=out_iqm_max, confidence=CONFIDENCE)
+        print(f"Saved plot to: {out_iqm_max}")
 
         print("Plotting episode returns (many-lines)...")
         fig, ax = plt.subplots(figsize=(10, 6))

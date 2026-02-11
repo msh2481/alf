@@ -1,3 +1,17 @@
+# Copyright (c) 2026 Horizon Robotics and ALF Contributors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,9 +20,9 @@ from typing import Sequence
 import numpy as np
 import polars as pl
 
-from plot_common import (bin_agent_curves, discover_runs, load_episode_last_returns,
-                         pointwise_agent_max, resolve_folders,
-                         sample_efficiency_integral)
+from plot_common import (bin_agent_curves, discover_runs,
+                         load_episode_last_returns, pointwise_agent_max,
+                         resolve_folders, sample_efficiency_integral)
 
 # Folder spec can be:
 # - a single folder path (str)
@@ -31,7 +45,8 @@ MAX_EPISODE: int | None = None
 EPISODE_BIN_SIZE = 10
 
 
-def _load_binned_episode_curves(events_path: Path) -> dict[int, dict[int, float]]:
+def _load_binned_episode_curves(
+        events_path: Path) -> dict[int, dict[int, float]]:
     """Load episode curves and immediately bin/smooth them."""
     per_agent = load_episode_last_returns(events_path, max_episode=MAX_EPISODE)
     return bin_agent_curves(per_agent, bin_size=EPISODE_BIN_SIZE)
@@ -109,13 +124,13 @@ def _table_from_records(records: list[dict[str, object]],
     if env_cols:
         wide = wide.select(["experiment", *env_cols])
         wide = wide.with_columns(
-            pl.concat_list(env_cols).alias("_vals"),
-        ).with_columns(
-            pl.col("_vals").list.drop_nulls().list.eval(pl.element().log()
-                                                           ).list.mean().exp().alias("average"),
-        ).drop("_vals").sort("average", descending=True, nulls_last=True)
+            pl.concat_list(env_cols).alias("_vals"), ).with_columns(
+                pl.col("_vals").list.drop_nulls().list.eval(
+                    pl.element().log()).list.mean().exp().alias("average"),
+            ).drop("_vals").sort("average", descending=True, nulls_last=True)
     else:
-        wide = wide.with_columns(pl.lit(None).cast(pl.Float64).alias("average"))
+        wide = wide.with_columns(
+            pl.lit(None).cast(pl.Float64).alias("average"))
     return wide
 
 
@@ -150,4 +165,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

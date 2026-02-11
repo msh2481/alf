@@ -1,3 +1,17 @@
+# Copyright (c) 2026 Horizon Robotics and ALF Contributors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from __future__ import annotations
 
 import json
@@ -86,9 +100,7 @@ def load_by_type(folder: str, names: list[str]) -> dict[str, pl.DataFrame]:
     return by_type
 
 
-def load_type(folder: str,
-              names: list[str],
-              *,
+def load_type(folder: str, names: list[str], *,
               event_type: str) -> pl.DataFrame:
     runs = discover_runs(folder, names)
     rows: list[dict[str, Any]] = []
@@ -168,7 +180,8 @@ def bin_mean_by_size(
     sums = np.add.reduceat(r, start)
     counts = np.diff(np.append(start, t_bin.size))
     means = sums / counts
-    return uniq.astype(np.int64, copy=False), means.astype(np.float64, copy=False)
+    return uniq.astype(np.int64, copy=False), means.astype(np.float64,
+                                                           copy=False)
 
 
 def bin_agent_curves(
@@ -191,8 +204,7 @@ def bin_agent_curves(
 
 
 def pointwise_agent_max(
-    per_agent_binned: dict[int, dict[int, float]],
-) -> dict[int, float]:
+    per_agent_binned: dict[int, dict[int, float]], ) -> dict[int, float]:
     """Pointwise max across agents, assuming curves are already binned."""
     out: dict[int, float] = {}
     for d in per_agent_binned.values():
@@ -259,4 +271,3 @@ def load_episode_last_returns(
         v_f = float(rec[value_key])
         per_agent[agent_idx_i][ep_idx_i] = v_f
     return dict(per_agent)
-

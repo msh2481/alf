@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from functools import partial
-
+import math
 import alf
 import torch
 
@@ -106,7 +106,7 @@ alf.config(
     algorithm_ctor=SacAlgorithm,
     agent_reset_period=RESET_PERIOD,
     prior_perturbation_alpha=ALPHA,
-    optimizer=alf.optimizers.Adam(lr=LR,
+    optimizer=alf.optimizers.Adam(lr=LR * math.sqrt(NUM_AGENTS),
                                   weight_decay=WD,
                                   name='main',
                                   gradient_clipping=GRAD_CLIP,
