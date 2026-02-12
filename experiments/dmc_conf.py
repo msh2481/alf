@@ -22,6 +22,7 @@ assert not torch.cuda.is_available(
 from alf.algorithms.concurrent_algorithm import ConcurrentAlgorithm
 from alf.algorithms.rotator_callback import RotatorCallback
 from alf.algorithms.sac_algorithm import SacAlgorithm
+from alf.algorithms.td_loss import TDLoss
 from alf.algorithms.data_transformer import RewardMaskByEnvId
 from alf.environments import suite_dmc, suite_gym
 from alf.environments.gym_wrappers import FrameSkip
@@ -40,6 +41,9 @@ UTD = alf.define_config('utd', 1)
 RESET_PERIOD = alf.define_config('reset_period', 1)
 NUM_AGENTS = alf.define_config('num_agents', 1)
 TAU = alf.define_config('tau', 0.1)
+N_CRITICS = alf.define_config('n_critics', 2)
+LENGTH = alf.define_config('length', 5)
+LAMBDA = alf.define_config('lambda', 1)
 ASYNC = alf.define_config('async', True)
 ENV = alf.define_config('env', 'cartpole:swingup_sparse')
 USE_BETA = alf.define_config('use_beta', True)
@@ -93,13 +97,16 @@ alf.config(
     critic_network_cls=RandomizedPriorCriticNetwork,
     max_log_alpha=0.0,
     use_entropy_reward=False,
+    num_critic_replicas=N_CRITICS,
+    critic_loss_ctor=TDLoss,
     target_update_tau=TAU,
     target_update_period=1,
 )
 
-alf.config('OneStepTDLoss',
+alf.config('TDLoss',
            td_error_loss_fn=element_wise_squared_loss,
-           gamma=GAMMA)
+           gamma=GAMMA,
+           td_lambda=LAMBDA)
 
 alf.config(
     "ConcurrentAlgorithm",
@@ -126,7 +133,7 @@ alf.config(
 alf.config('TrainerConfig',
            algorithm_ctor=ConcurrentAlgorithm,
            initial_collect_steps=100,
-           mini_batch_length=2,
+           mini_batch_length=LENGTH,
            mini_batch_size=256 * NUM_AGENTS,
            unroll_length=1,
            num_updates_per_train_iter=UTD,

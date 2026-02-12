@@ -74,7 +74,7 @@ else:
     alf.config('RBFCriticNetwork',
                n_components=N_COMPONENTS,
                gamma=2.0,
-               only_sign_matters=True)
+               only_sign_matters=False)
     alf.config('RBFActorDistributionNetwork',
                n_components=N_COMPONENTS,
                gamma=10.0,
