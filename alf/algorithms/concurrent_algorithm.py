@@ -69,6 +69,10 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         log_weight_norms: bool = False,
         log_grad_norms: bool = False,
         diagnostics_logging_interval: int = 50,
+        share_actor_across_copies: bool = False,
+        shared_actor_mode: str = "average",
+        share_critic_across_copies: bool = False,
+        shared_critic_mode: str = "average",
     ):
 
         self._batch_size = alf.get_config_value(
@@ -177,6 +181,10 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
 
         self._diagnostics_logging_interval = max(1,
                                                  diagnostics_logging_interval)
+        self._share_actor_across_copies = share_actor_across_copies
+        self._shared_actor_mode = shared_actor_mode
+        self._share_critic_across_copies = share_critic_across_copies
+        self._shared_critic_mode = shared_critic_mode
 
         self._agent_reset_period = agent_reset_period
         self._next_agent_to_reset = 0
@@ -192,6 +200,94 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         if debug_env is not None and debug_callback_cls is not None:
             self._debug_callback = debug_callback_cls(
                 debug_env=debug_env, log_every_n_steps=debug_log_every_n_steps)
+
+    @torch.no_grad()
+    def _build_shared_state(self, modules, mode_name: str):
+        ref_state = modules[0].state_dict()
+        shared_state = {}
+        mode = mode_name.lower()
+        if mode not in ("average", "first"):
+            logging.warning(
+                "Unsupported shared mode=%s. Fallback to 'average'.",
+                mode_name)
+            mode = "average"
+
+        for k, ref_v in ref_state.items():
+            if mode == "first":
+                shared_state[k] = ref_v.detach().clone()
+                continue
+
+            if (not torch.is_tensor(ref_v) or not ref_v.dtype.is_floating_point
+                    or ref_v.is_complex()):
+                # Non-floating/bool/int buffers: use actor 0 values.
+                shared_state[k] = ref_v.detach().clone()
+                continue
+
+            avg_v = torch.zeros_like(ref_v)
+            for module in modules:
+                avg_v.add_(module.state_dict()[k].detach())
+            avg_v.div_(len(modules))
+            shared_state[k] = avg_v
+
+        return shared_state
+
+    @torch.no_grad()
+    def _sync_shared_actor(self):
+        """Synchronize actor parameters across all copies.
+
+        This provides an ablation where all copies share the same actor weights
+        while keeping separate critic/alpha networks.
+        """
+        if not self._share_actor_across_copies or self._num_copies <= 1:
+            return
+
+        actors = []
+        for alg in self._algorithms:
+            actor = getattr(alg, "_actor_network", None)
+            if actor is None:
+                common.warning_once(
+                    "share_actor_across_copies=True but sub-algorithm has no "
+                    "_actor_network; actor sharing is skipped.")
+                return
+            actors.append(actor)
+
+        shared_state = self._build_shared_state(actors,
+                                                self._shared_actor_mode)
+
+        for actor in actors:
+            actor.load_state_dict(shared_state, strict=True)
+
+    @torch.no_grad()
+    def _sync_shared_critic(self):
+        """Synchronize critic (and target critic) parameters across all copies."""
+        if not self._share_critic_across_copies or self._num_copies <= 1:
+            return
+
+        critics = []
+        target_critics = []
+        for alg in self._algorithms:
+            critic = getattr(alg, "_critic_networks", None)
+            if critic is None:
+                common.warning_once(
+                    "share_critic_across_copies=True but sub-algorithm has no "
+                    "_critic_networks; critic sharing is skipped.")
+                return
+            critics.append(critic)
+            target_critic = getattr(alg, "_target_critic_networks", None)
+            if target_critic is not None:
+                target_critics.append(target_critic)
+
+        shared_state = self._build_shared_state(critics,
+                                                self._shared_critic_mode)
+        for critic in critics:
+            critic.load_state_dict(shared_state, strict=True)
+
+        # Keep target critics aligned if they exist (e.g. SAC-like algorithms).
+        if target_critics:
+            shared_target_state = self._build_shared_state(
+                target_critics, self._shared_critic_mode)
+            for target_critic in target_critics:
+                target_critic.load_state_dict(shared_target_state, strict=True)
 
     def _get_most_recently_reset_agent(self) -> int:
         """Get the index of the most recently reset agent."""
@@ -793,6 +889,11 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         ) in sliced.items():
             self._algorithms[alg_idx].after_update(sliced_time_step,
                                                    sliced_info)
+
+        # Optional ablation: force all copies to share the same actor weights.
+        self._sync_shared_actor()
+        # Optional ablation: force all copies to share the same critic weights.
+        self._sync_shared_critic()
 
     @torch.no_grad()
     def record_videos(

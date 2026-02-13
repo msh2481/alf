@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from functools import partial
-import math
 import alf
 import torch
 
@@ -47,6 +46,8 @@ LAMBDA = alf.define_config('lambda', 1)
 ASYNC = alf.define_config('async', True)
 ENV = alf.define_config('env', 'cartpole:swingup_sparse')
 USE_BETA = alf.define_config('use_beta', True)
+SHARE_ACTOR = alf.define_config('share_actor', False)
+SHARE_CRITIC = alf.define_config('share_critic', False)
 
 _IS_ROTATOR = isinstance(ENV, str) and ENV.startswith("Rotator")
 _ENV_NAME = "Rotator-v0" if ENV == "Rotator" else ENV
@@ -113,12 +114,14 @@ alf.config(
     algorithm_ctor=SacAlgorithm,
     agent_reset_period=RESET_PERIOD,
     prior_perturbation_alpha=ALPHA,
-    optimizer=alf.optimizers.Adam(lr=LR * math.sqrt(NUM_AGENTS),
+    optimizer=alf.optimizers.Adam(lr=LR,
                                   weight_decay=WD,
                                   name='main',
                                   gradient_clipping=GRAD_CLIP,
                                   clip_by_global_norm=CLIP_BY_GLOBAL_NORM),
     num_copies=NUM_AGENTS,
+    share_actor_across_copies=SHARE_ACTOR,
+    share_critic_across_copies=SHARE_CRITIC,
     return_logging_interval=500,
     video_record_interval=VIDEO_RECORD_INTERVAL,
     log_states=False,
