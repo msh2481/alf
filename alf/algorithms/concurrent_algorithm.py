@@ -821,9 +821,8 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                                  iter_number=self._train_step_counter)
 
     def after_train_iter(self, inputs: TimeStep, info):
-        assert alf.nest.get_nest_shape(inputs)[:2] == (
-            self._unroll_length, self._env_counts
-        ), f"inputs shape: {alf.nest.get_nest_shape(inputs)}"
+        assert alf.nest.get_nest_shape(inputs)[1] == self._env_counts, (
+            f"inputs shape: {alf.nest.get_nest_shape(inputs)}")
 
         sliced = self._slice_batch(inputs, time_major=True)
         for alg_idx, (

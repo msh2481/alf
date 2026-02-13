@@ -40,6 +40,7 @@ UTD = alf.define_config('utd', 1)
 RESET_PERIOD = alf.define_config('reset_period', 1)
 NUM_AGENTS = alf.define_config('num_agents', 1)
 SCALE_BATCH = alf.define_config('scale_batch', True)
+SCALE_UNROLL = alf.define_config('scale_unroll', False)
 TAU = alf.define_config('tau', 0.1)
 N_CRITICS = alf.define_config('n_critics', 2)
 LENGTH = alf.define_config('length', 5)
@@ -135,8 +136,9 @@ alf.config(
 )
 
 _BASE_MINI_BATCH_SIZE = 256
-MINI_BATCH_SIZE = (_BASE_MINI_BATCH_SIZE * NUM_AGENTS
-                   if SCALE_BATCH else _BASE_MINI_BATCH_SIZE)
+MINI_BATCH_SIZE = (_BASE_MINI_BATCH_SIZE *
+                   NUM_AGENTS if SCALE_BATCH else _BASE_MINI_BATCH_SIZE)
+UNROLL_LENGTH = (1.0 / NUM_AGENTS) if SCALE_UNROLL else 1
 if not SCALE_BATCH:
     assert MINI_BATCH_SIZE % NUM_AGENTS == 0, (
         f"mini_batch_size={MINI_BATCH_SIZE} must be divisible by "
@@ -148,7 +150,7 @@ alf.config('TrainerConfig',
            initial_collect_steps=100,
            mini_batch_length=LENGTH,
            mini_batch_size=MINI_BATCH_SIZE,
-           unroll_length=1,
+           unroll_length=UNROLL_LENGTH,
            num_updates_per_train_iter=UTD,
            num_iterations=50000,
            num_checkpoints=3,
