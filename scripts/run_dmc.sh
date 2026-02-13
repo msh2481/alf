@@ -15,10 +15,11 @@ LN="True"
 UTD=1
 RESET_PERIOD=1e9
 NUM_AGENTS=1
+SCALE_BATCH="True"
 TAU="0.01"
-N_CRITICS=2
-LENGTH=5
-LAMBDA=1
+N_CRITICS=1
+LENGTH=2
+LAMBDA=0
 ASYNC="True"
 ENV="Rotator"
 SHARE_ACTOR="False"
@@ -46,6 +47,7 @@ COMMON_ARGS=(
     --conf_param="_CONFIG._USER.utd=$UTD"
     --conf_param="_CONFIG._USER.reset_period=$RESET_PERIOD"
     --conf_param="_CONFIG._USER.num_agents=$NUM_AGENTS"
+    --conf_param="_CONFIG._USER.scale_batch=$SCALE_BATCH"
     --conf_param="_CONFIG._USER.tau=$TAU"
     --conf_param="_CONFIG._USER.n_critics=$N_CRITICS"
     --conf_param="_CONFIG._USER.length=$LENGTH"
@@ -58,7 +60,7 @@ COMMON_ARGS=(
 )
 
 if [ -n "$SEEDS" ] && [ "$SEEDS" -gt 0 ] 2>/dev/null; then
-    echo "Running multi-seed batch: num_seeds=$SEEDS num_agents=$NUM_AGENTS lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA ln=$LN utd=$UTD tau=$TAU n_critics=$N_CRITICS length=$LENGTH lambda=$LAMBDA async=$ASYNC env=$ENV gamma=$GAMMA share_actor=$SHARE_ACTOR share_critic=$SHARE_CRITIC video_record_interval=$VIDEO_RECORD_INTERVAL base_dir=$BASE_DIR"
+    echo "Running multi-seed batch: num_seeds=$SEEDS num_agents=$NUM_AGENTS scale_batch=$SCALE_BATCH lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA ln=$LN utd=$UTD tau=$TAU n_critics=$N_CRITICS length=$LENGTH lambda=$LAMBDA async=$ASYNC env=$ENV gamma=$GAMMA share_actor=$SHARE_ACTOR share_critic=$SHARE_CRITIC video_record_interval=$VIDEO_RECORD_INTERVAL base_dir=$BASE_DIR"
 
     for SEED in $(seq 0 $((SEEDS - 1))); do
         ROOT_DIR="${BASE_DIR}/${SEED}"
@@ -83,7 +85,7 @@ if [ -n "$SEEDS" ] && [ "$SEEDS" -gt 0 ] 2>/dev/null; then
     echo "All seed runs completed!"
 else
     ROOT_DIR="$BASE_DIR"
-    echo "Running single run: num_agents=$NUM_AGENTS lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA ln=$LN utd=$UTD tau=$TAU n_critics=$N_CRITICS length=$LENGTH lambda=$LAMBDA async=$ASYNC env=$ENV gamma=$GAMMA share_actor=$SHARE_ACTOR share_critic=$SHARE_CRITIC video_record_interval=$VIDEO_RECORD_INTERVAL root_dir=$ROOT_DIR"
+    echo "Running single run: num_agents=$NUM_AGENTS scale_batch=$SCALE_BATCH lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA ln=$LN utd=$UTD tau=$TAU n_critics=$N_CRITICS length=$LENGTH lambda=$LAMBDA async=$ASYNC env=$ENV gamma=$GAMMA share_actor=$SHARE_ACTOR share_critic=$SHARE_CRITIC video_record_interval=$VIDEO_RECORD_INTERVAL root_dir=$ROOT_DIR"
 
     if [[ "$ENV" == Rotator* ]]; then
         export ALF_ROTATOR_LOG_DIR="logs/${NAME}/0"

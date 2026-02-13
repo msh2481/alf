@@ -34,7 +34,16 @@ from plot_common import (agent_reduce, iqm, load_by_type, resolve_folders as
 #   subfolders of /tmp/dmc.
 FOLDER: str | Sequence[str] = "all_dm"
 # FOLDER: str | Sequence[str] = "/tmp/dmc/cartpole_swingup_sparse"
-NAMES = ["agent_1", "agent_2", "agent_4", "agent_6", "agent_8"]
+NAMES = [
+    "a1_c1_l0",    # SEEDS=4 NUM_AGENTS=1 NUM_CRITICS=1 LAMBDA=0
+    "a1_c2_l0",    # SEEDS=4 NUM_AGENTS=1 NUM_CRITICS=2 LAMBDA=0
+    "a1_c1_l0.5",  # SEEDS=4 NUM_AGENTS=1 NUM_CRITICS=1 LAMBDA=0.5
+    "a1_c2_l0.5",  # SEEDS=4 NUM_AGENTS=1 NUM_CRITICS=2 LAMBDA=0.5
+    "a4_c1_l0",    # SEEDS=4 NUM_AGENTS=4 NUM_CRITICS=1 LAMBDA=0
+    "a4_c2_l0",    # SEEDS=4 NUM_AGENTS=4 NUM_CRITICS=2 LAMBDA=0
+    "a4_c1_l0.5",  # SEEDS=4 NUM_AGENTS=4 NUM_CRITICS=1 LAMBDA=0.5
+    "a4_c2_l0.5",  # SEEDS=4 NUM_AGENTS=4 NUM_CRITICS=2 LAMBDA=0.5
+]
 OUT_IQM_MEAN = "iqm_mean.png"
 OUT_IQM_MAX = "iqm_max.png"
 OUT_LINES = "lines_episode_return.png"

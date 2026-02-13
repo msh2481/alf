@@ -21,14 +21,14 @@ import subprocess
 EXECUTE = True
 
 names = [
+    "cheetah:run",
     "cartpole:swingup_sparse",
     "fish:swim",
-    "cheetah:run",
-    "hopper:hop",
-    "hopper:stand",
-    "walker:run",
-    "walker:stand",
-    "walker:walk",
+    # "hopper:hop",
+    # "hopper:stand",
+    # "walker:run",
+    # "walker:stand",
+    # "walker:walk",
 ]
 
 
@@ -41,14 +41,17 @@ def pueue_add(command):
 
 for n in names:
     commands = [
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=1 ENV="{n}" NAME="agent_1_sqrt"',
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=2 ENV="{n}" NAME="agent_2_sqrt"',
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=4 ENV="{n}" NAME="agent_4_sqrt"',
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=6 ENV="{n}" NAME="agent_6_sqrt"',
-        f'scripts/run_dmc.sh SEEDS="8" NUM_AGENTS=8 ENV="{n}" NAME="agent_8_sqrt"',
+        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=1 ENV="{n}" NAME="a1_scale_batch"',
+        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=4 ENV="{n}" NAME="a4_scale_batch"',
+        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=8 ENV="{n}" NAME="a8_scale_batch"',
+        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=16 ENV="{n}" NAME="a16_scale_batch"',
+        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=1 SCALE_BATCH="False" ENV="{n}" NAME="a1_no_scale_batch"',
+        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=4 SCALE_BATCH="False" ENV="{n}" NAME="a4_no_scale_batch"',
+        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=8 SCALE_BATCH="False" ENV="{n}" NAME="a8_no_scale_batch"',
+        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=16 SCALE_BATCH="False" ENV="{n}" NAME="a16_no_scale_batch"',
     ]
     for c in commands:
         pueue_add(c)
 
-pueue_add("python tools/sample_efficiency.py")
-pueue_add("python tools/custom_plot.py")
+# pueue_add("python tools/sample_efficiency.py")
+# pueue_add("python tools/custom_plot.py")
