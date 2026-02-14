@@ -33,16 +33,16 @@ from plot_common import (agent_reduce, iqm, load_by_type, resolve_folders as
 # - the special string "all_dm", which expands to all
 #   subfolders of /tmp/dmc.
 FOLDER: str | Sequence[str] = "all_dm"
-# FOLDER: str | Sequence[str] = "/tmp/dmc/cartpole_swingup_sparse"
+# FOLDER: str | Sequence[str] = "/tmp/dmc/cheetah_run"
 NAMES = [
-    "a1_c1_l0",    # SEEDS=4 NUM_AGENTS=1 NUM_CRITICS=1 LAMBDA=0
-    "a1_c2_l0",    # SEEDS=4 NUM_AGENTS=1 NUM_CRITICS=2 LAMBDA=0
-    "a1_c1_l0.5",  # SEEDS=4 NUM_AGENTS=1 NUM_CRITICS=1 LAMBDA=0.5
-    "a1_c2_l0.5",  # SEEDS=4 NUM_AGENTS=1 NUM_CRITICS=2 LAMBDA=0.5
-    "a4_c1_l0",    # SEEDS=4 NUM_AGENTS=4 NUM_CRITICS=1 LAMBDA=0
-    "a4_c2_l0",    # SEEDS=4 NUM_AGENTS=4 NUM_CRITICS=2 LAMBDA=0
-    "a4_c1_l0.5",  # SEEDS=4 NUM_AGENTS=4 NUM_CRITICS=1 LAMBDA=0.5
-    "a4_c2_l0.5",  # SEEDS=4 NUM_AGENTS=4 NUM_CRITICS=2 LAMBDA=0.5
+    "a1_scale_batch",       # SEEDS=4 NUM_AGENTS=1, scale_batch=True
+    "a4_scale_batch",       # SEEDS=4 NUM_AGENTS=4, scale_batch=True
+    "a8_scale_batch",       # SEEDS=4 NUM_AGENTS=8, scale_batch=True
+    "a16_scale_batch",      # SEEDS=4 NUM_AGENTS=16, scale_batch=True
+    "a1_no_scale_batch",    # SEEDS=4 NUM_AGENTS=1, scale_batch=False
+    "a4_no_scale_batch",    # SEEDS=4 NUM_AGENTS=4, scale_batch=False
+    "a8_no_scale_batch",    # SEEDS=4 NUM_AGENTS=8, scale_batch=False
+    "a16_no_scale_batch",   # SEEDS=4 NUM_AGENTS=16, scale_batch=False
 ]
 OUT_IQM_MEAN = "iqm_mean.png"
 OUT_IQM_MAX = "iqm_max.png"
@@ -54,6 +54,7 @@ N_BOOT = 100
 BOOTSTRAP_SEED = 0
 PLOT_RETURN_QUANTILES = False
 IQM_CI_ALPHA = 0.1
+IQM_LINE_JITTER_FRAC = 5e-3
 
 BIN_CONF: dict[str, tuple[str, int]] = {
     "episode": ("episode_idx", 20),
@@ -253,6 +254,7 @@ def plot_episode_iqm(plot_df: pl.DataFrame,
     fig, ax = plt.subplots(figsize=(10, 6))
     groups = sorted(plot_df[group_col].unique().to_list())
     colors = _cmap_colors("Set1")
+    n_groups = len(groups)
     for i, g in enumerate(groups):
         x_col = "episode_idx"
         d = plot_df.filter(pl.col(group_col) == g).sort(x_col)
@@ -263,11 +265,21 @@ def plot_episode_iqm(plot_df: pl.DataFrame,
         q25 = d["q25"].to_numpy()
         q75 = d["q75"].to_numpy()
         color = colors[i % len(colors)]
-        ax.plot(x, y, label=g, color=color, linewidth=1)
-        ax.fill_between(x, lo, hi, alpha=IQM_CI_ALPHA, color=color)
+
+        # Deterministic micro-jitter to separate identical curves.
+        if IQM_LINE_JITTER_FRAC and n_groups > 1:
+            y_scale = float(np.nanmax(np.abs(y))) if y.size else 1.0
+            y_scale = max(y_scale, 1.0)
+            offset = (i - (n_groups - 1) / 2.0) * float(
+                IQM_LINE_JITTER_FRAC) * y_scale
+        else:
+            offset = 0.0
+
+        ax.plot(x, y + offset, label=g, color=color, linewidth=1)
+        ax.fill_between(x, lo + offset, hi + offset, alpha=IQM_CI_ALPHA, color=color)
         if PLOT_RETURN_QUANTILES:
-            ax.plot(x, q25, "--", color=color, linewidth=1, alpha=0.5)
-            ax.plot(x, q75, "--", color=color, linewidth=1, alpha=0.5)
+            ax.plot(x, q25 + offset, "--", color=color, linewidth=1, alpha=0.5)
+            ax.plot(x, q75 + offset, "--", color=color, linewidth=1, alpha=0.5)
     ax.set_xlabel("Episode Index")
     ax.set_ylabel("Episode Return")
     ax.set_title(f"IQM Episode Return with {int(confidence * 100)}% CI")

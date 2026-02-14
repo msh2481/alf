@@ -41,14 +41,14 @@ def pueue_add(command):
 
 for n in names:
     commands = [
-        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=1 ENV="{n}" NAME="a1_scale_batch"',
-        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=4 ENV="{n}" NAME="a4_scale_batch"',
-        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=8 ENV="{n}" NAME="a8_scale_batch"',
-        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=16 ENV="{n}" NAME="a16_scale_batch"',
-        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=1 SCALE_BATCH="False" ENV="{n}" NAME="a1_no_scale_batch"',
-        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=4 SCALE_BATCH="False" ENV="{n}" NAME="a4_no_scale_batch"',
-        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=8 SCALE_BATCH="False" ENV="{n}" NAME="a8_no_scale_batch"',
-        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=16 SCALE_BATCH="False" ENV="{n}" NAME="a16_no_scale_batch"',
+        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=1 ENV="{n}" NAME="a1_scale_batch" SHARE_ACTOR="True" SHARE_CRITIC="True"',
+        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=4 ENV="{n}" NAME="a4_scale_batch" SHARE_ACTOR="True" SHARE_CRITIC="True"',
+        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=8 ENV="{n}" NAME="a8_scale_batch" SHARE_ACTOR="True" SHARE_CRITIC="True"',
+        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=16 ENV="{n}" NAME="a16_scale_batch" SHARE_ACTOR="True" SHARE_CRITIC="True"',
+        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=1 SCALE_BATCH="False" ENV="{n}" NAME="a1_no_scale_batch" SHARE_ACTOR="True" SHARE_CRITIC="True"',
+        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=4 SCALE_BATCH="False" ENV="{n}" NAME="a4_no_scale_batch" SHARE_ACTOR="True" SHARE_CRITIC="True"',
+        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=8 SCALE_BATCH="False" ENV="{n}" NAME="a8_no_scale_batch" SHARE_ACTOR="True" SHARE_CRITIC="True"',
+        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=16 SCALE_BATCH="False" ENV="{n}" NAME="a16_no_scale_batch" SHARE_ACTOR="True" SHARE_CRITIC="True"',
     ]
     for c in commands:
         pueue_add(c)

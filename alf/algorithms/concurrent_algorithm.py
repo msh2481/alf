@@ -70,9 +70,9 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         log_grad_norms: bool = False,
         diagnostics_logging_interval: int = 50,
         share_actor_across_copies: bool = False,
-        shared_actor_mode: str = "average",
+        shared_actor_mode: str = "first",
         share_critic_across_copies: bool = False,
-        shared_critic_mode: str = "average",
+        shared_critic_mode: str = "first",
     ):
 
         self._batch_size = alf.get_config_value(
