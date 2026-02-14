@@ -21,8 +21,6 @@ UNROLL_LENGTH="0.25"
 SHUFFLE="False"
 TAU="0.01"
 N_CRITICS=1
-LENGTH=2
-LAMBDA=0
 ASYNC="True"
 ENV="Rotator"
 SHARE_ACTOR="False"
@@ -57,8 +55,6 @@ COMMON_ARGS=(
     --conf_param="_CONFIG._USER.shuffle=$SHUFFLE"
     --conf_param="_CONFIG._USER.tau=$TAU"
     --conf_param="_CONFIG._USER.n_critics=$N_CRITICS"
-    --conf_param="_CONFIG._USER.length=$LENGTH"
-    --conf_param="_CONFIG._USER.lambda=$LAMBDA"
     --conf_param="_CONFIG._USER.async=$ASYNC"
     --conf_param="_CONFIG._USER.env='$ENV'"
     --conf_param="_CONFIG._USER.gamma=$GAMMA"
@@ -68,7 +64,7 @@ COMMON_ARGS=(
 )
 
 if [ -n "$SEEDS" ] && [ "$SEEDS" -gt 0 ] 2>/dev/null; then
-    echo "Running multi-seed batch: num_seeds=$SEEDS num_agents=$NUM_AGENTS num_envs=$NUM_ENVS scale_batch=$SCALE_BATCH unroll_length=$UNROLL_LENGTH shuffle=$SHUFFLE own_rollout_fraction=$OWN_ROLLOUT_FRACTION lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA ln=$LN utd=$UTD tau=$TAU n_critics=$N_CRITICS length=$LENGTH lambda=$LAMBDA async=$ASYNC env=$ENV gamma=$GAMMA share_actor=$SHARE_ACTOR share_critic=$SHARE_CRITIC video_record_interval=$VIDEO_RECORD_INTERVAL base_dir=$BASE_DIR"
+    echo "Running multi-seed batch: num_seeds=$SEEDS num_agents=$NUM_AGENTS num_envs=$NUM_ENVS scale_batch=$SCALE_BATCH unroll_length=$UNROLL_LENGTH shuffle=$SHUFFLE own_rollout_fraction=$OWN_ROLLOUT_FRACTION lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA ln=$LN utd=$UTD tau=$TAU n_critics=$N_CRITICS async=$ASYNC env=$ENV gamma=$GAMMA share_actor=$SHARE_ACTOR share_critic=$SHARE_CRITIC video_record_interval=$VIDEO_RECORD_INTERVAL base_dir=$BASE_DIR"
 
     for SEED in $(seq 0 $((SEEDS - 1))); do
         ROOT_DIR="${BASE_DIR}/${SEED}"
@@ -93,7 +89,7 @@ if [ -n "$SEEDS" ] && [ "$SEEDS" -gt 0 ] 2>/dev/null; then
     echo "All seed runs completed!"
 else
     ROOT_DIR="$BASE_DIR"
-    echo "Running single run: num_agents=$NUM_AGENTS num_envs=$NUM_ENVS scale_batch=$SCALE_BATCH unroll_length=$UNROLL_LENGTH shuffle=$SHUFFLE own_rollout_fraction=$OWN_ROLLOUT_FRACTION lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA ln=$LN utd=$UTD tau=$TAU n_critics=$N_CRITICS length=$LENGTH lambda=$LAMBDA async=$ASYNC env=$ENV gamma=$GAMMA share_actor=$SHARE_ACTOR share_critic=$SHARE_CRITIC video_record_interval=$VIDEO_RECORD_INTERVAL root_dir=$ROOT_DIR"
+    echo "Running single run: num_agents=$NUM_AGENTS num_envs=$NUM_ENVS scale_batch=$SCALE_BATCH unroll_length=$UNROLL_LENGTH shuffle=$SHUFFLE own_rollout_fraction=$OWN_ROLLOUT_FRACTION lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA ln=$LN utd=$UTD tau=$TAU n_critics=$N_CRITICS async=$ASYNC env=$ENV gamma=$GAMMA share_actor=$SHARE_ACTOR share_critic=$SHARE_CRITIC video_record_interval=$VIDEO_RECORD_INTERVAL root_dir=$ROOT_DIR"
 
     if [[ "$ENV" == Rotator* ]]; then
         export ALF_ROTATOR_LOG_DIR="logs/${NAME}/0"

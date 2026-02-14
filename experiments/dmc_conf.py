@@ -21,7 +21,7 @@ assert not torch.cuda.is_available(
 from alf.algorithms.concurrent_algorithm import ConcurrentAlgorithm
 from alf.algorithms.rotator_callback import RotatorCallback
 from alf.algorithms.sac_algorithm import SacAlgorithm
-from alf.algorithms.td_loss import TDLoss
+from alf.algorithms.one_step_loss import OneStepTDLoss
 from alf.algorithms.data_transformer import RewardMaskByEnvId
 from alf.environments import suite_dmc, suite_gym
 from alf.environments.gym_wrappers import FrameSkip
@@ -44,8 +44,6 @@ SCALE_BATCH = alf.define_config('scale_batch', True)
 UNROLL_LENGTH = alf.define_config('unroll_length', 0.25)
 TAU = alf.define_config('tau', 0.1)
 N_CRITICS = alf.define_config('n_critics', 2)
-LENGTH = alf.define_config('length', 5)
-LAMBDA = alf.define_config('lambda', 1)
 ASYNC = alf.define_config('async', True)
 ENV = alf.define_config('env', 'cartpole:swingup_sparse')
 USE_BETA = alf.define_config('use_beta', True)
@@ -53,6 +51,8 @@ SHARE_ACTOR = alf.define_config('share_actor', False)
 SHARE_CRITIC = alf.define_config('share_critic', False)
 SHUFFLE = alf.define_config('shuffle', False)
 OWN_ROLLOUT_FRACTION = alf.define_config('own_rollout_fraction', -1.0)
+
+MINI_BATCH_LENGTH = 2
 
 _IS_ROTATOR = isinstance(ENV, str) and ENV.startswith("Rotator")
 _ENV_NAME = "Rotator-v0" if ENV == "Rotator" else ENV
@@ -104,15 +104,14 @@ alf.config(
     max_log_alpha=0.0,
     use_entropy_reward=False,
     num_critic_replicas=N_CRITICS,
-    critic_loss_ctor=TDLoss,
+    critic_loss_ctor=OneStepTDLoss,
     target_update_tau=TAU,
     target_update_period=1,
 )
 
-alf.config('TDLoss',
+alf.config('OneStepTDLoss',
            td_error_loss_fn=element_wise_squared_loss,
-           gamma=GAMMA,
-           td_lambda=LAMBDA)
+           gamma=GAMMA)
 
 alf.config(
     "ConcurrentAlgorithm",
@@ -153,7 +152,7 @@ if not SCALE_BATCH:
 alf.config('TrainerConfig',
            algorithm_ctor=ConcurrentAlgorithm,
            initial_collect_steps=1000,
-           mini_batch_length=LENGTH,
+           mini_batch_length=MINI_BATCH_LENGTH,
            mini_batch_size=MINI_BATCH_SIZE,
            unroll_length=UNROLL_LENGTH,
            num_updates_per_train_iter=UTD,
