@@ -50,6 +50,7 @@ ENV = alf.define_config('env', 'cartpole:swingup_sparse')
 USE_BETA = alf.define_config('use_beta', True)
 SHARE_ACTOR = alf.define_config('share_actor', False)
 SHARE_CRITIC = alf.define_config('share_critic', False)
+SHUFFLE = alf.define_config('shuffle', True)
 
 _IS_ROTATOR = isinstance(ENV, str) and ENV.startswith("Rotator")
 _ENV_NAME = "Rotator-v0" if ENV == "Rotator" else ENV
@@ -65,7 +66,7 @@ alf.config('create_environment',
 
 # Important for `ConcurrentAlgorithm`: avoid deterministic env_id ordering in
 # replay batches, which otherwise interacts badly with per-copy batch slicing.
-alf.config('ReplayBuffer', shuffle_batch=True)
+alf.config('ReplayBuffer', shuffle_batch=SHUFFLE)
 
 # Cartpole-style frameskip for DMC envs.
 alf.config('suite_dmc.load',

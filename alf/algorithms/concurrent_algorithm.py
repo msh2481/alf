@@ -89,12 +89,12 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             shuffle_batch = alf.get_config_value("ReplayBuffer.shuffle_batch")
         except Exception:
             shuffle_batch = False
-        assert shuffle_batch, (
-            "ConcurrentAlgorithm requires ReplayBuffer.shuffle_batch=True. "
-            "Without it, replay batches are ordered by env_id and the per-copy "
-            "batch slicing (i, i+N, ...) makes each copy train on a mostly fixed "
-            "subset of env_ids. Add `alf.config('ReplayBuffer', shuffle_batch=True)` "
-            "to your conf.")
+        if not shuffle_batch:
+            logging.warning(
+                "ReplayBuffer.shuffle_batch=False for ConcurrentAlgorithm. "
+                "This is only recommended for debugging/ablations because per-copy "
+                "batch slicing (i, i+N, ...) can make each copy train on a mostly fixed "
+                "subset of env_ids.")
 
         temp_alg = algorithm_ctor(observation_spec=observation_spec,
                                   action_spec=action_spec,
