@@ -51,7 +51,8 @@ ENV = alf.define_config('env', 'cartpole:swingup_sparse')
 USE_BETA = alf.define_config('use_beta', True)
 SHARE_ACTOR = alf.define_config('share_actor', False)
 SHARE_CRITIC = alf.define_config('share_critic', False)
-SHUFFLE = alf.define_config('shuffle', True)
+SHUFFLE = alf.define_config('shuffle', False)
+OWN_ROLLOUT_FRACTION = alf.define_config('own_rollout_fraction', -1.0)
 
 _IS_ROTATOR = isinstance(ENV, str) and ENV.startswith("Rotator")
 _ENV_NAME = "Rotator-v0" if ENV == "Rotator" else ENV
@@ -65,8 +66,8 @@ alf.config('create_environment',
            ensure_different_phases=ASYNC,
            max_steps_for_phase_randomization=125)
 
-# Important for `ConcurrentAlgorithm`: avoid deterministic env_id ordering in
-# replay batches, which otherwise interacts badly with per-copy batch slicing.
+# Important for `ConcurrentAlgorithm`: keep env_id ordering in replay batches so
+# per-copy own-rollout routing can be controlled explicitly.
 alf.config('ReplayBuffer', shuffle_batch=SHUFFLE)
 
 # Cartpole-style frameskip for DMC envs.
@@ -126,6 +127,7 @@ alf.config(
     num_copies=NUM_AGENTS,
     share_actor_across_copies=SHARE_ACTOR,
     share_critic_across_copies=SHARE_CRITIC,
+    own_rollout_fraction=OWN_ROLLOUT_FRACTION,
     return_logging_interval=500,
     video_record_interval=VIDEO_RECORD_INTERVAL,
     log_states=False,

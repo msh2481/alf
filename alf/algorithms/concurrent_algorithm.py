@@ -73,6 +73,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         shared_actor_mode: str = "first",
         share_critic_across_copies: bool = False,
         shared_critic_mode: str = "first",
+        own_rollout_fraction: float = -1.0,
     ):
 
         self._batch_size = alf.get_config_value(
@@ -89,12 +90,9 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             shuffle_batch = alf.get_config_value("ReplayBuffer.shuffle_batch")
         except Exception:
             shuffle_batch = False
-        if not shuffle_batch:
-            logging.warning(
-                "ReplayBuffer.shuffle_batch=False for ConcurrentAlgorithm. "
-                "This is only recommended for debugging/ablations because per-copy "
-                "batch slicing (i, i+N, ...) can make each copy train on a mostly fixed "
-                "subset of env_ids.")
+        assert not shuffle_batch, (
+            "ConcurrentAlgorithm expects ReplayBuffer.shuffle_batch=False so "
+            "env_id structure is preserved for per-copy routing.")
 
         temp_alg = algorithm_ctor(observation_spec=observation_spec,
                                   action_spec=action_spec,
@@ -185,6 +183,14 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         self._shared_actor_mode = shared_actor_mode
         self._share_critic_across_copies = share_critic_across_copies
         self._shared_critic_mode = shared_critic_mode
+        if own_rollout_fraction is not None and own_rollout_fraction >= 0.0:
+            assert own_rollout_fraction <= 1.0, (
+                "own_rollout_fraction must be in [0, 1]")
+            self._own_rollout_fraction = float(own_rollout_fraction)
+        else:
+            self._own_rollout_fraction = None
+        self._last_train_batch_columns: Optional[dict[int,
+                                                      torch.Tensor]] = None
 
         self._agent_reset_period = agent_reset_period
         self._next_agent_to_reset = 0
@@ -418,6 +424,121 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             sliced[i] = (*sliced_args, indices)
         return sliced
 
+    def _slice_batch_with_indices(self,
+                                  indices_by_alg: dict[int, torch.Tensor],
+                                  *args,
+                                  time_major=False):
+        """Slice args with explicitly provided per-algorithm indices."""
+        sliced = {}
+        for i in range(self._num_copies):
+            indices = indices_by_alg[i]
+            sliced_args = []
+            for arg in args:
+                if isinstance(arg, list) and len(arg) == self._num_copies:
+                    sliced_args.append(arg[i])
+                else:
+                    sliced_args.append(
+                        slice_nested(arg, indices, time_major=time_major))
+            sliced[i] = (*sliced_args, indices)
+        return sliced
+
+    @staticmethod
+    def _stochastic_round(x: float, device) -> int:
+        low = math.floor(x)
+        frac = x - low
+        if frac <= 0:
+            return int(low)
+        return int(low + (torch.rand((), device=device) < frac).item())
+
+    def _make_train_batch_columns(self,
+                                  inputs: TimeStep) -> dict[int, torch.Tensor]:
+        """Build per-copy batch-column assignment with own-rollout bias.
+
+        Assignment is defined over batch columns (size ``self._batch_size``) and
+        reused across all time steps in the same update.
+        """
+        total = alf.nest.get_nest_size(inputs, dim=0)
+        assert total % self._batch_size == 0, (
+            f"train batch size {total} must be divisible by batch_size "
+            f"{self._batch_size}")
+        length = total // self._batch_size
+        device = inputs.env_id.device
+        env_ids = inputs.env_id.reshape(length,
+                                        self._batch_size)[0].to(torch.int64)
+        owners = torch.remainder(env_ids, self._num_copies)
+        cols = torch.arange(self._batch_size, device=device)
+        quota = self._batch_size // self._num_copies
+
+        # Correct for accidental own samples from the shared pool.
+        # Expected own fraction after random fill:
+        #   f = 1/N + (1 - 1/N) * e
+        # where N=num_copies and e is the explicit own-pick fraction.
+        base_own = 1.0 / self._num_copies
+        target_own = self._own_rollout_fraction
+        if target_own <= base_own:
+            explicit_own_fraction = 0.0
+        else:
+            explicit_own_fraction = ((target_own - base_own) /
+                                     (1.0 - base_own))
+            explicit_own_fraction = min(max(explicit_own_fraction, 0.0), 1.0)
+        target_explicit_own = self._stochastic_round(
+            explicit_own_fraction * quota, device)
+
+        selected = {}
+        needs = {}
+        selected_mask = torch.zeros(self._batch_size,
+                                    dtype=torch.bool,
+                                    device=device)
+        for i in range(self._num_copies):
+            own_cols = cols[owners == i]
+            take = min(target_explicit_own, own_cols.numel(), quota)
+            if take > 0:
+                perm = torch.randperm(own_cols.numel(), device=device)[:take]
+                picked = own_cols[perm]
+                selected_mask[picked] = True
+            else:
+                picked = torch.empty(0, dtype=torch.long, device=device)
+            selected[i] = picked
+            needs[i] = quota - take
+
+        remaining = cols[~selected_mask]
+        if remaining.numel() > 1:
+            remaining = remaining[torch.randperm(remaining.numel(),
+                                                 device=device)]
+
+        cursor = 0
+        batch_columns = {}
+        for i in range(self._num_copies):
+            need = needs[i]
+            if need > 0:
+                cols_i = torch.cat(
+                    [selected[i], remaining[cursor:cursor + need]])
+                cursor += need
+            else:
+                cols_i = selected[i]
+            if cols_i.numel() > 1:
+                cols_i = cols_i[torch.randperm(cols_i.numel(), device=device)]
+            assert cols_i.numel() == quota, (
+                f"copy {i} got {cols_i.numel()} columns, expected {quota}")
+            batch_columns[i] = cols_i
+
+        assert cursor == remaining.numel(), (
+            "Unused columns remain after assignment")
+        return batch_columns
+
+    def _expand_train_batch_columns(self, batch_columns: dict[int,
+                                                              torch.Tensor],
+                                    length: int) -> dict[int, torch.Tensor]:
+        """Expand per-copy batch columns to flattened [length * batch_size]."""
+        device = next(iter(batch_columns.values())).device
+        offsets = torch.arange(length,
+                               device=device).unsqueeze(1) * self._batch_size
+        flat_indices = {}
+        for i in range(self._num_copies):
+            flat_indices[i] = (offsets +
+                               batch_columns[i].unsqueeze(0)).reshape(-1)
+        return flat_indices
+
     def _ensure_log_file(self):
         if self._log_file is not None:
             return
@@ -624,8 +745,16 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         assert alf.nest.get_nest_size(
             inputs, dim=0
         ) == total_batch_size, f"inputs shape: {alf.nest.get_nest_shape(inputs)}"
-
-        sliced = self._slice_batch(inputs, state, rollout_info)
+        if self._own_rollout_fraction is not None:
+            self._last_train_batch_columns = self._make_train_batch_columns(
+                inputs)
+            flat_indices = self._expand_train_batch_columns(
+                self._last_train_batch_columns, self._mini_batch_length)
+            sliced = self._slice_batch_with_indices(flat_indices, inputs,
+                                                    state, rollout_info)
+        else:
+            self._last_train_batch_columns = None
+            sliced = self._slice_batch(inputs, state, rollout_info)
 
         def worker(alg_idx, sliced_data):
             """Worker function for agent training."""
@@ -661,8 +790,11 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         assert alf.nest.get_nest_shape(info)[:2] == (
             self._mini_batch_length,
             self._batch_size), f"info shape: {alf.nest.get_nest_shape(info)}"
-
-        sliced = self._slice_batch(info, time_major=True)
+        if self._last_train_batch_columns is not None:
+            sliced = self._slice_batch_with_indices(
+                self._last_train_batch_columns, info, time_major=True)
+        else:
+            sliced = self._slice_batch(info, time_major=True)
         results = {}
         for alg_idx, (sliced_info, batch_indices) in sliced.items():
             loss_info = self._algorithms[alg_idx].calc_loss(sliced_info)
@@ -879,8 +1011,14 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         assert alf.nest.get_nest_shape(root_inputs)[:2] == (
             self._mini_batch_length, self._batch_size
         ), f"root_inputs shape: {alf.nest.get_nest_shape(root_inputs)}"
-
-        sliced = self._slice_batch(root_inputs, info, time_major=True)
+        if self._last_train_batch_columns is not None:
+            sliced = self._slice_batch_with_indices(
+                self._last_train_batch_columns,
+                root_inputs,
+                info,
+                time_major=True)
+        else:
+            sliced = self._slice_batch(root_inputs, info, time_major=True)
         for alg_idx, (
                 sliced_time_step,
                 sliced_info,
@@ -893,6 +1031,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
         self._sync_shared_actor()
         # Optional ablation: force all copies to share the same critic weights.
         self._sync_shared_critic()
+        self._last_train_batch_columns = None
 
     @torch.no_grad()
     def record_videos(
