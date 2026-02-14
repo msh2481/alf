@@ -39,8 +39,9 @@ LN = alf.define_config('ln', True)
 UTD = alf.define_config('utd', 1)
 RESET_PERIOD = alf.define_config('reset_period', 1)
 NUM_AGENTS = alf.define_config('num_agents', 1)
+NUM_ENVS = alf.define_config('num_envs', 32)
 SCALE_BATCH = alf.define_config('scale_batch', True)
-SCALE_UNROLL = alf.define_config('scale_unroll', False)
+UNROLL_LENGTH = alf.define_config('unroll_length', 0.25)
 TAU = alf.define_config('tau', 0.1)
 N_CRITICS = alf.define_config('n_critics', 2)
 LENGTH = alf.define_config('length', 5)
@@ -60,7 +61,7 @@ VIDEO_RECORD_INTERVAL = 10000 if not _IS_ROTATOR else 10**9
 alf.config('create_environment',
            env_name=_ENV_NAME,
            env_load_fn=_ENV_LOAD_FN,
-           num_parallel_environments=NUM_AGENTS,
+           num_parallel_environments=NUM_ENVS,
            ensure_different_phases=ASYNC,
            max_steps_for_phase_randomization=125)
 
@@ -85,10 +86,10 @@ else:
                        max_std=2.0)
 
 alf.config('ActorDistributionNetwork',
-           fc_layer_params=(256, ),
+           fc_layer_params=(256, 256),
            continuous_projection_net_ctor=proj_net)
 
-alf.config('CriticNetwork', joint_fc_layer_params=(256, ), use_fc_ln=LN)
+alf.config('CriticNetwork', joint_fc_layer_params=(256, 256), use_fc_ln=LN)
 
 alf.config('RandomizedPriorCriticNetwork',
            network_ctor=CriticNetwork,
@@ -139,7 +140,8 @@ alf.config(
 _BASE_MINI_BATCH_SIZE = 256
 MINI_BATCH_SIZE = (_BASE_MINI_BATCH_SIZE *
                    NUM_AGENTS if SCALE_BATCH else _BASE_MINI_BATCH_SIZE)
-UNROLL_LENGTH = (1.0 / NUM_AGENTS) if SCALE_UNROLL else 1
+assert NUM_ENVS % NUM_AGENTS == 0, (
+    f"num_envs={NUM_ENVS} must be divisible by num_agents={NUM_AGENTS}.")
 if not SCALE_BATCH:
     assert MINI_BATCH_SIZE % NUM_AGENTS == 0, (
         f"mini_batch_size={MINI_BATCH_SIZE} must be divisible by "
@@ -148,7 +150,7 @@ if not SCALE_BATCH:
 
 alf.config('TrainerConfig',
            algorithm_ctor=ConcurrentAlgorithm,
-           initial_collect_steps=100,
+           initial_collect_steps=1000,
            mini_batch_length=LENGTH,
            mini_batch_size=MINI_BATCH_SIZE,
            unroll_length=UNROLL_LENGTH,
