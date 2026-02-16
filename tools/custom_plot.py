@@ -32,18 +32,21 @@ from plot_common import (agent_reduce, iqm, load_by_type, resolve_folders as
 # - a list/tuple of folder paths
 # - the special string "all_dm", which expands to all
 #   subfolders of /tmp/dmc.
-FOLDER: str | Sequence[str] = "all_dm"
-# FOLDER: str | Sequence[str] = "/tmp/dmc/cheetah_run"
-NAMES = [
-    "a1_scale_batch",       # SEEDS=4 NUM_AGENTS=1, scale_batch=True
-    "a4_scale_batch",       # SEEDS=4 NUM_AGENTS=4, scale_batch=True
-    "a8_scale_batch",       # SEEDS=4 NUM_AGENTS=8, scale_batch=True
-    "a16_scale_batch",      # SEEDS=4 NUM_AGENTS=16, scale_batch=True
-    "a1_no_scale_batch",    # SEEDS=4 NUM_AGENTS=1, scale_batch=False
-    "a4_no_scale_batch",    # SEEDS=4 NUM_AGENTS=4, scale_batch=False
-    "a8_no_scale_batch",    # SEEDS=4 NUM_AGENTS=8, scale_batch=False
-    "a16_no_scale_batch",   # SEEDS=4 NUM_AGENTS=16, scale_batch=False
-]
+# FOLDER: str | Sequence[str] = "all_dm"
+FOLDER: str | Sequence[str] = "/tmp/dmc/cheetah_run"
+NAMES = ([
+    f"a16_f{f}"
+    for f in [1/8, 1/4, 1/2, 3/4]
+] 
+# + [
+#     f"a8_f{f}"
+#     for f in [1/8, 1/4, 1/2, 3/4]
+# ]
++ [
+    f"a32_f{f}"
+    for f in [1/32, 1/2, 0.6, 3/4]
+])
+
 OUT_IQM_MEAN = "iqm_mean.png"
 OUT_IQM_MAX = "iqm_max.png"
 OUT_LINES = "lines_episode_return.png"
@@ -57,7 +60,7 @@ IQM_CI_ALPHA = 0.1
 IQM_LINE_JITTER_FRAC = 5e-3
 
 BIN_CONF: dict[str, tuple[str, int]] = {
-    "episode": ("episode_idx", 20),
+    "episode": ("episode_idx", 5),
     "loss": ("train_iter", 1000),
     "weight_norm": ("train_iter", 1000),
     "grad_norm": ("train_iter", 1000),

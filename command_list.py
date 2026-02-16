@@ -41,8 +41,8 @@ def pueue_add(command):
 
 for n in names:
     commands = [
-        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=16 ENV="{n}" OWN_ROLLOUT_FRACTION="{f}" NAME="a16_f{f}"'
-        for f in [1/16, 1/8, 3/16, 1/4, 1/2, 3/4, 1]
+        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=32 ENV="{n}" OWN_ROLLOUT_FRACTION="{f}" NAME="a32_f{f}"'
+        for f in [1/32, 1/2, 0.6, 3/4]
     ]
     for c in commands:
         pueue_add(c)
