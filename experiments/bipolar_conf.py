@@ -49,7 +49,6 @@ alf.config('create_environment',
            ensure_different_phases=ASYNC,
            max_steps_for_phase_randomization=24)
 
-alf.config('ReplayBuffer', shuffle_batch=True)
 alf.config('BipolarCallback', annotate_transition_counts=False)
 
 if DISCRETE:

@@ -15,7 +15,9 @@
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
+import re
 from typing import Any, Callable, Iterable, Literal, Sequence
 
 import numpy as np
@@ -32,20 +34,12 @@ from plot_common import (agent_reduce, iqm, load_by_type, resolve_folders as
 # - a list/tuple of folder paths
 # - the special string "all_dm", which expands to all
 #   subfolders of /tmp/dmc.
-# FOLDER: str | Sequence[str] = "all_dm"
-FOLDER: str | Sequence[str] = "/tmp/dmc/cheetah_run"
-NAMES = ([
-    f"a16_f{f}"
-    for f in [1/8, 1/4, 1/2, 3/4]
+FOLDER: str | Sequence[str] = "all_dm"
+# FOLDER: str | Sequence[str] = "/tmp/dmc/cheetah_run"
+NAMES = [
+    f"a{n}_f0.75"
+    for n in [1, 2, 4, 8, 16, 32]
 ] 
-# + [
-#     f"a8_f{f}"
-#     for f in [1/8, 1/4, 1/2, 3/4]
-# ]
-+ [
-    f"a32_f{f}"
-    for f in [1/32, 1/2, 0.6, 3/4]
-])
 
 OUT_IQM_MEAN = "iqm_mean.png"
 OUT_IQM_MAX = "iqm_max.png"
@@ -59,12 +53,45 @@ PLOT_RETURN_QUANTILES = False
 IQM_CI_ALPHA = 0.1
 IQM_LINE_JITTER_FRAC = 5e-3
 
+# Episode index correction:
+# In our logs, `episode_idx` is tracked per-agent. If each agent controls fewer
+# environments when num_agents is larger, per-agent episode counts are not
+# directly comparable across num_agents. When enabled, we scale the plotted
+# x-coordinate by (num_agents / EPISODE_INDEX_BASE_AGENTS) so that the x-axis
+# approximates "iterations of the whole concurrent setup".
+CORRECT_EPISODES = True
+EPISODE_INDEX_BASE_AGENTS = 32
+
 BIN_CONF: dict[str, tuple[str, int]] = {
     "episode": ("episode_idx", 5),
     "loss": ("train_iter", 1000),
     "weight_norm": ("train_iter", 1000),
     "grad_norm": ("train_iter", 1000),
 }
+
+_A_PREFIX_RE = re.compile(r"^a(?P<a>\d+)(?:_|$)")
+
+
+def _parse_num_agents(experiment_name: str) -> int | None:
+    """Parse `a{num_agents}_...` style experiment names."""
+    m = _A_PREFIX_RE.match(str(experiment_name).strip())
+    if not m:
+        return None
+    try:
+        return int(m.group("a"))
+    except Exception:
+        return None
+
+
+def _episode_x_scale(num_agents: int) -> float:
+    base = float(EPISODE_INDEX_BASE_AGENTS)
+    if not np.isfinite(base) or base <= 0:
+        return 1.0
+    return float(num_agents) / base
+
+
+def _xlabel_episode() -> str:
+    return "Episode Index (x32)" if CORRECT_EPISODES else "Episode Index"
 
 
 def _bin_and_reduce(df: pl.DataFrame, *, x_col: str,
@@ -258,10 +285,16 @@ def plot_episode_iqm(plot_df: pl.DataFrame,
     groups = sorted(plot_df[group_col].unique().to_list())
     colors = _cmap_colors("Set1")
     n_groups = len(groups)
+    scaled_any = False
     for i, g in enumerate(groups):
         x_col = "episode_idx"
         d = plot_df.filter(pl.col(group_col) == g).sort(x_col)
         x = d[x_col].to_numpy()
+        if CORRECT_EPISODES:
+            a = _parse_num_agents(str(g))
+            if a is not None:
+                x = x.astype(np.float64, copy=False) * _episode_x_scale(int(a))
+                scaled_any = True
         y = d["stat"].to_numpy()
         lo = d["ci_low"].to_numpy()
         hi = d["ci_high"].to_numpy()
@@ -283,7 +316,7 @@ def plot_episode_iqm(plot_df: pl.DataFrame,
         if PLOT_RETURN_QUANTILES:
             ax.plot(x, q25 + offset, "--", color=color, linewidth=1, alpha=0.5)
             ax.plot(x, q75 + offset, "--", color=color, linewidth=1, alpha=0.5)
-    ax.set_xlabel("Episode Index")
+    ax.set_xlabel(_xlabel_episode() if (CORRECT_EPISODES and scaled_any) else "Episode Index")
     ax.set_ylabel("Episode Return")
     ax.set_title(f"IQM Episode Return with {int(confidence * 100)}% CI")
     ax.legend(loc="best")
@@ -341,15 +374,24 @@ def plot_many_lines(ax,
         ]
     colors = _cmap_colors("Set1")
 
+    scaled_any = False
     for i, g in enumerate(groups):
         d0 = df.filter(
             pl.col(color_col) == g) if color_col in df.columns else df
         color = colors[i % len(colors)]
+        x_scale = 1.0
+        if x_col == "episode_idx" and CORRECT_EPISODES and color_col in df.columns:
+            a = _parse_num_agents(str(g))
+            if a is not None:
+                x_scale = _episode_x_scale(int(a))
         if line_cols:
             first = True
             for _, d in d0.group_by(list(line_cols), maintain_order=True):
                 d = d.sort(x_col)
                 x = d[x_col].to_numpy()
+                if x_scale != 1.0:
+                    x = x.astype(np.float64, copy=False) * float(x_scale)
+                    scaled_any = True
                 y = d[y_col].to_numpy()
                 label = g if first else None
                 ax.plot(x,
@@ -363,6 +405,9 @@ def plot_many_lines(ax,
         else:
             d = d0.sort(x_col)
             x = d[x_col].to_numpy()
+            if x_scale != 1.0:
+                x = x.astype(np.float64, copy=False) * float(x_scale)
+                scaled_any = True
             y = d[y_col].to_numpy()
             ax.plot(x,
                     y,
@@ -374,7 +419,10 @@ def plot_many_lines(ax,
 
     if title:
         ax.set_title(title)
-    ax.set_xlabel(x_col)
+    if x_col == "episode_idx" and CORRECT_EPISODES and scaled_any:
+        ax.set_xlabel(_xlabel_episode())
+    else:
+        ax.set_xlabel(x_col)
     ax.set_ylabel(y_col)
     ax.grid(True, alpha=0.3)
     if show_legend and groups and groups != ["all"]:
@@ -513,13 +561,13 @@ def plot_critic_dashboard(by_type: dict[str, pl.DataFrame],
     plt.savefig(out, dpi=300, bbox_inches="tight")
 
 
-def process_one_folder(*, name: str, folder: str, idx: int,
-                       total: int) -> None:
+def process_one_folder(*, name: str, folder: str, idx: int, total: int,
+                       names: Sequence[str]) -> None:
     print(f"\n=== [{idx}/{total}] Processing {name} ({folder}) ===")
     out_dir = Path("plots") / name
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    by_type = load_by_type(folder=folder, names=NAMES)
+    by_type = load_by_type(folder=folder, names=names)
     by_type = _preprocess_by_type(by_type, max_episode=MAX_EPISODE)
 
     ep = by_type.get("episode", pl.DataFrame())
@@ -566,8 +614,6 @@ def process_one_folder(*, name: str, folder: str, idx: int,
                         line_cols=line_cols,
                         color_col="experiment",
                         title="Episode Return (many lines)")
-        ax.set_xlabel("Episode Index")
-        ax.set_ylabel("Episode Return")
         plt.tight_layout()
         plt.savefig(out_lines, dpi=300, bbox_inches="tight")
         print(f"Saved plot to: {out_lines}")
@@ -580,9 +626,25 @@ def process_one_folder(*, name: str, folder: str, idx: int,
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Generate custom plots from experiment logs.")
+    parser.add_argument(
+        "--names",
+        nargs="+",
+        default=None,
+        help=
+        "Experiment names to include (space-separated). Defaults to hardcoded NAMES.",
+    )
+    args = parser.parse_args()
+    names = args.names or NAMES
+
     folders = _resolve_folders(FOLDER)
     if not folders:
         raise RuntimeError("No folders resolved from FOLDER")
 
     for i, (name, folder) in enumerate(folders, start=1):
-        process_one_folder(name=name, folder=folder, idx=i, total=len(folders))
+        process_one_folder(name=name,
+                           folder=folder,
+                           idx=i,
+                           total=len(folders),
+                           names=names)

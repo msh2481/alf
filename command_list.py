@@ -21,8 +21,9 @@ import subprocess
 EXECUTE = True
 
 names = [
-    "cheetah:run",
-    # "cartpole:swingup_sparse",
+    # "cheetah:run",
+    "cartpole:swingup_sparse",
+    "pendulum:swingup",
     # "fish:swim",
     # "hopper:hop",
     # "hopper:stand",
@@ -40,9 +41,10 @@ def pueue_add(command):
 
 
 for n in names:
+    f = 0.75
     commands = [
-        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS=32 ENV="{n}" OWN_ROLLOUT_FRACTION="{f}" NAME="a32_f{f}"'
-        for f in [1/32, 1/2, 0.6, 3/4]
+        f'scripts/run_dmc.sh SEEDS="4" NUM_AGENTS={num_agents} ENV="{n}" OWN_ROLLOUT_FRACTION="{f}" NAME="a{num_agents}_f{f}"'
+        for num_agents in [1, 2, 4, 8, 16, 32]
     ]
     for c in commands:
         pueue_add(c)
