@@ -20,20 +20,21 @@ base = {
     "SHARE_ACTOR": "False",
     "SHARE_CRITIC": "False",
     "OWN_ROLLOUT_FRACTION": "-1",
+    "NUM_LAYERS": "1",
     "SEEDS": "16",
     "BASE_DIR": "",
 }
 runs = {
-    "a1_prior0": {
+    "a1_single_layer_prior0": {
         "PRIOR_SCALE": "0.0"
     },
-    "a1_prior0.1": {
+    "a1_single_layer_prior0.1": {
         "PRIOR_SCALE": "0.1"
     },
-    "a1_prior0.01": {
+    "a1_single_layer_prior0.01": {
         "PRIOR_SCALE": "0.01"
     },
-    "a1_prior0.001": {
+    "a1_single_layer_prior0.001": {
         "PRIOR_SCALE": "0.001"
     },
 }

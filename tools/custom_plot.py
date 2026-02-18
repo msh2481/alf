@@ -635,8 +635,16 @@ if __name__ == "__main__":
         help=
         "Experiment names to include (space-separated). Defaults to hardcoded NAMES.",
     )
+    parser.add_argument(
+        "--episode_index_base_agents",
+        type=int,
+        default=EPISODE_INDEX_BASE_AGENTS,
+        help=("Base number of agents used for episode-index x-axis scaling "
+              f"(default: {EPISODE_INDEX_BASE_AGENTS})."),
+    )
     args = parser.parse_args()
     names = args.names or NAMES
+    EPISODE_INDEX_BASE_AGENTS = int(args.episode_index_base_agents)
 
     folders = _resolve_folders(FOLDER)
     if not folders:

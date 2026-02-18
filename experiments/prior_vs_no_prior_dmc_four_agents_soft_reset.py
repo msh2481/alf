@@ -5,11 +5,11 @@ base = {
     "LR": "1e-3",
     "WD": "1e-5",
     "GAMMA": "0.99",
-    "ALPHA": "0",
+    "ALPHA": "5e-4",
     "LN": "True",
     "UTD": "1",
-    "RESET_PERIOD": "1e9",
-    "NUM_AGENTS": "1",
+    "RESET_PERIOD": "1",
+    "NUM_AGENTS": "4",
     "NUM_ENVS": "4",
     "SCALE_BATCH": "True",
     "UNROLL_LENGTH": "1",
@@ -19,21 +19,22 @@ base = {
     "ASYNC": "False",
     "SHARE_ACTOR": "False",
     "SHARE_CRITIC": "False",
-    "OWN_ROLLOUT_FRACTION": "-1",
+    "OWN_ROLLOUT_FRACTION": "0.75",
+    "NUM_LAYERS": "2",
     "SEEDS": "16",
     "BASE_DIR": "",
 }
 runs = {
-    "a1_prior0": {
+    "a4_prior0": {
         "PRIOR_SCALE": "0.0"
     },
-    "a1_prior0.1": {
+    "a4_prior0.1": {
         "PRIOR_SCALE": "0.1"
     },
-    "a1_prior0.01": {
+    "a4_prior0.01": {
         "PRIOR_SCALE": "0.01"
     },
-    "a1_prior0.001": {
+    "a4_prior0.001": {
         "PRIOR_SCALE": "0.001"
     },
 }

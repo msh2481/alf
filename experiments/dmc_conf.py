@@ -51,8 +51,11 @@ SHARE_ACTOR = alf.define_config('share_actor', False)
 SHARE_CRITIC = alf.define_config('share_critic', False)
 SHUFFLE = alf.define_config('shuffle', False)
 OWN_ROLLOUT_FRACTION = alf.define_config('own_rollout_fraction', -1.0)
+NUM_LAYERS = alf.define_config('num_layers', 2)
 
 MINI_BATCH_LENGTH = 2
+assert NUM_LAYERS >= 1, f"num_layers={NUM_LAYERS} must be >= 1."
+HIDDEN_LAYERS = (256, ) * int(NUM_LAYERS)
 
 _IS_ROTATOR = isinstance(ENV, str) and ENV.startswith("Rotator")
 _ENV_NAME = "Rotator-v0" if ENV == "Rotator" else ENV
@@ -87,10 +90,12 @@ else:
                        max_std=2.0)
 
 alf.config('ActorDistributionNetwork',
-           fc_layer_params=(256, 256),
+           fc_layer_params=HIDDEN_LAYERS,
            continuous_projection_net_ctor=proj_net)
 
-alf.config('CriticNetwork', joint_fc_layer_params=(256, 256), use_fc_ln=LN)
+alf.config('CriticNetwork',
+           joint_fc_layer_params=HIDDEN_LAYERS,
+           use_fc_ln=LN)
 
 alf.config('RandomizedPriorCriticNetwork',
            network_ctor=CriticNetwork,
