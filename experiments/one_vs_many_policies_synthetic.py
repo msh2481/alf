@@ -1,0 +1,51 @@
+import subprocess
+
+_FORCE_32_ENVS = '--conf_param="create_environment.num_parallel_environments=32"'
+
+base = {
+    "CONF": "experiments/bipolar_conf.py",
+    "ENV": "BipolarChain-medium-sparse-onehot-discrete-v0",
+    "LR": "0.1",
+    "WD": "1e-5",
+    "GAMMA": "0.95",
+    "ALPHA": "0",
+    "TAU": "0.05",
+    "UTD": "8",
+    "RESET_PERIOD": "24",
+    "NUM_AGENTS": "1",
+    "ASYNC": "True",
+    "ENTROPY_REWARD": "False",
+    "N_COMPONENTS": "500",
+    "SEEDS": "",
+    "BASE_DIR": "",
+    "EXTRA_ARGS": _FORCE_32_ENVS,
+}
+runs = {
+    # 1) 32 parallel envs, 1 agent, no prior
+    "a1_e32_prior0": {
+        "NUM_AGENTS": "1",
+        "PRIOR_SCALE": "0.0",
+    },
+    # 2) 32 parallel envs, 1 agent, with prior
+    "a1_e32_prior2.0": {
+        "NUM_AGENTS": "1",
+        "PRIOR_SCALE": "2.0",
+    },
+    # 3) 32 parallel envs, 32 agents, with prior
+    "a32_e32_prior2.0": {
+        "NUM_AGENTS": "32",
+        "PRIOR_SCALE": "2.0",
+    },
+}
+
+
+def main():
+    for name, overrides in runs.items():
+        p = {**base, **overrides}
+        args = " ".join(f'{k}="{v}"' for k, v in p.items())
+        cmd = f'bash scripts/run_bipolar.sh {args} NAME="{name}"'
+        subprocess.run(["pueue", "add", "--", cmd], check=True)
+
+
+if __name__ == "__main__":
+    main()
