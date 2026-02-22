@@ -25,17 +25,20 @@ base = {
     "BASE_DIR": "",
 }
 runs = {
-    "a4_prior0": {
-        "PRIOR_SCALE": "0.0"
-    },
-    "a4_prior0.1": {
-        "PRIOR_SCALE": "0.1"
-    },
-    "a4_prior0.01": {
-        "PRIOR_SCALE": "0.01"
-    },
-    "a4_prior0.001": {
-        "PRIOR_SCALE": "0.001"
+    # "a4_prior0": {
+    #     "PRIOR_SCALE": "0.0"
+    # },
+    # "a4_prior0.001": {
+    #     "PRIOR_SCALE": "0.001"
+    # },
+    # "a4_prior0.01": {
+    #     "PRIOR_SCALE": "0.01"
+    # },
+    # "a4_prior0.1": {
+    #     "PRIOR_SCALE": "0.1"
+    # },
+    "a4_prior1.0": {
+        "PRIOR_SCALE": "1.0"
     },
 }
 NAMES = list(runs.keys())

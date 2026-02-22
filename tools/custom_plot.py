@@ -34,12 +34,13 @@ from plot_common import (agent_reduce, iqm, load_by_type, resolve_folders as
 # - a list/tuple of folder paths
 # - the special string "all_dm", which expands to all
 #   subfolders of /tmp/dmc.
-FOLDER: str | Sequence[str] = "all_dm"
-# FOLDER: str | Sequence[str] = "/tmp/dmc/cheetah_run"
-NAMES = [
-    f"a{n}_f0.75"
-    for n in [1, 2, 4, 8, 16, 32]
-] 
+# FOLDER: str | Sequence[str] = "all_dm"
+FOLDER: str | Sequence[str] = "/tmp/bipolar/BipolarChain-medium-sparse-onehot-discrete-v0/"
+# NAMES = [
+#     f"a{n}_f0.75"
+#     for n in [1, 2, 4, 8, 16, 32]
+# ] 
+NAMES = ["a1_e32_prior0", "a1_e32_prior2.0", "a32_e32_prior2.0"]
 
 OUT_IQM_MEAN = "iqm_mean.png"
 OUT_IQM_MAX = "iqm_max.png"
@@ -63,7 +64,7 @@ CORRECT_EPISODES = True
 EPISODE_INDEX_BASE_AGENTS = 32
 
 BIN_CONF: dict[str, tuple[str, int]] = {
-    "episode": ("episode_idx", 5),
+    "episode": ("episode_idx", 20),
     "loss": ("train_iter", 1000),
     "weight_norm": ("train_iter", 1000),
     "grad_norm": ("train_iter", 1000),
@@ -91,7 +92,7 @@ def _episode_x_scale(num_agents: int) -> float:
 
 
 def _xlabel_episode() -> str:
-    return "Episode Index (x32)" if CORRECT_EPISODES else "Episode Index"
+    return "Episode Index (x{EPISODE_INDEX_BASE_AGENTS})" if CORRECT_EPISODES else "Episode Index"
 
 
 def _bin_and_reduce(df: pl.DataFrame, *, x_col: str,
@@ -636,6 +637,12 @@ if __name__ == "__main__":
         "Experiment names to include (space-separated). Defaults to hardcoded NAMES.",
     )
     parser.add_argument(
+        "--folder",
+        type=str,
+        default=None,
+        help="Root folder containing experiment runs. Defaults to hardcoded FOLDER.",
+    )
+    parser.add_argument(
         "--episode_index_base_agents",
         type=int,
         default=EPISODE_INDEX_BASE_AGENTS,
@@ -646,7 +653,8 @@ if __name__ == "__main__":
     names = args.names or NAMES
     EPISODE_INDEX_BASE_AGENTS = int(args.episode_index_base_agents)
 
-    folders = _resolve_folders(FOLDER)
+    folder = args.folder or FOLDER
+    folders = _resolve_folders(folder)
     if not folders:
         raise RuntimeError("No folders resolved from FOLDER")
 

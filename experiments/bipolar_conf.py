@@ -122,7 +122,7 @@ alf.config(
 
 alf.config('TrainerConfig',
            algorithm_ctor=ConcurrentAlgorithm,
-           initial_collect_steps=10,
+           initial_collect_steps=4 * ENV_COUNTS,
            mini_batch_length=MINI_BATCH_LENGTH,
            mini_batch_size=BATCH_SIZE,
            unroll_length=UNROLL_LENGTH,
