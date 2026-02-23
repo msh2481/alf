@@ -1,7 +1,5 @@
 import subprocess
 
-_FORCE_32_ENVS = '--conf_param="create_environment.num_parallel_environments=32"'
-
 ENV = "BipolarChain-medium-sparse-onehot-discrete-v0"
 FOLDER = f"/tmp/bipolar/{ENV}/"
 
@@ -16,12 +14,12 @@ base = {
     "UTD": "8",
     "RESET_PERIOD": "24",
     "NUM_AGENTS": "1",
+    "NUM_ENVS": "32",
     "ASYNC": "True",
     "ENTROPY_REWARD": "False",
     "N_COMPONENTS": "500",
     "SEEDS": "16",
     "BASE_DIR": "",
-    "EXTRA_ARGS": _FORCE_32_ENVS,
 }
 runs = {
     # 1) 32 parallel envs, 1 agent, no prior

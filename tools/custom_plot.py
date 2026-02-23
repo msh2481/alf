@@ -34,13 +34,15 @@ from plot_common import (agent_reduce, iqm, load_by_type, resolve_folders as
 # - a list/tuple of folder paths
 # - the special string "all_dm", which expands to all
 #   subfolders of /tmp/dmc.
-# FOLDER: str | Sequence[str] = "all_dm"
-FOLDER: str | Sequence[str] = "/tmp/bipolar/BipolarChain-medium-sparse-onehot-discrete-v0/"
-# NAMES = [
-#     f"a{n}_f0.75"
-#     for n in [1, 2, 4, 8, 16, 32]
-# ] 
-NAMES = ["a1_e32_prior0", "a1_e32_prior2.0", "a32_e32_prior2.0"]
+FOLDER: str | Sequence[str] = "all_dm"
+# FOLDER: str | Sequence[str] = "/tmp/bipolar/BipolarChain-medium-sparse-onehot-discrete-v0/"
+NAMES = [
+    "a4_prior0",
+    "a4_prior0.001",
+    "a4_prior0.01",
+    "a4_prior0.1",
+    "a4_prior1.0",
+] 
 
 OUT_IQM_MEAN = "iqm_mean.png"
 OUT_IQM_MAX = "iqm_max.png"
@@ -92,7 +94,7 @@ def _episode_x_scale(num_agents: int) -> float:
 
 
 def _xlabel_episode() -> str:
-    return "Episode Index (x{EPISODE_INDEX_BASE_AGENTS})" if CORRECT_EPISODES else "Episode Index"
+    return f"Episode Index (x{EPISODE_INDEX_BASE_AGENTS})" if CORRECT_EPISODES else "Episode Index"
 
 
 def _bin_and_reduce(df: pl.DataFrame, *, x_col: str,

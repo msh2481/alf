@@ -32,6 +32,7 @@ TAU = alf.define_config('tau', 0.05)
 UTD = alf.define_config('utd', 8)
 RESET_PERIOD = alf.define_config('reset_period', 1)
 NUM_AGENTS = alf.define_config('num_agents', 1)
+NUM_ENVS = alf.define_config('num_envs', 32)
 ASYNC = alf.define_config('async', True)
 ENTROPY_REWARD = alf.define_config('entropy_reward', False)
 N_COMPONENTS = alf.define_config('n_components', 4000)
@@ -39,13 +40,14 @@ N_COMPONENTS = alf.define_config('n_components', 4000)
 DISCRETE = "discrete" in ENV
 NUM_COPIES = NUM_AGENTS
 BATCH_SIZE = 256 * NUM_COPIES
-ENV_COUNTS = NUM_COPIES
+assert NUM_ENVS % NUM_AGENTS == 0, (
+    f"num_envs={NUM_ENVS} must be divisible by num_agents={NUM_AGENTS}.")
 UNROLL_LENGTH = 1
 MINI_BATCH_LENGTH = 2
 
 alf.config('create_environment',
            env_name=ENV,
-           num_parallel_environments=ENV_COUNTS,
+           num_parallel_environments=NUM_ENVS,
            ensure_different_phases=ASYNC,
            max_steps_for_phase_randomization=24)
 
@@ -122,7 +124,7 @@ alf.config(
 
 alf.config('TrainerConfig',
            algorithm_ctor=ConcurrentAlgorithm,
-           initial_collect_steps=4 * ENV_COUNTS,
+           initial_collect_steps=4 * NUM_ENVS,
            mini_batch_length=MINI_BATCH_LENGTH,
            mini_batch_size=BATCH_SIZE,
            unroll_length=UNROLL_LENGTH,

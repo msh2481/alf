@@ -17,6 +17,7 @@ TAU="0.05"
 UTD=4
 RESET_PERIOD=1
 NUM_AGENTS=1
+NUM_ENVS=""
 ASYNC="True"
 ENTROPY_REWARD="False"
 N_COMPONENTS=500
@@ -52,6 +53,9 @@ COMMON_ARGS=(
 
 if [ -n "$ALPHA" ]; then
     COMMON_ARGS+=(--conf_param="_CONFIG._USER.alpha=$ALPHA")
+fi
+if [ -n "$NUM_ENVS" ]; then
+    COMMON_ARGS+=(--conf_param="_CONFIG._USER.num_envs=$NUM_ENVS")
 fi
 
 if [ -n "$SEEDS" ] && [ "$SEEDS" -gt 0 ] 2>/dev/null; then
