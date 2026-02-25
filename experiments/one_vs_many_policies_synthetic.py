@@ -14,7 +14,7 @@ base = {
     "UTD": "8",
     "RESET_PERIOD": "24",
     "NUM_AGENTS": "1",
-    "NUM_ENVS": "32",
+    "NUM_ENVS": "8",
     "ASYNC": "True",
     "ENTROPY_REWARD": "False",
     "N_COMPONENTS": "500",
@@ -22,18 +22,18 @@ base = {
     "BASE_DIR": "",
 }
 runs = {
-    # 1) 32 parallel envs, 1 agent, no prior
-    "a1_e32_prior0": {
+    # 1) 8 parallel envs, 1 agent, no prior
+    "a1_e8_prior0": {
         "NUM_AGENTS": "1",
         "PRIOR_SCALE": "0.0",
     },
-    # 2) 32 parallel envs, 1 agent, with prior
-    "a1_e32_prior2.0": {
+    # 2) 8 parallel envs, 1 agent, with prior
+    "a1_e8_prior2.0": {
         "NUM_AGENTS": "1",
         "PRIOR_SCALE": "2.0",
     },
-    # 3) 32 parallel envs, 32 agents, with prior
-    "a32_e32_prior2.0": {
+    # 3) 8 parallel envs, 32 agents, with prior
+    "a32_e8_prior2.0": {
         "NUM_AGENTS": "32",
         "PRIOR_SCALE": "2.0",
     },
