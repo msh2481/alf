@@ -28,18 +28,18 @@ runs = {
         "PRIOR_SCALE": "0.0",
     },
     # 2) 8 parallel envs, 1 agent, with prior
-    "a1_e8_prior2.0": {
+    "a1_e8_prior1.0": {
         "NUM_AGENTS": "1",
-        "PRIOR_SCALE": "2.0",
+        "PRIOR_SCALE": "1.0",
     },
-    # 3) 8 parallel envs, 32 agents, with prior
-    "a32_e8_prior2.0": {
-        "NUM_AGENTS": "32",
-        "PRIOR_SCALE": "2.0",
+    # 3) 8 parallel envs, 8 agents, with prior
+    "a8_e8_prior1.0": {
+        "NUM_AGENTS": "8",
+        "PRIOR_SCALE": "1.0",
     },
 }
 NAMES = list(runs.keys())
-EPISODE_INDEX_BASE_AGENTS = 32
+EPISODE_INDEX_BASE_AGENTS = 8
 
 
 def pueue_add(command: str, after: list[str] | None = None) -> str:
