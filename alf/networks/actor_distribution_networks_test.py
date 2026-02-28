@@ -20,12 +20,16 @@ from absl import logging
 import time
 import torch
 import torch.distributions as td
+from torch.nn.utils import parameters_to_vector
 
 import alf
 from alf.tensor_specs import TensorSpec, BoundedTensorSpec
 from alf.networks import ActorDistributionNetwork
 from alf.networks import ActorDistributionRNNNetwork, RBFActorDistributionNetwork
-from alf.networks import NormalProjectionNetwork, CategoricalProjectionNetwork, SimpleProjectionNetwork
+from alf.networks import (BetaProjectionNetwork, CategoricalProjectionNetwork,
+                          NormalProjectionNetwork,
+                          RandomizedPriorActorDistributionNetwork,
+                          SimpleProjectionNetwork)
 from alf.utils.common import zero_tensor_from_nested_spec
 from alf.nest.utils import NestConcat
 from alf.utils.dist_utils import DistributionSpec
@@ -309,6 +313,87 @@ class TestActorDistributionNetworks(parameterized.TestCase, alf.test.TestCase):
         sm.set_array([])
         plt.colorbar(sm, ax=ax, label='Iteration')
         plt.show()
+
+    def test_randomized_prior_actor_distribution_beta(self):
+        torch.manual_seed(0)
+        obs_spec = TensorSpec((8, ), torch.float32)
+        action_spec = BoundedTensorSpec((2, ),
+                                        torch.float32,
+                                        minimum=-1.0,
+                                        maximum=1.0)
+        actor = RandomizedPriorActorDistributionNetwork(
+            obs_spec,
+            action_spec,
+            fc_layer_params=(64, 64),
+            prior_scale=0.5,
+            continuous_projection_net_ctor=functools.partial(
+                BetaProjectionNetwork, min_concentration=1.0))
+
+        obs = obs_spec.randn((256, ))
+        act_dist, _ = actor(obs)
+        actions = act_dist.sample()
+
+        self.assertEqual(actions.shape, (256, ) + action_spec.shape)
+        self.assertTrue(
+            torch.all(actions >= torch.as_tensor(action_spec.minimum)))
+        self.assertTrue(
+            torch.all(actions <= torch.as_tensor(action_spec.maximum)))
+
+    def test_randomized_prior_actor_distribution_freezes_and_perturbs_prior(
+            self):
+        torch.manual_seed(0)
+        obs_spec = TensorSpec((8, ), torch.float32)
+        action_spec = BoundedTensorSpec((2, ),
+                                        torch.float32,
+                                        minimum=-1.0,
+                                        maximum=1.0)
+        actor = RandomizedPriorActorDistributionNetwork(
+            obs_spec,
+            action_spec,
+            fc_layer_params=(32, ),
+            prior_scale=1.0,
+            continuous_projection_net_ctor=functools.partial(
+                BetaProjectionNetwork, min_concentration=1.0))
+
+        self.assertFalse(
+            any(p.requires_grad
+                for p in actor._prior_encoding_net.parameters()))
+        self.assertTrue(
+            all(p.requires_grad
+                for p in actor._trainable_encoding_net.parameters()))
+
+        prior_before = parameters_to_vector(
+            actor._prior_encoding_net.parameters()).detach().clone()
+        actor.perturb_prior(alpha=0.1)
+        prior_after = parameters_to_vector(
+            actor._prior_encoding_net.parameters()).detach().clone()
+        self.assertNotEqual(float((prior_before - prior_after).abs().sum()),
+                            0.0)
+
+    def test_randomized_prior_actor_distribution_make_parallel(self):
+        torch.manual_seed(0)
+        obs_spec = TensorSpec((8, ), torch.float32)
+        action_spec = BoundedTensorSpec((2, ),
+                                        torch.float32,
+                                        minimum=-1.0,
+                                        maximum=1.0)
+        actor = RandomizedPriorActorDistributionNetwork(
+            obs_spec,
+            action_spec,
+            fc_layer_params=(32, ),
+            prior_scale=0.25,
+            continuous_projection_net_ctor=functools.partial(
+                BetaProjectionNetwork, min_concentration=1.0))
+
+        pnet = actor.make_parallel(3)
+        act_dist, _ = pnet(obs_spec.randn((128, )))
+        actions = act_dist.sample()
+
+        self.assertEqual(actions.shape, (128, 3) + action_spec.shape)
+        self.assertTrue(
+            torch.all(actions >= torch.as_tensor(action_spec.minimum)))
+        self.assertTrue(
+            torch.all(actions <= torch.as_tensor(action_spec.maximum)))
 
 
 if __name__ == "__main__":

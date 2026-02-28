@@ -1,11 +1,12 @@
 #!/bin/bash
 
-# Unified launcher for `experiments/dmc_conf.py`.
+# Unified launcher for DMC-style experiment configs.
 #
 # Usage examples:
 #   bash scripts/run_dmc.sh ENV="cartpole:swingup_sparse" SEEDS=8
 #   bash scripts/run_dmc.sh ENV="Rotator" NUM_AGENTS=4 SEEDS=4
 
+CONF="experiments/dmc_conf.py"
 LR="1e-3"
 WD="1e-5"
 GAMMA="0.99"
@@ -25,6 +26,7 @@ ASYNC="True"
 ENV="Rotator"
 SHARE_ACTOR="False"
 SHARE_CRITIC="False"
+SHARED_CRITIC_MODE="first"
 OWN_ROLLOUT_FRACTION="-1"
 NUM_LAYERS=2
 NAME="$(date +%Y%m%d_%H%M%S)"
@@ -41,7 +43,7 @@ if [ -z "$BASE_DIR" ]; then
 fi
 
 COMMON_ARGS=(
-    --conf=experiments/dmc_conf.py
+    --conf="$CONF"
     --conf_param="_CONFIG._USER.lr=$LR"
     --conf_param="_CONFIG._USER.wd=$WD"
     --conf_param="_CONFIG._USER.prior_scale=$PRIOR_SCALE"
@@ -61,12 +63,13 @@ COMMON_ARGS=(
     --conf_param="_CONFIG._USER.gamma=$GAMMA"
     --conf_param="_CONFIG._USER.share_actor=$SHARE_ACTOR"
     --conf_param="_CONFIG._USER.share_critic=$SHARE_CRITIC"
+    --conf_param="_CONFIG._USER.shared_critic_mode='$SHARED_CRITIC_MODE'"
     --conf_param="_CONFIG._USER.own_rollout_fraction=$OWN_ROLLOUT_FRACTION"
     --conf_param="_CONFIG._USER.num_layers=$NUM_LAYERS"
 )
 
 if [ -n "$SEEDS" ] && [ "$SEEDS" -gt 0 ] 2>/dev/null; then
-    echo "Running multi-seed batch: num_seeds=$SEEDS num_agents=$NUM_AGENTS num_envs=$NUM_ENVS scale_batch=$SCALE_BATCH unroll_length=$UNROLL_LENGTH shuffle=$SHUFFLE own_rollout_fraction=$OWN_ROLLOUT_FRACTION num_layers=$NUM_LAYERS lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA ln=$LN utd=$UTD tau=$TAU n_critics=$N_CRITICS async=$ASYNC env=$ENV gamma=$GAMMA share_actor=$SHARE_ACTOR share_critic=$SHARE_CRITIC video_record_interval=$VIDEO_RECORD_INTERVAL base_dir=$BASE_DIR"
+    echo "Running multi-seed batch: conf=$CONF num_seeds=$SEEDS num_agents=$NUM_AGENTS num_envs=$NUM_ENVS scale_batch=$SCALE_BATCH unroll_length=$UNROLL_LENGTH shuffle=$SHUFFLE own_rollout_fraction=$OWN_ROLLOUT_FRACTION num_layers=$NUM_LAYERS lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA ln=$LN utd=$UTD tau=$TAU n_critics=$N_CRITICS async=$ASYNC env=$ENV gamma=$GAMMA share_actor=$SHARE_ACTOR share_critic=$SHARE_CRITIC shared_critic_mode=$SHARED_CRITIC_MODE video_record_interval=$VIDEO_RECORD_INTERVAL base_dir=$BASE_DIR"
 
     for SEED in $(seq 0 $((SEEDS - 1))); do
         ROOT_DIR="${BASE_DIR}/${SEED}"
@@ -91,7 +94,7 @@ if [ -n "$SEEDS" ] && [ "$SEEDS" -gt 0 ] 2>/dev/null; then
     echo "All seed runs completed!"
 else
     ROOT_DIR="$BASE_DIR"
-    echo "Running single run: num_agents=$NUM_AGENTS num_envs=$NUM_ENVS scale_batch=$SCALE_BATCH unroll_length=$UNROLL_LENGTH shuffle=$SHUFFLE own_rollout_fraction=$OWN_ROLLOUT_FRACTION num_layers=$NUM_LAYERS lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA ln=$LN utd=$UTD tau=$TAU n_critics=$N_CRITICS async=$ASYNC env=$ENV gamma=$GAMMA share_actor=$SHARE_ACTOR share_critic=$SHARE_CRITIC video_record_interval=$VIDEO_RECORD_INTERVAL root_dir=$ROOT_DIR"
+    echo "Running single run: conf=$CONF num_agents=$NUM_AGENTS num_envs=$NUM_ENVS scale_batch=$SCALE_BATCH unroll_length=$UNROLL_LENGTH shuffle=$SHUFFLE own_rollout_fraction=$OWN_ROLLOUT_FRACTION num_layers=$NUM_LAYERS lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA ln=$LN utd=$UTD tau=$TAU n_critics=$N_CRITICS async=$ASYNC env=$ENV gamma=$GAMMA share_actor=$SHARE_ACTOR share_critic=$SHARE_CRITIC shared_critic_mode=$SHARED_CRITIC_MODE video_record_interval=$VIDEO_RECORD_INTERVAL root_dir=$ROOT_DIR"
 
     if [[ "$ENV" == Rotator* ]]; then
         export ALF_ROTATOR_LOG_DIR="logs/${NAME}/0"

@@ -22,10 +22,9 @@ from alf.algorithms.concurrent_algorithm import ConcurrentAlgorithm
 from alf.algorithms.rotator_callback import RotatorCallback
 from alf.algorithms.sac_algorithm import SacAlgorithm
 from alf.algorithms.one_step_loss import OneStepTDLoss
-from alf.algorithms.data_transformer import RewardMaskByEnvId
 from alf.environments import suite_dmc, suite_gym
 from alf.environments.gym_wrappers import FrameSkip
-from alf.networks import CriticNetwork, RandomizedPriorCriticNetwork
+from alf.networks import CriticNetwork, RandomizedPriorActorDistributionNetwork
 from alf.utils.losses import element_wise_squared_loss
 
 LR = alf.define_config('lr', 1e-3)
@@ -46,10 +45,9 @@ TAU = alf.define_config('tau', 0.1)
 N_CRITICS = alf.define_config('n_critics', 2)
 ASYNC = alf.define_config('async', True)
 ENV = alf.define_config('env', 'cartpole:swingup_sparse')
-USE_BETA = alf.define_config('use_beta', True)
 SHARE_ACTOR = alf.define_config('share_actor', False)
-SHARE_CRITIC = alf.define_config('share_critic', False)
-SHARED_CRITIC_MODE = alf.define_config('shared_critic_mode', 'first')
+SHARE_CRITIC = alf.define_config('share_critic', True)
+SHARED_CRITIC_MODE = alf.define_config('shared_critic_mode', 'average')
 SHUFFLE = alf.define_config('shuffle', False)
 OWN_ROLLOUT_FRACTION = alf.define_config('own_rollout_fraction', -1.0)
 NUM_LAYERS = alf.define_config('num_layers', 2)
@@ -70,41 +68,26 @@ alf.config('create_environment',
            ensure_different_phases=ASYNC,
            max_steps_for_phase_randomization=125)
 
-# Important for `ConcurrentAlgorithm`: keep env_id ordering in replay batches so
-# per-copy own-rollout routing can be controlled explicitly.
 alf.config('ReplayBuffer', shuffle_batch=SHUFFLE)
 
-# Cartpole-style frameskip for DMC envs.
 alf.config('suite_dmc.load',
            from_pixels=False,
            max_episode_steps=125,
            gym_env_wrappers=(partial(FrameSkip, skip=8), ))
 
-if USE_BETA:
-    proj_net = partial(alf.networks.BetaProjectionNetwork,
-                       min_concentration=1.0)
-else:
-    proj_net = partial(alf.networks.StableNormalProjectionNetwork,
-                       state_dependent_std=True,
-                       scale_distribution=True,
-                       min_std=1e-2,
-                       max_std=2.0)
+proj_net = partial(alf.networks.BetaProjectionNetwork, min_concentration=1.0)
 
-alf.config('ActorDistributionNetwork',
+alf.config('RandomizedPriorActorDistributionNetwork',
+           prior_scale=PRIOR_SCALE,
            fc_layer_params=HIDDEN_LAYERS,
            continuous_projection_net_ctor=proj_net)
 
 alf.config('CriticNetwork', joint_fc_layer_params=HIDDEN_LAYERS, use_fc_ln=LN)
 
-alf.config('RandomizedPriorCriticNetwork',
-           network_ctor=CriticNetwork,
-           prior_scale=PRIOR_SCALE,
-           trainable_init_std=1e-3)
-
 alf.config(
     'SacAlgorithm',
-    actor_network_cls=alf.networks.ActorDistributionNetwork,
-    critic_network_cls=RandomizedPriorCriticNetwork,
+    actor_network_cls=RandomizedPriorActorDistributionNetwork,
+    critic_network_cls=CriticNetwork,
     max_log_alpha=0.0,
     use_entropy_reward=False,
     num_critic_replicas=N_CRITICS,
