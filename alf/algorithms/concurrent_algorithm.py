@@ -703,6 +703,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                         "agent_idx": alg_idx,
                         "env_idx": env_idx.item(),
                         "episode_idx": episode_idx,
+                        "env_steps": self._total_env_steps,
                         "episode_return": episode_return,
                         "episode_length": episode_length,
                         "walltime": time.time(),
@@ -865,6 +866,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
             "type": "loss",
             "train_iter": self._train_step_counter + 1,
             "agent_idx": alg_idx,
+            "env_steps": self._total_env_steps,
             "walltime": time.time(),
         }
         if actor_loss is not None:
@@ -975,6 +977,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                     "type": "weight_norm",
                     "train_iter": self._train_step_counter,
                     "agent_idx": alg_idx,
+                    "env_steps": self._total_env_steps,
                     "walltime": time.time(),
                     "actor": self._module_weight_norm(actor_module),
                     "critic": self._module_weight_norm(critic_module),
@@ -989,6 +992,7 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                     "type": "grad_norm",
                     "train_iter": self._train_step_counter,
                     "agent_idx": alg_idx,
+                    "env_steps": self._total_env_steps,
                     "walltime": time.time(),
                     "actor": self._module_grad_norm(actor_module),
                     "critic": self._module_grad_norm(critic_module),
