@@ -12,7 +12,7 @@ base = {
     "ALPHA": "0",
     "TAU": "0.05",
     "UTD": "8",
-    "RESET_PERIOD": "24",
+    "RESET_PERIOD": "500",
     "NUM_AGENTS": "1",
     "NUM_ENVS": "8",
     "ASYNC": "True",

@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-import re
 from typing import Any, Callable, Iterable, Literal, Sequence
 
 import numpy as np
@@ -66,39 +65,19 @@ CORRECT_EPISODES = True
 EPISODE_INDEX_BASE_AGENTS = 32
 
 BIN_CONF: dict[str, tuple[str, int]] = {
-    "episode": ("episode_idx", 20),
+    "episode": ("episode_idx", 1),
     "loss": ("train_iter", 1000),
     "weight_norm": ("train_iter", 1000),
     "grad_norm": ("train_iter", 1000),
 }
-
-_A_PREFIX_RE = re.compile(r"^a(?P<a>\d+)(?:_|$)")
-
-
-def _parse_num_agents(experiment_name: str) -> int | None:
-    """Parse `a{num_agents}_...` style experiment names."""
-    m = _A_PREFIX_RE.match(str(experiment_name).strip())
-    if not m:
-        return None
-    try:
-        return int(m.group("a"))
-    except Exception:
-        return None
-
-
-def _episode_x_scale(num_agents: int) -> float:
-    base = float(EPISODE_INDEX_BASE_AGENTS)
-    if not np.isfinite(base) or base <= 0:
-        return 1.0
-    return float(num_agents) / base
-
 
 def _xlabel_episode() -> str:
     return f"Episode Index (x{EPISODE_INDEX_BASE_AGENTS})" if CORRECT_EPISODES else "Episode Index"
 
 
 def _bin_and_reduce(df: pl.DataFrame, *, x_col: str,
-                    bin_size: int) -> pl.DataFrame:
+                    bin_size: int,
+                    cast_x_to_int: bool = True) -> pl.DataFrame:
     """Bin the x-axis in-place and reduce duplicates within each curve.
 
     - Overwrites `x_col` with its binned value (no `*_bin` column).
@@ -108,12 +87,17 @@ def _bin_and_reduce(df: pl.DataFrame, *, x_col: str,
     if df.is_empty() or x_col not in df.columns:
         return df
 
-    # Ensure integer x-axis for stable binning and plotting.
-    df = df.with_columns(pl.col(x_col).cast(pl.Int64))
+    # Keep integer x-axis where appropriate, but allow float x for corrected
+    # episode-index binning.
+    if cast_x_to_int:
+        df = df.with_columns(pl.col(x_col).cast(pl.Int64))
 
     if bin_size > 1:
-        df = df.with_columns(
-            (pl.col(x_col) // int(bin_size) * int(bin_size)).alias(x_col))
+        b = float(bin_size)
+        binned = (pl.col(x_col).cast(pl.Float64) / b).floor() * b
+        if cast_x_to_int:
+            binned = binned.cast(pl.Int64)
+        df = df.with_columns(binned.alias(x_col))
 
     # Reduce duplicates / within-bin points so each (seed[,agent],x) is a single sample.
     group_keys: list[str] = ["experiment", "seed"]
@@ -158,9 +142,27 @@ def _preprocess_by_type(by_type: dict[str, pl.DataFrame], *,
         if event_type == "episode" and max_episode is not None and "episode_idx" in df.columns:
             df = df.filter(pl.col("episode_idx") <= int(max_episode))
 
-        out[event_type] = _bin_and_reduce(df,
-                                          x_col=x_col,
-                                          bin_size=int(bin_size))
+        if (event_type == "episode" and CORRECT_EPISODES and
+                x_col == "episode_idx" and "experiment" in df.columns):
+            # Correct once, early: convert episode_idx to corrected x-space, then
+            # all downstream binning/aggregation/plotting uses that directly.
+            base = float(EPISODE_INDEX_BASE_AGENTS)
+            num_agents = pl.col("experiment").cast(
+                pl.String).str.extract(r"^a(\d+)(?:_|$)", 1).cast(pl.Float64,
+                                                                  strict=False)
+            scale = num_agents / base
+            corrected_x = pl.when(scale.is_not_null() & (scale > 0)).then(
+                pl.col(x_col).cast(pl.Float64) * scale).otherwise(
+                    pl.col(x_col).cast(pl.Float64))
+            df = df.with_columns(corrected_x.round(8).alias(x_col))
+            out[event_type] = _bin_and_reduce(df,
+                                              x_col=x_col,
+                                              bin_size=int(bin_size),
+                                              cast_x_to_int=False)
+        else:
+            out[event_type] = _bin_and_reduce(df,
+                                              x_col=x_col,
+                                              bin_size=int(bin_size))
     return out
 
 
@@ -288,16 +290,10 @@ def plot_episode_iqm(plot_df: pl.DataFrame,
     groups = sorted(plot_df[group_col].unique().to_list())
     colors = _cmap_colors("Set1")
     n_groups = len(groups)
-    scaled_any = False
     for i, g in enumerate(groups):
         x_col = "episode_idx"
         d = plot_df.filter(pl.col(group_col) == g).sort(x_col)
         x = d[x_col].to_numpy()
-        if CORRECT_EPISODES:
-            a = _parse_num_agents(str(g))
-            if a is not None:
-                x = x.astype(np.float64, copy=False) * _episode_x_scale(int(a))
-                scaled_any = True
         y = d["stat"].to_numpy()
         lo = d["ci_low"].to_numpy()
         hi = d["ci_high"].to_numpy()
@@ -319,7 +315,7 @@ def plot_episode_iqm(plot_df: pl.DataFrame,
         if PLOT_RETURN_QUANTILES:
             ax.plot(x, q25 + offset, "--", color=color, linewidth=1, alpha=0.5)
             ax.plot(x, q75 + offset, "--", color=color, linewidth=1, alpha=0.5)
-    ax.set_xlabel(_xlabel_episode() if (CORRECT_EPISODES and scaled_any) else "Episode Index")
+    ax.set_xlabel(_xlabel_episode() if CORRECT_EPISODES else "Episode Index")
     ax.set_ylabel("Episode Return")
     ax.set_title(f"IQM Episode Return with {int(confidence * 100)}% CI")
     ax.legend(loc="best")
@@ -377,24 +373,15 @@ def plot_many_lines(ax,
         ]
     colors = _cmap_colors("Set1")
 
-    scaled_any = False
     for i, g in enumerate(groups):
         d0 = df.filter(
             pl.col(color_col) == g) if color_col in df.columns else df
         color = colors[i % len(colors)]
-        x_scale = 1.0
-        if x_col == "episode_idx" and CORRECT_EPISODES and color_col in df.columns:
-            a = _parse_num_agents(str(g))
-            if a is not None:
-                x_scale = _episode_x_scale(int(a))
         if line_cols:
             first = True
             for _, d in d0.group_by(list(line_cols), maintain_order=True):
                 d = d.sort(x_col)
                 x = d[x_col].to_numpy()
-                if x_scale != 1.0:
-                    x = x.astype(np.float64, copy=False) * float(x_scale)
-                    scaled_any = True
                 y = d[y_col].to_numpy()
                 label = g if first else None
                 ax.plot(x,
@@ -408,9 +395,6 @@ def plot_many_lines(ax,
         else:
             d = d0.sort(x_col)
             x = d[x_col].to_numpy()
-            if x_scale != 1.0:
-                x = x.astype(np.float64, copy=False) * float(x_scale)
-                scaled_any = True
             y = d[y_col].to_numpy()
             ax.plot(x,
                     y,
@@ -422,7 +406,7 @@ def plot_many_lines(ax,
 
     if title:
         ax.set_title(title)
-    if x_col == "episode_idx" and CORRECT_EPISODES and scaled_any:
+    if x_col == "episode_idx" and CORRECT_EPISODES:
         ax.set_xlabel(_xlabel_episode())
     else:
         ax.set_xlabel(x_col)
