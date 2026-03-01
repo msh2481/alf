@@ -18,6 +18,7 @@ UTD=4
 RESET_PERIOD=1
 NUM_AGENTS=1
 NUM_ENVS=""
+OWN_ROLLOUT_FRACTION="-1.0"
 ASYNC="True"
 ENTROPY_REWARD="False"
 N_COMPONENTS=500
@@ -46,6 +47,7 @@ COMMON_ARGS=(
     --conf_param="_CONFIG._USER.utd=$UTD"
     --conf_param="_CONFIG._USER.reset_period=$RESET_PERIOD"
     --conf_param="_CONFIG._USER.num_agents=$NUM_AGENTS"
+    --conf_param="_CONFIG._USER.own_rollout_fraction=$OWN_ROLLOUT_FRACTION"
     --conf_param="_CONFIG._USER.async=$ASYNC"
     --conf_param="_CONFIG._USER.entropy_reward=$ENTROPY_REWARD"
     --conf_param="_CONFIG._USER.n_components=$N_COMPONENTS"
@@ -59,7 +61,7 @@ if [ -n "$NUM_ENVS" ]; then
 fi
 
 if [ -n "$SEEDS" ] && [ "$SEEDS" -gt 0 ] 2>/dev/null; then
-    echo "Running multi-seed batch: num_seeds=$SEEDS env=$ENV num_agents=$NUM_AGENTS lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA tau=$TAU gamma=$GAMMA utd=$UTD async=$ASYNC entropy_reward=$ENTROPY_REWARD n_components=$N_COMPONENTS conf=$CONF base_dir=$BASE_DIR"
+    echo "Running multi-seed batch: num_seeds=$SEEDS env=$ENV num_agents=$NUM_AGENTS own_rollout_fraction=$OWN_ROLLOUT_FRACTION lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA tau=$TAU gamma=$GAMMA utd=$UTD async=$ASYNC entropy_reward=$ENTROPY_REWARD n_components=$N_COMPONENTS conf=$CONF base_dir=$BASE_DIR"
 
     for SEED in $(seq 0 $((SEEDS - 1))); do
         ROOT_DIR="${BASE_DIR}/${SEED}"
@@ -83,7 +85,7 @@ if [ -n "$SEEDS" ] && [ "$SEEDS" -gt 0 ] 2>/dev/null; then
     echo "All seed runs completed!"
 else
     ROOT_DIR="$BASE_DIR"
-    echo "Running single run: env=$ENV num_agents=$NUM_AGENTS lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA tau=$TAU gamma=$GAMMA utd=$UTD async=$ASYNC entropy_reward=$ENTROPY_REWARD n_components=$N_COMPONENTS seed_version=$SEED_VERSION conf=$CONF root_dir=$ROOT_DIR"
+    echo "Running single run: env=$ENV num_agents=$NUM_AGENTS own_rollout_fraction=$OWN_ROLLOUT_FRACTION lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA tau=$TAU gamma=$GAMMA utd=$UTD async=$ASYNC entropy_reward=$ENTROPY_REWARD n_components=$N_COMPONENTS seed_version=$SEED_VERSION conf=$CONF root_dir=$ROOT_DIR"
 
     export ALF_BIPOLAR_LOG_DIR="logs/${NAME}/0"
     python -m alf.bin.train \

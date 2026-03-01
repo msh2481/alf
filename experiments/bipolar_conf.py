@@ -33,6 +33,7 @@ UTD = alf.define_config('utd', 8)
 RESET_PERIOD = alf.define_config('reset_period', 1)
 NUM_AGENTS = alf.define_config('num_agents', 1)
 NUM_ENVS = alf.define_config('num_envs', 32)
+OWN_ROLLOUT_FRACTION = alf.define_config('own_rollout_fraction', -1.0)
 ASYNC = alf.define_config('async', True)
 ENTROPY_REWARD = alf.define_config('entropy_reward', False)
 N_COMPONENTS = alf.define_config('n_components', 4000)
@@ -114,6 +115,7 @@ alf.config(
     prior_perturbation_alpha=ALPHA,
     optimizer=alf.optimizers.Adam(lr=LR, weight_decay=WD, name='main'),
     num_copies=NUM_COPIES,
+    own_rollout_fraction=OWN_ROLLOUT_FRACTION,
     use_exploration_seeds=False,
     debug_env=suite_gym.load(ENV),
     debug_callback_cls=BipolarCallback,

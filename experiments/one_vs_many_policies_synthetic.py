@@ -15,6 +15,7 @@ base = {
     "RESET_PERIOD": "500",
     "NUM_AGENTS": "1",
     "NUM_ENVS": "8",
+    "OWN_ROLLOUT_FRACTION": "0.75",
     "ASYNC": "True",
     "ENTROPY_REWARD": "False",
     "N_COMPONENTS": "500",
