@@ -44,6 +44,8 @@ class TrainerConfig(object):
                  mask_out_loss_for_last_step=True,
                  sync_progress_to_envs=False,
                  num_checkpoints=10,
+                 resume_from_checkpoint=True,
+                 clear_run_dirs_if_not_resuming=True,
                  confirm_checkpoint_upon_crash=True,
                  save_checkpoint_upon_crash=False,
                  no_thread_env_for_conf=False,
@@ -206,6 +208,15 @@ class TrainerConfig(object):
                 needs to be synced with the main in order to use schedulers in
                 the environment.
             num_checkpoints (int): how many checkpoints to save for the training
+            resume_from_checkpoint (bool): whether to restore and continue from
+                an existing checkpoint in ``root_dir``. If False, training starts
+                from scratch even when a checkpoint exists.
+            clear_run_dirs_if_not_resuming (bool): whether to remove ``train``
+                and ``eval`` subdirectories under ``root_dir`` before training
+                when ``resume_from_checkpoint`` is False. This helps avoid
+                mixing fresh runs with stale summaries/checkpoints. It also
+                clears common root-level run artifacts such as
+                ``events.ndjson`` and truncates ``py_train.INFO``.
             confirm_checkpoint_upon_crash (bool): whether to prompt for whether
                 do checkpointing after crash.
             save_checkpoint_upon_crash (bool): whether to do checkpointing after
@@ -403,6 +414,8 @@ class TrainerConfig(object):
         self.temporally_independent_train_step = temporally_independent_train_step
         self.sync_progress_to_envs = sync_progress_to_envs
         self.num_checkpoints = num_checkpoints
+        self.resume_from_checkpoint = resume_from_checkpoint
+        self.clear_run_dirs_if_not_resuming = clear_run_dirs_if_not_resuming
         self.confirm_checkpoint_upon_crash = confirm_checkpoint_upon_crash
         self.save_checkpoint_upon_crash = save_checkpoint_upon_crash
         self.no_thread_env_for_conf = no_thread_env_for_conf
