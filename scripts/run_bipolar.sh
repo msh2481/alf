@@ -4,6 +4,7 @@
 #
 # Usage examples:
 #   bash scripts/run_bipolar.sh ENV="BipolarChain-medium-dense-onehot-continuous-v0" SEEDS=4
+#   bash scripts/run_bipolar.sh ENV="BipolarChain-medium-dense-onehot-continuous-v0" SEEDS="4,8"
 #   bash scripts/run_bipolar.sh NUM_AGENTS=4 ASYNC="False" UTD=8
 
 CONF="experiments/bipolar_conf.py"
@@ -36,6 +37,27 @@ if [ -z "$BASE_DIR" ]; then
     BASE_DIR="/tmp/bipolar/${SAFE_ENV}/${NAME}"
 fi
 
+SEED_START=0
+SEED_END=0
+SEED_COUNT=0
+if [ -n "$SEEDS" ]; then
+    if [[ "$SEEDS" =~ ^[0-9]+$ ]]; then
+        SEED_START=0
+        SEED_END="$SEEDS"
+    elif [[ "$SEEDS" =~ ^[0-9]+,[0-9]+$ ]]; then
+        IFS=',' read -r SEED_START SEED_END <<< "$SEEDS"
+    else
+        echo "Invalid SEEDS='$SEEDS'. Use N or L,R (R excluded)." >&2
+        exit 1
+    fi
+
+    if [ "$SEED_END" -lt "$SEED_START" ]; then
+        echo "Invalid SEEDS='$SEEDS': require R >= L in L,R." >&2
+        exit 1
+    fi
+    SEED_COUNT=$((SEED_END - SEED_START))
+fi
+
 COMMON_ARGS=(
     --conf="$CONF"
     --conf_param="_CONFIG._USER.env='$ENV'"
@@ -60,10 +82,10 @@ if [ -n "$NUM_ENVS" ]; then
     COMMON_ARGS+=(--conf_param="_CONFIG._USER.num_envs=$NUM_ENVS")
 fi
 
-if [ -n "$SEEDS" ] && [ "$SEEDS" -gt 0 ] 2>/dev/null; then
-    echo "Running multi-seed batch: num_seeds=$SEEDS env=$ENV num_agents=$NUM_AGENTS own_rollout_fraction=$OWN_ROLLOUT_FRACTION lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA tau=$TAU gamma=$GAMMA utd=$UTD async=$ASYNC entropy_reward=$ENTROPY_REWARD n_components=$N_COMPONENTS conf=$CONF base_dir=$BASE_DIR"
+if [ "$SEED_COUNT" -gt 0 ]; then
+    echo "Running multi-seed batch: seeds=$SEED_START,$SEED_END count=$SEED_COUNT env=$ENV num_agents=$NUM_AGENTS own_rollout_fraction=$OWN_ROLLOUT_FRACTION lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA tau=$TAU gamma=$GAMMA utd=$UTD async=$ASYNC entropy_reward=$ENTROPY_REWARD n_components=$N_COMPONENTS conf=$CONF base_dir=$BASE_DIR"
 
-    for SEED in $(seq 0 $((SEEDS - 1))); do
+    for SEED in $(seq "$SEED_START" $((SEED_END - 1))); do
         ROOT_DIR="${BASE_DIR}/${SEED}"
         LOG_FILE="${ROOT_DIR}/logs.log"
         mkdir -p "$ROOT_DIR"
@@ -80,7 +102,7 @@ if [ -n "$SEEDS" ] && [ "$SEEDS" -gt 0 ] 2>/dev/null; then
         ) &
     done
 
-    echo "Waiting for all $SEEDS seed runs to complete..."
+    echo "Waiting for all $SEED_COUNT seed runs to complete..."
     wait
     echo "All seed runs completed!"
 else
