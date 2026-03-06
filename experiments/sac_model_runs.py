@@ -24,13 +24,13 @@ base = {
     "UTD": "1",
     "RESET_PERIOD": "1e9",
     "NUM_AGENTS": "1",
-    "NUM_ENVS": "32",
+    "NUM_ENVS": "1",
     "SCALE_BATCH": "True",
-    "UNROLL_LENGTH": "0.25",
+    "UNROLL_LENGTH": "1",
     "SHUFFLE": "False",
-    "TAU": "0.01",
-    "N_CRITICS": "2",
-    "ASYNC": "True",
+    "TAU": "0.05",
+    "N_CRITICS": "1",
+    "ASYNC": "False",
     "SHARE_ACTOR": "False",
     "SHARE_CRITIC": "False",
     "OWN_ROLLOUT_FRACTION": "-1",
@@ -42,19 +42,19 @@ base = {
 }
 
 runs = {
-    "sac": {
+    "model_sac": {
         "ALGO": "sac",
     },
-    "sac_v": {
+    "model_sac_v": {
         "ALGO": "sac_v",
     },
-    "sac_grad": {
+    "model_sac_grad": {
         "ALGO": "sac_grad",
     },
 }
 
 NAMES = list(runs.keys())
-EPISODE_INDEX_BASE_AGENTS = 4
+EPISODE_INDEX_BASE_AGENTS = 1
 
 
 def pueue_add(command: str, after: list[str] | None = None) -> str:
