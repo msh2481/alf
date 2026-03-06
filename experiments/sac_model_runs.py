@@ -22,9 +22,9 @@ base = {
     "ALPHA": "0",
     "LN": "True",
     "UTD": "1",
-    "RESET_PERIOD": "1000",
-    "NUM_AGENTS": "1",
-    "NUM_ENVS": "1",
+    "RESET_PERIOD": "200",
+    "NUM_AGENTS": "4",
+    "NUM_ENVS": "4",
     "SCALE_BATCH": "True",
     "UNROLL_LENGTH": "1",
     "SHUFFLE": "False",
@@ -44,14 +44,14 @@ base = {
 }
 
 runs = {
-    "model_sac": {
-        "ALGO": "sac",
-    },
+    # "model_sac": {
+    #     "ALGO": "sac",
+    # },
+    # "model_sac_grad": {
+    #     "ALGO": "sac_grad",
+    # },
     "model_sac_v": {
         "ALGO": "sac_v",
-    },
-    "model_sac_grad": {
-        "ALGO": "sac_grad",
     },
 }
 

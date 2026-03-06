@@ -163,11 +163,7 @@ class RotatorCallback:
                 obs_batch = obs_batch.to(device)
                 with torch.no_grad():
                     dist, _ = alg._actor_network(obs_batch, state=())
-                base = dist.base_dist if isinstance(
-                    dist, td.TransformedDistribution) else dist
-                if isinstance(base, td.Independent):
-                    base = base.base_dist
-                return base.mean
+                    return dist.sample((100, )).mean(0)
 
             if alg_idx == 0:
                 # Only use Q from agent 0, ignoring all other agents.

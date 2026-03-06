@@ -195,7 +195,7 @@ if not SCALE_BATCH:
 
 alf.config('TrainerConfig',
            algorithm_ctor=ConcurrentAlgorithm,
-           initial_collect_steps=1000,
+           initial_collect_steps=100,
            mini_batch_length=MINI_BATCH_LENGTH,
            mini_batch_size=MINI_BATCH_SIZE,
            unroll_length=UNROLL_LENGTH,
