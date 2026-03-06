@@ -28,6 +28,7 @@ from alf.algorithms.data_transformer import RewardMaskByEnvId
 from alf.environments import suite_dmc, suite_gym
 from alf.environments.gym_wrappers import FrameSkip
 from alf.networks import CriticNetwork, RandomizedPriorCriticNetwork
+from alf.networks.value_networks import ValueNetwork, RandomizedPriorValueNetwork
 from alf.utils.losses import element_wise_squared_loss
 
 # ── algo selection ─────────────────────────────────────────────────────────────
@@ -112,8 +113,15 @@ alf.config('ActorDistributionNetwork',
 
 alf.config('CriticNetwork', joint_fc_layer_params=HIDDEN_LAYERS, use_fc_ln=LN)
 
+alf.config('ValueNetwork', fc_layer_params=HIDDEN_LAYERS, use_fc_ln=LN)
+
 alf.config('RandomizedPriorCriticNetwork',
            network_ctor=CriticNetwork,
+           prior_scale=PRIOR_SCALE,
+           trainable_init_std=1e-3)
+
+alf.config('RandomizedPriorValueNetwork',
+           network_ctor=ValueNetwork,
            prior_scale=PRIOR_SCALE,
            trainable_init_std=1e-3)
 
@@ -136,6 +144,7 @@ alf.config('SacAlgorithm', **_common_sac_kwargs)
 
 alf.config('SacVAlgorithm',
            **_common_sac_kwargs,
+           value_network_cls=RandomizedPriorValueNetwork,
            dynamics_hidden=DYNAMICS_HIDDEN,
            reward_hidden=REWARD_HIDDEN,
            model_loss_weight=MODEL_LOSS_WEIGHT)

@@ -14,12 +14,15 @@
 """ValueNetwork and ValueRNNNetwork."""
 
 import functools
+import math
 from typing import Callable
 
 import torch
 import torch.nn as nn
 
 import alf
+import alf.layers as layers
+from alf.utils.perturb_utils import perturb_module_params_l2_sphere_per_layer
 from .encoding_networks import EncodingNetwork, LSTMEncodingNetwork
 from .preprocessor_networks import PreprocessorNetwork
 from alf.networks import Network
@@ -270,3 +273,120 @@ class ValueRNNNetwork(ValueNetworkBase):
                          post_fc_layer_params=value_fc_layer_params,
                          activation=activation,
                          kernel_initializer=kernel_initializer)
+
+
+@alf.configurable
+class RandomizedPriorValueNetwork(Network):
+    """A ValueNetwork augmented with a randomized prior function.
+
+    Mirrors ``RandomizedPriorCriticNetwork`` but for V(s) networks.
+    Two instances of ``network_ctor`` are created: one trainable and one frozen
+    prior. Their outputs are summed. The last FC layer of each is re-initialized
+    post-construction to achieve the desired output scale, since ``ValueNetwork``
+    does not expose ``last_kernel_initializer`` as a constructor argument.
+    """
+
+    def __init__(self,
+                 network_ctor: Callable = ValueNetwork,
+                 input_tensor_spec=None,
+                 prior_scale: float = 1.0,
+                 trainable_init_std: float = 1e-3,
+                 name="RandomizedPriorValueNetwork",
+                 **network_kwargs):
+        """
+        Args:
+            network_ctor: Constructor for the base value network (e.g., ValueNetwork).
+            input_tensor_spec: TensorSpec of the observation input.
+            prior_scale: Desired output std of the frozen prior network.
+            trainable_init_std: Desired output std of the trainable network at init.
+            name: Name of the network.
+            **network_kwargs: Extra kwargs forwarded to ``network_ctor``.
+        """
+        super().__init__(input_tensor_spec=input_tensor_spec, name=name)
+
+        self._trainable_net = network_ctor(input_tensor_spec=input_tensor_spec,
+                                           **network_kwargs)
+        self._prior_net = network_ctor(input_tensor_spec=input_tensor_spec,
+                                       **network_kwargs)
+
+        last_fc_dim = self._get_last_layer_input_dim(self._trainable_net)
+        trainable_weight_std = 3 * trainable_init_std / math.sqrt(last_fc_dim)
+        prior_weight_std = 3 * prior_scale / math.sqrt(last_fc_dim)
+
+        self._reinit_last_layer(self._trainable_net, trainable_weight_std)
+        self._reinit_last_layer(self._prior_net, prior_weight_std)
+
+        for param in self._prior_net.parameters():
+            param.requires_grad = False
+
+    def _get_last_layer_input_dim(self, net):
+        last_fc = None
+        for module in net.modules():
+            if isinstance(module, layers.FC):
+                last_fc = module
+        return last_fc.weight.shape[1] if last_fc else 1
+
+    def _reinit_last_layer(self, net, std):
+        last_fc = None
+        for module in net.modules():
+            if isinstance(module, layers.FC):
+                last_fc = module
+        if last_fc is not None:
+            torch.nn.init.normal_(last_fc.weight, std=std)
+            if last_fc.bias is not None:
+                torch.nn.init.zeros_(last_fc.bias)
+
+    def forward(self, observation, state=()):
+        v, state = self._trainable_net(observation, state)
+        prior_v, _ = self._prior_net(observation, state)
+        return v + prior_v, state
+
+    def perturb_prior(self, alpha: float):
+        """Perturb frozen prior parameters with a per-layer L2-sphere walk."""
+        perturb_module_params_l2_sphere_per_layer(self._prior_net, alpha)
+
+    @property
+    def state_spec(self):
+        return self._trainable_net.state_spec
+
+    def make_parallel(self, n):
+        parallel_trainable = self._trainable_net.make_parallel(n)
+        parallel_prior = alf.networks.NaiveParallelNetwork(self._prior_net, n)
+        for p in parallel_prior.parameters():
+            p.requires_grad = False
+        return _ParallelRandomizedPriorValueNetwork(parallel_trainable,
+                                                    parallel_prior,
+                                                    self.input_tensor_spec)
+
+
+class _ParallelRandomizedPriorValueNetwork(Network):
+    """Parallel version of RandomizedPriorValueNetwork."""
+
+    def __init__(self,
+                 parallel_trainable,
+                 parallel_prior,
+                 input_tensor_spec,
+                 name="ParallelRandomizedPriorValueNetwork"):
+        super().__init__(input_tensor_spec=input_tensor_spec, name=name)
+        self._trainable_net = parallel_trainable
+        self._prior_net = parallel_prior
+        self._output_spec = parallel_trainable.output_spec
+        for p in self._prior_net.parameters():
+            p.requires_grad = False
+
+    def forward(self, observation, state=()):
+        v, state = self._trainable_net(observation, state)
+        prior_v, _ = self._prior_net(observation, state)
+        return v + prior_v, state
+
+    def perturb_prior(self, alpha: float):
+        nets = getattr(self._prior_net, "_networks", None)
+        if nets is not None:
+            for net in nets:
+                perturb_module_params_l2_sphere_per_layer(net, alpha)
+        else:
+            perturb_module_params_l2_sphere_per_layer(self._prior_net, alpha)
+
+    @property
+    def state_spec(self):
+        return self._trainable_net.state_spec
