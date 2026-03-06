@@ -42,6 +42,7 @@ class ValueNetworkBase(Network):
                  input_tensor_spec: alf.NestedTensorSpec,
                  output_tensor_spec: alf.NestedTensorSpec,
                  encoding_network_ctor: Callable,
+                 last_kernel_initializer: Callable = None,
                  name="ValueNetworkBase",
                  **encoder_kwargs):
         """
@@ -50,6 +51,8 @@ class ValueNetworkBase(Network):
             output_tensor_spec: spec for the value output.
             encoding_network_ctor: the creator of the encoding network that does
                 the heavy lifting of the value network.
+            last_kernel_initializer: initializer for the last layer. If None,
+                defaults to uniform(-0.03, 0.03).
             name: name of the network
             encoder_kwargs: the extra keyword arguments to the encoding network
         """
@@ -58,9 +61,10 @@ class ValueNetworkBase(Network):
         if encoder_kwargs.get('kernel_initializer', None) is None:
             encoder_kwargs[
                 'kernel_initializer'] = torch.nn.init.xavier_uniform_
-        last_kernel_initializer = functools.partial(torch.nn.init.uniform_,
-                                                    a=-0.03,
-                                                    b=0.03)
+        if last_kernel_initializer is None:
+            last_kernel_initializer = functools.partial(torch.nn.init.uniform_,
+                                                        a=-0.03,
+                                                        b=0.03)
 
         self._encoding_net = encoding_network_ctor(
             input_tensor_spec=input_tensor_spec,
@@ -112,6 +116,7 @@ class ValueNetwork(ValueNetworkBase):
                  fc_layer_params=None,
                  activation=torch.relu_,
                  kernel_initializer=None,
+                 last_kernel_initializer=None,
                  use_fc_bn=False,
                  use_fc_ln=False,
                  name="ValueNetwork"):
@@ -157,6 +162,7 @@ class ValueNetwork(ValueNetworkBase):
         super().__init__(input_tensor_spec,
                          output_tensor_spec,
                          encoding_network_ctor=EncodingNetwork,
+                         last_kernel_initializer=last_kernel_initializer,
                          name=name,
                          input_preprocessors=input_preprocessors,
                          input_preprocessors_ctor=input_preprocessors_ctor,
@@ -304,17 +310,27 @@ class RandomizedPriorValueNetwork(Network):
         """
         super().__init__(input_tensor_spec=input_tensor_spec, name=name)
 
-        self._trainable_net = network_ctor(input_tensor_spec=input_tensor_spec,
-                                           **network_kwargs)
+        # Compute last-layer input dim to scale weights so output has desired std.
+        # output_std = weight_std * sqrt(input_dim), so weight_std = output_std / sqrt(input_dim)
+        temp_net = network_ctor(input_tensor_spec=input_tensor_spec,
+                                **network_kwargs)
+        last_fc_dim = self._get_last_layer_input_dim(temp_net)
+        del temp_net
+
+        trainable_init = functools.partial(torch.nn.init.normal_,
+                                           std=3 * trainable_init_std /
+                                           math.sqrt(last_fc_dim))
+        prior_init = functools.partial(torch.nn.init.normal_,
+                                       std=3 * prior_scale /
+                                       math.sqrt(last_fc_dim))
+
+        self._trainable_net = network_ctor(
+            input_tensor_spec=input_tensor_spec,
+            last_kernel_initializer=trainable_init,
+            **network_kwargs)
         self._prior_net = network_ctor(input_tensor_spec=input_tensor_spec,
+                                       last_kernel_initializer=prior_init,
                                        **network_kwargs)
-
-        last_fc_dim = self._get_last_layer_input_dim(self._trainable_net)
-        trainable_weight_std = 3 * trainable_init_std / math.sqrt(last_fc_dim)
-        prior_weight_std = 3 * prior_scale / math.sqrt(last_fc_dim)
-
-        self._reinit_last_layer(self._trainable_net, trainable_weight_std)
-        self._reinit_last_layer(self._prior_net, prior_weight_std)
 
         for param in self._prior_net.parameters():
             param.requires_grad = False
@@ -325,16 +341,6 @@ class RandomizedPriorValueNetwork(Network):
             if isinstance(module, layers.FC):
                 last_fc = module
         return last_fc.weight.shape[1] if last_fc else 1
-
-    def _reinit_last_layer(self, net, std):
-        last_fc = None
-        for module in net.modules():
-            if isinstance(module, layers.FC):
-                last_fc = module
-        if last_fc is not None:
-            torch.nn.init.normal_(last_fc.weight, std=std)
-            if last_fc.bias is not None:
-                torch.nn.init.zeros_(last_fc.bias)
 
     def forward(self, observation, state=()):
         v, state = self._trainable_net(observation, state)

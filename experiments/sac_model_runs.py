@@ -18,7 +18,7 @@ base = {
     "LR": "1e-3",
     "WD": "1e-5",
     "GAMMA": "0.99",
-    "PRIOR_SCALE": "1.0",
+    "PRIOR_SCALE": "100.0",
     "ALPHA": "0",
     "LN": "True",
     "UTD": "1",
@@ -38,7 +38,7 @@ base = {
     "MODEL_LOSS_WEIGHT": "1.0",
     "GRAD_SYNC_WEIGHT": "1.0",
     "DYNAMICS_HIDDEN": "tuple()",
-    "REWARD_HIDDEN": "tuple()",
+    "REWARD_HIDDEN": "(256,)",
     "SEEDS": "",
     "BASE_DIR": "",
 }

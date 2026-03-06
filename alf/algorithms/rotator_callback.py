@@ -40,6 +40,7 @@ class RotatorCallback:
                  vmin: float = -0.5,
                  vmax: float = 5.0,
                  segment_scale: float = 0.05,
+                 actor_segment_scale: float = 0.15,
                  quiver_width: float = 0.0022,
                  name: str = "RotatorCallback"):
         self._debug_env = debug_env
@@ -50,6 +51,7 @@ class RotatorCallback:
         self._vmin = float(vmin)
         self._vmax = float(vmax)
         self._arrow_scale = float(segment_scale)
+        self._actor_arrow_scale = float(actor_segment_scale)
         self._quiver_width = float(quiver_width)
         self._name = name
         self._debug_count = 0
@@ -346,8 +348,8 @@ class RotatorCallback:
         xs = np.linspace(-1.0, 1.0, u.shape[1])
         ys = np.linspace(-1.0, 1.0, u.shape[0])
         xx, yy = np.meshgrid(xs, ys)
-        u = u * self._arrow_scale
-        v = v * self._arrow_scale
+        u = u * self._actor_arrow_scale
+        v = v * self._actor_arrow_scale
         ax.quiver(xx,
                   yy,
                   u,
