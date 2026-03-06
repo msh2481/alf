@@ -143,7 +143,10 @@ class SacDynAlgorithm(SacAlgorithm):
         obs_spec = observation_spec
         act_spec = action_spec
 
-        _last_init = functools.partial(torch.nn.init.uniform_, a=-0.03, b=0.03)
+        _dyn_last_init = functools.partial(torch.nn.init.uniform_,
+                                           a=-0.03,
+                                           b=0.03)
+        _rew_last_init = functools.partial(torch.nn.init.normal_, std=1e-3)
 
         self._dynamics_net = EncodingNetwork(
             input_tensor_spec=(obs_spec, act_spec),
@@ -151,15 +154,22 @@ class SacDynAlgorithm(SacAlgorithm):
             fc_layer_params=dynamics_hidden,
             last_layer_size=obs_spec.shape[0],
             last_activation=math_ops.identity,
-            last_kernel_initializer=_last_init)
+            last_kernel_initializer=_dyn_last_init)
 
-        self._reward_net = EncodingNetwork(input_tensor_spec=(obs_spec,
-                                                              act_spec),
-                                           preprocessing_combiner=NestConcat(),
-                                           fc_layer_params=reward_hidden,
-                                           last_layer_size=1,
-                                           last_activation=math_ops.identity,
-                                           last_kernel_initializer=_last_init)
+        self._reward_net = EncodingNetwork(
+            input_tensor_spec=(obs_spec, act_spec),
+            preprocessing_combiner=NestConcat(),
+            fc_layer_params=reward_hidden,
+            last_layer_size=1,
+            last_activation=math_ops.identity,
+            last_kernel_initializer=_rew_last_init)
+
+        from absl import logging as _logging
+        _logging.info(
+            f"[SacDynAlgorithm] dynamics_hidden={dynamics_hidden!r} reward_hidden={reward_hidden!r}"
+        )
+        _logging.info(f"[SacDynAlgorithm] dynamics_net:\n{self._dynamics_net}")
+        _logging.info(f"[SacDynAlgorithm] reward_net:\n{self._reward_net}")
 
     def predict_next(self, obs, action):
         """Predict next state and reward using learned models.

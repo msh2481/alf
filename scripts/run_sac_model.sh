@@ -40,7 +40,9 @@ SEEDS=""
 BASE_DIR=""
 
 for arg in "$@"; do
-    eval "$arg"
+    key="${arg%%=*}"
+    val="${arg#*=}"
+    printf -v "$key" '%s' "$val"
 done
 
 SAFE_ENV="${ENV//[:\/]/_}"

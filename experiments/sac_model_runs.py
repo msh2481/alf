@@ -37,6 +37,8 @@ base = {
     "NUM_LAYERS": "2",
     "MODEL_LOSS_WEIGHT": "1.0",
     "GRAD_SYNC_WEIGHT": "1.0",
+    "DYNAMICS_HIDDEN": "tuple()",
+    "REWARD_HIDDEN": "tuple()",
     "SEEDS": "",
     "BASE_DIR": "",
 }
