@@ -100,6 +100,10 @@ class RotatorCallback:
                                     algorithms,
                                     num_copies,
                                     log_dir=log_dir)
+        self._create_and_save_dynamics_plots(iter_number,
+                                             algorithms,
+                                             num_copies,
+                                             log_dir=log_dir)
 
     def _create_and_save_plots(self, iter_number, observations, actions,
                                env_ids, algorithms, num_copies, log_dir: str):
@@ -367,6 +371,106 @@ class RotatorCallback:
         ax.set_xlim(-1.05, 1.05)
         ax.set_ylim(-1.05, 1.05)
         ax.set_aspect("equal")
+
+    def _create_and_save_dynamics_plots(self, iter_number, algorithms,
+                                        num_copies, log_dir: str):
+        """Plot predicted displacement arrows for 4 canonical actions on a grid.
+
+        Skipped entirely if no algorithm has a dynamics model (e.g. baseline SAC).
+        Produces a separate file: dynamics_{iter_number}.png.
+        """
+        agents_with_dyn = [(i, algorithms[i]) for i in range(num_copies)
+                           if hasattr(algorithms[i], 'predict_next')]
+        if not agents_with_dyn:
+            return
+
+        device = alf.get_default_device()
+
+        # Grid of (x, y) observations at fixed t
+        xs = torch.linspace(-1.0, 1.0, self._grid_res, device=device)
+        ys = torch.linspace(-1.0, 1.0, self._grid_res, device=device)
+        xx, yy = torch.meshgrid(xs, ys, indexing="xy")
+        zz = torch.full_like(xx, self._grid_t)
+        grid_obs = torch.stack([xx, yy, zz],
+                               dim=-1).reshape(-1, 3).to(torch.float32)
+        n_grid = grid_obs.shape[0]
+
+        xs_np = np.linspace(-1.0, 1.0, self._grid_res)
+        ys_np = np.linspace(-1.0, 1.0, self._grid_res)
+        xx_np, yy_np = np.meshgrid(xs_np, ys_np)
+
+        _ACTIONS = [
+            (torch.tensor([1.0, 0.0]), "a=(+1, 0)"),
+            (torch.tensor([-1.0, 0.0]), "a=(−1, 0)"),
+            (torch.tensor([0.0, 1.0]), "a=(0, +1)"),
+            (torch.tensor([0.0, -1.0]), "a=(0, −1)"),
+        ]
+        n_actions = len(_ACTIONS)
+        n_rows = len(agents_with_dyn)
+
+        fig, axes = plt.subplots(n_rows,
+                                 n_actions,
+                                 figsize=(6 * n_actions, 6 * n_rows),
+                                 constrained_layout=True)
+        if n_rows == 1:
+            axes = axes[np.newaxis, :]
+
+        for row, (alg_idx, alg) in enumerate(agents_with_dyn):
+            for col, (a_vec, label) in enumerate(_ACTIONS):
+                ax = axes[row, col]
+                action = a_vec.to(device).unsqueeze(0).expand(n_grid, -1)
+
+                with torch.no_grad():
+                    s_next, r_hat = alg.predict_next(grid_obs, action)
+
+                disp = (s_next[:, :2] - grid_obs[:, :2]).detach().cpu().numpy()
+                disp = disp.reshape(self._grid_res, self._grid_res, 2)
+                du, dv = disp[:, :, 0], disp[:, :, 1]
+
+                # Reward heatmap in background
+                r_grid = r_hat.detach().cpu().numpy().reshape(
+                    self._grid_res, self._grid_res)
+                im = ax.imshow(r_grid,
+                               origin="lower",
+                               extent=(-1, 1, -1, 1),
+                               cmap="RdYlGn",
+                               aspect="equal",
+                               alpha=0.3)
+                fig.colorbar(im, ax=ax, shrink=0.8, label="r_hat")
+
+                # Normalize to uniform arrow length so structure is visible
+                mag = np.sqrt(du**2 + dv**2)
+                max_mag = float(mag.max()) if mag.size else 0.0
+                if max_mag > 1e-8:
+                    du = du / max_mag * self._arrow_scale
+                    dv = dv / max_mag * self._arrow_scale
+
+                ax.quiver(xx_np,
+                          yy_np,
+                          du,
+                          dv,
+                          angles="xy",
+                          scale_units="xy",
+                          scale=1.0,
+                          width=self._quiver_width,
+                          headwidth=2.0,
+                          headlength=3.0,
+                          headaxislength=2.5,
+                          pivot="mid",
+                          color="black",
+                          alpha=0.9)
+                ax.set_title(
+                    f"Agent {alg_idx} dynamics {label} (t={self._grid_t:.2f})")
+                ax.set_xlabel("x")
+                ax.set_ylabel("y")
+                ax.set_xlim(-1.05, 1.05)
+                ax.set_ylim(-1.05, 1.05)
+                ax.set_aspect("equal")
+
+        plot_path = os.path.join(log_dir, f"{iter_number}_dynamics.png")
+        plt.savefig(plot_path, dpi=200)
+        plt.close(fig)
+        logging.info(f"Written dynamics plot to {plot_path}")
 
     def _plot_replay_buffer_vector_field(self, ax, observations, actions,
                                          env_ids):
