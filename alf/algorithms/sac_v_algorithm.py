@@ -218,8 +218,11 @@ class SacVAlgorithm(SacDynAlgorithm):
                 self._target_critic_networks, s_next, state.target_critics)
 
             gamma = self._critic_losses[0].gamma
-            alpha = torch.exp(self._log_alpha).detach()
-            v_target = r_hat + gamma * v_target_next - alpha * log_pi
+            if self._use_entropy_reward:
+                alpha = torch.exp(self._log_alpha).detach()
+                v_target = r_hat + gamma * v_target_next - alpha * log_pi
+            else:
+                v_target = r_hat + gamma * v_target_next
 
         state = SacCriticState(critics=critics_state,
                                target_critics=target_critics_state)
