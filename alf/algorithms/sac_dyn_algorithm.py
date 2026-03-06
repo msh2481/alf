@@ -1,0 +1,162 @@
+# Copyright (c) 2024 ALF Contributors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""SAC with learned dynamics and reward models.
+
+SacDynAlgorithm extends SacAlgorithm with dynamics f(s,a)->s' and reward
+r(s,a)->scalar networks trained via MSE. The models are NOT used for
+actor/critic updates — subclasses (SacVAlgorithm, SacGradAlgorithm) override
+methods to use them.
+"""
+
+import functools
+
+import torch
+
+import alf
+from alf.algorithms.sac_algorithm import (SacAlgorithm, SacInfo, SacState,
+                                          ActionType)
+from alf.data_structures import (TimeStep, AlgStep, LossInfo, StepType,
+                                 namedtuple)
+from alf.networks.encoding_networks import EncodingNetwork
+from alf.nest.utils import NestConcat
+from alf.tensor_specs import TensorSpec
+from alf.utils import math_ops
+
+SacDynInfo = namedtuple("SacDynInfo", [
+    *SacInfo._fields,
+    "observation",
+],
+                        default_value=())
+
+
+@alf.configurable
+class SacDynAlgorithm(SacAlgorithm):
+    """SAC with learned dynamics and reward models.
+
+    Adds dynamics (predicting state deltas) and reward networks trained via MSE.
+    By default these models are not used for actor/critic updates — subclasses
+    override methods to use them.
+    """
+
+    def __init__(self,
+                 observation_spec,
+                 action_spec,
+                 dynamics_hidden=(256, 256),
+                 reward_hidden=(256, 256),
+                 model_loss_weight=1.0,
+                 **kwargs):
+        """
+        Args:
+            dynamics_hidden: FC layer sizes for dynamics network.
+            reward_hidden: FC layer sizes for reward network.
+            model_loss_weight: weight for dynamics + reward MSE loss.
+            **kwargs: forwarded to SacAlgorithm.
+        """
+        super().__init__(observation_spec=observation_spec,
+                         action_spec=action_spec,
+                         **kwargs)
+
+        self._model_loss_weight = model_loss_weight
+
+        # Flatten obs spec to get the shape for delta prediction.
+        # For simple vector obs this is just the spec itself.
+        obs_spec = observation_spec
+        act_spec = action_spec
+
+        _last_init = functools.partial(torch.nn.init.uniform_, a=-0.03, b=0.03)
+
+        self._dynamics_net = EncodingNetwork(
+            input_tensor_spec=(obs_spec, act_spec),
+            preprocessing_combiner=NestConcat(),
+            fc_layer_params=dynamics_hidden,
+            last_layer_size=obs_spec.shape[0],
+            last_activation=math_ops.identity,
+            last_kernel_initializer=_last_init)
+
+        self._reward_net = EncodingNetwork(input_tensor_spec=(obs_spec,
+                                                              act_spec),
+                                           preprocessing_combiner=NestConcat(),
+                                           fc_layer_params=reward_hidden,
+                                           last_layer_size=1,
+                                           last_activation=math_ops.identity,
+                                           last_kernel_initializer=_last_init)
+
+    def predict_next(self, obs, action):
+        """Predict next state and reward using learned models.
+
+        Args:
+            obs: observation tensor [..., obs_dim]
+            action: action tensor [..., act_dim]
+        Returns:
+            s_next_pred: predicted next state [..., obs_dim]
+            r_pred: predicted reward [...]
+        """
+        delta, _ = self._dynamics_net((obs, action))
+        s_next_pred = obs + delta
+        r_pred, _ = self._reward_net((obs, action))
+        r_pred = r_pred.squeeze(-1)
+        return s_next_pred, r_pred
+
+    def train_step(self, inputs: TimeStep, state: SacState,
+                   rollout_info: SacInfo):
+        alg_step = super().train_step(inputs, state, rollout_info)
+        # Wrap SacInfo into SacDynInfo with observation attached.
+        sac_info = alg_step.info
+        dyn_info = SacDynInfo(**{
+            f: getattr(sac_info, f)
+            for f in SacInfo._fields
+        },
+                              observation=inputs.observation)
+        return alg_step._replace(info=dyn_info)
+
+    def calc_loss(self, info: SacDynInfo):
+        sac_loss = super().calc_loss(info)
+        model_loss = self._calc_model_loss(info)
+        total = math_ops.add_ignore_empty(sac_loss.loss,
+                                          self._model_loss_weight * model_loss)
+        return sac_loss._replace(loss=total)
+
+    def _calc_model_loss(self, info):
+        """Compute dynamics + reward MSE loss using time-shifted observations.
+
+        Batch is time-major [T, B, ...]. We use obs[:-1] as current and
+        obs[1:] as next, same pattern as one_step_discounted_return in td_loss.
+        """
+        obs_all = info.observation  # [T, B, obs_dim]
+        obs = obs_all[:-1]  # [T-1, B, obs_dim]
+        next_obs = obs_all[1:]  # [T-1, B, obs_dim]
+        action = info.action[:-1]  # [T-1, B, act_dim]
+        reward = info.reward[1:]  # [T-1, B] — reward at next step
+
+        # Dynamics loss
+        delta_pred, _ = self._dynamics_net((obs, action))
+        s_next_pred = obs + delta_pred
+        dyn_loss = ((s_next_pred - next_obs.detach())**2).mean(dim=-1)
+
+        # Reward loss
+        r_pred, _ = self._reward_net((obs, action))
+        r_pred = r_pred.squeeze(-1)
+        rew_loss = (r_pred - reward.detach())**2
+
+        # Mask out transitions crossing episode boundaries:
+        # invalid if current step is LAST (no meaningful next)
+        step_type = info.step_type[:-1]  # [T-1, B]
+        valid = (step_type != StepType.LAST).float()
+        loss = (dyn_loss + rew_loss) * valid
+
+        # Pad back to [T, B] so it aligns with SAC's loss shape.
+        # Append zeros for the last time step.
+        pad = torch.zeros_like(loss[:1])
+        loss = torch.cat([loss, pad], dim=0)
+        return loss
