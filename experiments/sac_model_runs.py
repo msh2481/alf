@@ -18,7 +18,7 @@ base = {
     "LR": "1e-3",
     "WD": "1e-5",
     "GAMMA": "0.99",
-    "PRIOR_SCALE": "100.0",
+    "PRIOR_SCALE": "3.0",
     "ALPHA": "0",
     "LN": "True",
     "UTD": "1",
