@@ -3,6 +3,8 @@ import subprocess
 ENV = "BipolarChain-medium-sparse-onehot-discrete-v0"
 FOLDER = f"/tmp/bipolar/{ENV}/"
 
+N = 4
+
 base = {
     "CONF": "experiments/bipolar_conf.py",
     "ENV": ENV,
@@ -14,33 +16,37 @@ base = {
     "UTD": "8",
     "RESET_PERIOD": "500",
     "NUM_AGENTS": "1",
-    "NUM_ENVS": "8",
+    "NUM_ENVS": f"{N}",
     "OWN_ROLLOUT_FRACTION": "0.75",
     "ASYNC": "True",
     "ENTROPY_REWARD": "False",
     "N_COMPONENTS": "500",
-    "SEEDS": "16,32",
+    "SEEDS": "16",
     "BASE_DIR": "",
 }
 runs = {
-    # 1) 8 parallel envs, 1 agent, no prior
-    "a1_e8_prior0": {
+    # 1) N parallel envs, 1 agent, no prior
+    f"a1_e{N}_prior0": {
         "NUM_AGENTS": "1",
         "PRIOR_SCALE": "0.0",
     },
-    # 2) 8 parallel envs, 1 agent, with prior
-    "a1_e8_prior1.0": {
+    # 2) N parallel envs, 1 agent, with prior
+    f"a1_e{N}_prior1.0": {
         "NUM_AGENTS": "1",
         "PRIOR_SCALE": "1.0",
     },
-    # 3) 8 parallel envs, 8 agents, with prior
-    "a8_e8_prior1.0": {
-        "NUM_AGENTS": "8",
+    # 3) N parallel envs, N agents, no prior
+    f"a{N}_e{N}_prior0.0": {
+        "NUM_AGENTS": f"{N}",
+        "PRIOR_SCALE": "0.0",
+    },
+    # 4) N parallel envs, N agents, with prior
+    f"a{N}_e{N}_prior1.0": {
+        "NUM_AGENTS": f"{N}",
         "PRIOR_SCALE": "1.0",
     },
 }
 NAMES = list(runs.keys())
-EPISODE_INDEX_BASE_AGENTS = 8
 
 
 def pueue_add(command: str, after: list[str] | None = None) -> str:
@@ -62,7 +68,7 @@ def main():
 
     plot_cmd = ("python tools/custom_plot.py "
                 f"--folder {FOLDER} "
-                f"--episode_index_base_agents {EPISODE_INDEX_BASE_AGENTS} "
+                f"--episode_index_base_agents {N} "
                 f"--names {' '.join(NAMES)}")
     pueue_add(plot_cmd, after=task_ids)
 
