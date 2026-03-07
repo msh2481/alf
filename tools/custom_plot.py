@@ -65,7 +65,7 @@ CORRECT_EPISODES = True
 EPISODE_INDEX_BASE_AGENTS = 32
 
 BIN_CONF: dict[str, tuple[str, int]] = {
-    "episode": ("episode_idx", 10),
+    "episode": ("episode_idx", 1),
     "loss": ("train_iter", 1000),
     "weight_norm": ("train_iter", 1000),
     "grad_norm": ("train_iter", 1000),

@@ -14,7 +14,7 @@ base = {
     "ALPHA": "0",
     "TAU": "0.05",
     "UTD": "8",
-    "RESET_PERIOD": "500",
+    "RESET_PERIOD": "24",
     "NUM_AGENTS": "1",
     "NUM_ENVS": f"{N}",
     "OWN_ROLLOUT_FRACTION": "0.75",
@@ -26,14 +26,16 @@ base = {
 }
 runs = {
     # 1) N parallel envs, 1 agent, no prior
-    f"a1_e{N}_prior0": {
+    f"a1_e{N}_prior0.0_noreset": {
         "NUM_AGENTS": "1",
         "PRIOR_SCALE": "0.0",
+        "RESET_PERIOD": "1e9",
     },
     # 2) N parallel envs, 1 agent, with prior
-    f"a1_e{N}_prior1.0": {
+    f"a1_e{N}_prior2.0_noreset": {
         "NUM_AGENTS": "1",
-        "PRIOR_SCALE": "1.0",
+        "PRIOR_SCALE": "2.0",
+        "RESET_PERIOD": "1e9",
     },
     # 3) N parallel envs, N agents, no prior
     f"a{N}_e{N}_prior0.0": {
@@ -41,9 +43,9 @@ runs = {
         "PRIOR_SCALE": "0.0",
     },
     # 4) N parallel envs, N agents, with prior
-    f"a{N}_e{N}_prior1.0": {
+    f"a{N}_e{N}_prior2.0": {
         "NUM_AGENTS": f"{N}",
-        "PRIOR_SCALE": "1.0",
+        "PRIOR_SCALE": "2.0",
     },
 }
 NAMES = list(runs.keys())
