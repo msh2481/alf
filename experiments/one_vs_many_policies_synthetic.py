@@ -19,7 +19,7 @@ base = {
     "ASYNC": "True",
     "ENTROPY_REWARD": "False",
     "N_COMPONENTS": "500",
-    "SEEDS": "16",
+    "SEEDS": "16,32",
     "BASE_DIR": "",
 }
 runs = {
