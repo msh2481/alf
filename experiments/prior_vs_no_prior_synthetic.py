@@ -14,6 +14,7 @@ base = {
     "UTD": "8",
     "RESET_PERIOD": "24",
     "NUM_AGENTS": "4",
+    "NUM_ENVS": "4",
     "ASYNC": "True",
     "ENTROPY_REWARD": "False",
     "N_COMPONENTS": "500",

@@ -479,8 +479,7 @@ class _ParallelRandomizedPriorQNetwork(Network):
 
     def forward(self, observation, state=()):
         q_vals, state = self._trainable_net(observation, state)
-        with torch.no_grad():
-            prior_vals, _ = self._prior_net(observation, state)
+        prior_vals, _ = self._prior_net(observation, state)
         return q_vals + prior_vals, state
 
     @property
