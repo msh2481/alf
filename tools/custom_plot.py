@@ -65,7 +65,7 @@ CORRECT_EPISODES = True
 EPISODE_INDEX_BASE_AGENTS = 32
 
 BIN_CONF: dict[str, tuple[str, int]] = {
-    "episode": ("episode_idx", 1),
+    "episode": ("episode_idx", 5),
     "loss": ("train_iter", 1000),
     "weight_norm": ("train_iter", 1000),
     "grad_norm": ("train_iter", 1000),
@@ -566,9 +566,10 @@ def process_one_folder(*,
 
     out_iqm_mean = str(out_dir / OUT_IQM_MEAN)
     out_iqm_max = str(out_dir / OUT_IQM_MAX)
-    out_lines = str(out_dir / OUT_LINES)
-    out_dash = str(out_dir / "dashboard.png")
-    out_critic = str(out_dir / OUT_CRITIC)
+    # Disabled for now; keep the filenames documented here for easy restore.
+    # out_lines = str(out_dir / OUT_LINES)
+    # out_dash = str(out_dir / "dashboard.png")
+    # out_critic = str(out_dir / OUT_CRITIC)
 
     if ep.is_empty():
         print("No episode records found; skipping episode plots.")
@@ -595,26 +596,28 @@ def process_one_folder(*,
         plot_episode_iqm(plot_df_max, out=out_iqm_max, confidence=CONFIDENCE)
         print(f"Saved plot to: {out_iqm_max}")
 
-        print("Plotting episode returns (many-lines)...")
-        fig, ax = plt.subplots(figsize=(10, 6))
-        line_cols: tuple[str, ...] = (
-            "seed", "agent_idx") if "agent_idx" in ep.columns else ("seed", )
-        plot_many_lines(ax,
-                        ep,
-                        x_col="episode_idx",
-                        y_col="episode_return",
-                        line_cols=line_cols,
-                        color_col="experiment",
-                        title="Episode Return (many lines)")
-        plt.tight_layout()
-        plt.savefig(out_lines, dpi=300, bbox_inches="tight")
-        print(f"Saved plot to: {out_lines}")
+        # Disabled for now; keep this block for easy restore.
+        # print("Plotting episode returns (many-lines)...")
+        # fig, ax = plt.subplots(figsize=(10, 6))
+        # line_cols: tuple[str, ...] = (
+        #     "seed", "agent_idx") if "agent_idx" in ep.columns else ("seed", )
+        # plot_many_lines(ax,
+        #                 ep,
+        #                 x_col="episode_idx",
+        #                 y_col="episode_return",
+        #                 line_cols=line_cols,
+        #                 color_col="experiment",
+        #                 title="Episode Return (many lines)")
+        # plt.tight_layout()
+        # plt.savefig(out_lines, dpi=300, bbox_inches="tight")
+        # print(f"Saved plot to: {out_lines}")
 
-    plot_actor_critic_dashboard(by_type, out=out_dash)
-    print(f"Saved plot to: {out_dash}")
+    # Disabled for now; keep these calls for easy restore.
+    # plot_actor_critic_dashboard(by_type, out=out_dash)
+    # print(f"Saved plot to: {out_dash}")
 
-    plot_critic_dashboard(by_type, out=out_critic)
-    print(f"Saved plot to: {out_critic}")
+    # plot_critic_dashboard(by_type, out=out_critic)
+    # print(f"Saved plot to: {out_critic}")
 
 
 if __name__ == "__main__":

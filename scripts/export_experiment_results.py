@@ -23,6 +23,7 @@ class ExportTask:
     name: str
     out_dir: str
     command: list[str]
+    target_return: float = 1000.0
 
 
 def _style(text: str, color: str) -> str:
@@ -57,6 +58,7 @@ TASKS: dict[str, ExportTask] = {
             "a4_e4_prior0.0",
             "a4_e4_prior2.0",
         ],
+        target_return=1.0,
     ),
     "prior_vs_no_prior_synthetic":
     ExportTask(
@@ -73,11 +75,12 @@ TASKS: dict[str, ExportTask] = {
             "with_prior",
             "without_prior",
         ],
+        target_return=1.0,
     ),
-    "actor_experiment":
+    "prior_vs_no_prior_actor_dmc_four_agents_soft_reset":
     ExportTask(
-        name="actor_experiment",
-        out_dir="results/actor_experiment",
+        name="prior_vs_no_prior_actor_dmc_four_agents_soft_reset",
+        out_dir="results/prior_vs_no_prior_actor_dmc_four_agents_soft_reset",
         command=[
             "python",
             "tools/custom_plot.py",
@@ -148,21 +151,6 @@ TASKS: dict[str, ExportTask] = {
             "a4_prior1.0",
         ],
     ),
-    "sac_model_runs":
-    ExportTask(
-        name="sac_model_runs",
-        out_dir="results/sac_model_runs",
-        command=[
-            "python",
-            "tools/custom_plot.py",
-            "--folder",
-            "/tmp/sac_model/Rotator",
-            "--episode_index_base_agents",
-            "1",
-            "--names",
-            "model_sac_v",
-        ],
-    ),
 }
 
 
@@ -188,23 +176,49 @@ def _out_dir_path(task: ExportTask) -> Path:
     return (REPO_ROOT / task.out_dir).resolve()
 
 
-def _command_string(task: ExportTask) -> str:
-    out_dir_abs = str(_out_dir_path(task))
-    command = _with_out_dir(task.command, out_dir_abs)
-    return shlex.join(command)
+def _plot_command(task: ExportTask) -> list[str]:
+    return _with_out_dir(task.command, str(_out_dir_path(task)))
+
+
+def _regret_command(task: ExportTask) -> list[str]:
+    command = list(task.command)
+    command[1] = "tools/custom_regret_table.py"
+    return [
+        *_with_out_dir(command, str(_out_dir_path(task))),
+        "--target_return",
+        str(task.target_return),
+    ]
+
+
+def _plot_command_string(task: ExportTask) -> str:
+    return shlex.join(_plot_command(task))
+
+
+def _regret_command_string(task: ExportTask) -> str:
+    return shlex.join(_regret_command(task))
+
+
+def _combined_command_string(task: ExportTask) -> str:
+    out_dir = _out_dir_path(task)
+    if out_dir.exists():
+        return _regret_command_string(task)
+    return f"{_plot_command_string(task)} && {_regret_command_string(task)}"
 
 
 def _run_local(task: ExportTask) -> None:
     out_dir = _out_dir_path(task)
     if out_dir.exists():
-        print(_warning(f"warning: skipping {task.name} because {out_dir} exists"))
-        return
-    command = _with_out_dir(task.command, str(out_dir))
-    subprocess.run(command, cwd=REPO_ROOT, check=True)
+        print(
+            _warning(
+                f"warning: skipping plots for {task.name} because {out_dir} exists"
+            ))
+    else:
+        subprocess.run(_plot_command(task), cwd=REPO_ROOT, check=True)
+    subprocess.run(_regret_command(task), cwd=REPO_ROOT, check=True)
 
 
 def _queue_pueue(task: ExportTask) -> str:
-    command = _command_string(task)
+    command = _combined_command_string(task)
     return subprocess.run(
         ["pueue", "add", "-p", "--", command],
         cwd=REPO_ROOT,
@@ -332,10 +346,11 @@ def main() -> int:
         print(f"[{task.name}] {task.out_dir}")
         _print_source_freshness(task)
         if out_dir.exists():
-            print(_warning(f"warning: skipping {task.name} because {out_dir} exists"))
-            print()
-            continue
-        print(_command_string(task))
+            print(
+                _warning(
+                    f"warning: skipping plots for {task.name} because {out_dir} exists"
+                ))
+        print(_combined_command_string(task))
         if args.print_only:
             print()
             continue
