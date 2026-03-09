@@ -548,10 +548,15 @@ def plot_critic_dashboard(by_type: dict[str, pl.DataFrame],
     plt.savefig(out, dpi=300, bbox_inches="tight")
 
 
-def process_one_folder(*, name: str, folder: str, idx: int, total: int,
-                       names: Sequence[str]) -> None:
+def process_one_folder(*,
+                       name: str,
+                       folder: str,
+                       idx: int,
+                       total: int,
+                       names: Sequence[str],
+                       out_root: Path) -> None:
     print(f"\n=== [{idx}/{total}] Processing {name} ({folder}) ===")
-    out_dir = Path("plots") / name
+    out_dir = out_root / name
     out_dir.mkdir(parents=True, exist_ok=True)
 
     by_type = load_by_type(folder=folder, names=names)
@@ -635,9 +640,16 @@ if __name__ == "__main__":
         help=("Base number of agents used for episode-index x-axis scaling "
               f"(default: {EPISODE_INDEX_BASE_AGENTS})."),
     )
+    parser.add_argument(
+        "--out_dir",
+        type=str,
+        default="plots",
+        help="Output directory root. Per-folder plots are written under this path.",
+    )
     args = parser.parse_args()
     names = args.names or NAMES
     EPISODE_INDEX_BASE_AGENTS = int(args.episode_index_base_agents)
+    out_root = Path(args.out_dir)
 
     folder = args.folder or FOLDER
     folders = _resolve_folders(folder)
@@ -649,4 +661,5 @@ if __name__ == "__main__":
                            folder=folder,
                            idx=i,
                            total=len(folders),
-                           names=names)
+                           names=names,
+                           out_root=out_root)
