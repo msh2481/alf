@@ -37,7 +37,7 @@ base = {
     "SHARED_CRITIC_MODE": "average",
     "OWN_ROLLOUT_FRACTION": "0.75",
     "NUM_LAYERS": "2",
-    "SEEDS": "16",
+    "SEEDS": "16,32",
     "BASE_DIR": "",
 }
 runs = {
