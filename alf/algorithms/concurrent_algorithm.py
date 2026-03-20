@@ -900,6 +900,20 @@ class ConcurrentAlgorithm(OffPolicyAlgorithm):
                 "target_q_min",
                 "target_q_max",
                 "target_q_nonfinite_frac",
+                "model_loss_mean",
+                "model_loss_min",
+                "model_loss_max",
+                "model_loss_nonfinite_frac",
+                "grad_sync_loss_mean",
+                "grad_sync_loss_min",
+                "grad_sync_loss_max",
+                "grad_sync_loss_nonfinite_frac",
+                "grad_align_cos_mean",
+                "grad_align_cos_min",
+                "grad_align_cos_max",
+                "grad_align_cos_nonfinite_frac",
+                "critic_dqda_norm_mean",
+                "model_dqda_norm_mean",
         ):
             v = getattr(extra, k, ())
             sv = _float_or_none(v)

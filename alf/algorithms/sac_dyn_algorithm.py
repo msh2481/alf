@@ -25,7 +25,7 @@ import torch
 
 import alf
 from alf.algorithms.sac_algorithm import (SacAlgorithm, SacInfo, SacState,
-                                          ActionType)
+                                          SacLossInfo, ActionType)
 from alf.networks.actor_distribution_networks import ActorDistributionNetwork
 from alf.networks.critic_networks import CriticNetwork
 from alf.networks.q_networks import QNetwork
@@ -41,6 +41,32 @@ SacDynInfo = namedtuple("SacDynInfo", [
     "observation",
 ],
                         default_value=())
+
+SacDynLossInfo = namedtuple(
+    "SacDynLossInfo",
+    (
+        *SacLossInfo._fields,
+        "model_loss_mean",
+        "model_loss_min",
+        "model_loss_max",
+        "model_loss_nonfinite_frac",
+    ),
+    default_value=())
+
+
+def _finite_stats(x: torch.Tensor):
+    """Return (mean, min, max, nonfinite_frac) as scalar tensors."""
+    if not isinstance(x, torch.Tensor):
+        return (), (), (), ()
+    xf = x.detach()
+    finite = torch.isfinite(xf)
+    nonfinite_frac = (1.0 - finite.to(torch.float32).mean())
+    if finite.any():
+        vals = xf[finite]
+        return vals.mean(), vals.min(), vals.max(), nonfinite_frac
+
+    nan = torch.tensor(float("nan"), device=xf.device, dtype=xf.dtype)
+    return nan, nan, nan, nonfinite_frac
 
 
 @alf.configurable
@@ -204,7 +230,29 @@ class SacDynAlgorithm(SacAlgorithm):
         model_loss = self._calc_model_loss(info)
         total = math_ops.add_ignore_empty(sac_loss.loss,
                                           self._model_loss_weight * model_loss)
-        return sac_loss._replace(loss=total)
+        (model_loss_mean, model_loss_min, model_loss_max,
+         model_loss_nonfinite_frac) = _finite_stats(model_loss)
+
+        extra = sac_loss.extra
+        if extra == ():
+            extra = SacDynLossInfo(model_loss_mean=model_loss_mean,
+                                   model_loss_min=model_loss_min,
+                                   model_loss_max=model_loss_max,
+                                   model_loss_nonfinite_frac=
+                                   model_loss_nonfinite_frac)
+        else:
+            extra_fields = {
+                field: getattr(extra, field, ())
+                for field in SacDynLossInfo._fields
+            }
+            extra_fields.update(model_loss_mean=model_loss_mean,
+                                model_loss_min=model_loss_min,
+                                model_loss_max=model_loss_max,
+                                model_loss_nonfinite_frac=
+                                model_loss_nonfinite_frac)
+            extra = SacDynLossInfo(**extra_fields)
+
+        return sac_loss._replace(loss=total, extra=extra)
 
     def _calc_model_loss(self, info):
         """Compute dynamics + reward MSE loss using time-shifted observations.

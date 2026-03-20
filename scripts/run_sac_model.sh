@@ -47,7 +47,7 @@ done
 
 SAFE_ENV="${ENV//[:\/]/_}"
 if [ -z "$BASE_DIR" ]; then
-    BASE_DIR="/tmp/sac_model/${SAFE_ENV}/${NAME}"
+    BASE_DIR="/tmp/dmc/${SAFE_ENV}/${NAME}"
 fi
 
 SEED_START=0

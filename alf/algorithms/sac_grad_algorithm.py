@@ -14,16 +14,18 @@
 """SAC with gradient synchronization regularization (Option D2).
 
 Keeps standard SAC Q-networks and adds a regularization loss pushing
-dQ/da toward the dynamics-implied gradient:
-    ||dQ/da - d(r(s,a) + gamma * V_target(f(s,a)))/da||^2
+dQ/da to align with the dynamics-implied gradient via cosine similarity:
+    1 - cos(dQ/da, d(r(s,a) + gamma * V_target(f(s,a)))/da)
 Applied per Q replica.
 """
 
 import torch
 
 import alf
-from alf.algorithms.sac_dyn_algorithm import SacDynAlgorithm, SacDynInfo
+from alf.algorithms.sac_dyn_algorithm import (SacDynAlgorithm, SacDynInfo,
+                                              SacDynLossInfo, _finite_stats)
 from alf.data_structures import StepType
+from alf.data_structures import namedtuple
 from alf.tensor_specs import TensorSpec
 from alf.networks.actor_distribution_networks import ActorDistributionNetwork
 from alf.networks.critic_networks import CriticNetwork
@@ -31,13 +33,32 @@ from alf.networks.q_networks import QNetwork
 from alf.utils import math_ops
 
 
+SacGradLossInfo = namedtuple(
+    "SacGradLossInfo",
+    (
+        *SacDynLossInfo._fields,
+        "grad_sync_loss_mean",
+        "grad_sync_loss_min",
+        "grad_sync_loss_max",
+        "grad_sync_loss_nonfinite_frac",
+        "grad_align_cos_mean",
+        "grad_align_cos_min",
+        "grad_align_cos_max",
+        "grad_align_cos_nonfinite_frac",
+        "critic_dqda_norm_mean",
+        "model_dqda_norm_mean",
+    ),
+    default_value=())
+
+
 @alf.configurable
 class SacGradAlgorithm(SacDynAlgorithm):
     """SAC + gradient synchronization regularization.
 
     Adds a loss that pushes each Q replica's action-gradient toward the
-    gradient implied by the learned dynamics model:
-        d/da [r(s,a) + gamma * V_target(f(s,a))]
+    gradient implied by the learned dynamics model by maximizing their
+    cosine similarity:
+        cos(dQ/da, d/da [r(s,a) + gamma * V_target(f(s,a))])
     One-sided push: model gradient is detached, only Q params are updated.
     """
 
@@ -125,10 +146,18 @@ class SacGradAlgorithm(SacDynAlgorithm):
 
     def calc_loss(self, info: SacDynInfo):
         sac_dyn_loss = super().calc_loss(info)
-        sync_loss = self._calc_grad_sync_loss(info)
+        sync_loss, grad_diag = self._calc_grad_sync_loss(info)
         total = math_ops.add_ignore_empty(sac_dyn_loss.loss,
                                           self._grad_sync_weight * sync_loss)
-        return sac_dyn_loss._replace(loss=total)
+
+        extra = sac_dyn_loss.extra
+        extra_fields = {
+            field: getattr(extra, field, ())
+            for field in SacGradLossInfo._fields
+        } if extra != () else {}
+        extra_fields.update(grad_diag)
+        extra = SacGradLossInfo(**extra_fields)
+        return sac_dyn_loss._replace(loss=total, extra=extra)
 
     def _calc_grad_sync_loss(self, info):
         """Compute gradient sync loss between Q-network and model-implied Q.
@@ -165,21 +194,59 @@ class SacGradAlgorithm(SacDynAlgorithm):
         critics, _ = self._critic_networks((obs, a),
                                            state=())  # [T*B, n_replicas]
 
-        total_sync_loss = torch.zeros(T * B, device=obs.device)
+        sync_losses = []
+        grad_align_cosines = []
+        critic_dqda_norms = []
+        model_dqda_norm = model_dQ_da.norm(dim=-1)
         for i in range(self._num_critic_replicas):
             q_i = critics[..., i]
             actual_dQ_da_i = torch.autograd.grad(q_i.sum(),
                                                  a,
                                                  create_graph=True,
                                                  retain_graph=True)[0]
-            sync_loss_i = ((actual_dQ_da_i - model_dQ_da)**2).sum(dim=-1)
-            total_sync_loss = total_sync_loss + sync_loss_i
+            critic_norm_i = actual_dQ_da_i.norm(dim=-1)
+            cosine_i = (actual_dQ_da_i * model_dQ_da).sum(dim=-1) / (
+                critic_norm_i * model_dqda_norm + 1e-12)
+            sync_loss_i = 1.0 - cosine_i
 
-        total_sync_loss = total_sync_loss / self._num_critic_replicas
+            sync_losses.append(sync_loss_i)
+            grad_align_cosines.append(cosine_i)
+            critic_dqda_norms.append(critic_norm_i)
+
+        total_sync_loss = torch.stack(sync_losses, dim=-1).mean(dim=-1)
+        grad_align_cos = torch.stack(grad_align_cosines, dim=-1)
+        critic_dqda_norm = torch.stack(critic_dqda_norms, dim=-1)
 
         # Reshape back to [T, B]
         total_sync_loss = total_sync_loss.reshape(T, B)
 
         # Mask LAST steps
         valid = (info.step_type != StepType.LAST).float()
-        return total_sync_loss * valid
+        valid_flat = valid.reshape(T * B).to(torch.bool)
+
+        def _stats_for_valid(x):
+            if not valid_flat.any():
+                return _finite_stats(x.reshape(-1))
+            return _finite_stats(x[valid_flat])
+
+        (grad_sync_loss_mean, grad_sync_loss_min, grad_sync_loss_max,
+         grad_sync_loss_nonfinite_frac) = _stats_for_valid(
+             total_sync_loss.reshape(T * B))
+        (grad_align_cos_mean, grad_align_cos_min, grad_align_cos_max,
+         grad_align_cos_nonfinite_frac) = _stats_for_valid(grad_align_cos)
+        critic_dqda_norm_mean, _, _, _ = _stats_for_valid(critic_dqda_norm)
+        model_dqda_norm_mean, _, _, _ = _stats_for_valid(model_dqda_norm)
+
+        grad_diag = dict(
+            grad_sync_loss_mean=grad_sync_loss_mean,
+            grad_sync_loss_min=grad_sync_loss_min,
+            grad_sync_loss_max=grad_sync_loss_max,
+            grad_sync_loss_nonfinite_frac=grad_sync_loss_nonfinite_frac,
+            grad_align_cos_mean=grad_align_cos_mean,
+            grad_align_cos_min=grad_align_cos_min,
+            grad_align_cos_max=grad_align_cos_max,
+            grad_align_cos_nonfinite_frac=grad_align_cos_nonfinite_frac,
+            critic_dqda_norm_mean=critic_dqda_norm_mean,
+            model_dqda_norm_mean=model_dqda_norm_mean,
+        )
+        return total_sync_loss * valid, grad_diag
