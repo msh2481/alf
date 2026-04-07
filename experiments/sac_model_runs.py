@@ -18,11 +18,11 @@ base = {
     "LR": "1e-3",
     "WD": "1e-5",
     "GAMMA": "0.99",
-    "PRIOR_SCALE": "3.0",
+    "PRIOR_SCALE": "1.0",
     "ALPHA": "0",
     "LN": "True",
     "UTD": "1",
-    "RESET_PERIOD": "200",
+    "RESET_PERIOD": "500",
     "NUM_AGENTS": "4",
     "NUM_ENVS": "4",
     "SCALE_BATCH": "True",
@@ -39,19 +39,24 @@ base = {
     "GRAD_SYNC_WEIGHT": "1.0",
     "DYNAMICS_HIDDEN": "tuple()",
     "REWARD_HIDDEN": "(256,)",
-    "SEEDS": "1",
+    "SEEDS": "8",
     "BASE_DIR": "",
 }
 
 runs = {
-    # "model_sac": {
-    #     "ALGO": "sac",
-    # },
-    "model_sac_grad_1": {
+    "baseline_sac": {
+        "ALGO": "sac_grad",
+        "GRAD_SYNC_WEIGHT": "0",
+    },
+    "sac_grad_1": {
         "ALGO": "sac_grad",
         "GRAD_SYNC_WEIGHT": "1",
     },
-    "model_sac_grad_1e2": {
+    "sac_grad_1e2": {
+        "ALGO": "sac_grad",
+        "GRAD_SYNC_WEIGHT": "1e2",
+    },
+    "sac_grad_1e3": {
         "ALGO": "sac_grad",
         "GRAD_SYNC_WEIGHT": "1e2",
     },

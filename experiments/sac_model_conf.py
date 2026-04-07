@@ -179,7 +179,7 @@ alf.config(
     log_grad_norms=True,
     debug_env=suite_gym.load("Rotator-v0") if _IS_ROTATOR else None,
     debug_callback_cls=RotatorCallback if _IS_ROTATOR else None,
-    debug_log_every_n_steps=100,
+    debug_log_every_n_steps=1000,
 )
 
 _BASE_MINI_BATCH_SIZE = 256

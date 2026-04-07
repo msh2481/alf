@@ -44,22 +44,34 @@ base = {
 }
 
 runs = {
-    "sac_grad_1e2": {
+    "sac_grad_0": {
         "ALGO": "sac_grad",
-        "GRAD_SYNC_WEIGHT": "1e2",
+        "GRAD_SYNC_WEIGHT": "0",
     },
-    "sac_grad_1e3": {
+    "sac_grad_1": {
         "ALGO": "sac_grad",
-        "GRAD_SYNC_WEIGHT": "1e3",
+        "GRAD_SYNC_WEIGHT": "1",
     },
-    "sac_v_prior0.01": {
+    "sac_grad_10": {
+        "ALGO": "sac_grad",
+        "GRAD_SYNC_WEIGHT": "10",
+    },
+    # "sac_grad_1e2": {
+    #     "ALGO": "sac_grad",
+    #     "GRAD_SYNC_WEIGHT": "1e2",
+    # },
+    "sac_v_prior0": {
         "ALGO": "sac_v",
-        "PRIOR_SCALE": "0.01",
+        "PRIOR_SCALE": "0",
     },
-    "sac_v_prior0.1": {
-        "ALGO": "sac_v",
-        "PRIOR_SCALE": "0.1",
-    },
+    # "sac_v_prior0.01": {
+    #     "ALGO": "sac_v",
+    #     "PRIOR_SCALE": "0.01",
+    # },
+    # "sac_v_prior0.1": {
+    #     "ALGO": "sac_v",
+    #     "PRIOR_SCALE": "0.1",
+    # },
 }
 
 NAMES = list(runs.keys())

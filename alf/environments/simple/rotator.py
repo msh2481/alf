@@ -25,7 +25,7 @@ class Rotator(gym.Env):
                  num_steps: int = 125,
                  eps: float = 1e-8,
                  c_distraction: float = 0.0,
-                 sparsity_threshold: float = -1.0):
+                 sparsity_threshold: float = 0.0):
         super().__init__()
         self.dt = float(dt)
         self.num_steps = int(num_steps)
