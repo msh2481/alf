@@ -29,16 +29,18 @@ from plot_common import load_type, resolve_folders as _resolve_folders
 # Keep defaults aligned with custom_plot.py without importing matplotlib there.
 FOLDER: str | Sequence[str] = "all_dm"
 NAMES = [
-    "a4_prior0",
-    "a4_prior0.001",
-    "a4_prior0.01",
-    "a4_prior0.1",
-    "a4_prior1.0",
+    "a1_single_layer_prior0",
+    "a1_single_layer_prior0.001",
+    "a1_single_layer_prior0.01",
+    "a1_single_layer_prior0.1",
 ]
 MAX_EPISODE: int | None = None
 CORRECT_EPISODES = True
 EPISODE_INDEX_BASE_AGENTS = 32
 DEFAULT_WORKERS = 16
+CI_CONFIDENCE = 0.90
+# Two-sided normal critical value for a 90% confidence interval.
+CI_Z_VALUE = 1.6448536269514722
 
 
 def _preprocess_episode(ep: pl.DataFrame,
@@ -111,12 +113,37 @@ def _reduce_episode_df(ep: pl.DataFrame,
     return ep.group_by(keys, maintain_order=True).agg(agg).sort(keys)
 
 
-def _format_pm(mean: float | None, std: float | None) -> str:
+def _format_pm(mean: float | None, half_width: float | None) -> str:
     if mean is None or not np.isfinite(mean):
         return "-"
-    if std is None or not np.isfinite(std):
-        std = 0.0
-    return f"{mean:.3f}±{std:.3f}"
+    if half_width is None or not np.isfinite(half_width):
+        half_width = 0.0
+    return f"{mean:.3f}±{half_width:.3f}"
+
+
+def _ci_half_width_from_std(std: float | None, n: float | None) -> float:
+    if (std is None or n is None or not np.isfinite(std) or not np.isfinite(n)
+            or n <= 0):
+        return 0.0
+    return float(CI_Z_VALUE * float(std) / np.sqrt(float(n)))
+
+
+def _log_seed_counts(env_stats: pl.DataFrame, *, env_order: Sequence[str],
+                     experiment_order: Sequence[str]) -> None:
+    if env_stats.is_empty():
+        return
+
+    print(f"\nSeed counts used for {int(CI_CONFIDENCE * 100)}% CI:")
+    for env_name in env_order:
+        env_df = env_stats.filter(pl.col("env") == env_name)
+        count_map = {
+            row["experiment"]: int(row["n"])
+            for row in env_df.iter_rows(named=True)
+        }
+        counts = ", ".join(
+            f"{experiment}={count_map[experiment]}"
+            for experiment in experiment_order if experiment in count_map)
+        print(f"  {env_name}: {counts}")
 
 
 def _format_average_pm(env_stats: pl.DataFrame, *, experiment: str) -> str:
@@ -125,25 +152,22 @@ def _format_average_pm(env_stats: pl.DataFrame, *, experiment: str) -> str:
         return "-"
 
     means = d["mean"].to_numpy().astype(np.float64, copy=False)
-    stds = d["std"].to_numpy().astype(np.float64, copy=False)
-    counts = d["n"].to_numpy().astype(np.float64, copy=False)
+    ci_half_widths = d["ci_half_width"].to_numpy().astype(np.float64, copy=False)
 
-    mask = np.isfinite(means) & (means > 0) & np.isfinite(stds) & np.isfinite(
-        counts) & (counts > 0)
+    mask = np.isfinite(means) & (means > 0) & np.isfinite(ci_half_widths)
     means = means[mask]
-    stds = stds[mask]
-    counts = counts[mask]
+    ci_half_widths = ci_half_widths[mask]
     if means.size == 0:
         return "-"
 
     avg_log = float(np.mean(np.log(means)))
-    se_env = stds / np.sqrt(counts)
+    se_env = ci_half_widths / CI_Z_VALUE
     log_var = np.square(se_env / means)
     se_log = float(np.sqrt(np.sum(log_var)) / means.size)
 
     geo_mean = float(np.exp(avg_log))
-    geo_se = float(geo_mean * se_log)
-    return _format_pm(geo_mean, geo_se)
+    geo_ci_half_width = float(CI_Z_VALUE * geo_mean * se_log)
+    return _format_pm(geo_mean, geo_ci_half_width)
 
 
 def _warn_horizon_mismatch(*, env_name: str, horizons: pl.DataFrame) -> None:
@@ -241,7 +265,8 @@ def _regret_records_from_episode_df(*, env_name: str, ep: pl.DataFrame,
 
 
 def _summary_table(*, records: list[dict[str, object]], env_order: Sequence[str],
-                   experiment_order: Sequence[str]) -> pl.DataFrame:
+                   experiment_order: Sequence[str],
+                   log_seed_counts: bool = False) -> pl.DataFrame:
     if not records:
         rows = []
         for env_name in [*env_order, "Average"]:
@@ -256,14 +281,25 @@ def _summary_table(*, records: list[dict[str, object]], env_order: Sequence[str]
         pl.col("regret").mean().alias("mean"),
         pl.col("regret").std(ddof=1).alias("std"),
         pl.len().alias("n"),
-    ).with_columns(pl.col("std").fill_null(0.0))
+    ).with_columns(
+        pl.col("std").fill_null(0.0),
+        pl.struct(["std", "n"]).map_elements(
+            lambda row: _ci_half_width_from_std(row["std"], row["n"]),
+            return_dtype=pl.Float64,
+        ).alias("ci_half_width"),
+    )
+
+    if log_seed_counts:
+        _log_seed_counts(env_stats,
+                         env_order=env_order,
+                         experiment_order=experiment_order)
 
     row_maps: dict[str, dict[str, str]] = {}
     for env_name in env_order:
         row = {"env": env_name}
         env_df = env_stats.filter(pl.col("env") == env_name)
         stats = {
-            rec["experiment"]: _format_pm(rec["mean"], rec["std"])
+            rec["experiment"]: _format_pm(rec["mean"], rec["ci_half_width"])
             for rec in env_df.iter_rows(named=True)
         }
         for experiment in experiment_order:
@@ -364,7 +400,8 @@ def _build_tables(*, envs: Sequence[tuple[str, str]], names: Sequence[str],
     env_order = [env_name for env_name, _ in envs]
     return (_summary_table(records=all_records_mean,
                            env_order=env_order,
-                           experiment_order=names),
+                           experiment_order=names,
+                           log_seed_counts=True),
             _summary_table(records=all_records_max,
                            env_order=env_order,
                            experiment_order=names))
