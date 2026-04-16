@@ -18,7 +18,7 @@ base = {
     "LR": "1e-3",
     "WD": "1e-5",
     "GAMMA": "0.99",
-    "PRIOR_SCALE": "1.0",
+    "PRIOR_SCALE": "3.0",
     "ALPHA": "0",
     "LN": "True",
     "UTD": "1",
@@ -37,32 +37,20 @@ base = {
     "NUM_LAYERS": "2",
     "MODEL_LOSS_WEIGHT": "1.0",
     "GRAD_SYNC_WEIGHT": "1.0",
-    "DYNAMICS_HIDDEN": "(256,)",
+    "DYNAMICS_HIDDEN": "tuple()",
     "REWARD_HIDDEN": "(256,)",
-    "SEEDS": "8",
+    "SEEDS": "",
     "BASE_DIR": "",
 }
 
 runs = {
-    "baseline_sac": {
-        "ALGO": "sac_grad",
-        "GRAD_SYNC_WEIGHT": "0",
-    },
-    "sac_grad_1": {
-        "ALGO": "sac_grad",
-        "GRAD_SYNC_WEIGHT": "1",
-    },
-    "sac_grad_1e2": {
-        "ALGO": "sac_grad",
-        "GRAD_SYNC_WEIGHT": "1e2",
-    },
-    "sac_grad_1e3": {
-        "ALGO": "sac_grad",
-        "GRAD_SYNC_WEIGHT": "1e2",
+    "maze_sac": {
+        "ALGO": "sac",
     },
 }
 
 NAMES = list(runs.keys())
+EPISODE_INDEX_BASE_AGENTS = 1
 
 
 def pueue_add(command: str, after: list[str] | None = None) -> str:
@@ -76,7 +64,7 @@ def pueue_add(command: str, after: list[str] | None = None) -> str:
 
 def main() -> None:
     task_ids: list[str] = []
-    for env in ["Rotator"]:
+    for env in ["ComplexMaze"]:
         for name, overrides in runs.items():
             p = {**base, "ENV": env, **overrides}
             args = " ".join(f'{k}="{v}"' for k, v in p.items())
@@ -84,7 +72,8 @@ def main() -> None:
                 pueue_add(
                     f'bash scripts/run_sac_model.sh {args} NAME="{name}"'))
 
-    plot_cmd = ("python tools/plot_sac_grad_diagnostics.py "
+    plot_cmd = ("python tools/custom_plot.py "
+                f"--episode_index_base_agents {EPISODE_INDEX_BASE_AGENTS} "
                 f"--names {' '.join(NAMES)}")
     pueue_add(plot_cmd, after=task_ids)
 

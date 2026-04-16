@@ -114,6 +114,8 @@ if [ "$SEED_COUNT" -gt 0 ]; then
         (
             if [[ "$ENV" == Rotator* ]]; then
                 export ALF_ROTATOR_LOG_DIR="logs/${NAME}/${SEED}"
+            elif [[ "$ENV" == ComplexMaze* ]]; then
+                export ALF_COMPLEX_MAZE_LOG_DIR="logs/${NAME}/${SEED}"
             fi
             python -m alf.bin.train \
                 "${COMMON_ARGS[@]}" \
@@ -132,6 +134,8 @@ else
 
     if [[ "$ENV" == Rotator* ]]; then
         export ALF_ROTATOR_LOG_DIR="logs/${NAME}/0"
+    elif [[ "$ENV" == ComplexMaze* ]]; then
+        export ALF_COMPLEX_MAZE_LOG_DIR="logs/${NAME}/0"
     fi
     python -m alf.bin.train \
         "${COMMON_ARGS[@]}" \

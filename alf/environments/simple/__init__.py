@@ -65,3 +65,9 @@ gym.register(
     entry_point='alf.environments.simple.rotator:Rotator',
     max_episode_steps=1000,
 )
+
+gym.register(
+    id='ComplexMaze-v0',
+    entry_point='alf.environments.simple.complex_maze:ComplexMaze',
+    max_episode_steps=1000,
+)
