@@ -33,19 +33,30 @@ base = {
     "ASYNC": "False",
     "SHARE_ACTOR": "False",
     "SHARE_CRITIC": "False",
-    "OWN_ROLLOUT_FRACTION": "-1",
+    "OWN_ROLLOUT_FRACTION": "0.75",
     "NUM_LAYERS": "2",
     "MODEL_LOSS_WEIGHT": "1.0",
     "GRAD_SYNC_WEIGHT": "1.0",
-    "DYNAMICS_HIDDEN": "tuple()",
+    "DYNAMICS_HIDDEN": "(256,)",
     "REWARD_HIDDEN": "(256,)",
-    "SEEDS": "",
+    "SEEDS": "4",
     "BASE_DIR": "",
 }
 
 runs = {
-    "maze_sac": {
+    "sac": {
         "ALGO": "sac",
+    },
+    "sac_v": {
+        "ALGO": "sac_v",
+    },
+    "sac_grad_0.1": {
+        "ALGO": "sac_grad",
+        "GRAD_SYNC_WEIGHT": "0.1",
+    },
+    "sac_grad_1": {
+        "ALGO": "sac_grad",
+        "GRAD_SYNC_WEIGHT": "1",
     },
 }
 

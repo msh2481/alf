@@ -42,8 +42,8 @@ class ComplexMaze(gym.Env):
         lengthscale: float = 1.0,
         goal_radius: float = 0.15,
         goal_reward: float = 1.0,
-        wind_x: float = -0.05,
-        wind_y: float = -0.05,
+        wind_x: float = 0.0,
+        wind_y: float = 0.0,
         seed: int = 42,
     ):
         super().__init__()
