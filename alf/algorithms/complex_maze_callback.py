@@ -20,18 +20,18 @@ Produces per-iteration PNG files with:
 """
 
 import os
-from absl import logging
+
+import matplotlib
 import numpy as np
 import torch
-import matplotlib
+from absl import logging
 
 matplotlib.use("Agg")
+import matplotlib.cm as cm
 import matplotlib.pyplot as plt
+from matplotlib.colors import hsv_to_rgb, ListedColormap
 from matplotlib.lines import Line2D
 from matplotlib.patches import Circle, Rectangle
-from matplotlib.colors import hsv_to_rgb
-import matplotlib.cm as cm
-from matplotlib.colors import ListedColormap
 
 import alf
 
@@ -39,18 +39,20 @@ import alf
 @alf.configurable
 class ComplexMazeCallback:
 
-    def __init__(self,
-                 debug_env=None,
-                 log_every_n_steps: int = 100,
-                 grid_res: int = 41,
-                 grid_t: float = 0.5,
-                 segment_scale: float = 0.05,
-                 actor_segment_scale: float = 0.15,
-                 quiver_width: float = 0.0022,
-                 trajectory_alpha: float = 0.5,
-                 trajectory_lw: float = 1.0,
-                 max_traj_steps: int = 500,
-                 name: str = "ComplexMazeCallback"):
+    def __init__(
+        self,
+        debug_env=None,
+        log_every_n_steps: int = 100,
+        grid_res: int = 41,
+        grid_t: float = 0.5,
+        segment_scale: float = 0.05,
+        actor_segment_scale: float = 0.15,
+        quiver_width: float = 0.0022,
+        trajectory_alpha: float = 0.5,
+        trajectory_lw: float = 1.0,
+        max_traj_steps: int = 500,
+        name: str = "ComplexMazeCallback",
+    ):
         self._debug_env = debug_env
         self._log_every_n_steps = int(log_every_n_steps)
         self._max_traj_steps = int(max_traj_steps)
@@ -63,7 +65,7 @@ class ComplexMazeCallback:
         self._trajectory_lw = float(trajectory_lw)
         self._name = name
         self._debug_count = 0
-        greys = cm.get_cmap('bwr')
+        greys = cm.get_cmap("bwr")
         self._cmap = ListedColormap(greys(np.linspace(0.25, 0.75, 256)))
 
     def _add_goal_patch(self,
@@ -75,13 +77,15 @@ class ComplexMazeCallback:
         """Add a goal circle clipped to the [0, 1]^2 plot region."""
         env = self._debug_env
         clip_rect = Rectangle((0, 0), 1.0, 1.0, transform=ax.transData)
-        circle = Circle(tuple(env.goal),
-                        env.goal_radius,
-                        facecolor=facecolor,
-                        alpha=alpha,
-                        edgecolor=edgecolor,
-                        linewidth=1.5,
-                        linestyle=linestyle)
+        circle = Circle(
+            tuple(env.goal),
+            env.goal_radius,
+            facecolor=facecolor,
+            alpha=alpha,
+            edgecolor=edgecolor,
+            linewidth=1.5,
+            linestyle=linestyle,
+        )
         circle.set_clip_path(clip_rect)
         ax.add_patch(circle)
 
@@ -125,9 +129,9 @@ class ComplexMazeCallback:
                  action_spec,
                  num_copies,
                  iter_number=None):
+        self._debug_count += 1
         if iter_number is None:
             iter_number = self._debug_count
-        self._debug_count += 1
         if iter_number % self._log_every_n_steps != 0:
             return
 
@@ -143,12 +147,14 @@ class ComplexMazeCallback:
             return
         log_dir = os.environ.get("ALF_COMPLEX_MAZE_LOG_DIR", "logs")
         os.makedirs(log_dir, exist_ok=True)
-        self._create_and_save_plots(iter_number,
-                                    observations,
-                                    step_types,
-                                    algorithms,
-                                    num_copies,
-                                    log_dir=log_dir)
+        self._create_and_save_plots(
+            iter_number,
+            observations,
+            step_types,
+            algorithms,
+            num_copies,
+            log_dir=log_dir,
+        )
         self._create_and_save_dynamics_plots(iter_number,
                                              algorithms,
                                              num_copies,
@@ -157,8 +163,15 @@ class ComplexMazeCallback:
     # ------------------------------------------------------------------
     # Main figure
     # ------------------------------------------------------------------
-    def _create_and_save_plots(self, iter_number, observations, step_types,
-                               algorithms, num_copies, log_dir: str):
+    def _create_and_save_plots(
+        self,
+        iter_number,
+        observations,
+        step_types,
+        algorithms,
+        num_copies,
+        log_dir: str,
+    ):
         device = alf.get_default_device()
         nrows = num_copies + 1
         fig = plt.figure(figsize=(16, 6 * nrows), constrained_layout=True)
@@ -190,12 +203,14 @@ class ComplexMazeCallback:
                 obs_batch = obs_batch.to(device)
                 act_batch = act_batch.to(device)
                 with torch.no_grad():
-                    q, _ = alg._compute_critics(alg._critic_networks,
-                                                obs_batch,
-                                                act_batch,
-                                                critics_state=(),
-                                                replica_min=True,
-                                                apply_reward_weights=True)
+                    q, _ = alg._compute_critics(
+                        alg._critic_networks,
+                        obs_batch,
+                        act_batch,
+                        critics_state=(),
+                        replica_min=True,
+                        apply_reward_weights=True,
+                    )
                 return torch.as_tensor(q).reshape(-1)
 
             def grad_q_wrt_action_batch_fn(obs_batch: torch.Tensor,
@@ -203,12 +218,14 @@ class ComplexMazeCallback:
                 obs_batch = obs_batch.to(device).detach()
                 act_batch = act_batch.to(device).detach().requires_grad_(True)
                 with torch.enable_grad():
-                    q, _ = alg._compute_critics(alg._critic_networks,
-                                                obs_batch,
-                                                act_batch,
-                                                critics_state=(),
-                                                replica_min=True,
-                                                apply_reward_weights=True)
+                    q, _ = alg._compute_critics(
+                        alg._critic_networks,
+                        obs_batch,
+                        act_batch,
+                        critics_state=(),
+                        replica_min=True,
+                        apply_reward_weights=True,
+                    )
                     q = torch.as_tensor(q).reshape(-1)
                     (g, ) = torch.autograd.grad(q.sum(), act_batch)
                 return g
@@ -229,20 +246,22 @@ class ComplexMazeCallback:
             zero_act = torch.zeros((grid_obs.shape[0], 2),
                                    dtype=torch.float32,
                                    device=device)
-            g = grad_q_wrt_action_batch_fn(grid_obs, zero_act).reshape(
-                self._grid_res, self._grid_res, 2).detach().cpu().numpy()
+            g = (grad_q_wrt_action_batch_fn(grid_obs, zero_act).reshape(
+                self._grid_res, self._grid_res, 2).detach().cpu().numpy())
             gu, gv = g[:, :, 0], g[:, :, 1]
             gnorm = np.sqrt(gu * gu + gv * gv)
             gmax = float(np.max(gnorm)) if gnorm.size else 0.0
             if gmax > 0.0:
                 gu = gu / (gmax + 1e-12)
                 gv = gv / (gmax + 1e-12)
-            im = self._plot_value_heatmap(axes[alg_idx + 1, 0],
-                                          v_grid,
-                                          gu * self._arrow_scale,
-                                          gv * self._arrow_scale,
-                                          alg_idx,
-                                          t=self._grid_t)
+            im = self._plot_value_heatmap(
+                axes[alg_idx + 1, 0],
+                v_grid,
+                gu * self._arrow_scale,
+                gv * self._arrow_scale,
+                alg_idx,
+                t=self._grid_t,
+            )
             if first_im is None:
                 first_im = im
 
@@ -321,12 +340,14 @@ class ComplexMazeCallback:
                     [s for seg in segments for s in (seg, nan_row)][:-1])
             else:
                 xy_plot = xy
-            ax.plot(xy_plot[:, 0],
-                    xy_plot[:, 1],
-                    color=color,
-                    alpha=self._trajectory_alpha,
-                    linewidth=self._trajectory_lw,
-                    solid_capstyle="round")
+            ax.plot(
+                xy_plot[:, 0],
+                xy_plot[:, 1],
+                color=color,
+                alpha=self._trajectory_alpha,
+                linewidth=self._trajectory_lw,
+                solid_capstyle="round",
+            )
 
         ax.set_title("Dynamics f(s) + replay trajectories")
         ax.set_xlabel("x")
@@ -335,14 +356,16 @@ class ComplexMazeCallback:
         ax.set_ylim(0, 1)
         ax.set_aspect("equal")
 
-        ax.text(0.02,
-                0.97,
-                "hue=arg(f)  sat=|f|",
-                transform=ax.transAxes,
-                fontsize=7,
-                va="top",
-                ha="left",
-                bbox=dict(boxstyle="round,pad=0.2", fc="white", alpha=0.7))
+        ax.text(
+            0.02,
+            0.97,
+            "hue=arg(f)  sat=|f|",
+            transform=ax.transAxes,
+            fontsize=7,
+            va="top",
+            ha="left",
+            bbox=dict(boxstyle="round,pad=0.2", fc="white", alpha=0.7),
+        )
 
     # ------------------------------------------------------------------
     # Q(s,a) sweeps (row 0, right)
@@ -353,15 +376,17 @@ class ComplexMazeCallback:
         a = torch.linspace(-1.0, 1.0, sweep_points,
                            device=device).to(torch.float32)
 
-        states = torch.tensor([
-            [0.5, 0.5, self._grid_t],
-            [0.0, 0.0, self._grid_t],
-            [1.0, 1.0, self._grid_t],
-            [0.25, 0.75, self._grid_t],
-            [0.75, 0.25, self._grid_t],
-        ],
-                              dtype=torch.float32,
-                              device=device)
+        states = torch.tensor(
+            [
+                [0.5, 0.5, self._grid_t],
+                [0.0, 0.0, self._grid_t],
+                [1.0, 1.0, self._grid_t],
+                [0.25, 0.75, self._grid_t],
+                [0.75, 0.25, self._grid_t],
+            ],
+            dtype=torch.float32,
+            device=device,
+        )
         state_labels = [
             "(0.5,0.5)", "(0,0)", "(1,1)", "(0.25,0.75)", "(0.75,0.25)"
         ]
@@ -370,12 +395,14 @@ class ComplexMazeCallback:
             obs_batch = obs_batch.to(device)
             act_batch = act_batch.to(device)
             with torch.no_grad():
-                q, _ = alg._compute_critics(alg._critic_networks,
-                                            obs_batch,
-                                            act_batch,
-                                            critics_state=(),
-                                            replica_min=True,
-                                            apply_reward_weights=True)
+                q, _ = alg._compute_critics(
+                    alg._critic_networks,
+                    obs_batch,
+                    act_batch,
+                    critics_state=(),
+                    replica_min=True,
+                    apply_reward_weights=True,
+                )
             return torch.as_tensor(q).reshape(-1)
 
         cmap_c = plt.get_cmap("tab10")
@@ -402,11 +429,14 @@ class ComplexMazeCallback:
                     linewidth=1.8)
 
             state_handles.append(
-                Line2D([0], [0],
-                       color=color,
-                       linestyle="-",
-                       linewidth=2.0,
-                       label=state_labels[i]))
+                Line2D(
+                    [0],
+                    [0],
+                    color=color,
+                    linestyle="-",
+                    linewidth=2.0,
+                    label=state_labels[i],
+                ))
 
         ax.set_title("Agent 0: Q(s,a) sweeps")
         ax.set_xlabel("action component value")
@@ -419,16 +449,22 @@ class ComplexMazeCallback:
                          frameon=False)
         ax.add_artist(leg1)
         style_handles = [
-            Line2D([0], [0],
-                   color="black",
-                   linestyle="-",
-                   linewidth=2.0,
-                   label="vary a_x (a_y=0)"),
-            Line2D([0], [0],
-                   color="black",
-                   linestyle="--",
-                   linewidth=2.0,
-                   label="vary a_y (a_x=0)"),
+            Line2D(
+                [0],
+                [0],
+                color="black",
+                linestyle="-",
+                linewidth=2.0,
+                label="vary a_x (a_y=0)",
+            ),
+            Line2D(
+                [0],
+                [0],
+                color="black",
+                linestyle="--",
+                linewidth=2.0,
+                label="vary a_y (a_x=0)",
+            ),
         ]
         ax.legend(handles=style_handles, loc="lower left", frameon=False)
 
@@ -444,20 +480,22 @@ class ComplexMazeCallback:
         xs = np.linspace(0.0, 1.0, gu.shape[1])
         ys = np.linspace(0.0, 1.0, gu.shape[0])
         xx, yy = np.meshgrid(xs, ys)
-        ax.quiver(xx,
-                  yy,
-                  gu,
-                  gv,
-                  angles="xy",
-                  scale_units="xy",
-                  scale=1.0,
-                  width=self._quiver_width,
-                  headwidth=2.0,
-                  headlength=3.0,
-                  headaxislength=2.5,
-                  pivot="mid",
-                  color="black",
-                  alpha=0.9)
+        ax.quiver(
+            xx,
+            yy,
+            gu,
+            gv,
+            angles="xy",
+            scale_units="xy",
+            scale=1.0,
+            width=self._quiver_width,
+            headwidth=2.0,
+            headlength=3.0,
+            headaxislength=2.5,
+            pivot="mid",
+            color="black",
+            alpha=0.9,
+        )
         self._add_goal_patch(ax,
                              facecolor="none",
                              edgecolor="green",
@@ -478,19 +516,21 @@ class ComplexMazeCallback:
         xx, yy = np.meshgrid(xs, ys)
         u = u * self._actor_arrow_scale
         v = v * self._actor_arrow_scale
-        ax.quiver(xx,
-                  yy,
-                  u,
-                  v,
-                  angles="xy",
-                  scale_units="xy",
-                  scale=1.0,
-                  width=self._quiver_width,
-                  headwidth=2.0,
-                  headlength=3.0,
-                  headaxislength=2.5,
-                  pivot="mid",
-                  alpha=0.9)
+        ax.quiver(
+            xx,
+            yy,
+            u,
+            v,
+            angles="xy",
+            scale_units="xy",
+            scale=1.0,
+            width=self._quiver_width,
+            headwidth=2.0,
+            headlength=3.0,
+            headaxislength=2.5,
+            pivot="mid",
+            alpha=0.9,
+        )
         self._add_goal_patch(ax,
                              facecolor="green",
                              alpha=0.15,
@@ -509,7 +549,7 @@ class ComplexMazeCallback:
     def _create_and_save_dynamics_plots(self, iter_number, algorithms,
                                         num_copies, log_dir: str):
         agents_with_dyn = [(i, algorithms[i]) for i in range(num_copies)
-                           if hasattr(algorithms[i], 'predict_next')]
+                           if hasattr(algorithms[i], "predict_next")]
         if not agents_with_dyn:
             return
 
@@ -536,10 +576,12 @@ class ComplexMazeCallback:
         n_actions = len(_ACTIONS)
         n_rows = len(agents_with_dyn)
 
-        fig, axes = plt.subplots(n_rows,
-                                 n_actions,
-                                 figsize=(6 * n_actions, 6 * n_rows),
-                                 constrained_layout=True)
+        fig, axes = plt.subplots(
+            n_rows,
+            n_actions,
+            figsize=(6 * n_actions, 6 * n_rows),
+            constrained_layout=True,
+        )
         if n_rows == 1:
             axes = axes[np.newaxis, :]
 
@@ -555,14 +597,16 @@ class ComplexMazeCallback:
                 disp = disp.reshape(self._grid_res, self._grid_res, 2)
                 du, dv = disp[:, :, 0], disp[:, :, 1]
 
-                r_grid = r_hat.detach().cpu().numpy().reshape(
-                    self._grid_res, self._grid_res)
-                im = ax.imshow(r_grid,
-                               origin="lower",
-                               extent=(0, 1, 0, 1),
-                               cmap="RdYlGn",
-                               aspect="equal",
-                               alpha=0.3)
+                r_grid = (r_hat.detach().cpu().numpy().reshape(
+                    self._grid_res, self._grid_res))
+                im = ax.imshow(
+                    r_grid,
+                    origin="lower",
+                    extent=(0, 1, 0, 1),
+                    cmap="RdYlGn",
+                    aspect="equal",
+                    alpha=0.3,
+                )
                 fig.colorbar(im, ax=ax, shrink=0.8, label="r_hat")
 
                 mag = np.sqrt(du**2 + dv**2)
@@ -571,20 +615,22 @@ class ComplexMazeCallback:
                     du = du / max_mag * self._arrow_scale
                     dv = dv / max_mag * self._arrow_scale
 
-                ax.quiver(xx_np,
-                          yy_np,
-                          du,
-                          dv,
-                          angles="xy",
-                          scale_units="xy",
-                          scale=1.0,
-                          width=self._quiver_width,
-                          headwidth=2.0,
-                          headlength=3.0,
-                          headaxislength=2.5,
-                          pivot="mid",
-                          color="black",
-                          alpha=0.9)
+                ax.quiver(
+                    xx_np,
+                    yy_np,
+                    du,
+                    dv,
+                    angles="xy",
+                    scale_units="xy",
+                    scale=1.0,
+                    width=self._quiver_width,
+                    headwidth=2.0,
+                    headlength=3.0,
+                    headaxislength=2.5,
+                    pivot="mid",
+                    color="black",
+                    alpha=0.9,
+                )
                 ax.set_title(f"Agent {alg_idx} dynamics {label} "
                              f"(t={self._grid_t:.2f})")
                 ax.set_xlabel("x")

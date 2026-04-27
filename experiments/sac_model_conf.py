@@ -36,7 +36,11 @@ from alf.utils.losses import element_wise_squared_loss
 
 # ── algo selection ─────────────────────────────────────────────────────────────
 ALGO = alf.define_config("algo", "sac")  # 'sac' | 'sac_v' | 'sac_grad'
-_ALGO_MAP = {"sac": SacAlgorithm, "sac_v": SacVAlgorithm, "sac_grad": SacGradAlgorithm}
+_ALGO_MAP = {
+    "sac": SacAlgorithm,
+    "sac_v": SacVAlgorithm,
+    "sac_grad": SacGradAlgorithm
+}
 assert ALGO in _ALGO_MAP, f"algo must be one of {list(_ALGO_MAP)}, got '{ALGO}'"
 ALGO_CLS = _ALGO_MAP[ALGO]
 
@@ -75,18 +79,15 @@ REWARD_HIDDEN = alf.define_config("reward_hidden", (256, 256))
 
 MINI_BATCH_LENGTH = 2
 assert NUM_LAYERS >= 1, f"num_layers={NUM_LAYERS} must be >= 1."
-HIDDEN_LAYERS = (256,) * int(NUM_LAYERS)
+HIDDEN_LAYERS = (256, ) * int(NUM_LAYERS)
 
 _SIMPLE_ENVS = {
     "Rotator": ("Rotator-v0", RotatorCallback),
     "ComplexMaze": ("ComplexMaze-v0", ComplexMazeCallback),
 }
 _SIMPLE_ENV = next(
-    (
-        v
-        for key, v in _SIMPLE_ENVS.items()
-        if isinstance(ENV, str) and ENV.startswith(key)
-    ),
+    (v for key, v in _SIMPLE_ENVS.items()
+     if isinstance(ENV, str) and ENV.startswith(key)),
     None,
 )
 _IS_SIMPLE = _SIMPLE_ENV is not None
@@ -110,11 +111,12 @@ alf.config(
     "suite_dmc.load",
     from_pixels=False,
     max_episode_steps=125,
-    gym_env_wrappers=(partial(FrameSkip, skip=8),),
+    gym_env_wrappers=(partial(FrameSkip, skip=8), ),
 )
 
 if USE_BETA:
-    proj_net = partial(alf.networks.BetaProjectionNetwork, min_concentration=1.0)
+    proj_net = partial(alf.networks.BetaProjectionNetwork,
+                       min_concentration=1.0)
 else:
     proj_net = partial(
         alf.networks.StableNormalProjectionNetwork,
@@ -148,7 +150,9 @@ alf.config(
     trainable_init_std=1e-3,
 )
 
-alf.config("OneStepTDLoss", td_error_loss_fn=element_wise_squared_loss, gamma=GAMMA)
+alf.config("OneStepTDLoss",
+           td_error_loss_fn=element_wise_squared_loss,
+           gamma=GAMMA)
 
 _common_sac_kwargs = dict(
     actor_network_cls=alf.networks.ActorDistributionNetwork,
@@ -206,22 +210,19 @@ alf.config(
     log_grad_norms=True,
     debug_env=suite_gym.load(_ENV_NAME) if _IS_SIMPLE else None,
     debug_callback_cls=_DEBUG_CALLBACK_CLS,
-    debug_log_every_n_steps=100,
+    debug_log_every_n_steps=10**9,
 )
 
 _BASE_MINI_BATCH_SIZE = 256
-MINI_BATCH_SIZE = (
-    _BASE_MINI_BATCH_SIZE * NUM_AGENTS if SCALE_BATCH else _BASE_MINI_BATCH_SIZE
-)
-assert (
-    NUM_ENVS % NUM_AGENTS == 0
-), f"num_envs={NUM_ENVS} must be divisible by num_agents={NUM_AGENTS}."
+MINI_BATCH_SIZE = (_BASE_MINI_BATCH_SIZE *
+                   NUM_AGENTS if SCALE_BATCH else _BASE_MINI_BATCH_SIZE)
+assert (NUM_ENVS % NUM_AGENTS == 0
+        ), f"num_envs={NUM_ENVS} must be divisible by num_agents={NUM_AGENTS}."
 if not SCALE_BATCH:
     assert MINI_BATCH_SIZE % NUM_AGENTS == 0, (
         f"mini_batch_size={MINI_BATCH_SIZE} must be divisible by "
         f"num_agents={NUM_AGENTS} when scale_batch=False. "
-        "Either set scale_batch=True or use a num_agents that divides 256."
-    )
+        "Either set scale_batch=True or use a num_agents that divides 256.")
 
 alf.config(
     "TrainerConfig",
