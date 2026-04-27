@@ -49,9 +49,11 @@ class ComplexMazeCallback:
                  quiver_width: float = 0.0022,
                  trajectory_alpha: float = 0.5,
                  trajectory_lw: float = 1.0,
+                 max_traj_steps: int = 500,
                  name: str = "ComplexMazeCallback"):
         self._debug_env = debug_env
         self._log_every_n_steps = int(log_every_n_steps)
+        self._max_traj_steps = int(max_traj_steps)
         self._grid_res = int(grid_res)
         self._grid_t = float(grid_t)
         self._arrow_scale = float(segment_scale)
@@ -87,7 +89,7 @@ class ComplexMazeCallback:
     # Replay buffer sampling
     # ------------------------------------------------------------------
     def _gather_trajectories(self, replay_buffer):
-        """Gather the full replay buffer contents.
+        """Gather the most recent ``max_traj_steps`` per env from the buffer.
 
         Returns:
             observations: (num_envs, T, obs_dim) numpy array
@@ -96,9 +98,22 @@ class ComplexMazeCallback:
         """
         if replay_buffer is None or replay_buffer.total_size == 0:
             return None, None
-        batch, _ = replay_buffer.gather_all()
-        observations = batch.observation.detach().cpu().numpy()
-        step_types = batch.step_type.detach().cpu().numpy()
+        num_envs = replay_buffer._num_envs
+        current_pos = replay_buffer._current_pos
+        current_size = replay_buffer._current_size
+        n = int(min(self._max_traj_steps, current_size.min().item()))
+        if n <= 0:
+            return None, None
+        device = current_pos.device
+        env_ids = torch.arange(num_envs, device=device).repeat_interleave(n)
+        offsets = torch.arange(n, device=device)
+        # Last n positions per env, in chronological order.
+        positions = (current_pos[:, None] - n + offsets[None, :]).reshape(-1)
+        obs = replay_buffer.get_field("observation", env_ids, positions)
+        st = replay_buffer.get_field("step_type", env_ids, positions)
+        observations = obs.reshape(num_envs, n,
+                                   *obs.shape[1:]).detach().cpu().numpy()
+        step_types = st.reshape(num_envs, n).detach().cpu().numpy()
         return observations, step_types
 
     # ------------------------------------------------------------------
