@@ -209,7 +209,7 @@ alf.config(
     log_weight_norms=True,
     log_grad_norms=True,
     debug_env=suite_gym.load(_ENV_NAME) if _IS_SIMPLE else None,
-    debug_callback_cls=_DEBUG_CALLBACK_CLS,
+    debug_callback_cls=None,
     debug_log_every_n_steps=10**9,
 )
 
