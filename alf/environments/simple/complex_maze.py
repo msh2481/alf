@@ -40,7 +40,7 @@ class ComplexMaze(gym.Env):
         num_steps: int = 125,
         n_features: int = 500,
         lengthscale: float = 1.0,
-        goal_radius: float = 0.15,
+        goal_radius: float = 0.5,
         goal_reward: float = 1.0,
         wind_x: float = 0.0,
         wind_y: float = 0.0,

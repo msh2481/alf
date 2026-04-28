@@ -227,12 +227,12 @@ if not SCALE_BATCH:
 alf.config(
     "TrainerConfig",
     algorithm_ctor=ConcurrentAlgorithm,
-    initial_collect_steps=100,  # 1000
+    initial_collect_steps=1000,
     mini_batch_length=MINI_BATCH_LENGTH,
     mini_batch_size=MINI_BATCH_SIZE,
     unroll_length=UNROLL_LENGTH,
     num_updates_per_train_iter=UTD,
-    num_iterations=1000,  # 50000
+    num_iterations=50000,
     num_checkpoints=3,
     resume_from_checkpoint=False,
     clear_run_dirs_if_not_resuming=True,
