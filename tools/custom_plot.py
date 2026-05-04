@@ -41,7 +41,7 @@ NAMES = [
     "a4_prior0.01",
     "a4_prior0.1",
     "a4_prior1.0",
-] 
+]
 
 OUT_IQM_MEAN = "iqm_mean.png"
 OUT_IQM_MAX = "iqm_max.png"
@@ -71,11 +71,14 @@ BIN_CONF: dict[str, tuple[str, int]] = {
     "grad_norm": ("train_iter", 1000),
 }
 
+
 def _xlabel_episode() -> str:
     return f"Episode Index (x{EPISODE_INDEX_BASE_AGENTS})" if CORRECT_EPISODES else "Episode Index"
 
 
-def _bin_and_reduce(df: pl.DataFrame, *, x_col: str,
+def _bin_and_reduce(df: pl.DataFrame,
+                    *,
+                    x_col: str,
                     bin_size: int,
                     cast_x_to_int: bool = True) -> pl.DataFrame:
     """Bin the x-axis in-place and reduce duplicates within each curve.
@@ -142,14 +145,13 @@ def _preprocess_by_type(by_type: dict[str, pl.DataFrame], *,
         if event_type == "episode" and max_episode is not None and "episode_idx" in df.columns:
             df = df.filter(pl.col("episode_idx") <= int(max_episode))
 
-        if (event_type == "episode" and CORRECT_EPISODES and
-                x_col == "episode_idx" and "experiment" in df.columns):
+        if (event_type == "episode" and CORRECT_EPISODES
+                and x_col == "episode_idx" and "experiment" in df.columns):
             # Correct once, early: convert episode_idx to corrected x-space, then
             # all downstream binning/aggregation/plotting uses that directly.
             base = float(EPISODE_INDEX_BASE_AGENTS)
-            num_agents = pl.col("experiment").cast(
-                pl.String).str.extract(r"^a(\d+)(?:_|$)", 1).cast(pl.Float64,
-                                                                  strict=False)
+            num_agents = pl.col("experiment").cast(pl.String).str.extract(
+                r"^a(\d+)(?:_|$)", 1).cast(pl.Float64, strict=False)
             scale = num_agents / base
             corrected_x = pl.when(scale.is_not_null() & (scale > 0)).then(
                 pl.col(x_col).cast(pl.Float64) * scale).otherwise(
@@ -276,6 +278,58 @@ def episode_plot_df(
                    how="left").sort([*group_cols, x_col])
 
 
+def print_max_return_summary(ep: pl.DataFrame,
+                             *,
+                             max_episode: int | None = None) -> None:
+    """Print per-config distribution of per-seed-agent max episode returns."""
+    if ep.is_empty():
+        print("No episode records found; skipping max-return summary.")
+        return
+    required = {"experiment", "seed", "episode_return"}
+    missing = sorted(required - set(ep.columns))
+    if missing:
+        print(
+            f"Missing episode columns {missing}; skipping max-return summary.")
+        return
+
+    if max_episode is not None and "episode_idx" in ep.columns:
+        ep = ep.filter(pl.col("episode_idx") <= int(max_episode))
+    if ep.is_empty():
+        print("No episode records after MAX_EPISODE filter; skipping summary.")
+        return
+
+    group_keys = ["experiment", "seed"]
+    if "agent_idx" in ep.columns:
+        group_keys.append("agent_idx")
+
+    per_curve_max = (ep.group_by(group_keys).agg(
+        pl.col("episode_return").max().alias("max_return")).filter(
+            pl.col("max_return").is_finite()))
+    if per_curve_max.is_empty():
+        print("No finite max returns found; skipping summary.")
+        return
+
+    summary = (per_curve_max.group_by("experiment").agg(
+        n=pl.len(),
+        min=pl.col("max_return").min(),
+        q5=pl.col("max_return").quantile(0.05),
+        q25=pl.col("max_return").quantile(0.25),
+        q50=pl.col("max_return").quantile(0.50),
+        q75=pl.col("max_return").quantile(0.75),
+        q95=pl.col("max_return").quantile(0.95),
+        max=pl.col("max_return").max(),
+    ).sort("experiment"))
+
+    print("\nMax episode_return distribution by config (per seed-agent max):")
+    headers = ["config", "n", "min", "q5", "q25", "q50", "q75", "q95", "max"]
+    print("  " + " ".join(f"{h:>12}" for h in headers))
+    for row in summary.iter_rows(named=True):
+        print(f"  {row['experiment']:>12} {row['n']:12d} "
+              f"{row['min']:12.4g} {row['q5']:12.4g} {row['q25']:12.4g} "
+              f"{row['q50']:12.4g} {row['q75']:12.4g} "
+              f"{row['q95']:12.4g} {row['max']:12.4g}")
+
+
 def plot_episode_iqm(plot_df: pl.DataFrame,
                      *,
                      out: str,
@@ -305,13 +359,18 @@ def plot_episode_iqm(plot_df: pl.DataFrame,
         if IQM_LINE_JITTER_FRAC and n_groups > 1:
             y_scale = float(np.nanmax(np.abs(y))) if y.size else 1.0
             y_scale = max(y_scale, 1.0)
-            offset = (i - (n_groups - 1) / 2.0) * float(
-                IQM_LINE_JITTER_FRAC) * y_scale
+            offset = (
+                i -
+                (n_groups - 1) / 2.0) * float(IQM_LINE_JITTER_FRAC) * y_scale
         else:
             offset = 0.0
 
         ax.plot(x, y + offset, label=g, color=color, linewidth=1)
-        ax.fill_between(x, lo + offset, hi + offset, alpha=IQM_CI_ALPHA, color=color)
+        ax.fill_between(x,
+                        lo + offset,
+                        hi + offset,
+                        alpha=IQM_CI_ALPHA,
+                        color=color)
         if PLOT_RETURN_QUANTILES:
             ax.plot(x, q25 + offset, "--", color=color, linewidth=1, alpha=0.5)
             ax.plot(x, q75 + offset, "--", color=color, linewidth=1, alpha=0.5)
@@ -548,18 +607,15 @@ def plot_critic_dashboard(by_type: dict[str, pl.DataFrame],
     plt.savefig(out, dpi=300, bbox_inches="tight")
 
 
-def process_one_folder(*,
-                       name: str,
-                       folder: str,
-                       idx: int,
-                       total: int,
-                       names: Sequence[str],
-                       out_root: Path) -> None:
+def process_one_folder(*, name: str, folder: str, idx: int, total: int,
+                       names: Sequence[str], out_root: Path) -> None:
     print(f"\n=== [{idx}/{total}] Processing {name} ({folder}) ===")
     out_dir = out_root / name
     out_dir.mkdir(parents=True, exist_ok=True)
 
     by_type = load_by_type(folder=folder, names=names)
+    print_max_return_summary(by_type.get("episode", pl.DataFrame()),
+                             max_episode=MAX_EPISODE)
     by_type = _preprocess_by_type(by_type, max_episode=MAX_EPISODE)
 
     ep = by_type.get("episode", pl.DataFrame())
@@ -634,7 +690,8 @@ if __name__ == "__main__":
         "--folder",
         type=str,
         default=None,
-        help="Root folder containing experiment runs. Defaults to hardcoded FOLDER.",
+        help=
+        "Root folder containing experiment runs. Defaults to hardcoded FOLDER.",
     )
     parser.add_argument(
         "--episode_index_base_agents",
@@ -647,7 +704,8 @@ if __name__ == "__main__":
         "--out_dir",
         type=str,
         default="plots",
-        help="Output directory root. Per-folder plots are written under this path.",
+        help=
+        "Output directory root. Per-folder plots are written under this path.",
     )
     args = parser.parse_args()
     names = args.names or NAMES

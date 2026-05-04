@@ -36,7 +36,7 @@ class ComplexMaze(gym.Env):
 
     def __init__(
         self,
-        dt: float = 0.05,
+        dt: float = 0.07,
         num_steps: int = 125,
         n_features: int = 500,
         lengthscale: float = 1.0,
