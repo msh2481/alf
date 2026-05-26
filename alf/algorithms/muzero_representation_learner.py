@@ -19,6 +19,7 @@ import copy
 import inspect
 
 import torch
+from contextlib import nullcontext
 
 import alf
 from alf.algorithms.data_transformer import (create_data_transformer,
@@ -305,7 +306,10 @@ class MuzeroRepresentationImpl(OffPolicyAlgorithm):
                 transformer)
 
     def predict_step(self, time_step: TimeStep, state):
-        with torch.cuda.amp.autocast(self._enable_amp, dtype=self._amp_dtype):
+        amp_ctx = (torch.amp.autocast(
+            "cuda", enabled=self._enable_amp, dtype=self._amp_dtype)
+                   if torch.cuda.is_available() else nullcontext())
+        with amp_ctx:
             return AlgStep(output=self._model.initial_representation(
                 time_step.observation),
                            state=(),
@@ -352,8 +356,10 @@ class MuzeroRepresentationImpl(OffPolicyAlgorithm):
             obs = alf.nest.map_structure(lambda x: x.reshape(-1, *x.shape[2:]),
                                          info.target.observation)
             with torch.no_grad():
-                with torch.cuda.amp.autocast(self._enable_amp,
-                                             dtype=self._amp_dtype):
+                amp_ctx = (torch.amp.autocast(
+                    "cuda", enabled=self._enable_amp, dtype=self._amp_dtype)
+                           if torch.cuda.is_available() else nullcontext())
+                with amp_ctx:
                     target_repr = self._model._representation_net(obs)[0]
             # [B, R+1, ...]
             target_repr = target_repr.reshape(-1, self._num_unroll_steps + 1,
@@ -839,8 +845,10 @@ class MuzeroRepresentationImpl(OffPolicyAlgorithm):
             game_overs = convert_device(game_overs)
 
             # 1. Reanalyze the first n1 steps to get both the updated value and policy
-            with torch.cuda.amp.autocast(self._enable_amp,
-                                         dtype=self._amp_dtype):
+            amp_ctx = (torch.amp.autocast(
+                "cuda", enabled=self._enable_amp, dtype=self._amp_dtype)
+                       if torch.cuda.is_available() else nullcontext())
+            with amp_ctx:
                 latent = self._target_model.initial_representation(
                     exp1.observation)
                 exp1 = exp1._replace(time_step=exp1.time_step._replace(
@@ -865,8 +873,10 @@ class MuzeroRepresentationImpl(OffPolicyAlgorithm):
             # 2. Calculate the value of the next n2 steps so that n2-step return
             # can be computed.
             if not self._full_reanalyze:
-                with torch.cuda.amp.autocast(self._enable_amp,
-                                             dtype=self._amp_dtype):
+                amp_ctx = (torch.amp.autocast(
+                    "cuda", enabled=self._enable_amp, dtype=self._amp_dtype)
+                           if torch.cuda.is_available() else nullcontext())
+                with amp_ctx:
                     model_output = self._target_model.initial_inference(
                         exp2.observation)
                 values2 = model_output.value.reshape(batch_size, n2)

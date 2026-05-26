@@ -140,6 +140,11 @@ def _setup_device():
         alf.set_default_device('cuda')
 
 
+def _setup_torch_threads(num_threads: int = 2):
+    torch.set_num_interop_threads(num_threads)
+    torch.set_num_threads(num_threads)
+
+
 def _setup_remote_configs_if_needed():
     """Preconfig some configurations for remote training and unrolling.
 
@@ -212,6 +217,8 @@ def _train(root_dir, local_rank=-1, rank=0, world_size=1):
     else:
         raise ValueError("Unsupported ml_type: %s" % trainer_conf.ml_type)
 
+    print(f"PyTorch threads: {torch.get_num_threads()}")
+    print(f"Interop threads: {torch.get_num_interop_threads()}")
     trainer.train()
 
 
@@ -232,6 +239,7 @@ def training_worker(rank: int,
             in different worker processes, if multi-gpu training is used.
     """
     try:
+        _setup_torch_threads()
         _setup_logging(log_dir=root_dir, rank=rank)
         _setup_device()
         if world_size > 1:
@@ -298,6 +306,7 @@ def training_worker_multi_node(local_rank: int,
             in different worker processes, if multi-gpu training is used.
     """
     try:
+        _setup_torch_threads()
         _setup_logging(log_dir=root_dir, rank=rank)
         _setup_device()
 

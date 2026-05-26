@@ -64,8 +64,33 @@ SacInfo = namedtuple("SacInfo", [
 ],
                      default_value=())
 
-SacLossInfo = namedtuple('SacLossInfo', ('actor', 'critic', 'alpha', 'repr'),
-                         default_value=())
+# Keep existing fields (`actor`, `critic`, `alpha`, `repr`) for backward compat.
+# Add lightweight scalar diagnostics so we can debug loss explosions from
+# entropy reward / alpha / log_pi without enabling full summaries.
+SacLossInfo = namedtuple(
+    'SacLossInfo',
+    (
+        'actor',
+        'critic',
+        'alpha',  # alpha loss (not alpha value)
+        'repr',
+        # Diagnostics (scalars or small lists, JSON-friendly)
+        'log_alpha',
+        'alpha_value',
+        'log_pi_mean',
+        'log_pi_min',
+        'log_pi_max',
+        'log_pi_nonfinite_frac',
+        'entropy_reward_mean',
+        'entropy_reward_min',
+        'entropy_reward_max',
+        'entropy_reward_nonfinite_frac',
+        'target_q_mean',
+        'target_q_min',
+        'target_q_max',
+        'target_q_nonfinite_frac',
+    ),
+    default_value=())
 
 
 def _set_target_entropy(name, target_entropy, flat_action_spec):
@@ -179,6 +204,7 @@ class SacAlgorithm(OffPolicyAlgorithm):
                  actor_optimizer=None,
                  critic_optimizer=None,
                  alpha_optimizer=None,
+                 num_actor_updates: int | None = None,
                  checkpoint=None,
                  debug_summaries=False,
                  reproduce_locomotion=False,
@@ -277,6 +303,8 @@ class SacAlgorithm(OffPolicyAlgorithm):
             actor_optimizer (torch.optim.optimizer): The optimizer for actor.
             critic_optimizer (torch.optim.optimizer): The optimizer for critic.
             alpha_optimizer (torch.optim.optimizer): The optimizer for alpha.
+            num_actor_updates (int|None): maximum actor updates allowed per train
+                iteration. If None, actor updates run every mini-update.
             debug_summaries (bool): True if debug summaries should be created.
             checkpoint (None|str): a string in the format of "prefix@path",
                 where the "prefix" is the multi-step path to the contents in the
@@ -286,8 +314,40 @@ class SacAlgorithm(OffPolicyAlgorithm):
                 to the original SAC to roughly reproducing its reported results
                 on MuJoCo locomotion tasks. These include uniform action sampling
                 in the beginning and different masks for actor and critic losses.
+            trace_path: if provided, append an NDJSON record per sampled training
+                row. Can include "{name}" which will be replaced by algorithm name.
+            trace_every_n_updates: only trace every n train_step calls.
+            trace_max_rows_per_update: if provided, only trace at most this many
+                rows per update.
             name (str): The name of this algorithm.
         """
+        if init_debug := False:
+            print("SAC instantiated with:")
+            print(f"num_critic_replicas={num_critic_replicas}")
+            print(f"calculate_priority={calculate_priority}")
+            print(f"train_eps_greedy={train_eps_greedy}")
+            print(f"epsilon_greedy={epsilon_greedy}")
+            print(f"use_entropy_reward={use_entropy_reward}")
+            print(f"use_mc_return={use_mc_return}")
+            print(f"normalize_entropy_reward={normalize_entropy_reward}")
+            print(f"calculate_priority={calculate_priority}")
+            print(f"target_entropy={target_entropy}")
+            print(f"prior_actor_ctor={prior_actor_ctor}")
+            print(f"target_kld_per_dim={target_kld_per_dim}")
+            print(f"initial_log_alpha={initial_log_alpha}")
+            print(f"max_log_alpha={max_log_alpha}")
+            print(f"target_update_tau={target_update_tau}")
+            print(f"target_update_period={target_update_period}")
+            print(f"parameter_reset_period={parameter_reset_period}")
+            print(f"dqda_clipping={dqda_clipping}")
+            print(f"actor_optimizer={actor_optimizer}")
+            print(f"critic_optimizer={critic_optimizer}")
+            print(f"alpha_optimizer={alpha_optimizer}")
+            print(f"debug_summaries={debug_summaries}")
+            print(f"checkpoint={checkpoint}")
+            print(f"reproduce_locomotion={reproduce_locomotion}")
+            print(f"name={name}")
+
         self._num_critic_replicas = num_critic_replicas
         self._calculate_priority = calculate_priority
         self._train_eps_greedy = train_eps_greedy
@@ -395,10 +455,16 @@ class SacAlgorithm(OffPolicyAlgorithm):
         self._actor_network = actor_network
         self._critic_networks = critic_networks
         self._target_critic_networks = None
+        self._max_actor_updates = num_actor_updates
+        self._actor_updates_done = 0
         # Note, q_network (discrete actions) is still needed for evaluating the algorithm.
         if critic_networks:
             self._target_critic_networks = self._critic_networks.copy(
                 name='target_critic_networks')
+            # Set target networks to have the same weights as the critic networks initially
+            state_dict = self._critic_networks.state_dict()
+            state_dict = {k: v.clone().detach() for k, v in state_dict.items()}
+            self._target_critic_networks.load_state_dict(state_dict)
 
         if critic_loss_ctor is None:
             critic_loss_ctor = OneStepTDLoss
@@ -975,12 +1041,26 @@ class SacAlgorithm(OffPolicyAlgorithm):
 
     def after_train_iter(self, inputs: TimeStep, info: SacInfo):
         self._periodic_reset()
+        # Reset actor update budget for next train iteration.
+        self._actor_updates_done = 0
 
     def calc_loss(self, info: SacInfo):
         assert not self._is_eval
         critic_loss = self._calc_critic_loss(info)
         alpha_loss = info.alpha
         actor_loss = info.actor
+
+        if (self._max_actor_updates is not None
+                and self._actor_updates_done >= self._max_actor_updates):
+            # Skip actor update by zeroing its loss; keep extras for logging
+            if isinstance(actor_loss.loss, torch.Tensor):
+                actor_loss = actor_loss._replace(
+                    loss=torch.zeros_like(actor_loss.loss))
+            else:
+                actor_loss = actor_loss._replace(loss=0.)
+        else:
+            if self._max_actor_updates is not None:
+                self._actor_updates_done += 1
 
         if self._debug_summaries and alf.summary.should_record_summaries():
             with alf.summary.scope(self._name):
@@ -1010,12 +1090,80 @@ class SacAlgorithm(OffPolicyAlgorithm):
         else:
             repr_loss = LossInfo(loss=0., extra=())
 
-        return LossInfo(loss=loss,
-                        priority=critic_loss.priority,
-                        extra=SacLossInfo(actor=actor_loss.extra,
-                                          critic=critic_loss.extra,
-                                          repr=repr_loss.extra,
-                                          alpha=alpha_loss))
+        # Lightweight scalar diagnostics for debugging loss explosions.
+        # Note: these stats are for logging only (no gradients needed).
+        def _finite_stats(x: torch.Tensor):
+            """Return (mean, min, max, nonfinite_frac) as scalar tensors.
+
+            These are used only for logging, but must remain Tensors so that
+            ALF's nest/spec utilities (used by ConcurrentAlgorithm scatter) can
+            handle them.
+            """
+            if not isinstance(x, torch.Tensor):
+                return (), (), (), ()
+            xf = x.detach()
+            finite = torch.isfinite(xf)
+            nonfinite_frac = (1.0 - finite.to(torch.float32).mean())
+            if finite.any():
+                vals = xf[finite]
+                mean = vals.mean()
+                vmin = vals.min()
+                vmax = vals.max()
+                return mean, vmin, vmax, nonfinite_frac
+            else:
+                # All NaN/Inf; keep tensors so nest/spec doesn't choke.
+                nan = torch.tensor(float("nan"),
+                                   device=xf.device,
+                                   dtype=xf.dtype)
+                return nan, nan, nan, nonfinite_frac
+
+        # log_pi is a tensor for both discrete and continuous SAC.
+        log_pi = info.log_pi
+        log_pi_mean, log_pi_min, log_pi_max, log_pi_nonfinite_frac = _finite_stats(
+            log_pi)
+
+        # log_alpha is a scalar tensor (discrete/continuous).
+        log_alpha_stats = self._log_alpha.detach().clone()
+        alpha_value = self._log_alpha.detach().exp()
+
+        # entropy_reward = -alpha * log_pi (unscaled)
+        if self._use_entropy_reward:
+            ent = -alpha_value * log_pi.detach()
+            (entropy_reward_mean, entropy_reward_min, entropy_reward_max,
+             entropy_reward_nonfinite_frac) = _finite_stats(ent)
+        else:
+            entropy_reward_mean = ()
+            entropy_reward_min = ()
+            entropy_reward_max = ()
+            entropy_reward_nonfinite_frac = ()
+
+        # Target Q values used for TD target (shape [T,B,...] for SAC)
+        target_q = getattr(getattr(info, "critic", ()), "target_critic", ())
+        (target_q_mean, target_q_min, target_q_max,
+         target_q_nonfinite_frac) = _finite_stats(target_q)
+
+        return LossInfo(
+            loss=loss,
+            priority=critic_loss.priority,
+            extra=SacLossInfo(
+                actor=actor_loss.extra,
+                critic=critic_loss.extra,
+                repr=repr_loss.extra,
+                alpha=alpha_loss,
+                log_alpha=log_alpha_stats,
+                alpha_value=alpha_value,
+                log_pi_mean=log_pi_mean,
+                log_pi_min=log_pi_min,
+                log_pi_max=log_pi_max,
+                log_pi_nonfinite_frac=log_pi_nonfinite_frac,
+                entropy_reward_mean=entropy_reward_mean,
+                entropy_reward_min=entropy_reward_min,
+                entropy_reward_max=entropy_reward_max,
+                entropy_reward_nonfinite_frac=entropy_reward_nonfinite_frac,
+                target_q_mean=target_q_mean,
+                target_q_min=target_q_min,
+                target_q_max=target_q_max,
+                target_q_nonfinite_frac=target_q_nonfinite_frac))
 
     def _calc_critic_loss(self, info: SacInfo):
         """
@@ -1108,3 +1256,11 @@ class SacAlgorithm(OffPolicyAlgorithm):
 
     def _trainable_attributes_to_ignore(self):
         return ['_target_critic_networks', '_target_repr_alg']
+
+    def __del__(self):
+        try:
+            if getattr(self, "_trace_fp", None) is not None:
+                self._trace_fp.close()
+                self._trace_fp = None
+        except Exception:
+            pass

@@ -20,6 +20,10 @@ import alf
 from alf.environments import suite_gym
 from alf.environments.simple.noisy_array import NoisyArray
 from alf.environments.simple.stochastic_with_risky_branch import StochasticWithRiskyBranch
+from alf.environments.simple.check_value import CheckValue
+from alf.environments.simple.check_policy import CheckPolicy
+from alf.environments.simple.parallel_chains import ParallelChains
+from alf.environments.simple.bezier import Bezier
 from alf.environments.object_centric.bouncing_squares import BouncingSquares
 from alf.environments.gym_wrappers import FrameSkip, FrameStack
 

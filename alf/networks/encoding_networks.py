@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import functools
+import math
 import numpy as np
 from typing import Callable, Optional, Tuple, Union
 
@@ -861,6 +862,106 @@ class EncodingNetwork(_Sequential):
             return pnet
 
 
+@alf.configurable
+class IdentityEncodingNetwork(_Sequential):
+    """An encoding network that simply returns the input unchanged.
+
+    This is useful for creating purely linear networks where only the final
+    layer performs computation.
+    """
+
+    def __init__(self,
+                 input_tensor_spec,
+                 use_fc_bn=False,
+                 use_fc_ln=False,
+                 name="IdentityEncodingNetwork",
+                 **kwargs):
+        # use_fc_bn, use_fc_ln, and other kwargs are accepted for API
+        # compatibility but ignored since this network has no FC layers
+        nets = [alf.layers.Identity()]
+        super().__init__(nets, input_tensor_spec=input_tensor_spec, name=name)
+
+    def make_parallel(self, n: int, allow_non_parallel_input=False):
+        return super().make_parallel(n)
+
+
+@alf.configurable
+class RBFEncodingNetwork(Network):
+    """RBF (Radial Basis Function) encoding network using random Fourier features.
+
+    Transforms input using: output = sin(gamma * input @ W + b)
+    where W ~ Normal(0, 1) and b ~ Uniform(0, 2π)
+
+    This provides a high-dimensional nonlinear encoding suitable for both
+    critic and actor networks in continuous control tasks.
+    """
+
+    def __init__(self,
+                 input_tensor_spec,
+                 n_components: int = 1000,
+                 gamma: float = 3.0,
+                 kernel_initializer=None,
+                 bias_initializer=None,
+                 name="RBFEncodingNetwork"):
+        """
+        Args:
+            input_tensor_spec (TensorSpec): the tensor spec of the input.
+                For critics: concatenated (observation, action)
+                For actors: observation only
+            n_components (int): number of RBF components (output dimension)
+            gamma (float): scaling factor for input (controls RBF bandwidth)
+            kernel_initializer (Callable): initializer for RBF weights.
+                If None, defaults to Normal(0, 1)
+            bias_initializer (Callable): initializer for RBF bias.
+                If None, defaults to Uniform(0, 2π)
+            name (str): name of the network
+        """
+        super().__init__(input_tensor_spec=input_tensor_spec, name=name)
+
+        self._gamma = gamma
+        self._n_components = n_components
+
+        # Ignore provided kernel_initializer, because for RBF to make sense we need N(0, 1) weights in rbf_layer
+        kernel_initializer = functools.partial(torch.nn.init.normal_,
+                                               mean=0.0,
+                                               std=1.0)
+        if bias_initializer is None:
+            bias_initializer = functools.partial(torch.nn.init.uniform_,
+                                                 a=-math.pi,
+                                                 b=math.pi)
+
+        input_dim = input_tensor_spec.numel
+        self._rbf_layer = layers.FC(input_dim,
+                                    n_components,
+                                    kernel_initializer=kernel_initializer,
+                                    bias_initializer=bias_initializer)
+
+        # Cache output spec
+        self._output_spec = TensorSpec((n_components, ))
+
+    def forward(self, input, state=()):
+        """
+        Args:
+            input (torch.Tensor): shape [batch_size, input_dim]
+            state (tuple): empty tuple (for API consistency)
+
+        Returns:
+            tuple:
+            - output (torch.Tensor): shape [batch_size, n_components]
+            - state (tuple): empty tuple
+        """
+        scaled_input = input * self._gamma
+        rbf_output = self._rbf_layer(scaled_input)
+        output = torch.sin(rbf_output) / math.sqrt(self._n_components)
+
+        return output, state
+
+    @property
+    def output_spec(self):
+        """Return the output tensor spec."""
+        return self._output_spec
+
+
 class _ReplicateInputForParallel(Network):
 
     def __init__(self, input_tensor_spec, n, pnet, name):
@@ -870,6 +971,10 @@ class _ReplicateInputForParallel(Network):
         self._input_tensor_spec = input_tensor_spec
         self._n = n
         self._pnet = pnet
+
+    @property
+    def _networks(self):
+        return self._pnet._networks
 
     def forward(self, inputs, state=()):
         outer_rank = get_outer_rank(inputs, self._input_tensor_spec)

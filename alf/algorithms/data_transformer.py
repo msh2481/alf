@@ -618,6 +618,104 @@ class RewardTransformer(SimpleDataTransformer):
 
 
 @alf.configurable
+class RewardMaskByEnvId(SimpleDataTransformer):
+    """Mask rewards to zero for selected environments (by ``TimeStep.env_id``).
+
+    This is useful for ablations where only a subset of parallel environments
+    (e.g. those controlled by a particular agent copy) should provide a learning
+    reward signal.
+
+    Note:
+        This transformer can be configured to apply only during replay/training
+        (``apply_on="replay"``), so rollout-time episode return tracking or other
+        rollout-time logic can still see the unmasked reward if desired.
+    """
+
+    def __init__(self,
+                 observation_spec=(),
+                 rewarded_env_ids=None,
+                 modulus: int | None = None,
+                 remainder: int = 0,
+                 apply_on: str = "replay"):
+        """
+        Args:
+            observation_spec (nested TensorSpec): describing the observation in
+                timestep. This transformer does not change observations.
+            rewarded_env_ids (None|Sequence[int]): if provided, only these env ids
+                will keep their rewards; all others get zero.
+            modulus (None|int): if ``rewarded_env_ids`` is None, then envs with
+                ``env_id % modulus == remainder`` keep their rewards. This is
+                convenient when you have ``num_parallel_envs`` being a multiple of
+                ``num_copies`` in `ConcurrentAlgorithm`.
+            remainder (int): used together with ``modulus``.
+            apply_on (str): one of {"replay", "rollout", "both", "all", "never"}.
+        """
+        super().__init__(observation_spec)
+        self._rewarded_env_ids = rewarded_env_ids
+        self._modulus = modulus
+        self._remainder = remainder
+        self._apply_on = apply_on
+
+        if self._rewarded_env_ids is None:
+            if self._modulus is None:
+                # Default to "keep all rewards" if nothing is specified.
+                self._modulus = 1
+                self._remainder = 0
+            assert isinstance(self._modulus, int) and self._modulus > 0, (
+                f"modulus must be a positive int; got {self._modulus}")
+            assert 0 <= self._remainder < self._modulus, (
+                f"remainder must be in [0, modulus); got remainder={self._remainder}, modulus={self._modulus}"
+            )
+
+        assert self._apply_on in ("replay", "rollout", "both", "all",
+                                  "never"), (
+                                      f"Unsupported apply_on={self._apply_on}")
+
+    def _should_apply(self) -> bool:
+        if self._apply_on == "never":
+            return False
+        if self._apply_on == "all":
+            return True
+        if self._apply_on == "replay":
+            return common.is_replay()
+        if self._apply_on == "rollout":
+            return common.is_rollout()
+        # both
+        return common.is_replay() or common.is_rollout()
+
+    def _transform(self, timestep: TimeStep):
+        if not self._should_apply():
+            return timestep
+
+        reward = timestep.reward
+        env_id = timestep.env_id
+        if reward == () or env_id == ():
+            return timestep
+
+        if not isinstance(reward, torch.Tensor):
+            reward = torch.as_tensor(reward)
+        if not isinstance(env_id, torch.Tensor):
+            env_id = torch.as_tensor(env_id, device=reward.device)
+        else:
+            env_id = env_id.to(device=reward.device)
+
+        if self._rewarded_env_ids is not None:
+            # Build a boolean mask with the same shape as env_id.
+            keep = torch.zeros_like(env_id, dtype=torch.bool)
+            for i in self._rewarded_env_ids:
+                keep = keep | (env_id == int(i))
+        else:
+            keep = (env_id % int(self._modulus)) == int(self._remainder)
+
+        keep_f = keep.to(dtype=reward.dtype)
+        # Broadcast keep_f to reward shape if reward has trailing dims.
+        while keep_f.ndim < reward.ndim:
+            keep_f = keep_f.unsqueeze(-1)
+
+        return timestep._replace(reward=reward * keep_f)
+
+
+@alf.configurable
 class RewardClipping(RewardTransformer):
     """Clamp immediate rewards to the range :math:`[min, max]`.
 

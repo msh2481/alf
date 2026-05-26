@@ -1,0 +1,117 @@
+#!/bin/bash
+
+# Unified launcher for `experiments/bipolar_conf.py`.
+#
+# Usage examples:
+#   bash scripts/run_bipolar.sh ENV="BipolarChain-medium-dense-onehot-continuous-v0" SEEDS=4
+#   bash scripts/run_bipolar.sh ENV="BipolarChain-medium-dense-onehot-continuous-v0" SEEDS="4,8"
+#   bash scripts/run_bipolar.sh NUM_AGENTS=4 ASYNC="False" UTD=8
+
+CONF="experiments/bipolar_conf.py"
+ENV="BipolarChain-medium-dense-onehot-continuous-v0"
+LR="0.05"
+WD="1e-5"
+GAMMA="0.95"
+PRIOR_SCALE="0.1"
+ALPHA=""
+TAU="0.05"
+UTD=4
+RESET_PERIOD=1
+NUM_AGENTS=1
+NUM_ENVS=""
+OWN_ROLLOUT_FRACTION="-1.0"
+ASYNC="True"
+ENTROPY_REWARD="False"
+N_COMPONENTS=500
+NAME="$(date +%Y%m%d_%H%M%S)"
+SEEDS=""
+BASE_DIR=""
+EXTRA_ARGS=""
+
+for arg in "$@"; do
+    eval "$arg"
+done
+
+SAFE_ENV="${ENV//[:\/]/_}"
+if [ -z "$BASE_DIR" ]; then
+    BASE_DIR="/tmp/bipolar/${SAFE_ENV}/${NAME}"
+fi
+
+SEED_START=0
+SEED_END=0
+SEED_COUNT=0
+if [ -n "$SEEDS" ]; then
+    if [[ "$SEEDS" =~ ^[0-9]+$ ]]; then
+        SEED_START=0
+        SEED_END="$SEEDS"
+    elif [[ "$SEEDS" =~ ^[0-9]+,[0-9]+$ ]]; then
+        IFS=',' read -r SEED_START SEED_END <<< "$SEEDS"
+    else
+        echo "Invalid SEEDS='$SEEDS'. Use N or L,R (R excluded)." >&2
+        exit 1
+    fi
+
+    if [ "$SEED_END" -lt "$SEED_START" ]; then
+        echo "Invalid SEEDS='$SEEDS': require R >= L in L,R." >&2
+        exit 1
+    fi
+    SEED_COUNT=$((SEED_END - SEED_START))
+fi
+
+COMMON_ARGS=(
+    --conf="$CONF"
+    --conf_param="_CONFIG._USER.env='$ENV'"
+    --conf_param="_CONFIG._USER.lr=$LR"
+    --conf_param="_CONFIG._USER.wd=$WD"
+    --conf_param="_CONFIG._USER.gamma=$GAMMA"
+    --conf_param="_CONFIG._USER.prior_scale=$PRIOR_SCALE"
+    --conf_param="_CONFIG._USER.tau=$TAU"
+    --conf_param="_CONFIG._USER.utd=$UTD"
+    --conf_param="_CONFIG._USER.reset_period=$RESET_PERIOD"
+    --conf_param="_CONFIG._USER.num_agents=$NUM_AGENTS"
+    --conf_param="_CONFIG._USER.own_rollout_fraction=$OWN_ROLLOUT_FRACTION"
+    --conf_param="_CONFIG._USER.async=$ASYNC"
+    --conf_param="_CONFIG._USER.entropy_reward=$ENTROPY_REWARD"
+    --conf_param="_CONFIG._USER.n_components=$N_COMPONENTS"
+)
+
+if [ -n "$ALPHA" ]; then
+    COMMON_ARGS+=(--conf_param="_CONFIG._USER.alpha=$ALPHA")
+fi
+if [ -n "$NUM_ENVS" ]; then
+    COMMON_ARGS+=(--conf_param="_CONFIG._USER.num_envs=$NUM_ENVS")
+fi
+
+if [ "$SEED_COUNT" -gt 0 ]; then
+    echo "Running multi-seed batch: seeds=$SEED_START,$SEED_END count=$SEED_COUNT env=$ENV num_agents=$NUM_AGENTS own_rollout_fraction=$OWN_ROLLOUT_FRACTION lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA tau=$TAU gamma=$GAMMA utd=$UTD async=$ASYNC entropy_reward=$ENTROPY_REWARD n_components=$N_COMPONENTS conf=$CONF base_dir=$BASE_DIR"
+
+    for SEED in $(seq "$SEED_START" $((SEED_END - 1))); do
+        ROOT_DIR="${BASE_DIR}/${SEED}"
+        LOG_FILE="${ROOT_DIR}/logs.log"
+        mkdir -p "$ROOT_DIR"
+        echo "Launching seed $SEED in background: root_dir=$ROOT_DIR log=$LOG_FILE"
+
+        (
+            export ALF_BIPOLAR_LOG_DIR="logs/${NAME}/${SEED}"
+            python -m alf.bin.train \
+                "${COMMON_ARGS[@]}" \
+                --root_dir="$ROOT_DIR" \
+                --conf_param="TrainerConfig.random_seed=$SEED" \
+                $EXTRA_ARGS \
+                2>&1 | tee "$LOG_FILE"
+        ) &
+    done
+
+    echo "Waiting for all $SEED_COUNT seed runs to complete..."
+    wait
+    echo "All seed runs completed!"
+else
+    ROOT_DIR="$BASE_DIR"
+    echo "Running single run: env=$ENV num_agents=$NUM_AGENTS own_rollout_fraction=$OWN_ROLLOUT_FRACTION lr=$LR wd=$WD prior_scale=$PRIOR_SCALE alpha=$ALPHA tau=$TAU gamma=$GAMMA utd=$UTD async=$ASYNC entropy_reward=$ENTROPY_REWARD n_components=$N_COMPONENTS seed_version=$SEED_VERSION conf=$CONF root_dir=$ROOT_DIR"
+
+    export ALF_BIPOLAR_LOG_DIR="logs/${NAME}/0"
+    python -m alf.bin.train \
+        "${COMMON_ARGS[@]}" \
+        --root_dir="$ROOT_DIR" \
+        $EXTRA_ARGS
+fi

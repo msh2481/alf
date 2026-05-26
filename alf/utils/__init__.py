@@ -11,3 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# Re-export commonly used utility helpers
+from .perturb_utils import perturb_module_params_l2_sphere_per_layer, perturb_params_l2_sphere  # noqa: F401

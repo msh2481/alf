@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from contextlib import nullcontext
 from functools import partial
 import math
 import numpy as np
@@ -91,7 +92,10 @@ class CategoricalProjectionNetwork(Network):
         if self._disable_amp and amp_enabled:
             inputs = alf.layers.to_float32(inputs)
             amp_enabled = False
-        with torch.cuda.amp.autocast(amp_enabled, dtype=self._amp_dtype):
+        amp_ctx = (torch.amp.autocast(
+            "cuda", enabled=amp_enabled, dtype=self._amp_dtype)
+                   if torch.cuda.is_available() else nullcontext())
+        with amp_ctx:
             logits, state = self._projection_layer(inputs, state)
             logits = logits.reshape(inputs.shape[0], *self._output_shape)
             if len(self._output_shape) > 1:
@@ -172,6 +176,38 @@ class ParallelCategoricalProjectionNetwork(Network):
 
 
 @alf.configurable
+class SimpleProjectionNetwork(Network):
+    """A simple projection network that outputs a normal distribution with mean=input and std=1."""
+
+    def __init__(self,
+                 input_size,
+                 action_spec,
+                 name="SimpleProjectionNetwork"):
+        """Creates an instance of SimpleProjectionNetwork.
+
+        Args:
+            input_size (int): input vector dimension
+            action_spec (TensorSpec): a tensor spec containing the information
+                of the output distribution.
+            name (str): name of this network.
+        """
+        super(SimpleProjectionNetwork,
+              self).__init__(input_tensor_spec=TensorSpec((input_size, )),
+                             name=name)
+        assert isinstance(action_spec, TensorSpec)
+        self.fc_layer = layers.FC(input_size,
+                                  action_spec.shape[0],
+                                  use_bias=False)
+        self._action_spec = action_spec
+
+    def forward(self, inputs, state=()):
+        means = self.fc_layer(inputs)
+        stds = torch.ones_like(means)
+        normal_dist = dist_utils.DiagMultivariateNormal(loc=means, scale=stds)
+        return normal_dist, state
+
+
+@alf.configurable
 class NormalProjectionNetwork(Network):
 
     def __init__(self,
@@ -188,6 +224,8 @@ class NormalProjectionNetwork(Network):
                  scale_distribution=False,
                  dist_squashing_transform=dist_utils.StableTanh(),
                  disable_amp: bool = False,
+                 use_bias: bool = True,
+                 zero_init: bool = False,
                  name="NormalProjectionNetwork"):
         """Creates an instance of NormalProjectionNetwork.
 
@@ -226,6 +264,8 @@ class NormalProjectionNetwork(Network):
             dist_squashing_transform (td.Transform):  A distribution Transform
                 which transforms values into :math:`(-1, 1)`. Default to ``dist_utils.StableTanh()``
             disable_amp (bool): If True, disable automatic mixed precision.
+            zero_init (bool): If True, initialize projection layer kernels with
+                a near-zero normal distribution (mean=0, std=1e-8).
             name (str): name of this network.
         """
         super(NormalProjectionNetwork,
@@ -266,8 +306,16 @@ class NormalProjectionNetwork(Network):
         if std_transform is not None:
             self._std_transform = std_transform
 
-        fc_ctor = layers.FC if parallelism is None else partial(
-            layers.ParallelFC, n=parallelism)
+        kernel_initializer = (partial(nn.init.normal_, mean=0.0, std=1e-8)
+                              if zero_init else None)
+        fc_ctor = (partial(layers.FC,
+                           use_bias=use_bias,
+                           kernel_initializer=kernel_initializer)
+                   if parallelism is None else partial(
+                       layers.ParallelFC,
+                       n=parallelism,
+                       use_bias=use_bias,
+                       kernel_initializer=kernel_initializer))
         self._means_projection_layer = fc_ctor(
             input_size,
             action_spec.shape[0],
@@ -315,8 +363,12 @@ class NormalProjectionNetwork(Network):
         if self._disable_amp and amp_enabled:
             inputs = alf.layers.to_float32(inputs)
             amp_enabled = False
-        with torch.cuda.amp.autocast(amp_enabled, dtype=self._amp_dtype):
-            means = self._mean_transform(self._means_projection_layer(inputs))
+        amp_ctx = (torch.amp.autocast(
+            "cuda", enabled=amp_enabled, dtype=self._amp_dtype)
+                   if torch.cuda.is_available() else nullcontext())
+        with amp_ctx:
+            projected_mean = self._means_projection_layer(inputs)
+            means = self._mean_transform(projected_mean)
             stds = self._std_transform(self._std_projection_layer(inputs))
             return self._normal_dist(means, stds), state
 

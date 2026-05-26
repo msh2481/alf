@@ -315,7 +315,8 @@ def get_outer_rank(tensors, specs):
     def _get_outer_rank(tensor, spec):
         outer_rank = len(tensor.shape) - len(spec.shape)
         assert outer_rank >= 0
-        assert tensor.shape[outer_rank:] == spec.shape
+        assert tensor.shape[
+            outer_rank:] == spec.shape, f"tensor.shape: {tensor.shape}, spec.shape: {spec.shape}"
         outer_ranks.append(outer_rank)
 
     nest.map_structure(_get_outer_rank, tensors, specs)

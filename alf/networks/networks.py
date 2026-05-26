@@ -16,6 +16,7 @@
 import copy
 import math
 import torch
+from contextlib import nullcontext
 import torch.nn as nn
 import torch.nn.functional as F
 import typing
@@ -310,7 +311,10 @@ class AMPWrapper(Network):
     def forward(self, input, state):
         if torch.is_autocast_enabled() and not self._enabled:
             input = alf.layers.to_float32(input)
-        with torch.cuda.amp.autocast(self._enabled, dtype=self._amp_dtype):
+        amp_ctx = (torch.amp.autocast(
+            "cuda", enabled=self._enabled, dtype=self._amp_dtype)
+                   if torch.cuda.is_available() else nullcontext())
+        with amp_ctx:
             return self._net(input, state)
 
 

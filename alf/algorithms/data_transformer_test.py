@@ -111,6 +111,50 @@ class FunctionalRewardTransformerTest(parameterized.TestCase,
         self.assertTensorEqual(y1, y2)
 
 
+class RewardMaskByEnvIdTest(parameterized.TestCase, alf.test.TestCase):
+
+    def test_reward_mask_by_env_id_replay_only(self):
+        transformer = alf.algorithms.data_transformer.RewardMaskByEnvId(
+            modulus=4, remainder=2, apply_on="replay")
+
+        # TimeStep-like nest: reward/env_id only; shape [B]
+        ts = TimestepItem(step_type=torch.tensor([StepType.MID] * 4),
+                          observation=(),
+                          reward=torch.tensor([1., 2., 3., 4.]),
+                          env_id=torch.tensor([0, 1, 2, 3], dtype=torch.int32))
+
+        with common.rollout_context():
+            ts2, _ = transformer.transform_timestep(ts, ())
+        self.assertTensorEqual(ts2.reward, ts.reward)  # unchanged on rollout
+
+        with common.replay_context():
+            ts3, _ = transformer.transform_timestep(ts, ())
+        self.assertTensorEqual(ts3.reward, torch.tensor([0., 0., 3., 0.]))
+
+    def test_reward_mask_by_env_id_experience(self):
+        transformer = alf.algorithms.data_transformer.RewardMaskByEnvId(
+            rewarded_env_ids=[1, 3], apply_on="replay")
+
+        # Experience time_step has shape [B, T]
+        B, T = 4, 3
+        reward = torch.arange(B * T, dtype=torch.float32).reshape(B, T)
+        env_id = torch.tensor([[0, 0, 0], [1, 1, 1], [2, 2, 2], [3, 3, 3]],
+                              dtype=torch.int32)
+        ts = TimestepItem(step_type=torch.full((B, T),
+                                               StepType.MID,
+                                               dtype=torch.int32),
+                          observation=(),
+                          reward=reward,
+                          env_id=env_id)
+        exp = Experience(time_step=ts)
+
+        with common.replay_context():
+            exp2 = transformer.transform_experience(exp)
+
+        expected_mask = torch.tensor([0., 1., 0., 1.]).unsqueeze(1)  # [B,1]
+        self.assertTensorEqual(exp2.reward, reward * expected_mask)
+
+
 class FrameStackerTest(parameterized.TestCase, alf.test.TestCase):
 
     @parameterized.parameters(-1, 0)

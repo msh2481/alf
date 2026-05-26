@@ -14,6 +14,7 @@
 """QNetworks"""
 
 import functools
+import math
 from typing import Callable
 
 import torch
@@ -26,6 +27,7 @@ from alf.networks import EncodingNetwork, LSTMEncodingNetwork, ParallelEncodingN
 from alf.networks import Network
 from alf.tensor_specs import TensorSpec, BoundedTensorSpec
 import alf.utils.math_ops as math_ops
+from alf.utils.perturb_utils import perturb_module_params_l2_sphere_per_layer
 
 
 @alf.configurable
@@ -41,7 +43,11 @@ class QNetworkBase(Network):
                  action_spec: BoundedTensorSpec,
                  encoding_network_ctor: Callable,
                  use_naive_parallel_network: bool = False,
+                 use_fc_bn: bool = False,
+                 use_fc_ln: bool = False,
+                 last_kernel_initializer=None,
                  name: str = "QNetworkBase",
+                 bias_init_value: float = -0.2,
                  **encoder_kwargs):
         """
         Args:
@@ -55,6 +61,12 @@ class QNetworkBase(Network):
                 has an advantange in terms of speed over ``ParallelNetwork``.
                 You have to test to see which way is faster for your particular
                 situation.
+            use_fc_bn (bool): whether use Batch Normalization for the internal
+                FC layers (i.e. FC layers beside the last one).
+            use_fc_ln (bool): whether use Layer Normalization for the internal
+                FC layers (i.e. FC layers beside the last one).
+            last_kernel_initializer: initializer for the final layer weights.
+                If None, uses uniform initialization with range [-0.003, 0.003].
             name: name of the network
             encoder_kwargs: the extra keyword arguments to the encoding network
         """
@@ -70,17 +82,22 @@ class QNetworkBase(Network):
         self._output_spec = TensorSpec((num_actions, ))
 
         self._encoding_net = encoding_network_ctor(
-            input_tensor_spec=input_tensor_spec, **encoder_kwargs)
+            input_tensor_spec=input_tensor_spec,
+            use_fc_bn=use_fc_bn,
+            use_fc_ln=use_fc_ln,
+            **encoder_kwargs)
 
-        last_kernel_initializer = functools.partial(torch.nn.init.uniform_, \
-                                    a=-0.003, b=0.003)
+        if last_kernel_initializer is None:
+            last_kernel_initializer = functools.partial(torch.nn.init.uniform_,
+                                                        a=-0.003,
+                                                        b=0.003)
 
         self._final_layer = layers.FC(
             self._encoding_net.output_spec.shape[0],
             num_actions,
             activation=math_ops.identity,
             kernel_initializer=last_kernel_initializer,
-            bias_init_value=-0.2)
+            bias_init_value=bias_init_value)
 
     def forward(self, observation, state=()):
         """Computes action values given an observation.
@@ -131,6 +148,10 @@ class QNetwork(QNetworkBase):
                  activation=torch.relu_,
                  kernel_initializer=None,
                  use_naive_parallel_network=False,
+                 use_fc_bn=False,
+                 use_fc_ln=False,
+                 last_kernel_initializer=None,
+                 bias_init_value: float = -0.2,
                  name="QNetwork"):
         """Creates an instance of ``QNetwork`` for estimating action-value of
         discrete actions. The action-value is defined as the expected return
@@ -172,19 +193,29 @@ class QNetwork(QNetworkBase):
                 has an advantange in terms of speed over ``ParallelNetwork``.
                 You have to test to see which way is faster for your particular
                 situation.
+            use_fc_bn (bool): whether use Batch Normalization for the internal
+                FC layers (i.e. FC layers beside the last one).
+            use_fc_ln (bool): whether use Layer Normalization for the internal
+                FC layers (i.e. FC layers beside the last one).
+            last_kernel_initializer: initializer for the final layer weights.
+                If None, uses uniform initialization with range [-0.003, 0.003].
         """
         super(QNetwork, self).__init__(
             input_tensor_spec,
             action_spec,
             encoding_network_ctor=EncodingNetwork,
             use_naive_parallel_network=use_naive_parallel_network,
+            use_fc_bn=use_fc_bn,
+            use_fc_ln=use_fc_ln,
+            last_kernel_initializer=last_kernel_initializer,
             name=name,
             input_preprocessors=input_preprocessors,
             preprocessing_combiner=preprocessing_combiner,
             conv_layer_params=conv_layer_params,
             fc_layer_params=fc_layer_params,
             activation=activation,
-            kernel_initializer=kernel_initializer)
+            kernel_initializer=kernel_initializer,
+            bias_init_value=bias_init_value)
 
 
 class ParallelQNetwork(Network):
@@ -306,3 +337,330 @@ class QRNNNetwork(QNetworkBase):
             post_fc_layer_params=value_fc_layer_params,
             activation=activation,
             kernel_initializer=kernel_initializer)
+
+
+@alf.configurable
+class RandomizedPriorQNetwork(Network):
+    """A Q-Network augmented with a randomized prior function.
+
+    This network creates two instances of the same Q-network architecture:
+    one trainable network and one frozen prior network. The outputs are summed
+    to give the final Q-values. This implements the randomized prior functions
+    technique for improved exploration.
+
+    Can wrap any Q-network type (QNetwork, QRNNNetwork, DebugLinearQNetwork, etc.)
+    """
+
+    def __init__(self,
+                 network_ctor: Callable,
+                 input_tensor_spec: TensorSpec,
+                 action_spec: BoundedTensorSpec,
+                 prior_scale: float = 1.0,
+                 trainable_init_std: float = 1e-3,
+                 name="RandomizedPriorQNetwork",
+                 bias_init_value: float = 0.0,
+                 **network_kwargs):
+        """Creates a Q-Network with randomized prior.
+
+        Args:
+            network_ctor: Constructor for the base Q-network (e.g., QNetwork,
+                DebugLinearQNetwork)
+            input_tensor_spec: the tensor spec of the input
+            action_spec: the tensor spec of the action
+            prior_scale: Target standard deviation for the prior network's output.
+                The weight initialization is scaled so the output has this std.
+            trainable_init_std: Target standard deviation for the trainable
+                network's output. Typically small (e.g., 1e-3) so the network
+                starts near zero.
+            name: name of the network
+            **network_kwargs: additional arguments passed to network_ctor
+        """
+        super().__init__(input_tensor_spec=input_tensor_spec, name=name)
+
+        # Create temp network to get last layer input dim
+        temp_net = network_ctor(input_tensor_spec=input_tensor_spec,
+                                action_spec=action_spec,
+                                **network_kwargs)
+        last_layer_input_dim = self._get_last_layer_input_dim(temp_net)
+        del temp_net
+
+        # Scale weights so OUTPUT has desired std
+        trainable_weight_std = trainable_init_std / math.sqrt(
+            last_layer_input_dim)
+        prior_weight_std = prior_scale / math.sqrt(last_layer_input_dim)
+
+        # Trainable network with small initialization
+        trainable_init = functools.partial(torch.nn.init.normal_,
+                                           std=trainable_weight_std)
+        self._trainable_net = network_ctor(
+            input_tensor_spec=input_tensor_spec,
+            action_spec=action_spec,
+            last_kernel_initializer=trainable_init,
+            bias_init_value=0.0,
+            **network_kwargs)
+
+        # Prior network with larger random initialization
+        prior_init = functools.partial(torch.nn.init.normal_,
+                                       std=prior_weight_std)
+        self._prior_net = network_ctor(input_tensor_spec=input_tensor_spec,
+                                       action_spec=action_spec,
+                                       last_kernel_initializer=prior_init,
+                                       bias_init_value=bias_init_value,
+                                       **network_kwargs)
+
+        # Freeze the prior network
+        for param in self._prior_net.parameters():
+            param.requires_grad = False
+
+        self._output_spec = self._trainable_net.output_spec
+
+    def _get_last_layer_input_dim(self, net):
+        """Find the input dimension of the last FC layer."""
+        last_fc = None
+        for module in net.modules():
+            if isinstance(module, layers.FC):
+                last_fc = module
+        return last_fc.weight.shape[1] if last_fc else 1
+
+    def forward(self, observation, state=()):
+        """Computes action values by summing trainable network and prior.
+
+        Args:
+            observation (nest): consistent with input_tensor_spec
+            state: network state (for RNN-based networks)
+
+        Returns:
+            tuple:
+            - action_value (torch.Tensor): sum of trainable and prior Q-values
+            - state: updated state
+        """
+        q_vals, state = self._trainable_net(observation, state)
+        prior_vals, _ = self._prior_net(observation, state)
+        return q_vals + prior_vals, state
+
+    def make_parallel(self, n):
+        """Make both sub-networks parallel for better performance."""
+        parallel_trainable = self._trainable_net.make_parallel(n)
+        # Make the prior naive-parallel so replicas exist as separate submodules.
+        # This makes per-replica perturbation trivial and robust.
+        parallel_prior = alf.networks.NaiveParallelNetwork(self._prior_net, n)
+        for p in parallel_prior.parameters():
+            p.requires_grad = False
+        return _ParallelRandomizedPriorQNetwork(parallel_trainable,
+                                                parallel_prior,
+                                                self.input_tensor_spec,
+                                                self._output_spec)
+
+    @property
+    def state_spec(self):
+        """Return the state spec (delegates to trainable network)."""
+        return self._trainable_net.state_spec
+
+    def perturb_prior(self, alpha: float):
+        """Perturb frozen prior parameters with a per-layer L2-sphere walk."""
+        perturb_module_params_l2_sphere_per_layer(self._prior_net, alpha)
+
+
+class _ParallelRandomizedPriorQNetwork(Network):
+    """Parallel version of RandomizedPriorQNetwork."""
+
+    def __init__(self,
+                 parallel_trainable,
+                 parallel_prior,
+                 input_tensor_spec,
+                 output_spec,
+                 name="ParallelRandomizedPriorQNetwork"):
+        super().__init__(input_tensor_spec=input_tensor_spec, name=name)
+        self._trainable_net = parallel_trainable
+        self._prior_net = parallel_prior
+        self._output_spec = output_spec
+        for p in self._prior_net.parameters():
+            p.requires_grad = False
+
+    def forward(self, observation, state=()):
+        q_vals, state = self._trainable_net(observation, state)
+        prior_vals, _ = self._prior_net(observation, state)
+        return q_vals + prior_vals, state
+
+    @property
+    def state_spec(self):
+        return self._trainable_net.state_spec
+
+    def perturb_prior(self, alpha: float):
+        """Perturb frozen prior parameters per-replica and per-layer."""
+        nets = getattr(self._prior_net, "_networks", None)
+        if nets is not None:
+            for net in nets:
+                perturb_module_params_l2_sphere_per_layer(net, alpha)
+        else:
+            perturb_module_params_l2_sphere_per_layer(self._prior_net, alpha)
+
+    def _log_parameters(self):
+        input_dim = self.input_tensor_spec.shape[0]
+        batch_size = input_dim + 1
+        inputs = torch.zeros(batch_size, input_dim)
+        for i in range(input_dim):
+            inputs[i + 1, i] = 1.0
+
+        with torch.no_grad():
+            outputs, _ = self.forward(inputs)
+
+        bias = outputs[0]
+        coeffs_plus_bias = outputs[1:]
+
+        lines = []
+        totals = []
+        for action_idx in range(bias.shape[0]):
+            bias_val = bias[action_idx].item()
+            weights = coeffs_plus_bias[:, action_idx]
+            weight_str = ', '.join([f"{val:.2f}" for val in weights])
+            lines.append(
+                f"Action {action_idx}: [{weight_str}] (bias = {bias_val:.2f})")
+            totals.append(weights)
+
+        if len(totals) == 2:
+            delta = totals[1] - totals[0]
+            delta_str = ', '.join([f"{val:.2f}" for val in delta])
+            lines.append(f"Delta: [{delta_str}]")
+
+        return '\n'.join(lines)
+
+
+@alf.configurable
+class OptimisticQNetwork(QNetwork):
+    """A Q-Network with configurable optimistic initialization.
+
+    This network allows control over the initialization of the final layer
+    through mean and std parameters, useful for implementing optimistic
+    initialization strategies.
+    """
+
+    def __init__(self,
+                 input_tensor_spec: TensorSpec,
+                 action_spec: BoundedTensorSpec,
+                 init_mean: float = 0.0,
+                 init_std: float = 1.0,
+                 name="OptimisticQNetwork",
+                 use_naive_parallel_network=False,
+                 **kwargs):
+        """Creates a Q-Network with optimistic initialization.
+
+        Args:
+            input_tensor_spec: the tensor spec of the input
+            action_spec: the tensor spec of the action
+            init_mean: mean for initializing final layer weights
+            init_std: standard deviation for initializing final layer weights
+            name: name of the network
+            **kwargs: additional arguments passed to QNetwork
+        """
+        super(OptimisticQNetwork, self).__init__(
+            input_tensor_spec,
+            action_spec,
+            name=name,
+            use_naive_parallel_network=use_naive_parallel_network,
+            **kwargs)
+
+        num_actions = (action_spec.maximum - action_spec.minimum + 1).item()
+        custom_kernel_initializer = functools.partial(torch.nn.init.normal_,
+                                                      mean=init_mean,
+                                                      std=init_std)
+        self._final_layer = layers.FC(
+            self._encoding_net.output_spec.shape[0],
+            num_actions,
+            activation=math_ops.identity,
+            kernel_initializer=custom_kernel_initializer,
+            bias_init_value=0.0)
+
+    def _log_parameters(self):
+        input_dim = self.input_tensor_spec.shape[0]
+        batch_size = input_dim + 1
+        inputs = torch.zeros(batch_size, input_dim)
+        for i in range(input_dim):
+            inputs[i + 1, i] = 1.0
+        with torch.no_grad():
+            outputs, _ = self.forward(inputs)
+        bias = outputs[0]
+        coeffs_plus_bias = outputs[1:]
+
+        lines = []
+        totals = []
+        for action_idx in range(bias.shape[0]):
+            bias_val = bias[action_idx].item()
+            weights = coeffs_plus_bias[:, action_idx]
+            weight_str = ', '.join([f"{val:.2f}" for val in weights])
+            lines.append(
+                f"Action {action_idx}: [{weight_str}] (bias = {bias_val:.2f})")
+            totals.append(weights)
+
+        if len(totals) == 2:
+            delta = totals[1] - totals[0]
+            delta_str = ', '.join([f"{val:.2f}" for val in delta])
+            lines.append(f"Delta: [{delta_str}]")
+
+        return '\n'.join(lines)
+
+
+@alf.configurable
+class DebugLinearQNetwork(QNetworkBase):
+    """A purely linear QNetwork with periodic parameter logging.
+
+    This network uses an IdentityEncodingNetwork, making it equivalent to
+    a single linear layer from observations to Q-values. Useful for debugging
+    on environments where linear function approximation is sufficient.
+
+    Periodically logs parameter statistics to help understand network behavior.
+    """
+
+    def __init__(self,
+                 input_tensor_spec: TensorSpec,
+                 action_spec: BoundedTensorSpec,
+                 last_kernel_initializer=None,
+                 bias_init_value=0.0,
+                 name="DebugLinearQNetwork"):
+        """Creates a linear QNetwork with parameter logging.
+
+        Args:
+            input_tensor_spec (TensorSpec): the tensor spec of the input
+            action_spec (TensorSpec): the tensor spec of the action
+            log_frequency (float): probability of logging on each forward pass
+                (default 0.01 = 1% of forward passes)
+            name (str): name of the network
+        """
+        # Import here to avoid circular dependency
+        from alf.networks.encoding_networks import IdentityEncodingNetwork
+
+        super(DebugLinearQNetwork, self).__init__(
+            input_tensor_spec,
+            action_spec,
+            encoding_network_ctor=IdentityEncodingNetwork,
+            use_naive_parallel_network=False,
+            name=name,
+        )
+        if last_kernel_initializer is None:
+            last_kernel_initializer = torch.nn.init.normal_
+        self._final_layer = layers.FC(
+            input_size=input_tensor_spec.shape[0],
+            output_size=action_spec.maximum - action_spec.minimum + 1,
+            activation=math_ops.identity,
+            kernel_initializer=last_kernel_initializer,
+            use_bias=False)
+        self._forward_count = 0
+
+    def forward(self, observation, state=()):
+        self._forward_count += 1
+        return super().forward(observation, state)
+
+    def make_parallel(self, n):
+        return alf.networks.NaiveParallelNetwork(self, n)
+
+    def _log_parameters(self):
+        totals = []
+        for i in range(self._final_layer.weight.shape[0]):
+            total = self._final_layer.weight[i].data.flatten()
+            weight_str = ', '.join([f"{val:.2f}" for val in total])
+            print(f"Action {i}: [{weight_str}]")
+            totals.append(total)
+        if len(totals) == 2:
+            delta = totals[1] - totals[0]
+            delta_str = ', '.join([f"{val:.2f}" for val in delta])
+            print(f"Delta: [{delta_str}]")

@@ -1,3 +1,13 @@
+log.txt
+*.swp
+.cursor
+*.png
+logs/
+results/
+*.mp4
+logs*/
+*.tsv
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -126,3 +136,6 @@ data_c10/
 # Direnv artifacts. Developer may have different direnv settings so do not check them in.
 .envrc
 .direnv
+
+collect.py
+save/

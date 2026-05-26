@@ -20,15 +20,20 @@ from absl import logging
 import time
 import torch
 import torch.distributions as td
+from torch.nn.utils import parameters_to_vector
 
 import alf
 from alf.tensor_specs import TensorSpec, BoundedTensorSpec
 from alf.networks import ActorDistributionNetwork
-from alf.networks import ActorDistributionRNNNetwork
-from alf.networks import NormalProjectionNetwork, CategoricalProjectionNetwork
+from alf.networks import ActorDistributionRNNNetwork, RBFActorDistributionNetwork
+from alf.networks import (BetaProjectionNetwork, CategoricalProjectionNetwork,
+                          NormalProjectionNetwork,
+                          RandomizedPriorActorDistributionNetwork,
+                          SimpleProjectionNetwork)
 from alf.utils.common import zero_tensor_from_nested_spec
 from alf.nest.utils import NestConcat
 from alf.utils.dist_utils import DistributionSpec
+from alf.utils.math_ops import clipped_exp
 
 
 class TestActorDistributionNetworks(parameterized.TestCase, alf.test.TestCase):
@@ -238,6 +243,157 @@ class TestActorDistributionNetworks(parameterized.TestCase, alf.test.TestCase):
         act_dist, _ = pnet(obs_spec.randn((1, replicas)), state)
         actions = act_dist.sample()
         self.assertEqual(actions.shape, (1, replicas) + action_spec.shape)
+
+    def test_generalization(self):
+        torch.manual_seed(0)
+        obs_dim = 31
+        obs_spec = TensorSpec((obs_dim, ), torch.float32)
+        action_spec = BoundedTensorSpec((1, ),
+                                        torch.float32,
+                                        minimum=-1.0,
+                                        maximum=1.0)
+        actor = RBFActorDistributionNetwork(
+            obs_spec,
+            action_spec,
+            n_components=2000,
+            gamma=5,
+            continuous_projection_net_ctor=functools.partial(
+                NormalProjectionNetwork,
+                state_dependent_std=True,
+                scale_distribution=True,
+                std_transform=clipped_exp,
+                use_bias=False),
+        )
+        optimizer = torch.optim.SGD(actor.parameters(), lr=0.2, momentum=0.5)
+        # optimizer = torch.optim.Adam(actor.parameters(), lr=1e-2)
+
+        num_steps = 100
+        num_test_inputs = 30
+        results = []
+
+        embeddings = torch.zeros(num_test_inputs, obs_dim)
+        for i in range(num_test_inputs):
+            for j in range(obs_dim):
+                embeddings[i, j] = torch.exp(-torch.tensor(
+                    (i - j)**2, dtype=torch.float32))
+
+        emb_0 = embeddings[5:6]
+        target = torch.tensor([[1.0]])
+
+        for _ in range(num_steps):
+            optimizer.zero_grad()
+            act_dist, _ = actor(emb_0)
+            loss = ((act_dist.rsample((100, )).mean() - target)**2).mean()
+            loss.backward()
+            optimizer.step()
+
+            test_means = []
+            with torch.no_grad():
+                for i in range(num_test_inputs):
+                    emb_i = embeddings[i:i + 1]
+                    act_dist, _ = actor(emb_i)
+                    test_means.append(act_dist.rsample((100, )).mean().item())
+            results.append(test_means)
+
+        from matplotlib import pyplot as plt
+        from matplotlib.cm import ScalarMappable
+        from matplotlib.colors import Normalize
+        x = list(range(num_test_inputs))
+        cmap = plt.get_cmap('viridis')
+        fig, ax = plt.subplots(figsize=(12, 8))
+        for step_idx, values in enumerate(results):
+            color = cmap(step_idx / num_steps)
+            ax.plot(x, values, color=color, alpha=0.7)
+        ax.axhline(y=0, linestyle='--', color='gray', alpha=0.5)
+        ax.set_xlabel('Input index i')
+        ax.set_ylabel('Action mean')
+        ax.set_title(
+            'Generalization test: mean(emb(i)) after training on emb(5)')
+        sm = ScalarMappable(cmap=cmap, norm=Normalize(vmin=0, vmax=num_steps))
+        sm.set_array([])
+        plt.colorbar(sm, ax=ax, label='Iteration')
+        plt.show()
+
+    def test_randomized_prior_actor_distribution_beta(self):
+        torch.manual_seed(0)
+        obs_spec = TensorSpec((8, ), torch.float32)
+        action_spec = BoundedTensorSpec((2, ),
+                                        torch.float32,
+                                        minimum=-1.0,
+                                        maximum=1.0)
+        actor = RandomizedPriorActorDistributionNetwork(
+            obs_spec,
+            action_spec,
+            fc_layer_params=(64, 64),
+            prior_scale=0.5,
+            continuous_projection_net_ctor=functools.partial(
+                BetaProjectionNetwork, min_concentration=1.0))
+
+        obs = obs_spec.randn((256, ))
+        act_dist, _ = actor(obs)
+        actions = act_dist.sample()
+
+        self.assertEqual(actions.shape, (256, ) + action_spec.shape)
+        self.assertTrue(
+            torch.all(actions >= torch.as_tensor(action_spec.minimum)))
+        self.assertTrue(
+            torch.all(actions <= torch.as_tensor(action_spec.maximum)))
+
+    def test_randomized_prior_actor_distribution_freezes_and_perturbs_prior(
+            self):
+        torch.manual_seed(0)
+        obs_spec = TensorSpec((8, ), torch.float32)
+        action_spec = BoundedTensorSpec((2, ),
+                                        torch.float32,
+                                        minimum=-1.0,
+                                        maximum=1.0)
+        actor = RandomizedPriorActorDistributionNetwork(
+            obs_spec,
+            action_spec,
+            fc_layer_params=(32, ),
+            prior_scale=1.0,
+            continuous_projection_net_ctor=functools.partial(
+                BetaProjectionNetwork, min_concentration=1.0))
+
+        self.assertFalse(
+            any(p.requires_grad
+                for p in actor._prior_encoding_net.parameters()))
+        self.assertTrue(
+            all(p.requires_grad
+                for p in actor._trainable_encoding_net.parameters()))
+
+        prior_before = parameters_to_vector(
+            actor._prior_encoding_net.parameters()).detach().clone()
+        actor.perturb_prior(alpha=0.1)
+        prior_after = parameters_to_vector(
+            actor._prior_encoding_net.parameters()).detach().clone()
+        self.assertNotEqual(float((prior_before - prior_after).abs().sum()),
+                            0.0)
+
+    def test_randomized_prior_actor_distribution_make_parallel(self):
+        torch.manual_seed(0)
+        obs_spec = TensorSpec((8, ), torch.float32)
+        action_spec = BoundedTensorSpec((2, ),
+                                        torch.float32,
+                                        minimum=-1.0,
+                                        maximum=1.0)
+        actor = RandomizedPriorActorDistributionNetwork(
+            obs_spec,
+            action_spec,
+            fc_layer_params=(32, ),
+            prior_scale=0.25,
+            continuous_projection_net_ctor=functools.partial(
+                BetaProjectionNetwork, min_concentration=1.0))
+
+        pnet = actor.make_parallel(3)
+        act_dist, _ = pnet(obs_spec.randn((128, )))
+        actions = act_dist.sample()
+
+        self.assertEqual(actions.shape, (128, 3) + action_spec.shape)
+        self.assertTrue(
+            torch.all(actions >= torch.as_tensor(action_spec.minimum)))
+        self.assertTrue(
+            torch.all(actions <= torch.as_tensor(action_spec.maximum)))
 
 
 if __name__ == "__main__":

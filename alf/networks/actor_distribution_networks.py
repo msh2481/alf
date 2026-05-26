@@ -21,12 +21,13 @@ import torch.nn as nn
 
 import alf
 import alf.nest as nest
-from .encoding_networks import EncodingNetwork, LSTMEncodingNetwork
+from .encoding_networks import EncodingNetwork, LSTMEncodingNetwork, RBFEncodingNetwork
 from .normalizing_flow_networks import RealNVPNetwork
 from .projection_networks import NormalProjectionNetwork, CategoricalProjectionNetwork
 from .preprocessor_networks import PreprocessorNetwork
 from alf.tensor_specs import BoundedTensorSpec, TensorSpec
-from alf.networks.network import Network
+from alf.networks.network import NaiveParallelNetwork, Network
+from alf.utils.perturb_utils import perturb_module_params_l2_sphere_per_layer
 
 
 @alf.configurable
@@ -207,6 +208,160 @@ class ActorDistributionNetwork(ActorDistributionNetworkBase):
             use_fc_ln=use_fc_ln)
 
 
+@alf.configurable
+class RandomizedPriorActorDistributionNetwork(Network):
+    """Actor network with a frozen randomized prior encoder and shared projection.
+
+    This is an actor-side analogue to randomized prior functions where the
+    trainable and frozen branches have separate encoders but share a single
+    trainable projection head. The encoded features are combined as
+    ``z = z_trainable + prior_scale * z_prior`` before projecting to an action
+    distribution. This keeps the implementation projection-agnostic, which is
+    important for Beta policies used by the DMC experiments in this repo.
+    """
+
+    def __init__(self,
+                 input_tensor_spec,
+                 action_spec,
+                 encoding_network_ctor: Callable = EncodingNetwork,
+                 prior_scale: float = 1.0,
+                 input_preprocessors=None,
+                 input_preprocessors_ctor=None,
+                 preprocessing_combiner=None,
+                 conv_layer_params=None,
+                 fc_layer_params=None,
+                 activation=torch.relu_,
+                 kernel_initializer=None,
+                 use_fc_bn=False,
+                 use_fc_ln=False,
+                 discrete_projection_net_ctor=CategoricalProjectionNetwork,
+                 continuous_projection_net_ctor=NormalProjectionNetwork,
+                 name="RandomizedPriorActorDistributionNetwork"):
+        super().__init__(input_tensor_spec, name=name)
+
+        if kernel_initializer is None:
+            kernel_initializer = torch.nn.init.xavier_uniform_
+
+        self._action_spec = action_spec
+        self._prior_scale = prior_scale
+
+        encoder_kwargs = dict(
+            input_preprocessors=input_preprocessors,
+            input_preprocessors_ctor=input_preprocessors_ctor,
+            preprocessing_combiner=preprocessing_combiner,
+            conv_layer_params=conv_layer_params,
+            fc_layer_params=fc_layer_params,
+            activation=activation,
+            kernel_initializer=kernel_initializer,
+            use_fc_bn=use_fc_bn,
+            use_fc_ln=use_fc_ln)
+
+        self._trainable_encoding_net = encoding_network_ctor(
+            input_tensor_spec, **encoder_kwargs)
+        self._prior_encoding_net = encoding_network_ctor(
+            input_tensor_spec, **encoder_kwargs)
+        for param in self._prior_encoding_net.parameters():
+            param.requires_grad = False
+
+        self._projection_net = self._create_projection_net(
+            discrete_projection_net_ctor, continuous_projection_net_ctor)
+        if nest.is_nested(self._projection_net):
+            self._projection_net_module_list = nn.ModuleList(
+                nest.flatten(self._projection_net))
+        self._output_spec = nest.map_structure(lambda proj: proj.output_spec,
+                                               self._projection_net)
+
+    def _create_projection_net(self, discrete_projection_net_ctor,
+                               continuous_projection_net_ctor):
+
+        def _create(spec):
+            if spec.is_discrete:
+                return discrete_projection_net_ctor(
+                    input_size=self._trainable_encoding_net.output_spec.
+                    shape[0],
+                    action_spec=spec)
+            return continuous_projection_net_ctor(
+                input_size=self._trainable_encoding_net.output_spec.shape[0],
+                action_spec=spec)
+
+        return nest.map_structure(_create, self._action_spec)
+
+    def forward(self, observation, state=()):
+        z_trainable, state = self._trainable_encoding_net(observation, state)
+        z_prior, _ = self._prior_encoding_net(observation, ())
+        z = z_trainable + self._prior_scale * z_prior
+        act_dist = nest.map_structure(lambda proj: proj(z)[0],
+                                      self._projection_net)
+        return act_dist, state
+
+    def perturb_prior(self, alpha: float):
+        """Perturb frozen prior encoder parameters with a per-layer L2 walk."""
+        perturb_module_params_l2_sphere_per_layer(self._prior_encoding_net,
+                                                  alpha)
+
+    def make_parallel(self, n):
+        parallel_trainable = self._trainable_encoding_net.make_parallel(n)
+        parallel_prior = NaiveParallelNetwork(self._prior_encoding_net, n)
+        for p in parallel_prior.parameters():
+            p.requires_grad = False
+        parallel_projection = self._projection_net.make_parallel(n)
+        return _ParallelRandomizedPriorActorDistributionNetwork(
+            parallel_trainable=parallel_trainable,
+            parallel_prior=parallel_prior,
+            parallel_projection=parallel_projection,
+            input_tensor_spec=self.input_tensor_spec,
+            prior_scale=self._prior_scale)
+
+    @property
+    def state_spec(self):
+        return self._trainable_encoding_net.state_spec
+
+
+@alf.configurable
+class RBFActorDistributionNetwork(ActorDistributionNetworkBase):
+    """Actor distribution network using RBF (Radial Basis Function) encoding.
+
+    Uses RBFEncodingNetwork to encode observations, then projects to action
+    distributions using standard projection networks.
+    """
+
+    def __init__(self,
+                 input_tensor_spec,
+                 action_spec,
+                 n_components: int = 1000,
+                 gamma: float = 3.0,
+                 kernel_initializer=None,
+                 discrete_projection_net_ctor=CategoricalProjectionNetwork,
+                 continuous_projection_net_ctor=NormalProjectionNetwork,
+                 name="RBFActorDistributionNetwork"):
+        """
+        Args:
+            input_tensor_spec (TensorSpec): the tensor spec of the observation
+            action_spec (TensorSpec): the action spec
+            n_components (int): number of RBF components
+            gamma (float): RBF bandwidth parameter
+            kernel_initializer (Callable): initializer for RBF weights.
+                If None, defaults to Normal(0, 1)
+            discrete_projection_net_ctor (ProjectionNetwork): constructor that
+                generates a discrete projection network that outputs discrete
+                actions.
+            continuous_projection_net_ctor (ProjectionNetwork): constructor that
+                generates a continuous projection network that outputs
+                continuous actions.
+            name (str): name of the network
+        """
+        super().__init__(
+            input_tensor_spec=input_tensor_spec,
+            action_spec=action_spec,
+            encoding_network_ctor=RBFEncodingNetwork,
+            discrete_projection_net_ctor=discrete_projection_net_ctor,
+            continuous_projection_net_ctor=continuous_projection_net_ctor,
+            name=name,
+            n_components=n_components,
+            gamma=gamma,
+            kernel_initializer=kernel_initializer)
+
+
 class ParallelActorDistributionNetwork(Network):
     """Perform ``n`` actor distribution computations in parallel."""
 
@@ -245,6 +400,48 @@ class ParallelActorDistributionNetwork(Network):
         """Return the state spec of the actor network. It is simply the state spec
         of the encoding network."""
         return self._encoding_net.state_spec
+
+
+class _ParallelRandomizedPriorActorDistributionNetwork(Network):
+    """Parallel version of RandomizedPriorActorDistributionNetwork."""
+
+    def __init__(self,
+                 parallel_trainable,
+                 parallel_prior,
+                 parallel_projection,
+                 input_tensor_spec,
+                 prior_scale: float,
+                 name="ParallelRandomizedPriorActorDistributionNetwork"):
+        super().__init__(input_tensor_spec=input_tensor_spec, name=name)
+        self._trainable_encoding_net = parallel_trainable
+        self._prior_encoding_net = parallel_prior
+        self._projection_net = parallel_projection
+        self._prior_scale = prior_scale
+        self._output_spec = nest.map_structure(lambda proj: proj.output_spec,
+                                               self._projection_net)
+        for p in self._prior_encoding_net.parameters():
+            p.requires_grad = False
+
+    def forward(self, observation, state=()):
+        z_trainable, state = self._trainable_encoding_net(observation, state)
+        z_prior, _ = self._prior_encoding_net(observation, ())
+        z = z_trainable + self._prior_scale * z_prior
+        act_dist = nest.map_structure(lambda proj: proj(z)[0],
+                                      self._projection_net)
+        return act_dist, state
+
+    def perturb_prior(self, alpha: float):
+        nets = getattr(self._prior_encoding_net, "_networks", None)
+        if nets is not None:
+            for net in nets:
+                perturb_module_params_l2_sphere_per_layer(net, alpha)
+        else:
+            perturb_module_params_l2_sphere_per_layer(self._prior_encoding_net,
+                                                      alpha)
+
+    @property
+    def state_spec(self):
+        return self._trainable_encoding_net.state_spec
 
 
 @alf.configurable

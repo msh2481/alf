@@ -1,0 +1,489 @@
+# Copyright (c) 2025 Horizon Robotics and ALF Contributors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import os
+import torch
+import torch.distributions as td
+import numpy as np
+from absl import logging
+import matplotlib
+
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from matplotlib import colors as mcolors
+import alf
+from alf.tensor_specs import TensorSpec
+
+plt.style.use('seaborn-v0_8-white')
+plt.rcParams['axes.grid'] = False
+
+
+def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=256):
+    if isinstance(cmap, str):
+        cmap = plt.get_cmap(cmap)
+    return mcolors.LinearSegmentedColormap.from_list(
+        f'trunc({cmap.name},{minval:.2f},{maxval:.2f})',
+        cmap(np.linspace(minval, maxval, n)))
+
+
+@alf.configurable
+class BipolarCallback:
+    """Callback for debugging concurrent algorithms with visualization and metrics."""
+
+    def __init__(self,
+                 debug_env=None,
+                 log_every_n_steps: int = 100,
+                 num_samples: int = 1000,
+                 num_actor_samples: int = 64,
+                 q_curve_action_points: int = 51,
+                 save_dpi: int = 100,
+                 annotate_transition_counts: bool = False,
+                 annotate_q_values: bool = False,
+                 annotate_actor_stats: bool = False,
+                 name: str = "DebugCallback"):
+        self._debug_env = debug_env
+        self._log_every_n_steps = log_every_n_steps
+        self._num_samples = num_samples
+        self._num_actor_samples = num_actor_samples
+        self._q_curve_action_points = q_curve_action_points
+        self._save_dpi = save_dpi
+        self._annotate_transition_counts = annotate_transition_counts
+        self._annotate_q_values = annotate_q_values
+        self._annotate_actor_stats = annotate_actor_stats
+        self._debug_count = 0
+        self._name = name
+
+    def _sample_from_replay_buffer(self, replay_buffer):
+        """Sample observations, actions, and rewards from replay buffer."""
+        if replay_buffer is None or replay_buffer.total_size == 0:
+            return None, None, None
+        num_samples = min(self._num_samples, replay_buffer.total_size.item())
+        batch_info = replay_buffer._sample(batch_size=num_samples,
+                                           batch_length=1)
+        observations = replay_buffer.get_field('observation',
+                                               batch_info.env_ids,
+                                               batch_info.positions)
+        actions = replay_buffer.get_field('action', batch_info.env_ids,
+                                          batch_info.positions)
+        rewards = replay_buffer.get_field('reward', batch_info.env_ids,
+                                          batch_info.positions)
+        return observations, actions, rewards
+
+    def _create_get_q_values_fn(self, algorithms, action_spec, device):
+        """Create a function to get Q-values for a given algorithm index.
+        
+        Returns a function that takes (alg_index, obs, act) and returns q_values tensor.
+        Handles device conversion and batch dimension automatically.
+        """
+
+        def get_q_values_fn(alg_index, obs, act):
+            obs = obs.to(device)
+            act = act.to(device)
+            obs = obs.unsqueeze(0)
+            act = act.unsqueeze(0)
+            alg = algorithms[alg_index]
+            with torch.no_grad():
+                if action_spec.is_discrete:
+                    q_values, _ = alg._compute_critics(
+                        alg._critic_networks,
+                        obs,
+                        None,
+                        critics_state=(),
+                        replica_min=True,
+                        apply_reward_weights=True)
+                    q_values = q_values.gather(1, act.unsqueeze(1)).squeeze(1)
+                else:
+                    q_values, _ = alg._compute_critics(
+                        alg._critic_networks,
+                        obs,
+                        act,
+                        critics_state=(),
+                        replica_min=True,
+                        apply_reward_weights=True)
+            return q_values[0].item()
+
+        return get_q_values_fn
+
+    def _create_get_actor_fn(self, algorithms, action_spec, device):
+        """Create a function to get actor distribution parameters.
+
+        Returns a function that takes (alg_index, obs) and returns a dict
+        with 'mean' and 'std' scalars extracted from the actor's output distribution.
+        Handles device conversion and batch dimension automatically.
+
+        Args:
+            algorithms: List of algorithm instances
+            action_spec: Action tensor spec
+            device: Device to run computation on
+
+        Returns:
+            Callable: Function (alg_index, obs) -> {'mean': float, 'std': float}
+        """
+
+        def get_actor_fn(alg_index, obs):
+            obs = obs.to(device)
+            obs = obs.unsqueeze(0)
+
+            alg = algorithms[alg_index]
+
+            # Check if algorithm has actor network
+            if not hasattr(alg,
+                           '_actor_network') or alg._actor_network is None:
+                raise ValueError(
+                    f"Algorithm {alg_index} does not have an actor network. "
+                    "Actor visualization requires continuous action space.")
+
+            # Call actor network to get distribution
+            with torch.no_grad():
+                action_dist, _ = alg._actor_network(obs, state=())
+            with torch.no_grad():
+                samples = action_dist.sample((self._num_actor_samples, ))
+            if samples.dim() == 1:
+                values = samples
+            else:
+                values = samples.reshape(self._num_actor_samples, -1)[:, 0]
+            mean = values.mean().item()
+            std = values.std(unbiased=False).item()
+            std = max(std, 1e-8)
+
+            return {'mean': mean, 'std': std}
+
+        return get_actor_fn
+
+    def __call__(self,
+                 replay_buffer,
+                 algorithms,
+                 action_spec,
+                 num_copies,
+                 iter_number=None):
+        """Call the debug callback with data from the algorithm.
+
+        Args:
+            replay_buffer: replay buffer to sample from
+            algorithms: list of algorithm instances
+            action_spec: action tensor spec
+            num_copies: number of algorithm copies
+            iter_number: iteration number (optional, defaults to debug_count)
+        """
+        if iter_number is None:
+            iter_number = self._debug_count
+        self._debug_count += 1
+        if iter_number % self._log_every_n_steps != 0:
+            return
+
+        observations, actions, _rewards = self._sample_from_replay_buffer(
+            replay_buffer)
+        if observations is None:
+            return
+
+        assert self._debug_env is not None, "debug_env is None - must be passed to DebugCallback"
+        assert hasattr(self._debug_env, 'get_q_value_table'), \
+            f"Environment {type(self._debug_env)} missing get_q_value_table method"
+        assert hasattr(self._debug_env, 'get_transition_counts_table'), \
+            f"Environment {type(self._debug_env)} missing get_transition_counts_table method"
+
+        device = alf.get_default_device()
+        get_q_values_fn = self._create_get_q_values_fn(algorithms, action_spec,
+                                                       device)
+
+        # Create actor function for continuous action spaces
+        get_actor_fn = None
+        if not action_spec.is_discrete:
+            try:
+                get_actor_fn = self._create_get_actor_fn(
+                    algorithms, action_spec, device)
+            except Exception as e:
+                logging.warning(f"Failed to create actor function: {e}")
+                logging.warning("Actor visualization will be skipped.")
+
+        log_dir = os.environ.get('ALF_BIPOLAR_LOG_DIR', 'logs')
+        os.makedirs(log_dir, exist_ok=True)
+
+        # log_file_path = f'logs/{iter_number}.txt'
+        # with open(log_file_path, 'w') as f:
+        #     self._write_basic_stats(f, observations, rewards, replay_buffer)
+        #     f.write("=" * 40 + "\n")
+
+        self._create_and_save_plots(iter_number, replay_buffer, algorithms,
+                                    action_spec, num_copies, get_q_values_fn,
+                                    get_actor_fn, log_dir)
+
+    def _write_basic_stats(self, f, observations, rewards, replay_buffer):
+        """Write basic statistics to file."""
+        num_samples = observations.shape[0]
+        total_size = replay_buffer.total_size.item(
+        ) if replay_buffer is not None else 0
+        f.write(f"Sampled {num_samples} out of {total_size} experiences\n")
+        if rewards is not None:
+            mean_reward = rewards.mean().item()
+            f.write(f"\nMean reward: {mean_reward:.4f}\n")
+
+    def _create_and_save_plots(self,
+                               iter_number,
+                               replay_buffer,
+                               algorithms,
+                               action_spec,
+                               num_copies,
+                               get_q_values_fn,
+                               get_actor_fn=None,
+                               log_dir='logs'):
+        """Create and save visualization plots."""
+        k = self._debug_env.k
+        positions = list(range(-k, k + 1))
+        has_actor_col = not action_spec.is_discrete
+
+        ncols = 3 if has_actor_col else 2
+        fig, axes = plt.subplots(num_copies + 1,
+                                 ncols,
+                                 figsize=((30 if has_actor_col else 20),
+                                          5 * (num_copies + 1)))
+
+        transition_counts = self._debug_env.get_transition_counts_table(
+            replay_buffer)
+        self._plot_transition_counts(axes[0, :2], transition_counts, k,
+                                     positions)
+        if has_actor_col:
+            self._plot_all_q_functions(axes[0, 2], algorithms, action_spec)
+
+        for i in range(num_copies):
+
+            def q_func(obs, action):
+                return get_q_values_fn(i, obs, action)
+
+            self._plot_q_values(axes[i + 1, :2], i, k, positions, q_func)
+
+            # Actor probabilities plotting (third column, continuous only)
+            if has_actor_col and get_actor_fn is not None:
+
+                def actor_func(obs):
+                    return get_actor_fn(i, obs)
+
+                self._plot_actor_probabilities(axes[i + 1, 2], i, k, positions,
+                                               actor_func)
+            elif has_actor_col:
+                axes[i + 1, 2].axis('off')
+
+        plt.tight_layout()
+        plot_path = os.path.join(log_dir, f'{iter_number}.png')
+        plt.savefig(plot_path,
+                    dpi=self._save_dpi,
+                    facecolor='white',
+                    bbox_inches='tight')
+        plt.close(fig)
+        logging.info(f"Written plot to {plot_path}")
+
+    def _plot_all_q_functions(self, ax, algorithms, action_spec):
+        if action_spec.is_discrete or action_spec.shape != (1, ):
+            ax.text(0.5,
+                    0.5,
+                    'Q(s,a) curves\nrequire 1D continuous action',
+                    ha='center',
+                    va='center',
+                    transform=ax.transAxes,
+                    fontsize=12)
+            ax.axis('off')
+            return
+
+        k = self._debug_env.k
+        action_grid = torch.linspace(-1.0,
+                                     1.0,
+                                     self._q_curve_action_points,
+                                     dtype=torch.float32)
+        action_grid = action_grid.unsqueeze(-1).to(alf.get_default_device())
+
+        ax.set_title('Q(s,a) curves (one line per state)')
+        ax.set_xlabel('action')
+        ax.set_ylabel('Q')
+        ax.set_xlim(-1.0, 1.0)
+
+        alg_index = int(np.random.randint(len(algorithms)))
+        alg = algorithms[alg_index]
+        x = action_grid[:, 0].detach().cpu().numpy()
+        first = True
+        for position in range(-k, k + 1):
+            for time_step in range(k + 1):
+                if abs(position
+                       ) > time_step or abs(position) % 2 != time_step % 2:
+                    continue
+                obs = self._debug_env.state_to_observation(position, time_step)
+                obs = torch.from_numpy(obs).to(action_grid.device)
+                obs = obs.unsqueeze(0).expand(action_grid.shape[0], -1)
+                with torch.no_grad():
+                    q_values, _ = alg._compute_critics(
+                        alg._critic_networks,
+                        obs,
+                        action_grid,
+                        critics_state=(),
+                        replica_min=True,
+                        apply_reward_weights=True)
+                q_values = torch.as_tensor(
+                    q_values).detach().flatten().cpu().numpy()
+                ax.plot(x,
+                        q_values,
+                        color='blue',
+                        alpha=0.12,
+                        linewidth=1.3,
+                        label=f'Algorithm {alg_index}' if first else None)
+                first = False
+
+        ax.grid(True, alpha=0.2)
+        ax.legend(loc='best', fontsize=10)
+
+    def _plot_transition_counts(self, axes_row, transition_counts, k,
+                                positions):
+        """Plot transition counts for each action."""
+        for action_idx, action_name in enumerate(['Left', 'Right']):
+            ax = axes_row[action_idx]
+            data = transition_counts[:, :, action_idx].T
+            log_data = np.where(np.isnan(data), np.nan,
+                                np.log1p(np.clip(data, a_min=0.0, a_max=None)))
+            im = ax.imshow(log_data,
+                           aspect='auto',
+                           cmap='turbo',
+                           origin='lower',
+                           vmin=np.log1p(0.0),
+                           vmax=np.log1p(20.0))
+            ax.set_xlabel('Position')
+            ax.set_ylabel('Time')
+            ax.set_title(f'Transitions {action_name}')
+            ax.set_xticks(range(0, 2 * k + 1, max(1, (2 * k + 1) // 8)))
+            ax.set_xticklabels([
+                positions[j]
+                for j in range(0, 2 * k + 1, max(1, (2 * k + 1) // 8))
+            ])
+            ax.set_yticks(range(k + 1))
+            cbar = plt.colorbar(im, ax=ax, label='count')
+            count_ticks = np.array([0, 1, 2, 5, 10, 20], dtype=float)
+            cbar.set_ticks(np.log1p(count_ticks))
+            cbar.set_ticklabels([str(int(v)) for v in count_ticks])
+
+            if self._annotate_transition_counts:
+                for pos_idx in range(2 * k + 1):
+                    for time_idx in range(k + 1):
+                        value = data[time_idx, pos_idx]
+                        ax.text(pos_idx,
+                                time_idx,
+                                f"{int(value) if not np.isnan(value) else ''}",
+                                ha="center",
+                                va="center",
+                                color="black",
+                                fontsize=10)
+
+    def _plot_q_values(self, axes_row, alg_index, k, positions,
+                       get_q_values_fn):
+        """Plot Q-values for a given algorithm."""
+        q_values = self._debug_env.get_q_value_table(get_q_values_fn)
+        avg = q_values.mean(axis=2)
+        adv = q_values[:, :, 1] - q_values[:, :, 0]
+
+        for action_idx, action_name, values in [[0, 'Average', avg],
+                                                [1, 'Advantage', adv]]:
+            ax = axes_row[action_idx]
+            data = values.T
+            im = ax.imshow(data,
+                           aspect='auto',
+                           cmap='bwr',
+                           origin='lower',
+                           vmin=-0.5,
+                           vmax=0.5)
+            ax.set_xlabel('Position')
+            ax.set_ylabel('Time')
+            ax.set_title(f'Algorithm {alg_index}: {action_name}')
+            ax.set_xticks(range(0, 2 * k + 1, max(1, (2 * k + 1) // 8)))
+            ax.set_xticklabels([
+                positions[j]
+                for j in range(0, 2 * k + 1, max(1, (2 * k + 1) // 8))
+            ])
+            ax.set_yticks(range(k + 1))
+            plt.colorbar(im, ax=ax)
+
+            if self._annotate_q_values:
+                for pos_idx in range(2 * k + 1):
+                    for time_idx in range(k + 1):
+                        value = data[time_idx, pos_idx]
+                        if np.isnan(value):
+                            continue
+                        ax.text(pos_idx,
+                                time_idx,
+                                f"{value:.3f}",
+                                ha="center",
+                                va="center",
+                                color="black",
+                                fontsize=10)
+
+    def _plot_actor_probabilities(self, ax, alg_index, k, positions,
+                                  actor_callable):
+        """Plot actor output probabilities for a given algorithm.
+
+        Creates a heatmap showing P(action >= 0) for each state, with annotations
+        displaying the mean and standard deviation of the actor's output distribution.
+
+        Args:
+            ax: Matplotlib axis to plot on
+            alg_index: Index of the algorithm
+            k: Environment parameter (max position/time)
+            positions: List of position values [-k, ..., k]
+            actor_callable: Function (obs) -> {'mean': float, 'std': float}
+        """
+        actor_probs = self._debug_env.get_actor_table(actor_callable)
+
+        # Transpose for plotting (time on y-axis, position on x-axis)
+        data = actor_probs.T
+
+        # Create heatmap with probability colormap
+        im = ax.imshow(data,
+                       aspect='auto',
+                       cmap='RdYlGn',
+                       origin='lower',
+                       vmin=0.0,
+                       vmax=1.0)
+
+        # Set labels and title
+        ax.set_xlabel('Position')
+        ax.set_ylabel('Time')
+        ax.set_title(f'Algorithm {alg_index} Actor P(Right)')
+
+        # Set ticks (same pattern as Q-value plots)
+        ax.set_xticks(range(0, 2 * k + 1, max(1, (2 * k + 1) // 8)))
+        ax.set_xticklabels([
+            positions[j] for j in range(0, 2 * k + 1, max(1, (2 * k + 1) // 8))
+        ])
+        ax.set_yticks(range(k + 1))
+
+        # Add colorbar
+        plt.colorbar(im, ax=ax)
+
+        # Annotate cells with mean and std (expensive: one actor forward per
+        # valid state). Keep off by default for faster plotting.
+        if self._annotate_actor_stats:
+            for pos_idx in range(2 * k + 1):
+                for time_idx in range(k + 1):
+                    prob = data[time_idx, pos_idx]
+                    if np.isnan(prob):
+                        continue
+
+                    position = positions[pos_idx]
+                    obs = self._debug_env.state_to_observation(
+                        position, time_idx)
+                    obs_tensor = torch.from_numpy(obs)
+                    actor_output = actor_callable(obs_tensor)
+                    mean, std = actor_output['mean'], actor_output['std']
+
+                    ax.text(pos_idx,
+                            time_idx,
+                            f"mu={mean:.2f}\nsigma={std:.2f}",
+                            ha="center",
+                            va="center",
+                            color="black",
+                            fontsize=8)

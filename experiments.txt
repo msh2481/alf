@@ -1,0 +1,5 @@
+# tmux_session | experiment_command
+
+# ASYNC vs SYNC comparison (4 agents):
+async_4 | NUM_AGENTS=4 ASYNC=True NAME="async_4" SEEDS=1
+sync_4 | NUM_AGENTS=4 ASYNC=False NAME="sync_4" SEEDS=1

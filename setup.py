@@ -27,6 +27,7 @@ setup(
         'cnest@git+https://github.com/HorizonRobotics/cnest.git',
         'cpplint==1.6.1',  # linters etc. needs to be consistent with the CI docker:
         # .ci-cd/Dockerfile_py3.11_torch2.2.cpu
+        'dm-control',
         'fasteners==0.19',
         'gin-config@git+https://github.com/HorizonRobotics/gin-config.git',
         'gym==0.15.4',
@@ -37,6 +38,7 @@ setup(
         'opencv-python==4.11.0.86',
         'pathos==0.3.3',
         'pillow>=8',
+        'plotille',
         'pre-commit==3.6.2',
         'protobuf==6.30.2',
         'psutil==7.0.0',
@@ -53,6 +55,7 @@ setup(
         'torchvision==0.21.0',
         'wheel',
         'yapf==0.43.0',
+        'scikit-learn==1.7.2',
     ],  # And any other dependencies alf needs
     cmdclass={'build_ext': build_ext},
     extras_require={

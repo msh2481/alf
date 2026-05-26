@@ -25,6 +25,31 @@ from alf.environments import thread_environment, parallel_environment, fast_para
 from alf.environments import alf_wrappers
 
 
+class _PhaseRandomizingWrapper(alf_wrappers.AlfEnvironmentBaseWrapper):
+    """Force a one-time early reset after a random number of steps since creation."""
+
+    def __init__(self, env, max_steps_for_phase_randomization: int,
+                 env_id: int):
+        super().__init__(env)
+        self._max_steps = max_steps_for_phase_randomization
+        self._env_id = env_id
+        self._steps = 0  # counts steps since wrapper creation (not per episode)
+        self._threshold = random.randint(1, self._max_steps)
+        self._active = self._max_steps > 0
+
+    def _reset(self):
+        return self._env.reset()
+
+    def _step(self, action):
+        ts = self._env.step(action)
+        if self._active:
+            self._steps += 1
+            if self._steps >= self._threshold:
+                ts = self._env.reset()
+                self._active = False  # only one forced reset per env lifetime
+        return ts
+
+
 class UnwrappedEnvChecker(object):
     """
     A class for checking if there is already an unwrapped env in the current
@@ -107,7 +132,9 @@ def create_environment(env_name='CartPole-v0',
                        parallel_environment_ctor=fast_parallel_environment.
                        FastParallelEnvironment,
                        seed=None,
-                       batched_wrappers=()):
+                       batched_wrappers=(),
+                       ensure_different_phases: bool = False,
+                       max_steps_for_phase_randomization: int = 0):
     """Create a batched environment.
 
     Args:
@@ -171,20 +198,31 @@ def create_environment(env_name='CartPole-v0',
             used if None.
         batched_wrappers (Iterable): a list of wrappers which can wrap batched
             AlfEnvironment.
+        ensure_different_phases (bool): if True, each individual environment
+            instance will be wrapped so that it can force an early reset after
+            a randomly chosen number of steps, breaking phase alignment across
+            parallel envs.
+        max_steps_for_phase_randomization (int): upper bound (exclusive) for
+            the random step at which a wrapped env will auto-reset. If 0, the
+            feature is disabled even when ``ensure_different_phases`` is True.
     Returns:
         AlfEnvironment:
 
     """
-    logger.info(f"Creating environment: {env_name}, "
-                f"num_parallel_environments: {num_parallel_environments}, "
-                f"batch_size_per_env: {batch_size_per_env}, "
-                f"nonparallel: {nonparallel}, "
-                f"for_evaluation: {for_evaluation}, "
-                f"eval_batch_size_per_env: {eval_batch_size_per_env}, "
-                f"num_spare_envs: {num_spare_envs}, "
-                f"torch_num_threads_per_env: {torch_num_threads_per_env}, "
-                f"parallel_environment_ctor: {parallel_environment_ctor}, "
-                f"seed: {seed}")
+    logger.info(
+        f"Creating environment: {env_name}, "
+        f"num_parallel_environments: {num_parallel_environments}, "
+        f"batch_size_per_env: {batch_size_per_env}, "
+        f"nonparallel: {nonparallel}, "
+        f"for_evaluation: {for_evaluation}, "
+        f"eval_batch_size_per_env: {eval_batch_size_per_env}, "
+        f"num_spare_envs: {num_spare_envs}, "
+        f"torch_num_threads_per_env: {torch_num_threads_per_env}, "
+        f"parallel_environment_ctor: {parallel_environment_ctor}, "
+        f"seed: {seed}, "
+        f"ensure_different_phases: {ensure_different_phases}, "
+        f"max_steps_for_phase_randomization: {max_steps_for_phase_randomization}"
+    )
 
     # Some environment may take long time to load. So we use GPU before loading
     # environments so that other people knows that this GPU is being used.
@@ -278,10 +316,23 @@ def create_environment(env_name='CartPole-v0',
                                       num_envs + num_spare_envs)))
         else:
             seeds = [seed + i for i in range(num_envs + num_spare_envs)]
-        ctors = [
-            functools.partial(_env_constructor, env_load_fn, env_name,
-                              batch_size_per_env, seed) for seed in seeds
-        ]
+
+        def _make_ctor(seed):
+
+            def _ctor(env_id):
+                base_env = _env_constructor(env_load_fn, env_name,
+                                            batch_size_per_env, seed, env_id)
+                if ensure_different_phases and max_steps_for_phase_randomization > 0:
+                    return _PhaseRandomizingWrapper(
+                        base_env,
+                        max_steps_for_phase_randomization=
+                        max_steps_for_phase_randomization,
+                        env_id=env_id)
+                return base_env
+
+            return _ctor
+
+        ctors = [_make_ctor(seed) for seed in seeds]
         # flatten=True will use flattened action and time_step in
         #   process environments to reduce communication overhead.
         alf_env = parallel_environment_ctor(

@@ -22,6 +22,7 @@ import math
 import os
 from pathlib import Path
 import re
+import shutil
 import threading
 import sys
 from typing import Callable
@@ -255,6 +256,29 @@ class Trainer(object):
 
     _trainer_progress = TrainerProgress()
 
+    @staticmethod
+    def _clear_stale_run_outputs(root_dir: str, train_dir: str, eval_dir: str):
+        """Remove stale outputs from a previous run under the same root_dir."""
+        for stale_dir in (train_dir, eval_dir):
+            if os.path.isdir(stale_dir):
+                logging.info("Clearing stale run directory '%s'", stale_dir)
+                shutil.rmtree(stale_dir)
+
+        # These files are written directly under root_dir by some algorithms/scripts.
+        for stale_file in ("events.ndjson", "rollout_states.ndjson", "logs.log"):
+            path = os.path.join(root_dir, stale_file)
+            if os.path.isfile(path):
+                logging.info("Removing stale run file '%s'", path)
+                os.remove(path)
+
+        # py_train.INFO can be created before Trainer by absl logging setup.
+        # Truncate it instead of deleting to keep the active log handle valid.
+        py_train_info = os.path.join(root_dir, "py_train.INFO")
+        if os.path.isfile(py_train_info):
+            logging.info("Truncating stale log file '%s'", py_train_info)
+            with open(py_train_info, "w", encoding="utf-8"):
+                pass
+
     def __init__(self, config: TrainerConfig, ddp_rank: int = -1):
         """
 
@@ -299,6 +323,14 @@ class Trainer(object):
         self._config = config
         self._random_seed = config.random_seed
         self._rank = ddp_rank
+        if (not config.resume_from_checkpoint
+                and config.clear_run_dirs_if_not_resuming and self._rank <= 0):
+            logging.info(
+                "Clearing stale run outputs because "
+                "TrainerConfig.resume_from_checkpoint=False and "
+                "TrainerConfig.clear_run_dirs_if_not_resuming=True")
+            self._clear_stale_run_outputs(self._root_dir, self._train_dir,
+                                          self._eval_dir)
         self._pid = None
         # Run server in a separate thread
         if self._rank <= 0 and hasattr(flags.FLAGS, "port"):
@@ -519,13 +551,22 @@ class Trainer(object):
             Args:
                 checkpointer (Checkpointer):
         """
-        if checkpointer.has_checkpoint():
+        has_checkpoint = checkpointer.has_checkpoint()
+        if self._config.resume_from_checkpoint and has_checkpoint:
             # Some objects (e.g. ReplayBuffer) are constructed lazily in algorithm.
             # They only appear after one training iteration. So we need to run
             # train_iter() once before loading the checkpoint
             self._algorithm.train_iter()
         try:
-            recovered_global_step = checkpointer.load()
+            if self._config.resume_from_checkpoint:
+                recovered_global_step = checkpointer.load()
+            else:
+                recovered_global_step = -1
+                if has_checkpoint:
+                    logging.info(
+                        "Found checkpoint under root_dir=%s but skipping restore "
+                        "because TrainerConfig.resume_from_checkpoint=False",
+                        self._root_dir)
             self._trainer_progress.update()
         except RuntimeError as e:
             raise RuntimeError(
